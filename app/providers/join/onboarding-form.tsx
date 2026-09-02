@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const categories = ["Home cleaning", "Car detailing", "Lawn & garden", "Handyman", "Photography"];
@@ -19,6 +19,36 @@ export default function OnboardingForm() {
   const [description, setDescription] = useState("");
   const [selectedDays, setSelectedDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri"]);
   const [saving, setSaving] = useState(false);
+  const [photos, setPhotos] = useState<Array<{ file: File; preview: string }>>([]);
+  const previewUrls = useRef<string[]>([]);
+
+  useEffect(() => () => previewUrls.current.forEach((url) => URL.revokeObjectURL(url)), []);
+
+  function choosePhotos(event: ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (selected.some((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024)) {
+      setError("Use JPG, PNG, or WebP photos under 5 MB each.");
+      return;
+    }
+    if (photos.length + selected.length > 5) {
+      setError(`You can add up to 5 photos.`);
+      return;
+    }
+    setError("");
+    const additions = selected.map((file) => {
+      const preview = URL.createObjectURL(file);
+      previewUrls.current.push(preview);
+      return { file, preview };
+    });
+    setPhotos((current) => [...current, ...additions]);
+  }
+
+  function removePhoto(preview: string) {
+    URL.revokeObjectURL(preview);
+    previewUrls.current = previewUrls.current.filter((url) => url !== preview);
+    setPhotos((current) => current.filter((photo) => photo.preview !== preview));
+  }
 
   async function next(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,19 +76,32 @@ export default function OnboardingForm() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ business, category, city, service, price, duration, description, selectedDays }),
     });
-    const result = (await response.json()) as { error?: string };
-    setSaving(false);
+    const result = (await response.json()) as { error?: string; serviceId?: string };
 
     if (response.status === 401) {
       router.push("/login");
       return;
     }
     if (!response.ok) {
+      setSaving(false);
       setError(result.error ?? "We could not save your profile. Please try again.");
       return;
     }
 
-    router.push("/provider/dashboard?welcome=1");
+    let photoUploadFailed = false;
+    if (photos.length > 0 && result.serviceId) {
+      for (const photo of photos) {
+        const formData = new FormData();
+        formData.set("image", photo.file);
+        const imageResponse = await fetch(`/api/providers/services/${result.serviceId}/images`, { method: "POST", body: formData });
+        if (!imageResponse.ok) {
+          photoUploadFailed = true;
+          break;
+        }
+      }
+    }
+
+    router.push(`/provider/dashboard?welcome=1${photoUploadFailed ? "&photos=failed" : ""}`);
     router.refresh();
   }
 
@@ -87,6 +130,11 @@ export default function OnboardingForm() {
           <label className="block"><span className="mb-2 block text-sm font-bold">Service title</span><input value={service} onChange={(event) => setService(event.target.value)} placeholder="e.g. Weekly lawn care" className={inputClass} /></label>
           <div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-2 block text-sm font-bold">Starting price</span><div className="relative"><span className="absolute left-4 top-3.5 text-sm text-[#65766d]">$</span><input type="number" min="1" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="75" className={`${inputClass} pl-8`} /></div></label><label className="block"><span className="mb-2 block text-sm font-bold">Typical duration</span><select value={duration} onChange={(event) => setDuration(event.target.value)} className={inputClass}>{["1 hour", "2 hours", "3 hours", "Half day", "Full day"].map((item) => <option key={item}>{item}</option>)}</select></label></div>
           <label className="block"><span className="mb-2 block text-sm font-bold">What&apos;s included?</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe what customers can expect..." rows={4} className={`${inputClass} resize-none`} /></label>
+          <div className="rounded-2xl border border-dashed border-[#183126]/20 bg-[#faf9f5] p-5">
+            <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold">Listing photos <span className="font-normal text-[#7a8881]">(optional)</span></p><p className="mt-1 text-xs leading-5 text-[#74827b]">Add up to 5 JPG, PNG, or WebP photos. The first becomes your cover.</p></div><span className="text-xl">📷</span></div>
+            {photos.length > 0 && <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">{photos.map((photo, index) => <div key={photo.preview} className="relative aspect-square"><div role="img" aria-label={`Selected listing photo ${index + 1}`} style={{ backgroundImage: `url("${photo.preview}")` }} className="h-full rounded-xl bg-cover bg-center" />{index === 0 && <span className="absolute bottom-1.5 left-1.5 rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold">Cover</span>}<button type="button" onClick={() => removePhoto(photo.preview)} aria-label={`Remove photo ${index + 1}`} className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-[#183126] text-xs text-white shadow">×</button></div>)}</div>}
+            <label className="mt-4 inline-flex cursor-pointer rounded-full border border-[#183126]/15 bg-white px-4 py-2.5 text-xs font-bold hover:border-[#4d725d]">{photos.length === 0 ? "+ Choose photos" : "+ Add more"}<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={choosePhotos} className="sr-only" /></label>
+          </div>
         </div>}
 
         {step === 3 && <div>
@@ -98,7 +146,7 @@ export default function OnboardingForm() {
         {error && <p role="alert" className="mt-5 rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}</p>}
         <div className="mt-8 flex items-center justify-between gap-4">
           {step > 1 ? <button type="button" onClick={() => { setStep(step - 1); setError(""); }} className="rounded-full px-5 py-3 text-sm font-bold hover:bg-[#183126]/5">← Back</button> : <span />}
-          <button type="submit" disabled={saving} className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{saving ? "Saving…" : step === 3 ? "Finish setup" : "Continue →"}</button>
+          <button type="submit" disabled={saving} className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{saving ? photos.length > 0 ? "Saving & uploading…" : "Saving…" : step === 3 ? "Finish setup" : "Continue →"}</button>
         </div>
       </form>
     </div>

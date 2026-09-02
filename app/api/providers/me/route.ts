@@ -14,17 +14,24 @@ export async function GET() {
     city: string;
     state: string;
     service_title: string | null;
+    service_id: string | null;
     price_cents: number | null;
     duration_minutes: number | null;
+    image_urls: string[] | null;
   }>(
     `SELECT p.business_name, p.city, p.state,
-            s.title AS service_title, s.price_cents, s.duration_minutes
+            s.id::text AS service_id, s.title AS service_title, s.price_cents,
+            s.duration_minutes, s.image_urls
      FROM provider_profiles p
      LEFT JOIN LATERAL (
-       SELECT title, price_cents, duration_minutes
+       SELECT services.id, services.title, services.price_cents, services.duration_minutes,
+              COALESCE((
+                SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
+                FROM service_images si WHERE si.service_id = services.id
+              ), ARRAY[]::text[]) AS image_urls
        FROM services
-       WHERE provider_id = p.id AND is_active = true
-       ORDER BY created_at DESC
+       WHERE services.provider_id = p.id AND services.is_active = true
+       ORDER BY services.created_at DESC
        LIMIT 1
      ) s ON true
      WHERE p.user_id = $1`,
@@ -43,8 +50,10 @@ export async function GET() {
     service: provider.service_title
       ? {
           title: provider.service_title,
+          id: provider.service_id,
           price: (provider.price_cents ?? 0) / 100,
           durationMinutes: provider.duration_minutes ?? 0,
+          imageUrls: provider.image_urls ?? [],
         }
       : null,
   });

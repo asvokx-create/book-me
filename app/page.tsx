@@ -110,10 +110,10 @@ export default async function Home() {
               href={`/services/${service.slug}`}
               className="overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]"
             >
-              <div className={`relative h-56 overflow-hidden bg-gradient-to-br ${visual.gradient}`}>
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />
+              <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
+                {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
                 <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>
-                <span className="absolute bottom-5 right-6 text-6xl opacity-80">{visual.art}</span>
+                {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{visual.art}</span>}
                 <span aria-label={`Save ${service.title}`} className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-2 text-xl shadow-sm">
                   ♡
                 </span>

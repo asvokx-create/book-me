@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import ServiceImageManager from "@/components/service-image-manager";
 
 type RequestStatus = "new" | "accepted" | "declined";
 
@@ -12,7 +13,7 @@ type ProviderSummary = {
   name: string;
   businessName: string;
   location: string;
-  service: { title: string; price: number; durationMinutes: number } | null;
+  service: { id: string; title: string; price: number; durationMinutes: number; imageUrls: string[] } | null;
 };
 
 export default function ProviderDashboard() {
@@ -21,14 +22,18 @@ export default function ProviderDashboard() {
   const [notice, setNotice] = useState(true);
   const [provider, setProvider] = useState<ProviderSummary | null>(null);
   const [providerLoaded, setProviderLoaded] = useState(false);
+  const [photoUploadFailed, setPhotoUploadFailed] = useState(false);
 
   useEffect(() => {
+    const photoNoticeTimer = window.setTimeout(() => {
+      setPhotoUploadFailed(new URLSearchParams(window.location.search).get("photos") === "failed");
+    }, 0);
     let active = true;
     fetch("/api/providers/me")
       .then(async (response) => response.ok ? response.json() as Promise<ProviderSummary> : null)
       .then((data) => { if (active) setProvider(data); })
       .finally(() => { if (active) setProviderLoaded(true); });
-    return () => { active = false; };
+    return () => { active = false; window.clearTimeout(photoNoticeTimer); };
   }, []);
 
   function updateRequest(id: number, status: RequestStatus) {
@@ -56,7 +61,7 @@ export default function ProviderDashboard() {
       <header className="border-b border-[#183126]/10 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe <span className="hidden rounded-full bg-[#e8f0e5] px-2.5 py-1 text-[10px] uppercase tracking-wider text-[#55705e] sm:inline">Provider</span></Link>
-          <div className="flex items-center gap-3"><button className="relative grid h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5]" aria-label="Notifications">🔔</button><div aria-label={`${accountName} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#dfead9] text-sm font-bold">{initials}</div></div>
+          <div className="flex items-center gap-2 sm:gap-3"><Link href="/account" className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-white sm:text-sm">↔ <span className="hidden sm:inline">Switch to </span>customer</Link><button className="relative hidden h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5] sm:grid" aria-label="Notifications">🔔</button><div aria-label={`${accountName} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#dfead9] text-sm font-bold">{initials}</div></div>
         </div>
       </header>
 
@@ -75,6 +80,7 @@ export default function ProviderDashboard() {
 
         <div>
           {notice && provider && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Welcome to BookMe, {provider.businessName}!</p><p className="mt-1 text-[#567060]">Your provider profile and first service are saved.</p></div><button onClick={() => setNotice(false)} aria-label="Dismiss" className="text-lg text-[#64786a]">×</button></div>}
+          {photoUploadFailed && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#e0b58f] bg-[#fff3e9] p-4 text-sm"><div><p className="font-bold">Your listing was saved, but a photo did not upload.</p><p className="mt-1 text-[#765e4c]">You can add it again under Your services below.</p></div><button onClick={() => setPhotoUploadFailed(false)} aria-label="Dismiss" className="text-lg text-[#806b5b]">×</button></div>}
 
           {providerLoaded && !provider && <div className="mb-6 rounded-2xl border border-[#d6ca65] bg-[#fff8cd] p-5 text-sm"><p className="font-bold">Create your provider profile to use this dashboard.</p><p className="mt-1 text-[#6f6840]">Add your business, first service, and availability to start getting discovered.</p><Link href="/providers/join" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 font-bold text-white">Start provider setup</Link></div>}
 
@@ -99,8 +105,8 @@ export default function ProviderDashboard() {
           </section>
 
           <div className="mt-8 grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
-            <section id="services" className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-center justify-between"><h2 className="text-xl font-bold">Your services</h2><button className="text-sm font-bold">Manage →</button></div>{provider?.service ? <div className="mt-5 flex items-center gap-4 rounded-2xl bg-[#f5f5ef] p-4"><span className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-lime-700 to-yellow-200 text-3xl">🧰</span><div className="min-w-0 flex-1"><p className="font-bold">{provider.service.title}</p><p className="mt-1 text-xs text-[#738179]">From ${provider.service.price} · {durationLabel}</p></div><span className="rounded-full bg-[#e2f0e3] px-3 py-1 text-xs font-bold text-[#37704b]">Active</span></div> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">Your first service will appear here after provider setup.</p>}</section>
-            <section className="rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a9c1b1]">Profile strength</p><div className="mt-3 flex items-end justify-between"><p className="text-3xl font-bold">75%</p><p className="text-xs text-[#adbbb3]">3 of 4 complete</p></div><div className="mt-4 h-2 rounded-full bg-white/15"><div className="h-full w-3/4 rounded-full bg-[#eee25a]" /></div><button className="mt-5 text-sm font-bold text-[#eee25a]">Finish your profile →</button></section>
+            <section id="services" className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-center justify-between"><h2 className="text-xl font-bold">Your services</h2></div>{provider?.service ? <><div className="mt-5 flex items-center gap-4 rounded-2xl bg-[#f5f5ef] p-4"><span role="img" aria-label={`${provider.service.title} cover`} style={provider.service.imageUrls[0] ? { backgroundImage: `url("${provider.service.imageUrls[0]}")` } : undefined} className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cover bg-center ${provider.service.imageUrls[0] ? "" : "bg-gradient-to-br from-lime-700 to-yellow-200 text-3xl"}`}>{provider.service.imageUrls[0] ? "" : "🧰"}</span><div className="min-w-0 flex-1"><p className="font-bold">{provider.service.title}</p><p className="mt-1 text-xs text-[#738179]">From ${provider.service.price} · {durationLabel}</p></div><span className="rounded-full bg-[#e2f0e3] px-3 py-1 text-xs font-bold text-[#37704b]">Active</span></div><ServiceImageManager serviceId={provider.service.id} initialImageUrls={provider.service.imageUrls} /></> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">Your first service will appear here after provider setup.</p>}</section>
+            <section className="rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a9c1b1]">Profile strength</p><div className="mt-3 flex items-end justify-between"><p className="text-3xl font-bold">{provider?.service?.imageUrls.length ? "100%" : "75%"}</p><p className="text-xs text-[#adbbb3]">{provider?.service?.imageUrls.length ? "Complete" : "Add listing photos"}</p></div><div className="mt-4 h-2 rounded-full bg-white/15"><div className={`h-full rounded-full bg-[#eee25a] ${provider?.service?.imageUrls.length ? "w-full" : "w-3/4"}`} /></div><a href="#services" className="mt-5 inline-block text-sm font-bold text-[#eee25a]">{provider?.service?.imageUrls.length ? "Your listing is ready ✓" : "Add photos →"}</a></section>
           </div>
         </div>
       </div>

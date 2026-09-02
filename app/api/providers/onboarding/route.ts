@@ -77,9 +77,10 @@ export async function POST(request: Request) {
     );
     const providerId = profileResult.rows[0].id;
 
-    await client.query(
+    const serviceResult = await client.query<{ id: string }>(
       `INSERT INTO services (provider_id, slug, category, title, description, price_cents, duration_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id::text`,
       [providerId, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration]],
     );
 
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
     }
 
     await client.query("COMMIT");
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, serviceId: serviceResult.rows[0].id });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Provider onboarding failed", error);

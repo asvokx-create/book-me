@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import pg from "pg";
 
 const { Pool } = pg;
@@ -9,11 +9,10 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not available. Run this inside the DigitalOcean app console.");
 }
 
-const migrationUrl = new URL(
-  "../database/migrations/001_bookme_marketplace.sql",
-  import.meta.url,
-);
-const migration = await readFile(migrationUrl, "utf8");
+const migrationsUrl = new URL("../database/migrations/", import.meta.url);
+const migrationFiles = (await readdir(migrationsUrl))
+  .filter((fileName) => fileName.endsWith(".sql"))
+  .sort();
 const databaseUrl = new URL(connectionString);
 databaseUrl.searchParams.delete("sslmode");
 const pool = new Pool({
@@ -25,7 +24,11 @@ const pool = new Pool({
 });
 
 try {
-  await pool.query(migration);
+  for (const fileName of migrationFiles) {
+    const migration = await readFile(new URL(fileName, migrationsUrl), "utf8");
+    await pool.query(migration);
+    console.log(`Applied ${fileName}.`);
+  }
   console.log("BookMe marketplace tables are ready.");
 } finally {
   await pool.end();

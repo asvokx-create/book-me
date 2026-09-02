@@ -13,6 +13,7 @@ export type ServiceListing = {
   provider: string;
   city: string;
   state: string;
+  imageUrls: string[];
 };
 
 type ServiceRow = {
@@ -26,6 +27,7 @@ type ServiceRow = {
   business_name: string;
   city: string;
   state: string;
+  image_urls: string[] | null;
 };
 
 function mapService(row: ServiceRow): ServiceListing {
@@ -40,6 +42,7 @@ function mapService(row: ServiceRow): ServiceListing {
     provider: row.business_name,
     city: row.city,
     state: row.state,
+    imageUrls: row.image_urls ?? [],
   };
 }
 
@@ -68,7 +71,11 @@ export async function getServices(options: { query?: string; category?: string; 
   const result = await database.query<ServiceRow>(
     `SELECT s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state
+            p.business_name, p.city, p.state,
+            COALESCE((
+              SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
+              FROM service_images si WHERE si.service_id = s.id
+            ), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      WHERE ${conditions.join(" AND ")}
@@ -84,7 +91,11 @@ export async function getServiceBySlug(slug: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state
+            p.business_name, p.city, p.state,
+            COALESCE((
+              SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
+              FROM service_images si WHERE si.service_id = s.id
+            ), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      WHERE s.slug = $1 AND s.is_active = true AND p.is_active = true
@@ -130,7 +141,11 @@ async function getServicesForProvider(providerId: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state
+            p.business_name, p.city, p.state,
+            COALESCE((
+              SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
+              FROM service_images si WHERE si.service_id = s.id
+            ), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      WHERE p.id = $1 AND s.is_active = true

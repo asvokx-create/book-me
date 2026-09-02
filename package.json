@@ -5,13 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/setup-marketplace-db.mjs && next start",
     "lint": "eslint",
     "db:auth": "npx auth@latest migrate --yes --config ./lib/auth.ts",
     "db:marketplace": "node scripts/setup-marketplace-db.mjs",
     "db:setup": "npm run db:auth && npm run db:marketplace"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1124.0",
     "better-auth": "^1.7.2",
     "next": "16.3.4",
     "pg": "^8.23.0",
