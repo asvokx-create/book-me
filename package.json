@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:auth": "npx auth@latest migrate apply --yes --config ./lib/auth.ts",
+    "db:marketplace": "node scripts/setup-marketplace-db.mjs",
+    "db:setup": "npm run db:auth && npm run db:marketplace"
   },
   "dependencies": {
     "better-auth": "^1.7.2",

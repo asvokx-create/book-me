@@ -13,17 +13,15 @@ In DigitalOcean, create a Managed PostgreSQL database in the same region as the 
 
 For local development, copy `.env.example` to `.env.local` and set `DATABASE_URL` to the database's public connection string. Add your computer to the database's trusted sources while developing.
 
-## 2. Create the account tables
+## 2. Create the account and marketplace tables
 
-With `DATABASE_URL` set locally, run:
+From the DigitalOcean app's Runtime Console, run:
 
 ```powershell
-npx auth@latest migrate
+npm run db:setup
 ```
 
-Approve the migration when prompted. This creates Better Auth's user, session, account, and verification tables, including BookMe's phone and role fields.
-
-Next, run `database/migrations/001_bookme_marketplace.sql` against the same database using DigitalOcean's SQL console or `psql`.
+This creates Better Auth's user, session, account, and verification tables, including BookMe's phone and role fields. It then safely creates BookMe's provider, service, availability, booking, and favorite tables. The command can be run again without duplicating the marketplace tables.
 
 ## 3. Set secrets
 
