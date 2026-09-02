@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { authClient } from "@/lib/auth-client";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
@@ -17,6 +18,7 @@ const savedServices = [
 ];
 
 export default function AccountPage() {
+  const { data: session } = authClient.useSession();
   const [activeTab, setActiveTab] = useState<"bookings" | "saved">("bookings");
   const [bookings, setBookings] = useState(initialBookings);
   const [toast, setToast] = useState("");
@@ -32,6 +34,15 @@ export default function AccountPage() {
 
   const upcoming = bookings.filter((booking) => booking.state !== "completed" && booking.state !== "cancelled");
   const history = bookings.filter((booking) => booking.state === "completed" || booking.state === "cancelled");
+  const accountName = session?.user.name?.trim();
+  const firstName = accountName?.split(/\s+/)[0] ?? "there";
+  const initials = accountName
+    ? accountName
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join("")
+    : "B";
 
   return (
     <main className="min-h-screen bg-[#f5f4ef] text-[#183126]">
@@ -39,7 +50,7 @@ export default function AccountPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe</Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold md:flex"><Link href="/services" className="hover:text-[#5b7365]">Explore services</Link><Link href="/providers/join" className="hover:text-[#5b7365]">List your service</Link></nav>
-          <div className="flex items-center gap-3"><button aria-label="Notifications" className="relative grid h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5]">🔔<span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#d45f40]" /></button><div className="grid h-10 w-10 place-items-center rounded-full bg-[#e6eedf] text-sm font-bold">AR</div></div>
+          <div className="flex items-center gap-3"><button aria-label="Notifications" className="relative grid h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5]">🔔<span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#d45f40]" /></button><div aria-label={`${accountName ?? "BookMe"} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#e6eedf] text-sm font-bold">{initials}</div></div>
         </div>
       </header>
 
@@ -47,7 +58,7 @@ export default function AccountPage() {
 
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div><p className="text-sm font-semibold text-[#687a70]">Customer account</p><h1 className="mt-1 text-4xl font-bold tracking-[-.045em]">Hi, Avery.</h1><p className="mt-2 text-[#687a70]">Keep track of your bookings and favorite local pros.</p></div>
+          <div><p className="text-sm font-semibold text-[#687a70]">Customer account</p><h1 className="mt-1 text-4xl font-bold tracking-[-.045em]">Hi, {firstName}.</h1><p className="mt-2 text-[#687a70]">Keep track of your bookings and favorite local pros.</p></div>
           <Link href="/services" className="self-start rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5 sm:self-auto">+ Book a service</Link>
         </div>
 
