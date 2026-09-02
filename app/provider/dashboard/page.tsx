@@ -13,8 +13,17 @@ type ProviderSummary = {
   name: string;
   businessName: string;
   location: string;
-  service: { id: string; title: string; price: number; durationMinutes: number; imageUrls: string[] } | null;
+  service: ProviderService | null;
+  services: ProviderService[];
 };
+
+type ProviderService = { id: string; slug: string; title: string; category: string; price: number; durationMinutes: number; imageUrls: string[] };
+
+function formatDuration(minutes: number) {
+  if (minutes >= 480) return "Full day";
+  if (minutes >= 240) return "Half day";
+  return `${minutes / 60} ${minutes === 60 ? "hour" : "hours"}`;
+}
 
 export default function ProviderDashboard() {
   const { data: session } = authClient.useSession();
@@ -23,10 +32,13 @@ export default function ProviderDashboard() {
   const [provider, setProvider] = useState<ProviderSummary | null>(null);
   const [providerLoaded, setProviderLoaded] = useState(false);
   const [photoUploadFailed, setPhotoUploadFailed] = useState(false);
+  const [listingDeleted, setListingDeleted] = useState(false);
 
   useEffect(() => {
     const photoNoticeTimer = window.setTimeout(() => {
-      setPhotoUploadFailed(new URLSearchParams(window.location.search).get("photos") === "failed");
+      const searchParams = new URLSearchParams(window.location.search);
+      setPhotoUploadFailed(searchParams.get("photos") === "failed");
+      setListingDeleted(searchParams.get("listing") === "deleted");
     }, 0);
     let active = true;
     fetch("/api/providers/me")
@@ -48,13 +60,7 @@ export default function ProviderDashboard() {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("") || "P";
-  const durationLabel = provider?.service
-    ? provider.service.durationMinutes >= 480
-      ? "Full day"
-      : provider.service.durationMinutes >= 240
-        ? "Half day"
-        : `${provider.service.durationMinutes / 60} ${provider.service.durationMinutes === 60 ? "hour" : "hours"}`
-    : "";
+  const hasListingPhotos = provider?.services.some((service) => service.imageUrls.length > 0) ?? false;
 
   return (
     <main className="min-h-screen bg-[#f4f4ef] text-[#183126]">
@@ -81,12 +87,13 @@ export default function ProviderDashboard() {
         <div>
           {notice && provider && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Welcome to BookMe, {provider.businessName}!</p><p className="mt-1 text-[#567060]">Your provider profile and first service are saved.</p></div><button onClick={() => setNotice(false)} aria-label="Dismiss" className="text-lg text-[#64786a]">×</button></div>}
           {photoUploadFailed && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#e0b58f] bg-[#fff3e9] p-4 text-sm"><div><p className="font-bold">Your listing was saved, but a photo did not upload.</p><p className="mt-1 text-[#765e4c]">You can add it again under Your services below.</p></div><button onClick={() => setPhotoUploadFailed(false)} aria-label="Dismiss" className="text-lg text-[#806b5b]">×</button></div>}
+          {listingDeleted && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Listing deleted.</p><p className="mt-1 text-[#567060]">It is no longer visible in customer searches.</p></div><button onClick={() => setListingDeleted(false)} aria-label="Dismiss" className="text-lg text-[#64786a]">×</button></div>}
 
           {providerLoaded && !provider && <div className="mb-6 rounded-2xl border border-[#d6ca65] bg-[#fff8cd] p-5 text-sm"><p className="font-bold">Create your provider profile to use this dashboard.</p><p className="mt-1 text-[#6f6840]">Add your business, first service, and availability to start getting discovered.</p><Link href="/providers/join" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 font-bold text-white">Start provider setup</Link></div>}
 
           <div id="overview" className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div><p className="text-sm font-semibold text-[#687a70]">Today&apos;s overview</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Welcome, {firstName}.</h1><p className="mt-2 text-sm text-[#687a70]">{provider ? `${provider.businessName} · ${provider.location}` : "Here's what’s happening with your business."}</p></div>
-            <button className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Add a service</button>
+            <Link href="/providers/join" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Add a service</Link>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -105,8 +112,8 @@ export default function ProviderDashboard() {
           </section>
 
           <div className="mt-8 grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
-            <section id="services" className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-center justify-between"><h2 className="text-xl font-bold">Your services</h2></div>{provider?.service ? <><div className="mt-5 flex items-center gap-4 rounded-2xl bg-[#f5f5ef] p-4"><span role="img" aria-label={`${provider.service.title} cover`} style={provider.service.imageUrls[0] ? { backgroundImage: `url("${provider.service.imageUrls[0]}")` } : undefined} className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cover bg-center ${provider.service.imageUrls[0] ? "" : "bg-gradient-to-br from-lime-700 to-yellow-200 text-3xl"}`}>{provider.service.imageUrls[0] ? "" : "🧰"}</span><div className="min-w-0 flex-1"><p className="font-bold">{provider.service.title}</p><p className="mt-1 text-xs text-[#738179]">From ${provider.service.price} · {durationLabel}</p></div><span className="rounded-full bg-[#e2f0e3] px-3 py-1 text-xs font-bold text-[#37704b]">Active</span></div><ServiceImageManager serviceId={provider.service.id} initialImageUrls={provider.service.imageUrls} /></> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">Your first service will appear here after provider setup.</p>}</section>
-            <section className="rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a9c1b1]">Profile strength</p><div className="mt-3 flex items-end justify-between"><p className="text-3xl font-bold">{provider?.service?.imageUrls.length ? "100%" : "75%"}</p><p className="text-xs text-[#adbbb3]">{provider?.service?.imageUrls.length ? "Complete" : "Add listing photos"}</p></div><div className="mt-4 h-2 rounded-full bg-white/15"><div className={`h-full rounded-full bg-[#eee25a] ${provider?.service?.imageUrls.length ? "w-full" : "w-3/4"}`} /></div><a href="#services" className="mt-5 inline-block text-sm font-bold text-[#eee25a]">{provider?.service?.imageUrls.length ? "Your listing is ready ✓" : "Add photos →"}</a></section>
+            <section id="services" className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-center justify-between"><div><h2 className="text-xl font-bold">Your services</h2><p className="mt-1 text-xs text-[#738179]">Edit details, photos, pricing, or remove a listing.</p></div><Link href="/providers/join" className="text-sm font-bold">+ Add</Link></div>{provider?.services.length ? <div className="mt-5 space-y-5">{provider.services.map((service) => <div key={service.id} className="rounded-2xl bg-[#f5f5ef] p-4"><div className="flex items-center gap-4"><span role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cover bg-center ${service.imageUrls[0] ? "" : "bg-gradient-to-br from-lime-700 to-yellow-200 text-3xl"}`}>{service.imageUrls[0] ? "" : "🧰"}</span><div className="min-w-0 flex-1"><p className="truncate font-bold">{service.title}</p><p className="mt-1 text-xs text-[#738179]">From ${service.price} · {formatDuration(service.durationMinutes)}</p></div><Link href={`/provider/services/${service.id}/edit`} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 text-xs font-bold hover:border-[#4d725d]">Edit</Link></div><ServiceImageManager serviceId={service.id} initialImageUrls={service.imageUrls} compact /></div>)}</div> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">You do not have any active services. Add one to appear in customer searches.</p>}</section>
+            <section className="rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a9c1b1]">Profile strength</p><div className="mt-3 flex items-end justify-between"><p className="text-3xl font-bold">{hasListingPhotos ? "100%" : "75%"}</p><p className="text-xs text-[#adbbb3]">{hasListingPhotos ? "Complete" : "Add listing photos"}</p></div><div className="mt-4 h-2 rounded-full bg-white/15"><div className={`h-full rounded-full bg-[#eee25a] ${hasListingPhotos ? "w-full" : "w-3/4"}`} /></div><a href="#services" className="mt-5 inline-block text-sm font-bold text-[#eee25a]">{hasListingPhotos ? "Your profile is ready ✓" : "Add photos →"}</a></section>
           </div>
         </div>
       </div>
