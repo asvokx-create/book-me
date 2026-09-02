@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDuration, getServiceBySlug, getServiceVisual } from "@/lib/marketplace";
 import BookingCard from "./booking-card";
+import AccountNav from "@/components/account-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
       <header className="border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>BookMe</Link>
-          <div className="flex items-center gap-3"><Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link><Link href="/account" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 lg:block">My bookings</Link><Link href="/login" className="rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5">Log in</Link><Link href="/signup" className="rounded-full bg-[#183126] px-5 py-2.5 text-sm font-semibold text-white">Sign up</Link></div>
+          <div className="flex items-center gap-3"><Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link><AccountNav /></div>
         </div>
       </header>
 

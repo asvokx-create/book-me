@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getServices, getServiceVisual } from "@/lib/marketplace";
+import AccountNav from "@/components/account-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ const categories = [
 ];
 
 export default async function Home() {
-  const services = await getServices({ limit: 3 });
+  const services = await getServices({ location: "Issaquah, WA", limit: 3 });
   return (
     <main className="min-h-screen overflow-hidden bg-[#f8f7f3] text-[#183126]">
       <header className="relative z-20 border-b border-[#183126]/10 bg-[#f8f7f3]">
@@ -26,16 +27,7 @@ export default async function Home() {
             <Link href="/providers/join" className="hidden rounded-xl px-4 py-2 text-sm font-medium transition hover:bg-[#183126]/5 sm:block">
               List your service
             </Link>
-            <Link href="/account" className="hidden rounded-xl px-4 py-2 text-sm font-medium transition hover:bg-[#183126]/5 lg:block">
-              My bookings
-            </Link>
-            <Link href="/login" className="rounded-xl px-4 py-2 text-sm font-medium hover:bg-zinc-100">
-              Log in
-            </Link>
-
-            <Link href="/signup" className="rounded-full bg-[#183126] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#294a3a]">
-              Sign up
-            </Link>
+            <AccountNav />
           </div>
         </div>
       </header>
@@ -69,11 +61,10 @@ export default async function Home() {
             />
           </div>
 
-          <div className="rounded-full px-5 py-4 text-left md:min-w-[190px]">
+          <label className="flex items-center rounded-full px-5 py-4 text-left md:min-w-[190px]">
             <span className="mr-2">📍</span>
-            Issaquah, WA
-            <input type="hidden" name="location" value="Issaquah, WA" />
-          </div>
+            <input name="location" defaultValue="Issaquah, WA" aria-label="Location" className="min-w-0 flex-1 bg-transparent outline-none" />
+          </label>
 
           <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">
             Find a pro

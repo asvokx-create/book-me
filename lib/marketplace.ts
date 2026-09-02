@@ -43,7 +43,7 @@ function mapService(row: ServiceRow): ServiceListing {
   };
 }
 
-export async function getServices(options: { query?: string; category?: string; limit?: number } = {}) {
+export async function getServices(options: { query?: string; category?: string; location?: string; limit?: number } = {}) {
   if (!isDatabaseConfigured()) return [];
 
   const values: Array<string | number> = [];
@@ -55,6 +55,13 @@ export async function getServices(options: { query?: string; category?: string; 
   if (options.query) {
     values.push(`%${options.query}%`);
     conditions.push(`(s.title ILIKE $${values.length} OR s.category ILIKE $${values.length} OR p.business_name ILIKE $${values.length})`);
+  }
+  if (options.location) {
+    const city = options.location.split(",")[0]?.trim();
+    if (city) {
+      values.push(city);
+      conditions.push(`LOWER(p.city) = LOWER($${values.length})`);
+    }
   }
   values.push(options.limit ?? 50);
 

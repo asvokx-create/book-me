@@ -11,6 +11,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const isLogin = mode === "login";
@@ -27,7 +28,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setLoading(true);
 
     if (isLogin) {
-      const { error: authError } = await authClient.signIn.email({ email, password });
+      const { error: authError } = await authClient.signIn.email({ email, password, rememberMe });
       setLoading(false);
       if (authError) {
         setError(authError.message ?? "We could not log you in. Check your details and try again.");
@@ -49,6 +50,14 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     if (authError) {
       setError(authError.message ?? "We could not create your account. Please try again.");
       return;
+    }
+    if (!rememberMe) {
+      await authClient.signOut();
+      const { error: sessionError } = await authClient.signIn.email({ email, password, rememberMe: false });
+      if (sessionError) {
+        setError(sessionError.message ?? "Your account was created, but we could not start the session. Please log in.");
+        return;
+      }
     }
     router.push("/account");
     router.refresh();
@@ -75,6 +84,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <label className="block"><span className="mb-2 block text-sm font-bold">Email address</span><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={inputClass} /></label>
         {!isLogin && <label className="block"><span className="mb-2 block text-sm font-bold">Phone number</span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="(425) 555-0123" className={inputClass} /><span className="mt-2 block text-xs text-[#849189]">Used for booking updates and provider communication.</span></label>}
         <label className="block"><span className="mb-2 flex items-center justify-between text-sm font-bold">Password {isLogin && <button type="button" className="text-xs text-[#5a7563] underline decoration-[#c7bb41] decoration-2 underline-offset-4">Forgot password?</button>}</span><input type="password" autoComplete={isLogin ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" className={inputClass} /></label>
+        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#183126]" /><span className="text-sm font-semibold">Keep me signed in on this device</span></label>
         {error && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}</p>}
         <button type="submit" disabled={loading} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
       </form>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getServices, getServiceVisual } from "@/lib/marketplace";
+import AccountNav from "@/components/account-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const query = getParam(params.q).trim();
   const selectedCategory = getParam(params.category) || "All services";
   const location = getParam(params.location) || "Issaquah, WA";
-  const filteredServices = await getServices({ query, category: selectedCategory });
+  const filteredServices = await getServices({ query, category: selectedCategory, location });
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
@@ -32,9 +33,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link>
-            <Link href="/account" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 lg:block">My bookings</Link>
-            <Link href="/login" className="rounded-full px-3 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:px-4">Log in</Link>
-            <Link href="/signup" className="rounded-full bg-[#183126] px-4 py-2.5 text-sm font-semibold text-white sm:px-5">Sign up</Link>
+            <AccountNav />
           </div>
         </div>
       </header>
@@ -52,7 +51,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <span className="sr-only">Search services</span>
               <input name="q" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" className="w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" />
             </label>
-            <input type="hidden" name="location" value={location} />
+            <label className="flex items-center gap-2 rounded-full border-t border-[#183126]/10 px-4 py-3 sm:min-w-[185px] sm:border-l sm:border-t-0"><span aria-hidden="true">📍</span><span className="sr-only">Location</span><input name="location" defaultValue={location} className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label>
             {selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
             <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Search</button>
           </form>
