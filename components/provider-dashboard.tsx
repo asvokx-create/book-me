@@ -7,7 +7,7 @@ import ServiceImageManager from "@/components/service-image-manager";
 import AvailabilityEditor from "@/components/availability-editor";
 
 type RequestStatus = "new" | "accepted" | "declined";
-export type DashboardSection = "overview" | "bookings" | "services" | "availability" | "reviews" | "settings";
+export type DashboardSection = "overview" | "bookings" | "revenue" | "services" | "availability" | "reviews" | "settings";
 
 const initialRequests: Array<{ id: number; customer: string; initials: string; service: string; date: string; time: string; location: string; price: number; status: RequestStatus }> = [];
 
@@ -21,6 +21,19 @@ type ProviderSummary = {
 };
 
 type ProviderService = { id: string; slug: string; title: string; category: string; price: number; durationMinutes: number; imageUrls: string[] };
+
+type RevenueSummary = {
+  totalRevenue: number;
+  thisMonthRevenue: number;
+  lastMonthRevenue: number;
+  completedJobs: number;
+  monthlyRevenue: Array<{ month: string; label: string; revenue: number }>;
+  recentEarnings: Array<{ id: string; service: string; customer: string; completedAt: string; amount: number }>;
+};
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
+}
 
 function formatDuration(minutes: number) {
   if (minutes >= 480) return "Full day";
@@ -39,6 +52,7 @@ function formatTime(time: string) {
 const dashboardNav: Array<{ section: DashboardSection; href: string; icon: string; label: string }> = [
   { section: "overview", href: "/provider/dashboard", icon: "▦", label: "Overview" },
   { section: "bookings", href: "/provider/dashboard/bookings", icon: "◷", label: "Bookings" },
+  { section: "revenue", href: "/provider/dashboard/revenue", icon: "$", label: "Revenue" },
   { section: "services", href: "/provider/dashboard/services", icon: "◇", label: "Services" },
   { section: "availability", href: "/provider/dashboard/availability", icon: "□", label: "Availability" },
   { section: "reviews", href: "/provider/dashboard/reviews", icon: "☆", label: "Reviews" },
@@ -53,6 +67,8 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
   const [providerLoaded, setProviderLoaded] = useState(false);
   const [photoUploadFailed, setPhotoUploadFailed] = useState(false);
   const [listingDeleted, setListingDeleted] = useState(false);
+  const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
+  const [revenueLoaded, setRevenueLoaded] = useState(false);
 
   useEffect(() => {
     const photoNoticeTimer = window.setTimeout(() => {
@@ -67,6 +83,17 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
       .finally(() => { if (active) setProviderLoaded(true); });
     return () => { active = false; window.clearTimeout(photoNoticeTimer); };
   }, []);
+
+  useEffect(() => {
+    if (section !== "revenue" && section !== "overview") return;
+    let active = true;
+    fetch("/api/providers/revenue")
+      .then(async (response) => response.ok ? response.json() as Promise<RevenueSummary> : null)
+      .catch(() => null)
+      .then((data) => { if (active) setRevenue(data); })
+      .finally(() => { if (active) setRevenueLoaded(true); });
+    return () => { active = false; };
+  }, [section]);
 
   function updateRequest(id: number, status: RequestStatus) {
     setRequests((current) => current.map((request) => request.id === id ? { ...request, status } : request));
@@ -104,7 +131,7 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
       <div className="mx-auto grid max-w-7xl gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[210px_1fr]">
         <aside className="hidden lg:block">
           <nav className="sticky top-8 space-y-1 text-sm font-semibold">
-            {dashboardNav.map((item, index) => <div key={item.section}>{index === 5 && <div className="my-4 border-t border-[#183126]/10" />}<Link href={item.href} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "bg-[#183126] text-white" : "hover:bg-white"}`}><span>{item.icon}</span>{item.label}{item.section === "bookings" && <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] ${section === "bookings" ? "bg-[#eee25a] text-[#183126]" : "bg-[#eee25a]"}`}>{requests.length}</span>}</Link></div>)}
+            {dashboardNav.map((item) => <div key={item.section}>{item.section === "settings" && <div className="my-4 border-t border-[#183126]/10" />}<Link href={item.href} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "bg-[#183126] text-white" : "hover:bg-white"}`}><span>{item.icon}</span>{item.label}{item.section === "bookings" && <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] ${section === "bookings" ? "bg-[#eee25a] text-[#183126]" : "bg-[#eee25a]"}`}>{requests.length}</span>}</Link></div>)}
           </nav>
         </aside>
 
@@ -122,7 +149,7 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {[{ label: "This month", value: "$0", note: "No completed jobs yet", icon: "$" }, { label: "Upcoming jobs", value: String(acceptedRequests), note: acceptedRequests ? "Accepted bookings" : "Your schedule is clear", icon: "◷" }, { label: "New requests", value: String(activeRequests), note: activeRequests ? "Waiting for a response" : "No requests yet", icon: "↗" }, { label: "Average rating", value: "—", note: "No reviews yet", icon: "★" }].map((stat) => <div key={stat.label} className="rounded-2xl border border-[#183126]/10 bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><div className="flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">{stat.label}</p><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#edf2e8] text-sm font-bold">{stat.icon}</span></div><p className="mt-4 text-3xl font-bold tracking-tight">{stat.value}</p><p className="mt-1 text-xs text-[#77857e]">{stat.note}</p></div>)}
+            {[{ label: "This month", value: revenue ? formatCurrency(revenue.thisMonthRevenue) : "$0", note: revenue?.thisMonthRevenue ? "From completed jobs" : "No completed jobs yet", icon: "$" }, { label: "Upcoming jobs", value: String(acceptedRequests), note: acceptedRequests ? "Accepted bookings" : "Your schedule is clear", icon: "◷" }, { label: "New requests", value: String(activeRequests), note: activeRequests ? "Waiting for a response" : "No requests yet", icon: "↗" }, { label: "Average rating", value: "—", note: "No reviews yet", icon: "★" }].map((stat) => <div key={stat.label} className="rounded-2xl border border-[#183126]/10 bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><div className="flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">{stat.label}</p><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#edf2e8] text-sm font-bold">{stat.icon}</span></div><p className="mt-4 text-3xl font-bold tracking-tight">{stat.value}</p><p className="mt-1 text-xs text-[#77857e]">{stat.note}</p></div>)}
           </div>
 
           <section className="mt-8 rounded-[2rem] bg-[#183126] p-6 text-white sm:p-7">
@@ -158,6 +185,8 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
             </div>
           </section>}
 
+          {section === "revenue" && <RevenuePanel revenue={revenue} loaded={revenueLoaded} />}
+
           {section === "services" && <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
             <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-center justify-between"><div><h2 className="text-xl font-bold">Your services</h2><p className="mt-1 text-xs text-[#738179]">Edit details, photos, pricing, or remove a listing.</p></div><Link href="/providers/join" className="text-sm font-bold">+ Add</Link></div>{provider?.services.length ? <div className="mt-5 space-y-5">{provider.services.map((service) => <div key={service.id} className="rounded-2xl bg-[#f5f5ef] p-4"><div className="flex items-center gap-4"><span role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cover bg-center ${service.imageUrls[0] ? "" : "bg-gradient-to-br from-lime-700 to-yellow-200 text-3xl"}`}>{service.imageUrls[0] ? "" : "🧰"}</span><div className="min-w-0 flex-1"><p className="truncate font-bold">{service.title}</p><p className="mt-1 text-xs text-[#738179]">From ${service.price} · {formatDuration(service.durationMinutes)}</p></div><Link href={`/provider/services/${service.id}/edit`} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 text-xs font-bold hover:border-[#4d725d]">Edit</Link></div><ServiceImageManager serviceId={service.id} initialImageUrls={service.imageUrls} compact /></div>)}</div> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">You do not have any active services. Add one to appear in customer searches.</p>}</section>
             <section className="rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a9c1b1]">Profile strength</p><div className="mt-3 flex items-end justify-between"><p className="text-3xl font-bold">{hasListingPhotos ? "100%" : "75%"}</p><p className="text-xs text-[#adbbb3]">{hasListingPhotos ? "Complete" : "Add listing photos"}</p></div><div className="mt-4 h-2 rounded-full bg-white/15"><div className={`h-full rounded-full bg-[#eee25a] ${hasListingPhotos ? "w-full" : "w-3/4"}`} /></div><p className="mt-5 text-sm font-bold text-[#eee25a]">{hasListingPhotos ? "Your profile is ready ✓" : "Add photos to a service"}</p></section>
@@ -178,4 +207,49 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
       </div>
     </main>
   );
+}
+
+function RevenuePanel({ revenue, loaded }: { revenue: RevenueSummary | null; loaded: boolean }) {
+  if (!loaded) return <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-8 text-sm text-[#738179]">Loading your revenue…</div>;
+  if (!revenue) return <div className="rounded-[2rem] border border-[#d6ca65] bg-[#fff8cd] p-6"><h1 className="text-xl font-bold">Revenue is not available yet</h1><p className="mt-2 text-sm text-[#6f6840]">Complete your provider profile to start tracking completed jobs and revenue.</p></div>;
+
+  const maxRevenue = Math.max(...revenue.monthlyRevenue.map((month) => month.revenue), 1);
+  const chartPoints = revenue.monthlyRevenue.map((month, index) => {
+    const x = 30 + (index * 660) / Math.max(revenue.monthlyRevenue.length - 1, 1);
+    const y = 205 - (month.revenue / maxRevenue) * 160;
+    return { ...month, x, y };
+  });
+  const change = revenue.lastMonthRevenue > 0
+    ? ((revenue.thisMonthRevenue - revenue.lastMonthRevenue) / revenue.lastMonthRevenue) * 100
+    : null;
+
+  return <div>
+    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-sm font-semibold text-[#687a70]">Business performance</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Revenue</h1><p className="mt-2 text-sm text-[#687a70]">Revenue is counted when a BookMe job is marked completed.</p></div><span className="w-fit rounded-full bg-[#e7eee2] px-4 py-2 text-xs font-bold">{revenue.completedJobs} completed {revenue.completedJobs === 1 ? "job" : "jobs"}</span></div>
+
+    <div className="mt-8 grid gap-4 md:grid-cols-3">
+      <RevenueCard label="Total revenue" value={formatCurrency(revenue.totalRevenue)} note="All completed jobs" featured />
+      <RevenueCard label="This month" value={formatCurrency(revenue.thisMonthRevenue)} note={change === null ? "No prior-month comparison yet" : `${change >= 0 ? "+" : ""}${change.toFixed(0)}% from last month`} />
+      <RevenueCard label="Last month" value={formatCurrency(revenue.lastMonthRevenue)} note="Completed jobs last month" />
+    </div>
+
+    <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-[0_5px_22px_rgba(24,49,38,.04)] sm:p-7">
+      <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Last six months</p><h2 className="mt-2 text-xl font-bold">Revenue trend</h2></div><p className="text-sm font-bold">{formatCurrency(revenue.monthlyRevenue.reduce((sum, month) => sum + month.revenue, 0))}</p></div>
+      <div className="mt-6 overflow-x-auto">
+        <div className="min-w-[620px]">
+          <svg viewBox="0 0 720 235" role="img" aria-label="Revenue by month for the last six months" className="h-auto w-full">
+            {[45, 85, 125, 165, 205].map((y) => <line key={y} x1="30" x2="690" y1={y} y2={y} stroke="#183126" strokeOpacity="0.08" />)}
+            {chartPoints.length > 1 && <polyline points={chartPoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#183126" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />}
+            {chartPoints.map((point) => <g key={point.month}><line x1={point.x} x2={point.x} y1={point.y} y2="205" stroke="#d9e5d4" strokeWidth="12" strokeLinecap="round" /><circle cx={point.x} cy={point.y} r="7" fill="#eee25a" stroke="#183126" strokeWidth="3" /><text x={point.x} y="230" textAnchor="middle" className="fill-[#718078] text-[12px] font-bold">{point.label}</text>{point.revenue > 0 && <text x={point.x} y={Math.max(point.y - 14, 18)} textAnchor="middle" className="fill-[#183126] text-[11px] font-bold">{formatCurrency(point.revenue)}</text>}</g>)}
+          </svg>
+        </div>
+      </div>
+      {revenue.completedJobs === 0 && <div className="mt-3 rounded-2xl bg-[#f5f5ef] p-4 text-center text-sm text-[#738179]">Your graph will grow as you complete BookMe jobs.</div>}
+    </section>
+
+    <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-5 sm:p-7"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Activity</p><h2 className="mt-2 text-xl font-bold">Recent earnings</h2></div>{revenue.recentEarnings.length ? <div className="mt-5 divide-y divide-[#183126]/10">{revenue.recentEarnings.map((earning) => <div key={earning.id} className="flex items-center gap-4 py-4"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e7eee2] font-bold text-[#476452]">$</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{earning.service}</p><p className="mt-1 text-xs text-[#74827b]">{earning.customer} · {new Date(earning.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p></div><p className="font-bold text-[#35704a]">+{formatCurrency(earning.amount)}</p></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">↗</p><p className="mt-2 font-bold">No earnings yet</p><p className="mt-1 text-sm text-[#738179]">Completed jobs will appear here automatically.</p></div>}</section>
+  </div>;
+}
+
+function RevenueCard({ label, value, note, featured = false }: { label: string; value: string; note: string; featured?: boolean }) {
+  return <div className={`rounded-[1.75rem] p-6 ${featured ? "bg-[#183126] text-white" : "border border-[#183126]/10 bg-white"}`}><div className="flex items-center justify-between"><p className={`text-xs font-bold uppercase tracking-[.12em] ${featured ? "text-[#b6c8bf]" : "text-[#718078]"}`}>{label}</p><span className={`grid h-9 w-9 place-items-center rounded-xl text-sm font-bold ${featured ? "bg-[#eee25a] text-[#183126]" : "bg-[#edf2e8]"}`}>$</span></div><p className="mt-5 text-3xl font-bold tracking-tight">{value}</p><p className={`mt-2 text-xs ${featured ? "text-[#b6c8bf]" : "text-[#77857e]"}`}>{note}</p></div>;
 }
