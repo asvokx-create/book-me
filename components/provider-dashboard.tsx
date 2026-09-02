@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import ServiceImageManager from "@/components/service-image-manager";
+import AvailabilityEditor from "@/components/availability-editor";
 
 type RequestStatus = "new" | "accepted" | "declined";
 export type DashboardSection = "overview" | "bookings" | "services" | "availability" | "reviews" | "settings";
@@ -163,8 +164,8 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
           </div>}
 
           {section === "availability" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
-              <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-bold">Availability</h2><p className="mt-1 text-sm text-[#738179]">The hours customers can request your services.</p></div><Link href="/providers/join" className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold">Update</Link></div>
-              {provider?.availability.length ? <div className="mt-5 divide-y divide-[#183126]/10 rounded-2xl bg-[#f5f5ef] px-5">{provider.availability.map((slot) => <div key={`${slot.weekday}-${slot.startTime}`} className="flex items-center justify-between py-3 text-sm"><span className="font-bold">{dayNames[slot.weekday]}</span><span className="text-[#65766d]">{formatTime(slot.startTime)}–{formatTime(slot.endTime)}</span></div>)}</div> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">No availability has been added yet.</p>}
+              <div><h2 className="text-xl font-bold">Set your working hours</h2><p className="mt-1 text-sm text-[#738179]">Choose which days you work and set different start and end times for each day.</p></div>
+              {provider ? <AvailabilityEditor key={provider.availability.map((slot) => `${slot.weekday}-${slot.startTime}-${slot.endTime}`).join("|")} initialSlots={provider.availability} onSaved={(slots) => setProvider((current) => current ? { ...current, availability: slots } : current)} /> : <div className="mt-6 rounded-2xl bg-[#f5f5ef] p-6 text-sm text-[#738179]">{providerLoaded ? "Create your provider profile before setting working hours." : "Loading your current hours…"}</div>}
           </section>}
           {section === "reviews" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
               <h2 className="text-xl font-bold">Reviews</h2><p className="mt-1 text-sm text-[#738179]">Feedback from completed customer bookings.</p><div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">☆</p><p className="mt-2 font-bold">No reviews yet</p><p className="mt-1 text-sm text-[#738179]">Your first review will appear here after a completed booking.</p></div>

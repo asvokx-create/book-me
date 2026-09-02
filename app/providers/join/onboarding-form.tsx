@@ -18,6 +18,8 @@ export default function OnboardingForm() {
   const [duration, setDuration] = useState("2 hours");
   const [description, setDescription] = useState("");
   const [selectedDays, setSelectedDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("17:00");
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<Array<{ file: File; preview: string }>>([]);
   const previewUrls = useRef<string[]>([]);
@@ -60,8 +62,8 @@ export default function OnboardingForm() {
       setError("Add your service details to continue.");
       return;
     }
-    if (step === 3 && selectedDays.length === 0) {
-      setError("Choose at least one available day.");
+    if (step === 3 && (selectedDays.length === 0 || startTime >= endTime)) {
+      setError(selectedDays.length === 0 ? "Choose at least one available day." : "Your start time must be earlier than your end time.");
       return;
     }
     setError("");
@@ -74,7 +76,7 @@ export default function OnboardingForm() {
     const response = await fetch("/api/providers/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ business, category, city, service, price, duration, description, selectedDays }),
+      body: JSON.stringify({ business, category, city, service, price, duration, description, selectedDays, startTime, endTime }),
     });
     const result = (await response.json()) as { error?: string; serviceId?: string };
 
@@ -140,7 +142,7 @@ export default function OnboardingForm() {
         {step === 3 && <div>
           <p className="text-sm leading-6 text-[#687970]">Select the days you generally accept bookings. You can adjust individual dates later.</p>
           <div className="mt-6 grid grid-cols-4 gap-2 sm:grid-cols-7">{days.map((day) => <button key={day} type="button" onClick={() => toggleDay(day)} className={`rounded-xl border px-2 py-3 text-sm font-bold transition ${selectedDays.includes(day) ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/15 bg-white hover:border-[#4d725d]"}`}>{day}</button>)}</div>
-          <div className="mt-7 rounded-2xl bg-[#f5f5ef] p-5"><div className="flex justify-between gap-5"><div><p className="text-sm font-bold">Typical hours</p><p className="mt-1 text-xs text-[#75837c]">Customers can request times in this window.</p></div><p className="shrink-0 text-sm font-semibold">9:00 AM–5:00 PM</p></div></div>
+          <div className="mt-7 rounded-2xl bg-[#f5f5ef] p-5"><div><p className="text-sm font-bold">Typical hours</p><p className="mt-1 text-xs text-[#75837c]">These hours will apply to the selected days. You can customize each day later.</p></div><div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3"><label><span className="mb-2 block text-xs font-bold text-[#65766d]">Start time</span><input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className={inputClass} /></label><span className="mt-6 text-sm text-[#718078]">to</span><label><span className="mb-2 block text-xs font-bold text-[#65766d]">End time</span><input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className={inputClass} /></label></div></div>
         </div>}
 
         {error && <p role="alert" className="mt-5 rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}</p>}

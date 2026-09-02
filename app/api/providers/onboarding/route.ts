@@ -49,8 +49,11 @@ export async function POST(request: Request) {
   const selectedDays = Array.isArray(body.selectedDays)
     ? body.selectedDays.filter((day): day is string => typeof day === "string" && day in weekdayNumbers)
     : [];
+  const startTime = typeof body.startTime === "string" ? body.startTime : "09:00";
+  const endTime = typeof body.endTime === "string" ? body.endTime : "17:00";
+  const validTime = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-  if (!business || !category || !serviceArea || !service || !description || !Number.isFinite(price) || price <= 0 || !durationMinutes[duration] || selectedDays.length === 0) {
+  if (!business || !category || !serviceArea || !service || !description || !Number.isFinite(price) || price <= 0 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
 
@@ -88,8 +91,8 @@ export async function POST(request: Request) {
     for (const day of selectedDays) {
       await client.query(
         `INSERT INTO availability (provider_id, weekday, start_time, end_time)
-         VALUES ($1, $2, '09:00', '17:00')`,
-        [providerId, weekdayNumbers[day]],
+         VALUES ($1, $2, $3, $4)`,
+        [providerId, weekdayNumbers[day], startTime, endTime],
       );
     }
 
