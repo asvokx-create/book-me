@@ -1,51 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getServices, getServiceVisual } from "@/lib/marketplace";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Explore local services | BookMe",
   description: "Search trusted local service providers near Issaquah.",
 };
 
-const categories = ["All services", "Car Detailing", "Landscaping", "Cleaning", "Handyman", "Photography"];
-
-const services = [
-  {
-    slug: "premium-car-detail",
-    title: "Premium interior & exterior detail",
-    provider: "Havoc Auto Care",
-    category: "Car Detailing",
-    price: 120,
-    rating: "4.9",
-    reviews: 38,
-    badge: "Top rated",
-    art: "🚙",
-    gradient: "from-emerald-950 via-emerald-700 to-lime-300",
-  },
-  {
-    slug: "weekly-lawn-care",
-    title: "Weekly lawn care & cleanup",
-    provider: "Evergreen Yard Co.",
-    category: "Landscaping",
-    price: 45,
-    rating: "4.8",
-    reviews: 24,
-    badge: "Popular",
-    art: "🌱",
-    gradient: "from-lime-800 via-lime-600 to-yellow-200",
-  },
-  {
-    slug: "deep-home-cleaning",
-    title: "Deep home cleaning",
-    provider: "Good & Tidy",
-    category: "Cleaning",
-    price: 85,
-    rating: "4.9",
-    reviews: 51,
-    badge: "Available today",
-    art: "🏡",
-    gradient: "from-amber-900 via-amber-600 to-orange-100",
-  },
-] as const;
+const categories = ["All services", "Car detailing", "Lawn & garden", "Home cleaning", "Handyman", "Photography"];
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -56,13 +20,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const query = getParam(params.q).trim();
   const selectedCategory = getParam(params.category) || "All services";
   const location = getParam(params.location) || "Issaquah, WA";
-  const normalizedQuery = query.toLowerCase();
-
-  const filteredServices = services.filter((service) => {
-    const matchesCategory = selectedCategory === "All services" || service.category === selectedCategory;
-    const matchesQuery = !normalizedQuery || `${service.title} ${service.provider} ${service.category}`.toLowerCase().includes(normalizedQuery);
-    return matchesCategory && matchesQuery;
-  });
+  const filteredServices = await getServices({ query, category: selectedCategory });
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
@@ -127,13 +85,13 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           <div className="mt-7 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {filteredServices.map((service) => (
               <Link key={service.slug} href={`/services/${service.slug}`} className="group overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
-                <div className={`relative h-56 overflow-hidden bg-gradient-to-br ${service.gradient}`}>
+                <div className={`relative h-56 overflow-hidden bg-gradient-to-br ${getServiceVisual(service.category).gradient}`}>
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />
-                  <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{service.badge}</span>
-                  <span className="absolute bottom-5 right-6 text-6xl opacity-80">{service.art}</span>
+                  <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>
+                  <span className="absolute bottom-5 right-6 text-6xl opacity-80">{getServiceVisual(service.category).art}</span>
                 </div>
                 <div className="p-6">
-                  <div className="flex items-center justify-between text-sm"><span className="font-semibold text-[#c88f28]">★ {service.rating} <span className="font-normal text-[#89958f]">({service.reviews})</span></span><span className="font-bold">From ${service.price}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="font-semibold text-[#5f7568]">📍 {service.city}, {service.state}</span><span className="font-bold">From ${service.price}</span></div>
                   <p className="mt-4 text-xs font-bold uppercase tracking-[.13em] text-[#75847c]">{service.category}</p>
                   <h3 className="mt-1 text-xl font-bold tracking-[-.025em]">{service.title}</h3>
                   <p className="mt-2 text-sm text-[#6a7a72]">by {service.provider}</p>

@@ -78,7 +78,7 @@ export default function OnboardingForm() {
 
       <form onSubmit={next} className="mt-8">
         {step === 1 && <div className="space-y-5">
-          <label className="block"><span className="mb-2 block text-sm font-bold">Business name</span><input value={business} onChange={(event) => setBusiness(event.target.value)} placeholder="e.g. Evergreen Yard Co." className={inputClass} /></label>
+          <label className="block"><span className="mb-2 block text-sm font-bold">Business name</span><input value={business} onChange={(event) => setBusiness(event.target.value)} placeholder="Your business name" className={inputClass} /></label>
           <label className="block"><span className="mb-2 block text-sm font-bold">Main category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass}><option value="">Choose a category</option>{categories.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label className="block"><span className="mb-2 block text-sm font-bold">Service area</span><input value={city} onChange={(event) => setCity(event.target.value)} className={inputClass} /></label>
         </div>}

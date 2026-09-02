@@ -1,50 +1,18 @@
 import Link from "next/link";
+import { getServices, getServiceVisual } from "@/lib/marketplace";
+
+export const dynamic = "force-dynamic";
 
 const categories = [
-  { name: "Car Detailing", icon: "🚗" },
-  { name: "Landscaping", icon: "🌿" },
-  { name: "Cleaning", icon: "🧽" },
+  { name: "Car detailing", icon: "🚗" },
+  { name: "Lawn & garden", icon: "🌿" },
+  { name: "Home cleaning", icon: "🧽" },
   { name: "Handyman", icon: "🔨" },
   { name: "Photography", icon: "📷" },
 ];
 
-const services = [
-  {
-    slug: "premium-car-detail",
-    title: "Full Car Detail",
-    provider: "Havoc Details",
-    price: "$120",
-    rating: "4.9",
-    reviews: "38 reviews",
-    badge: "Top rated",
-    art: "🚙",
-    image: "from-emerald-950 via-emerald-700 to-lime-300",
-  },
-  {
-    slug: "weekly-lawn-care",
-    title: "Lawn Mowing",
-    provider: "Neighborhood Mower",
-    price: "$45",
-    rating: "4.8",
-    reviews: "24 reviews",
-    badge: "Popular",
-    art: "🌱",
-    image: "from-lime-800 via-lime-600 to-yellow-200",
-  },
-  {
-    slug: "deep-home-cleaning",
-    title: "House Cleaning",
-    provider: "CleanSpace",
-    price: "$85",
-    rating: "4.9",
-    reviews: "51 reviews",
-    badge: "Available today",
-    art: "🏡",
-    image: "from-amber-900 via-amber-600 to-orange-100",
-  },
-];
-
-export default function Home() {
+export default async function Home() {
+  const services = await getServices({ limit: 3 });
   return (
     <main className="min-h-screen overflow-hidden bg-[#f8f7f3] text-[#183126]">
       <header className="relative z-20 border-b border-[#183126]/10 bg-[#f8f7f3]">
@@ -135,24 +103,26 @@ export default function Home() {
 
       <section className="mx-auto max-w-6xl px-6 pb-20">
         <div className="mb-7 flex items-end justify-between">
-          <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Loved by locals</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">Popular near Issaquah</h3></div>
+          <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Local marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">New near Issaquah</h3></div>
 
           <Link href="/services" className="text-sm font-medium hover:underline">
             View all
           </Link>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {services.map((service) => (
+        {services.length > 0 ? <div className="grid gap-6 md:grid-cols-3">
+          {services.map((service) => {
+            const visual = getServiceVisual(service.category);
+            return (
             <Link
-              key={service.title}
+              key={service.slug}
               href={`/services/${service.slug}`}
               className="overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]"
             >
-              <div className={`relative h-56 overflow-hidden bg-gradient-to-br ${service.image}`}>
+              <div className={`relative h-56 overflow-hidden bg-gradient-to-br ${visual.gradient}`}>
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />
-                <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{service.badge}</span>
-                <span className="absolute bottom-5 right-6 text-6xl opacity-80">{service.art}</span>
+                <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>
+                <span className="absolute bottom-5 right-6 text-6xl opacity-80">{visual.art}</span>
                 <span aria-label={`Save ${service.title}`} className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-2 text-xl shadow-sm">
                   ♡
                 </span>
@@ -169,21 +139,16 @@ export default function Home() {
                   </div>
 
                   <div className="text-right">
-                    <p className="font-bold">{service.price}</p>
+                    <p className="font-bold">${service.price}</p>
                     <p className="text-xs text-zinc-500">starting</p>
                   </div>
                 </div>
 
-                <div className="mt-5 flex items-center gap-2 text-sm">
-                  <span>⭐</span>
-                  <span className="font-medium">{service.rating}</span>
-                  <span className="text-zinc-400">•</span>
-                  <span className="text-zinc-500">{service.reviews}</span>
-                </div>
+                <div className="mt-5 flex items-center gap-2 text-sm text-zinc-500"><span>📍</span><span>{service.city}, {service.state}</span></div>
               </div>
             </Link>
-          ))}
-        </div>
+          )})}
+        </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-14 text-center"><span className="text-4xl">🌱</span><h4 className="mt-4 text-xl font-bold">Local services are coming soon</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Be the first local professional to create a real BookMe listing.</p><Link href="/providers/join" className="mt-6 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">List your service</Link></div>}
       </section>
     </main>
   );
