@@ -3,6 +3,7 @@ import pg from "pg";
 
 const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL;
+const databaseCaCert = process.env.DATABASE_CA_CERT?.replace(/\\n/g, "\n");
 
 if (!connectionString) {
   throw new Error("DATABASE_URL is not available. Run this inside the DigitalOcean app console.");
@@ -13,7 +14,15 @@ const migrationUrl = new URL(
   import.meta.url,
 );
 const migration = await readFile(migrationUrl, "utf8");
-const pool = new Pool({ connectionString, max: 1 });
+const databaseUrl = new URL(connectionString);
+databaseUrl.searchParams.delete("sslmode");
+const pool = new Pool({
+  connectionString: databaseUrl.toString(),
+  max: 1,
+  ssl: databaseCaCert
+    ? { ca: databaseCaCert, rejectUnauthorized: true }
+    : undefined,
+});
 
 try {
   await pool.query(migration);

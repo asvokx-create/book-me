@@ -24,6 +24,10 @@ services:
         value: ${bookme-db.DATABASE_PRIVATE_URL}
         scope: RUN_TIME
         type: SECRET
+      - key: DATABASE_CA_CERT
+        value: ${bookme-db.CA_CERT}
+        scope: RUN_TIME
+        type: SECRET
       - key: BETTER_AUTH_URL
         value: ${APP_URL}
         scope: RUN_AND_BUILD_TIME

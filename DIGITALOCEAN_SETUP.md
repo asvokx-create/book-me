@@ -28,6 +28,7 @@ This creates Better Auth's user, session, account, and verification tables, incl
 Set these in App Platform's environment settings:
 
 - `DATABASE_URL`: bind it to the database's private URL.
+- `DATABASE_CA_CERT`: bind it to `${bookme-db.CA_CERT}` so PostgreSQL's TLS certificate is verified.
 - `BETTER_AUTH_SECRET`: a random secret of at least 32 characters.
 - `BETTER_AUTH_URL`: the final public URL, such as `https://bookme.example.com`.
 - `NEXT_PUBLIC_APP_URL`: the same public URL.
