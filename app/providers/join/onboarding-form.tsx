@@ -18,8 +18,9 @@ export default function OnboardingForm() {
   const [duration, setDuration] = useState("2 hours");
   const [description, setDescription] = useState("");
   const [selectedDays, setSelectedDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+  const [saving, setSaving] = useState(false);
 
-  function next(event: FormEvent<HTMLFormElement>) {
+  async function next(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (step === 1 && (!business.trim() || !category || !city.trim())) {
       setError("Complete each field to continue.");
@@ -34,8 +35,31 @@ export default function OnboardingForm() {
       return;
     }
     setError("");
-    if (step < 3) setStep(step + 1);
-    else router.push("/provider/dashboard?welcome=1");
+    if (step < 3) {
+      setStep(step + 1);
+      return;
+    }
+
+    setSaving(true);
+    const response = await fetch("/api/providers/onboarding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ business, category, city, service, price, duration, description, selectedDays }),
+    });
+    const result = (await response.json()) as { error?: string };
+    setSaving(false);
+
+    if (response.status === 401) {
+      router.push("/login");
+      return;
+    }
+    if (!response.ok) {
+      setError(result.error ?? "We could not save your profile. Please try again.");
+      return;
+    }
+
+    router.push("/provider/dashboard?welcome=1");
+    router.refresh();
   }
 
   function toggleDay(day: string) {
@@ -74,7 +98,7 @@ export default function OnboardingForm() {
         {error && <p role="alert" className="mt-5 rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}</p>}
         <div className="mt-8 flex items-center justify-between gap-4">
           {step > 1 ? <button type="button" onClick={() => { setStep(step - 1); setError(""); }} className="rounded-full px-5 py-3 text-sm font-bold hover:bg-[#183126]/5">← Back</button> : <span />}
-          <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">{step === 3 ? "Finish setup" : "Continue →"}</button>
+          <button type="submit" disabled={saving} className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{saving ? "Saving…" : step === 3 ? "Finish setup" : "Continue →"}</button>
         </div>
       </form>
     </div>

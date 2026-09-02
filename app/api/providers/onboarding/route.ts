@@ -1,0 +1,104 @@
+import { randomUUID } from "node:crypto";
+import { headers } from "next/headers";
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { database } from "@/lib/database";
+
+const durationMinutes: Record<string, number> = {
+  "1 hour": 60,
+  "2 hours": 120,
+  "3 hours": 180,
+  "Half day": 240,
+  "Full day": 480,
+};
+
+const weekdayNumbers: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+function slugify(value: string) {
+  const base = value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 54);
+  return `${base || "service"}-${randomUUID().slice(0, 8)}`;
+}
+
+export async function POST(request: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return NextResponse.json({ error: "Log in before creating a provider profile." }, { status: 401 });
+  }
+
+  const body = (await request.json()) as Record<string, unknown>;
+  const business = typeof body.business === "string" ? body.business.trim() : "";
+  const category = typeof body.category === "string" ? body.category.trim() : "";
+  const serviceArea = typeof body.city === "string" ? body.city.trim() : "";
+  const service = typeof body.service === "string" ? body.service.trim() : "";
+  const description = typeof body.description === "string" ? body.description.trim() : "";
+  const duration = typeof body.duration === "string" ? body.duration : "";
+  const price = Number(body.price);
+  const selectedDays = Array.isArray(body.selectedDays)
+    ? body.selectedDays.filter((day): day is string => typeof day === "string" && day in weekdayNumbers)
+    : [];
+
+  if (!business || !category || !serviceArea || !service || !description || !Number.isFinite(price) || price <= 0 || !durationMinutes[duration] || selectedDays.length === 0) {
+    return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
+  }
+
+  const locationParts = serviceArea.split(",").map((part) => part.trim()).filter(Boolean);
+  const state = locationParts.length > 1 ? locationParts.pop()! : "WA";
+  const city = locationParts.join(", ") || serviceArea;
+  const client = await database.connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query('UPDATE "user" SET role = $1, "updatedAt" = now() WHERE id = $2', ["provider", session.user.id]);
+
+    const profileResult = await client.query<{ id: string }>(
+      `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (user_id) DO UPDATE SET
+         business_name = EXCLUDED.business_name,
+         bio = EXCLUDED.bio,
+         phone = EXCLUDED.phone,
+         city = EXCLUDED.city,
+         state = EXCLUDED.state
+       RETURNING id`,
+      [session.user.id, business, description, session.user.phone ?? null, city, state],
+    );
+    const providerId = profileResult.rows[0].id;
+
+    await client.query(
+      `INSERT INTO services (provider_id, slug, category, title, description, price_cents, duration_minutes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [providerId, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration]],
+    );
+
+    await client.query("DELETE FROM availability WHERE provider_id = $1", [providerId]);
+    for (const day of selectedDays) {
+      await client.query(
+        `INSERT INTO availability (provider_id, weekday, start_time, end_time)
+         VALUES ($1, $2, '09:00', '17:00')`,
+        [providerId, weekdayNumbers[day]],
+      );
+    }
+
+    await client.query("COMMIT");
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Provider onboarding failed", error);
+    return NextResponse.json({ error: "We could not save your provider profile. Please try again." }, { status: 500 });
+  } finally {
+    client.release();
+  }
+}
