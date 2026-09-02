@@ -3,14 +3,21 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import FavoriteButton from "@/components/favorite-button";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
 type Booking = { id: number; service: string; provider: string; date: string; time: string; price: number; location: string; art: string; state: BookingState };
-type SavedService = { slug: string; title: string; provider: string; price: number; rating: string; art: string; gradient: string };
+type SavedService = { id: string; slug: string; title: string; provider: string; price: number; category: string; city: string; state: string; imageUrls: string[] };
 
 const initialBookings: Booking[] = [];
-const savedServices: SavedService[] = [];
+const serviceVisuals: Record<string, { art: string; gradient: string }> = {
+  "Car detailing": { art: "🚙", gradient: "from-emerald-900 via-emerald-700 to-lime-300" },
+  "Lawn & garden": { art: "🌱", gradient: "from-lime-700 via-lime-500 to-yellow-200" },
+  "Home cleaning": { art: "🏡", gradient: "from-orange-800 via-orange-500 to-orange-200" },
+  Handyman: { art: "🧰", gradient: "from-slate-800 via-slate-600 to-amber-200" },
+  Photography: { art: "📷", gradient: "from-violet-900 via-purple-600 to-pink-200" },
+};
 
 export default function AccountPage() {
   const { data: session } = authClient.useSession();
@@ -18,12 +25,16 @@ export default function AccountPage() {
   const [bookings, setBookings] = useState(initialBookings);
   const [toast, setToast] = useState("");
   const [hasProviderProfile, setHasProviderProfile] = useState(false);
+  const [savedServices, setSavedServices] = useState<SavedService[]>([]);
 
   useEffect(() => {
     let active = true;
     fetch("/api/providers/me").then((response) => {
       if (active && response.ok) setHasProviderProfile(true);
     });
+    fetch("/api/favorites")
+      .then(async (response) => response.ok ? response.json() as Promise<{ services: SavedService[] }> : null)
+      .then((data) => { if (active && data) setSavedServices(data.services); });
     return () => { active = false; };
   }, []);
 
@@ -93,7 +104,16 @@ export default function AccountPage() {
           <aside><div className="rounded-[2rem] bg-[#183126] p-6 text-white"><span className="text-3xl">☂</span><h2 className="mt-4 text-xl font-bold">You&apos;re covered.</h2><p className="mt-2 text-sm leading-6 text-[#b7c6be]">Every booking includes our BookMe Promise, with vetted providers and support when you need it.</p><button className="mt-5 text-sm font-bold text-[#eee25a]">Learn more →</button></div><div className="mt-4 rounded-[2rem] border border-[#183126]/10 bg-white p-6"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#74837b]">Need help?</p><p className="mt-3 text-sm leading-6 text-[#65766d]">Our support team is here seven days a week.</p><button className="mt-4 text-sm font-bold underline decoration-[#c8bc43] decoration-2 underline-offset-4">Contact support</button></div></aside>
         </div> : <div className="mt-8">
           <div className="flex items-end justify-between"><div><h2 className="text-2xl font-bold tracking-tight">Saved services</h2><p className="mt-1 text-sm text-[#728179]">Your shortlist of local favorites.</p></div><Link href="/services" className="text-sm font-bold underline decoration-[#c8bc43] decoration-2 underline-offset-4">Explore more</Link></div>
-          {savedServices.length > 0 ? <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{savedServices.map((service) => <Link key={service.slug} href={`/services/${service.slug}`} className="group overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition hover:-translate-y-1"><div className={`relative h-52 bg-gradient-to-br ${service.gradient}`}><span className="absolute bottom-5 right-6 text-6xl opacity-80">{service.art}</span><span className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white text-lg text-[#b54e46] shadow-sm">♥</span></div><div className="p-5"><div className="flex justify-between text-sm"><span className="font-bold text-[#c88f28]">★ {service.rating}</span><span className="font-bold">From ${service.price}</span></div><h3 className="mt-3 text-lg font-bold">{service.title}</h3><p className="mt-1 text-sm text-[#718078]">{service.provider}</p></div></Link>)}</div> : <div className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-12 text-center"><p className="text-3xl">♡</p><h3 className="mt-3 font-bold">No saved services yet</h3><p className="mt-2 text-sm text-[#728179]">Services you save will appear here.</p></div>}
+          {savedServices.length > 0 ? <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{savedServices.map((service) => {
+            const visual = serviceVisuals[service.category] ?? { art: "✨", gradient: "from-emerald-800 to-lime-200" };
+            return <article key={service.id} className="group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition hover:-translate-y-1">
+              <Link href={`/services/${service.slug}`} className="block">
+                <div style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-52 bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{visual.art}</span>}</div>
+                <div className="p-5"><div className="flex justify-between gap-4 text-sm"><span className="font-semibold text-[#64776d]">📍 {service.city}, {service.state}</span><span className="shrink-0 font-bold">From ${service.price}</span></div><h3 className="mt-3 text-lg font-bold">{service.title}</h3><p className="mt-1 text-sm text-[#718078]">{service.provider}</p></div>
+              </Link>
+              <FavoriteButton serviceId={service.id} serviceTitle={service.title} onChange={(saved) => { if (!saved) setSavedServices((current) => current.filter((item) => item.id !== service.id)); }} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white text-xl text-[#b54e46] shadow-sm" />
+            </article>;
+          })}</div> : <div className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-12 text-center"><p className="text-3xl">♡</p><h3 className="mt-3 font-bold">No saved services yet</h3><p className="mt-2 text-sm text-[#728179]">Services you save will appear here.</p><Link href="/services" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-2.5 text-sm font-bold text-white">Find services</Link></div>}
         </div>}
       </div>
     </main>

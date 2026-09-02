@@ -3,6 +3,7 @@ import "server-only";
 import { database, isDatabaseConfigured } from "./database";
 
 export type ServiceListing = {
+  id: string;
   slug: string;
   title: string;
   category: string;
@@ -17,6 +18,7 @@ export type ServiceListing = {
 };
 
 type ServiceRow = {
+  id: string;
   slug: string;
   title: string;
   category: string;
@@ -32,6 +34,7 @@ type ServiceRow = {
 
 function mapService(row: ServiceRow): ServiceListing {
   return {
+    id: row.id,
     slug: row.slug,
     title: row.title,
     category: row.category,
@@ -69,7 +72,7 @@ export async function getServices(options: { query?: string; category?: string; 
   values.push(options.limit ?? 50);
 
   const result = await database.query<ServiceRow>(
-    `SELECT s.slug, s.title, s.category, s.description, s.price_cents,
+    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state,
             COALESCE((
@@ -89,7 +92,7 @@ export async function getServices(options: { query?: string; category?: string; 
 export async function getServiceBySlug(slug: string) {
   if (!isDatabaseConfigured()) return null;
   const result = await database.query<ServiceRow>(
-    `SELECT s.slug, s.title, s.category, s.description, s.price_cents,
+    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state,
             COALESCE((
@@ -139,7 +142,7 @@ export async function getProviderById(id: string) {
 
 async function getServicesForProvider(providerId: string) {
   const result = await database.query<ServiceRow>(
-    `SELECT s.slug, s.title, s.category, s.description, s.price_cents,
+    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state,
             COALESCE((
@@ -151,6 +154,26 @@ async function getServicesForProvider(providerId: string) {
      WHERE p.id = $1 AND s.is_active = true
      ORDER BY s.created_at DESC`,
     [providerId],
+  );
+  return result.rows.map(mapService);
+}
+
+export async function getFavoriteServices(customerId: string) {
+  if (!isDatabaseConfigured()) return [];
+  const result = await database.query<ServiceRow>(
+    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
+            s.duration_minutes, p.id::text AS provider_id,
+            p.business_name, p.city, p.state,
+            COALESCE((
+              SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
+              FROM service_images si WHERE si.service_id = s.id
+            ), ARRAY[]::text[]) AS image_urls
+     FROM favorites f
+     JOIN services s ON s.id = f.service_id
+     JOIN provider_profiles p ON p.id = s.provider_id
+     WHERE f.customer_id = $1 AND s.is_active = true AND p.is_active = true
+     ORDER BY f.created_at DESC`,
+    [customerId],
   );
   return result.rows.map(mapService);
 }

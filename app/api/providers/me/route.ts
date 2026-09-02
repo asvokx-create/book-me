@@ -54,6 +54,17 @@ export async function GET() {
     durationMinutes: service.duration_minutes,
     imageUrls: service.image_urls ?? [],
   }));
+  const availabilityResult = await database.query<{
+    weekday: number;
+    start_time: string;
+    end_time: string;
+  }>(
+    `SELECT weekday, start_time::text, end_time::text
+     FROM availability
+     WHERE provider_id::text = $1
+     ORDER BY weekday, start_time`,
+    [provider.id],
+  );
 
   return NextResponse.json({
     name: session.user.name,
@@ -61,5 +72,10 @@ export async function GET() {
     location: `${provider.city}, ${provider.state}`,
     service: services[0] ?? null,
     services,
+    availability: availabilityResult.rows.map((slot) => ({
+      weekday: slot.weekday,
+      startTime: slot.start_time,
+      endTime: slot.end_time,
+    })),
   });
 }
