@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:auth": "npx auth@latest migrate apply --yes --config ./lib/auth.ts",
+    "db:auth": "npx auth@latest migrate --yes --config ./lib/auth.ts",
     "db:marketplace": "node scripts/setup-marketplace-db.mjs",
     "db:setup": "npm run db:auth && npm run db:marketplace"
   },
