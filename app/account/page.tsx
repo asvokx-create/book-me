@@ -100,7 +100,7 @@ export default function AccountPage() {
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div><p className="text-sm font-semibold text-[#687a70]">Customer account</p><h1 className="mt-1 text-4xl font-bold tracking-[-.045em]">Hi, {firstName}.</h1><p className="mt-2 text-[#687a70]">Keep track of your bookings and favorite local pros.</p></div>
-          <div className="flex flex-wrap gap-2 self-start sm:self-auto"><Link href="/account/messages" className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">✉ Messages</Link><Link href="/services" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Book a service</Link></div>
+          <div className="flex flex-wrap gap-2 self-start sm:self-auto"><Link href="/account/security" className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">🔐 Security</Link><Link href="/account/messages" className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">✉ Messages</Link><Link href="/services" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Book a service</Link></div>
         </div>
 
         <div className="mt-9 flex gap-2 border-b border-[#183126]/10">

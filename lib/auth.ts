@@ -1,7 +1,9 @@
 import { betterAuth } from "better-auth";
+import { twoFactor } from "better-auth/plugins";
 import { database } from "./database";
 
 export const auth = betterAuth({
+  appName: "BookMe",
   database,
   secret:
     process.env.BETTER_AUTH_SECRET ??
@@ -24,6 +26,7 @@ export const auth = betterAuth({
       },
     },
   },
+  plugins: [twoFactor({ issuer: "BookMe" })],
 });
 
 export function isAuthConfigured() {

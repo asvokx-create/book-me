@@ -28,12 +28,15 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
     setLoading(true);
 
     if (isLogin) {
-      const { error: authError } = await authClient.signIn.email({ email, password, rememberMe });
+      sessionStorage.setItem("bookme-post-login-redirect", redirectTo);
+      const { data, error: authError } = await authClient.signIn.email({ email, password, rememberMe });
       setLoading(false);
       if (authError) {
         setError(authError.message ?? "We could not log you in. Check your details and try again.");
         return;
       }
+      if (data && "twoFactorRedirect" in data && data.twoFactorRedirect) return;
+      sessionStorage.removeItem("bookme-post-login-redirect");
       router.push(redirectTo);
       router.refresh();
       return;

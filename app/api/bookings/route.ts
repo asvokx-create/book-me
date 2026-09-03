@@ -108,8 +108,8 @@ export async function POST(request: Request) {
     await client.query(
       `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
        VALUES
-         ($1, $3, 'booking_requested', 'New booking request', $4, '/provider/dashboard/bookings', 'booking-requested-' || $3::text || '-provider'),
-         ($2, $3, 'booking_requested', 'Booking request sent', $5, '/account', 'booking-requested-' || $3::text || '-customer')
+         ($1, $3::uuid, 'booking_requested', 'New booking request', $4, '/provider/dashboard/bookings', 'booking-requested-' || ($3::uuid)::text || '-provider'),
+         ($2, $3::uuid, 'booking_requested', 'Booking request sent', $5, '/account', 'booking-requested-' || ($3::uuid)::text || '-customer')
        ON CONFLICT (dedupe_key) DO NOTHING`,
       [
         service.provider_user_id,
