@@ -1,6 +1,7 @@
 import "server-only";
 
 import { database, isDatabaseConfigured } from "./database";
+import { distanceMiles, getServiceAreaCoordinates } from "./service-areas";
 
 export type ServiceListing = {
   id: string;
@@ -49,11 +50,14 @@ function mapService(row: ServiceRow): ServiceListing {
   };
 }
 
-export async function getServices(options: { query?: string; category?: string; location?: string; maxPrice?: number; maxDuration?: number; limit?: number } = {}) {
+export async function getServices(options: { query?: string; category?: string; location?: string; radiusMiles?: number; maxPrice?: number; maxDuration?: number; limit?: number } = {}) {
   if (!isDatabaseConfigured()) return [];
 
   const values: Array<string | number> = [];
   const conditions = ["s.is_active = true", "p.is_active = true"];
+  const requestedLimit = options.limit ?? 50;
+  const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), 100) : undefined;
+  const searchOrigin = options.location && radiusMiles ? getServiceAreaCoordinates(options.location) : undefined;
   if (options.category && options.category !== "All services") {
     values.push(options.category);
     conditions.push(`LOWER(s.category) = LOWER($${values.length})`);
@@ -62,7 +66,7 @@ export async function getServices(options: { query?: string; category?: string; 
     values.push(`%${options.query}%`);
     conditions.push(`(s.title ILIKE $${values.length} OR s.category ILIKE $${values.length} OR p.business_name ILIKE $${values.length})`);
   }
-  if (options.location) {
+  if (options.location && !searchOrigin) {
     const city = options.location.split(",")[0]?.trim();
     if (city) {
       values.push(city);
@@ -77,7 +81,7 @@ export async function getServices(options: { query?: string; category?: string; 
     values.push(options.maxDuration);
     conditions.push(`s.duration_minutes <= $${values.length}`);
   }
-  values.push(options.limit ?? 50);
+  values.push(searchOrigin ? Math.max(requestedLimit, 200) : requestedLimit);
 
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
@@ -94,7 +98,12 @@ export async function getServices(options: { query?: string; category?: string; 
      LIMIT $${values.length}`,
     values,
   );
-  return result.rows.map(mapService);
+  const services = result.rows.map(mapService);
+  if (!searchOrigin || !radiusMiles) return services;
+  return services.filter((service) => {
+    const serviceArea = getServiceAreaCoordinates(`${service.city}, ${service.state}`);
+    return serviceArea ? distanceMiles(searchOrigin, serviceArea) <= radiusMiles : false;
+  }).slice(0, requestedLimit);
 }
 
 export async function getServiceBySlug(slug: string) {
@@ -218,6 +227,7 @@ export function getServiceVisual(category: string) {
   if (normalized.includes("lawn") || normalized.includes("garden") || normalized.includes("landscap")) return { art: "🌱", gradient: "from-lime-800 via-lime-600 to-yellow-200" };
   if (normalized.includes("clean")) return { art: "🏡", gradient: "from-amber-900 via-amber-600 to-orange-100" };
   if (normalized.includes("photo")) return { art: "📷", gradient: "from-indigo-900 via-violet-600 to-pink-200" };
+  if (normalized.includes("video")) return { art: "🎥", gradient: "from-zinc-950 via-red-800 to-orange-200" };
   if (normalized.includes("pet")) return { art: "🐾", gradient: "from-orange-800 via-amber-500 to-yellow-100" };
   if (normalized.includes("moving")) return { art: "📦", gradient: "from-sky-900 via-sky-600 to-cyan-200" };
   if (normalized.includes("training")) return { art: "🏋️", gradient: "from-slate-950 via-slate-600 to-lime-200" };

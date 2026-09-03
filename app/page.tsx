@@ -3,6 +3,7 @@ import { getServices, getServiceVisual } from "@/lib/marketplace";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
 import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORY_ICONS } from "@/lib/service-categories";
+import LocationFilter from "@/components/location-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -56,10 +57,7 @@ export default async function Home() {
             />
           </div>
 
-          <label className="flex items-center rounded-full px-5 py-4 text-left md:min-w-[190px]">
-            <span className="mr-2">📍</span>
-            <input name="location" defaultValue="Issaquah, WA" aria-label="Location" className="min-w-0 flex-1 bg-transparent outline-none" />
-          </label>
+          <div className="md:min-w-[330px]"><LocationFilter /></div>
 
           <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">
             Find a pro
