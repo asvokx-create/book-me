@@ -12,6 +12,7 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const isLogin = mode === "login";
@@ -19,7 +20,7 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const phoneDigits = phone.replace(/\D/g, "");
-    if ((!isLogin && (!name.trim() || phoneDigits.length < 10)) || !email.includes("@") || password.length < 8) {
+    if ((!isLogin && (!name.trim() || phoneDigits.length < 10 || !acceptedTerms)) || !email.includes("@") || password.length < 8) {
       setError("Enter valid account details. Phone numbers need 10 digits and passwords need at least 8 characters.");
       return;
     }
@@ -88,12 +89,13 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
         {!isLogin && <label className="block"><span className="mb-2 block text-sm font-bold">Phone number</span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="(425) 555-0123" className={inputClass} /><span className="mt-2 block text-xs text-[#849189]">Used for booking updates and provider communication.</span></label>}
         <label className="block"><span className="mb-2 flex items-center justify-between text-sm font-bold">Password {isLogin && <button type="button" className="rounded-full px-2 py-1 text-xs text-[#5a7563] underline decoration-[#c7bb41] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Forgot password?</button>}</span><input type="password" autoComplete={isLogin ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" className={inputClass} /></label>
         <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#183126]" /><span className="text-sm font-semibold">Keep me signed in on this device</span></label>
+        {!isLogin && <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I am at least 18 and agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms</Link>, <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link>, and <Link href="/ai-transparency" target="_blank" className="font-bold underline">AI & Safety disclosure</Link>.</span></label>}
         {error && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}</p>}
         <button type="submit" disabled={loading} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
       </form>
 
       <p className="mt-6 text-center text-sm text-[#74837b]">{isLogin ? "New to BookMe?" : "Already have an account?"} <Link href={`${isLogin ? "/signup" : "/login"}${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{isLogin ? "Sign up" : "Log in"}</Link></p>
-      {!isLogin && <p className="mt-5 text-center text-[11px] leading-5 text-[#89958f]">By creating an account, you agree to BookMe&apos;s Terms of Service and Privacy Policy.</p>}
+      {!isLogin && <p className="mt-5 text-center text-[11px] leading-5 text-[#89958f]">BookMe accounts are for adults age 18 or older.</p>}
     </div>
   );
 }

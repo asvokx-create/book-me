@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { checkAndRecordContent } from "@/lib/content-safety";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -56,6 +57,8 @@ export async function POST(request: Request) {
   if (!business || !category || !serviceArea || !service || !description || !Number.isFinite(price) || price <= 0 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
+  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "provider_listing", fields: [business, service, description, serviceArea] });
+  if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   const locationParts = serviceArea.split(",").map((part) => part.trim()).filter(Boolean);
   const state = locationParts.length > 1 ? locationParts.pop()! : "WA";

@@ -73,3 +73,26 @@ export async function PATCH(request: Request) {
   if (!result.rowCount) return NextResponse.json({ error: "Notification not found." }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(request: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const body = (await request.json()) as { notificationId?: unknown; allRead?: unknown };
+
+  if (body.allRead === true) {
+    const result = await database.query(
+      "DELETE FROM notifications WHERE user_id = $1 AND read_at IS NOT NULL",
+      [session.user.id],
+    );
+    return NextResponse.json({ ok: true, deleted: result.rowCount });
+  }
+
+  const notificationId = typeof body.notificationId === "string" ? body.notificationId : "";
+  if (!notificationId) return NextResponse.json({ error: "Choose a notification." }, { status: 400 });
+  const result = await database.query(
+    "DELETE FROM notifications WHERE id::text = $1 AND user_id = $2",
+    [notificationId, session.user.id],
+  );
+  if (!result.rowCount) return NextResponse.json({ error: "Notification not found." }, { status: 404 });
+  return NextResponse.json({ ok: true });
+}

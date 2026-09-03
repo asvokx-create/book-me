@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth, isAuthConfigured } from "@/lib/auth";
 import OnboardingForm from "./onboarding-form";
 
 export const metadata: Metadata = {
@@ -14,6 +17,13 @@ function getParam(value: string | string[] | undefined) {
 export default async function ProviderJoinPage({ searchParams }: PageProps<"/providers/join">) {
   const requestedPlan = getParam((await searchParams).plan).toLowerCase();
   const planName = requestedPlan === "pro" ? "Pro" : requestedPlan === "business" ? "Business" : requestedPlan === "starter" ? "Starter" : "";
+  if (isAuthConfigured()) {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session) {
+      const returnPath = `/providers/join${requestedPlan ? `?plan=${encodeURIComponent(requestedPlan)}` : ""}`;
+      redirect(`/login?redirect=${encodeURIComponent(returnPath)}`);
+    }
+  }
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="border-b border-[#183126]/10">

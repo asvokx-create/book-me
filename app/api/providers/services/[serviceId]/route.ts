@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { SERVICE_CATEGORIES } from "@/lib/service-categories";
+import { checkAndRecordContent } from "@/lib/content-safety";
 
 const allowedDurations = new Set([60, 120, 180, 240, 480]);
 
@@ -66,6 +67,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   if (!title || title.length > 120 || !SERVICE_CATEGORIES.includes(category as (typeof SERVICE_CATEGORIES)[number]) || description.length < 10 || description.length > 2000 || !location || location.length > 120 || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !allowedDurations.has(durationMinutes)) {
     return NextResponse.json({ error: "Complete every field with valid listing details." }, { status: 400 });
   }
+  const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [title, description, location] });
+  if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   const locationParts = location.split(",").map((part) => part.trim()).filter(Boolean);
   const state = locationParts.length > 1 ? locationParts.pop()! : "WA";

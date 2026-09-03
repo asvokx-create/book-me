@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { checkAndRecordContent } from "@/lib/content-safety";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -37,14 +38,17 @@ export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in before requesting a booking." }, { status: 401 });
 
-  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; location?: unknown };
+  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; location?: unknown; notes?: unknown };
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const date = typeof body.date === "string" ? body.date : "";
   const time = typeof body.time === "string" ? body.time : "";
   const location = typeof body.location === "string" ? body.location.trim() : "";
-  if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !location || location.length > 200) {
+  const notes = typeof body.notes === "string" ? body.notes.trim() : "";
+  if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !location || location.length > 200 || notes.length > 1000) {
     return NextResponse.json({ error: "Complete the location, date, and time fields." }, { status: 400 });
   }
+  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "booking", fields: [location, notes] });
+  if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   const serviceResult = await database.query<{
     id: string; provider_id: string; duration_minutes: number; price_cents: number;
@@ -99,10 +103,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "That time is already booked or requested. Choose another available time." }, { status: 409 });
     }
     const created = await client.query<{ id: string }>(
-      `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address, price_cents)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address, notes, price_cents)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id::text`,
-      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, service.price_cents],
+      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, notes, service.price_cents],
     );
     const bookingId = created.rows[0].id;
     await client.query(

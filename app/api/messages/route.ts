@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { checkAndRecordContent } from "@/lib/content-safety";
 
 type ConversationRow = {
   id: string; customer_id: string; provider_id: string; provider_user_id: string;
@@ -109,6 +110,8 @@ export async function POST(request: Request) {
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const message = typeof body.message === "string" ? body.message.trim() : "";
   if (!message || message.length > 2000) return NextResponse.json({ error: "Write a message between 1 and 2,000 characters." }, { status: 400 });
+  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "message", fields: [message] });
+  if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   const client = await database.connect();
   try {

@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { checkAndRecordContent } from "@/lib/content-safety";
 
 export async function POST(request: Request, context: RouteContext<"/api/bookings/[bookingId]/review">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -16,6 +17,8 @@ export async function POST(request: Request, context: RouteContext<"/api/booking
   if (review.length < 3 || review.length > 1000) {
     return NextResponse.json({ error: "Write a review between 3 and 1,000 characters." }, { status: 400 });
   }
+  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "review", fields: [review] });
+  if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   const client = await database.connect();
   try {

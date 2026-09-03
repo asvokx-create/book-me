@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { checkAndRecordContent } from "@/lib/content-safety";
 
 type BookingAction = "accepted" | "declined" | "completed" | "cancel";
 
@@ -34,6 +35,10 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
   const reason = typeof body.reason === "string" ? body.reason.trim() : "";
   if ((action === "declined" || action === "cancel") && (reason.length < 3 || reason.length > 500)) {
     return NextResponse.json({ error: "Add a brief reason so the customer knows what happened." }, { status: 400 });
+  }
+  if (reason) {
+    const safety = await checkAndRecordContent({ userId: session.user.id, surface: "booking_cancellation", fields: [reason] });
+    if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
   }
 
   const client = await database.connect();

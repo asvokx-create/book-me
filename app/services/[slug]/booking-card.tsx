@@ -9,6 +9,8 @@ type BookingCardProps = {
   duration: string;
   serviceTitle: string;
   provider: string;
+  isSignedIn: boolean;
+  returnPath: string;
 };
 
 function formatTime(time: string) {
@@ -17,7 +19,7 @@ function formatTime(time: string) {
   return `${hours % 12 || 12}:${minutes} ${hours >= 12 ? "PM" : "AM"}`;
 }
 
-export default function BookingCard({ serviceId, price, duration, serviceTitle, provider }: BookingCardProps) {
+export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, isSignedIn, returnPath }: BookingCardProps) {
   const [location, setLocation] = useState("Issaquah, WA");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -26,6 +28,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [requiresLogin, setRequiresLogin] = useState(false);
+  const [notes, setNotes] = useState("");
 
   async function checkAvailability(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,7 +65,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serviceId, date, time, location }),
+      body: JSON.stringify({ serviceId, date, time, location, notes }),
     }).catch(() => null);
     if (!response) {
       setLoading(false);
@@ -101,6 +104,11 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     );
   }
 
+  if (!isSignedIn) {
+    const redirect = encodeURIComponent(returnPath);
+    return <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)]"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7eee2] text-2xl">🔒</span><p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-[#6a7c72]">Account required</p><h2 className="mt-2 text-2xl font-bold">Log in to book this service</h2><p className="mt-3 text-sm leading-6 text-[#6c7b74]">Every customer needs their own BookMe account so bookings, messages, and safety records stay with the right person.</p><div className="mt-6 grid gap-3"><Link href={`/login?redirect=${redirect}`} className="rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#315846]">Log in</Link><Link href={`/signup?redirect=${redirect}`} className="rounded-full bg-[#eee25a] px-6 py-3.5 text-sm font-bold transition hover:bg-[#e1d43d]">Create an account</Link></div></div>;
+  }
+
   return (
     <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7">
       <div className="flex items-end justify-between">
@@ -112,6 +120,10 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         <label className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Location</span>
           <input value={location} onChange={(event) => setLocation(event.target.value)} className="w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Booking notes <span className="font-medium normal-case tracking-normal">(optional)</span></span>
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={3} placeholder="Share access details or what you need help with. Don’t include passwords or payment information." className="w-full resize-none rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" />
         </label>
         <label className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Preferred date</span>
@@ -139,7 +151,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         )}
       </form>
 
-      <p className="mt-4 text-center text-xs leading-5 text-[#7c8a83]">No charge yet. The provider will confirm your request before the time is reserved.</p>
+      <p className="mt-4 text-center text-xs leading-5 text-[#7c8a83]">No charge yet. The provider will confirm your request before the time is reserved. Text is checked by the BookMe Safety Bot.</p>
       <div className="mt-6 border-t border-[#183126]/10 pt-6">
         <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e8f2e9] text-xl">✓</span><div><p className="text-sm font-bold">BookMe Promise</p><p className="text-xs text-[#76847d]">Vetted providers and secure booking</p></div></div>
       </div>

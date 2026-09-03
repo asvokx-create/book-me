@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { checkAndRecordContent } from "@/lib/content-safety";
 
 export async function GET(_request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -70,6 +71,8 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
   if (reason.length < 3 || reason.length > 500) {
     return NextResponse.json({ error: "Add a brief cancellation reason." }, { status: 400 });
   }
+  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "booking_cancellation", fields: [reason] });
+  if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   const client = await database.connect();
   try {

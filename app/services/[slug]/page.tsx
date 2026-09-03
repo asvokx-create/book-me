@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { auth, isAuthConfigured } from "@/lib/auth";
 import { formatDuration, getServiceBySlug, getServiceVisual } from "@/lib/marketplace";
 import BookingCard from "./booking-card";
 import AccountNav from "@/components/account-nav";
@@ -12,6 +14,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
   const { slug } = await params;
   const service = await getServiceBySlug(slug);
   if (!service) notFound();
+  const session = isAuthConfigured() ? await auth.api.getSession({ headers: await headers() }) : null;
 
   const visual = getServiceVisual(service.category);
   const duration = formatDuration(service.durationMinutes);
@@ -39,7 +42,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
               <div className="mt-10 border-t border-[#183126]/10 pt-9"><h2 className="text-2xl font-bold tracking-tight">Service details</h2><div className="mt-6 grid gap-4 sm:grid-cols-2"><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Typical duration</p><p className="mt-2 font-bold">{duration}</p></div><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Starting price</p><p className="mt-2 font-bold">${service.price}</p></div></div></div>
             </div>
           </div>
-          <aside><BookingCard serviceId={service.id} price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} /></aside>
+          <aside><BookingCard serviceId={service.id} price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} isSignedIn={!isAuthConfigured() || Boolean(session)} returnPath={`/services/${service.slug}`} /></aside>
         </div>
       </div>
     </main>
