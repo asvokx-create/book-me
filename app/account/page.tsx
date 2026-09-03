@@ -8,7 +8,7 @@ import NotificationBell from "@/components/notification-bell";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
-type Booking = { id: string; service: string; serviceSlug: string; category: string; provider: string; startsAt: string; price: number; location: string; state: BookingState };
+type Booking = { id: string; serviceId: string; providerId: string; service: string; serviceSlug: string; category: string; provider: string; startsAt: string; price: number; location: string; state: BookingState };
 type SavedService = { id: string; slug: string; title: string; provider: string; price: number; category: string; city: string; state: string; imageUrls: string[] };
 
 const initialBookings: Booking[] = [];
@@ -100,7 +100,7 @@ export default function AccountPage() {
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div><p className="text-sm font-semibold text-[#687a70]">Customer account</p><h1 className="mt-1 text-4xl font-bold tracking-[-.045em]">Hi, {firstName}.</h1><p className="mt-2 text-[#687a70]">Keep track of your bookings and favorite local pros.</p></div>
-          <Link href="/services" className="self-start rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5 sm:self-auto">+ Book a service</Link>
+          <div className="flex flex-wrap gap-2 self-start sm:self-auto"><Link href="/account/messages" className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">✉ Messages</Link><Link href="/services" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Book a service</Link></div>
         </div>
 
         <div className="mt-9 flex gap-2 border-b border-[#183126]/10">
@@ -118,7 +118,7 @@ export default function AccountPage() {
                   <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.state === "confirmed" ? "bg-[#e3f1e5] text-[#34704a]" : "bg-[#fff1bf] text-[#7e681b]"}`}>{booking.state === "confirmed" ? "Confirmed" : "Awaiting provider"}</span></div><h3 className="mt-2 text-lg font-bold">{booking.service}</h3><p className="mt-1 text-sm text-[#6e7d75]">{booking.provider}</p></div>
                   <div className="sm:text-right"><p className="font-bold">{bookingDate(booking.startsAt)}</p><p className="mt-1 text-sm text-[#708078]">{bookingTime(booking.startsAt)} · ${booking.price}</p><p className="mt-1 text-xs text-[#89958f]">{booking.location}</p></div>
                 </div>
-                <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-[#183126]/10 pt-4"><button onClick={() => cancelBooking(booking.id)} className="rounded-full px-4 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">Cancel</button><button onClick={() => requestReschedule(booking.service)} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Reschedule</button><Link href={`/services/${booking.serviceSlug}`} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846]">View details</Link></div>
+                <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-[#183126]/10 pt-4"><button onClick={() => cancelBooking(booking.id)} className="rounded-full px-4 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">Cancel</button><button onClick={() => requestReschedule(booking.service)} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Reschedule</button><Link href={`/account/messages?providerId=${booking.providerId}&serviceId=${booking.serviceId}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">✉ Message provider</Link><Link href={`/services/${booking.serviceSlug}`} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846]">View details</Link></div>
               </article>) : <div className="rounded-[2rem] bg-white p-12 text-center"><p className="text-3xl">📅</p><h3 className="mt-3 font-bold">Nothing on the calendar</h3><Link href="/services" className="mt-4 inline-block text-sm font-bold underline">Find a service</Link></div>}
             </div>
 

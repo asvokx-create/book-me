@@ -11,10 +11,11 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const result = await database.query<{
-    id: string; service: string; service_slug: string; category: string; provider: string;
+    id: string; service_id: string; provider_id: string; service: string; service_slug: string; category: string; provider: string;
     starts_at: Date; price_cents: number; location: string; status: "requested" | "confirmed" | "completed" | "cancelled";
   }>(
-    `SELECT b.id::text, s.title AS service, s.slug AS service_slug, s.category,
+    `SELECT b.id::text, s.id::text AS service_id, p.id::text AS provider_id,
+            s.title AS service, s.slug AS service_slug, s.category,
             p.business_name AS provider, b.starts_at, b.price_cents,
             b.service_address AS location, b.status
      FROM bookings b
@@ -25,7 +26,8 @@ export async function GET() {
     [session.user.id],
   );
   return NextResponse.json({ bookings: result.rows.map((row) => ({
-    id: row.id, service: row.service, serviceSlug: row.service_slug, category: row.category,
+    id: row.id, serviceId: row.service_id, providerId: row.provider_id,
+    service: row.service, serviceSlug: row.service_slug, category: row.category,
     provider: row.provider, startsAt: row.starts_at, price: row.price_cents / 100,
     location: row.location, state: row.status,
   })) });

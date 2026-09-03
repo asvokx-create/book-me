@@ -5,7 +5,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
 
-export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
+export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "login" | "signup"; redirectTo?: string }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -34,7 +34,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         setError(authError.message ?? "We could not log you in. Check your details and try again.");
         return;
       }
-      router.push("/account");
+      router.push(redirectTo);
       router.refresh();
       return;
     }
@@ -44,7 +44,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       password,
       name: name.trim(),
       phone: phone.trim(),
-      callbackURL: "/account",
+      callbackURL: redirectTo,
     });
     setLoading(false);
     if (authError) {
@@ -59,7 +59,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         return;
       }
     }
-    router.push("/account");
+    router.push(redirectTo);
     router.refresh();
   }
 
@@ -89,7 +89,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <button type="submit" disabled={loading} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-[#74837b]">{isLogin ? "New to BookMe?" : "Already have an account?"} <Link href={isLogin ? "/signup" : "/login"} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{isLogin ? "Sign up" : "Log in"}</Link></p>
+      <p className="mt-6 text-center text-sm text-[#74837b]">{isLogin ? "New to BookMe?" : "Already have an account?"} <Link href={`${isLogin ? "/signup" : "/login"}${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{isLogin ? "Sign up" : "Log in"}</Link></p>
       {!isLogin && <p className="mt-5 text-center text-[11px] leading-5 text-[#89958f]">By creating an account, you agree to BookMe&apos;s Terms of Service and Privacy Policy.</p>}
     </div>
   );

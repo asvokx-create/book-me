@@ -6,9 +6,10 @@ import { authClient } from "@/lib/auth-client";
 import ServiceImageManager from "@/components/service-image-manager";
 import AvailabilityEditor from "@/components/availability-editor";
 import NotificationBell from "@/components/notification-bell";
+import MessagingCenter from "@/components/messaging-center";
 
 type RequestStatus = "new" | "accepted" | "declined" | "completed";
-export type DashboardSection = "overview" | "bookings" | "revenue" | "services" | "availability" | "reviews" | "settings";
+export type DashboardSection = "overview" | "bookings" | "messages" | "revenue" | "services" | "availability" | "reviews" | "settings";
 
 type ProviderBooking = { id: string; customer: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus };
 const initialRequests: ProviderBooking[] = [];
@@ -62,6 +63,7 @@ function formatBookingTime(startsAt: string) {
 const dashboardNav: Array<{ section: DashboardSection; href: string; icon: string; label: string }> = [
   { section: "overview", href: "/provider/dashboard", icon: "▦", label: "Overview" },
   { section: "bookings", href: "/provider/dashboard/bookings", icon: "◷", label: "Bookings" },
+  { section: "messages", href: "/provider/dashboard/messages", icon: "✉", label: "Messages" },
   { section: "revenue", href: "/provider/dashboard/revenue", icon: "$", label: "Revenue" },
   { section: "services", href: "/provider/dashboard/services", icon: "◇", label: "Services" },
   { section: "availability", href: "/provider/dashboard/availability", icon: "□", label: "Availability" },
@@ -69,7 +71,7 @@ const dashboardNav: Array<{ section: DashboardSection; href: string; icon: strin
   { section: "settings", href: "/provider/dashboard/settings", icon: "⚙", label: "Settings" },
 ];
 
-export default function ProviderDashboard({ section = "overview" }: { section?: DashboardSection }) {
+export default function ProviderDashboard({ section = "overview", initialConversationId = "" }: { section?: DashboardSection; initialConversationId?: string }) {
   const { data: session } = authClient.useSession();
   const [requests, setRequests] = useState(initialRequests);
   const [notice, setNotice] = useState(true);
@@ -229,6 +231,8 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
               </div>)}
             </div>
           </section>}
+
+          {section === "messages" && <MessagingCenter mode="provider" initialConversationId={initialConversationId} />}
 
           {section === "revenue" && <RevenuePanel revenue={revenue} loaded={revenueLoaded} />}
 

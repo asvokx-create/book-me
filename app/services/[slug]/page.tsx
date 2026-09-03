@@ -4,6 +4,7 @@ import { formatDuration, getServiceBySlug, getServiceVisual } from "@/lib/market
 import BookingCard from "./booking-card";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
+import ContactProviderLink from "@/components/contact-provider-link";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
             <div className="py-8">
               <p className="text-sm font-bold uppercase tracking-[.15em] text-[#6c7d74]">{service.category}</p>
               <h1 className="mt-3 text-4xl font-bold tracking-[-.045em] sm:text-5xl">{service.title}</h1>
-              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm"><span className="text-[#718078]">📍 {service.city}, {service.state}</span><span className="text-[#718078]">Served by <Link href={`/providers/${service.providerId}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{service.provider}</Link></span></div>
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm"><span className="text-[#718078]">📍 {service.city}, {service.state}</span><span className="text-[#718078]">Served by <Link href={`/providers/${service.providerId}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{service.provider}</Link></span><ContactProviderLink providerId={service.providerId} serviceId={service.id} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 font-bold text-[#183126] transition hover:border-[#597563] hover:bg-[#e5eddf]" /></div>
               <p className="mt-7 max-w-2xl text-lg leading-8 text-[#5b6d64]">{service.description}</p>
               <div className="mt-10 border-t border-[#183126]/10 pt-9"><h2 className="text-2xl font-bold tracking-tight">Service details</h2><div className="mt-6 grid gap-4 sm:grid-cols-2"><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Typical duration</p><p className="mt-2 font-bold">{duration}</p></div><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Starting price</p><p className="mt-2 font-bold">${service.price}</p></div></div></div>
             </div>

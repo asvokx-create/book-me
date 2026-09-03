@@ -25,6 +25,7 @@ function relativeTime(value: string) {
 }
 
 function notificationIcon(type: string) {
+  if (type === "new_message") return "✉";
   if (type === "booking_accepted") return "✓";
   if (type === "booking_cancelled" || type === "booking_declined") return "×";
   if (type === "booking_completed") return "★";

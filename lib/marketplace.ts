@@ -108,6 +108,25 @@ export async function getServiceBySlug(slug: string) {
   return result.rows[0] ? mapService(result.rows[0]) : null;
 }
 
+export async function getServiceById(id: string) {
+  if (!isDatabaseConfigured()) return null;
+  const result = await database.query<ServiceRow>(
+    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
+            s.duration_minutes, p.id::text AS provider_id,
+            p.business_name, p.city, p.state,
+            COALESCE((
+              SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
+              FROM service_images si WHERE si.service_id = s.id
+            ), ARRAY[]::text[]) AS image_urls
+     FROM services s
+     JOIN provider_profiles p ON p.id = s.provider_id
+     WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true
+     LIMIT 1`,
+    [id],
+  );
+  return result.rows[0] ? mapService(result.rows[0]) : null;
+}
+
 export async function getProviderById(id: string) {
   if (!isDatabaseConfigured()) return null;
   const providerResult = await database.query<{
