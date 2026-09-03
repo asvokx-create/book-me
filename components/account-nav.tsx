@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import NotificationBell from "@/components/notification-bell";
 
 export default function AccountNav() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function AccountNav() {
     const initials = name.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
     return (
       <div className="flex items-center gap-2">
+        <NotificationBell />
         <Link href="/account" className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition hover:bg-[#183126]/5">
           <span className="grid h-8 w-8 place-items-center rounded-full bg-[#e6eedf] text-xs font-bold">{initials}</span>
           <span className="hidden sm:inline">My account</span>

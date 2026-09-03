@@ -46,10 +46,10 @@ export async function POST(request: Request) {
 
   const serviceResult = await database.query<{
     id: string; provider_id: string; duration_minutes: number; price_cents: number;
-    start_time: string; end_time: string; timezone: string;
+    start_time: string; end_time: string; timezone: string; provider_user_id: string; title: string;
   }>(
-    `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents,
-            a.start_time::text, a.end_time::text, a.timezone
+    `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title,
+            a.start_time::text, a.end_time::text, a.timezone, p.user_id AS provider_user_id
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id AND p.is_active = true
      JOIN availability a ON a.provider_id = s.provider_id
@@ -102,8 +102,23 @@ export async function POST(request: Request) {
        RETURNING id::text`,
       [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, service.price_cents],
     );
+    const bookingId = created.rows[0].id;
+    await client.query(
+      `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+       VALUES
+         ($1, $3, 'booking_requested', 'New booking request', $4, '/provider/dashboard/bookings', 'booking-requested-' || $3::text || '-provider'),
+         ($2, $3, 'booking_requested', 'Booking request sent', $5, '/account', 'booking-requested-' || $3::text || '-customer')
+       ON CONFLICT (dedupe_key) DO NOTHING`,
+      [
+        service.provider_user_id,
+        session.user.id,
+        bookingId,
+        `${session.user.name || "A customer"} requested ${service.title}.`,
+        `Your request for ${service.title} was sent to the provider.`,
+      ],
+    );
     await client.query("COMMIT");
-    return NextResponse.json({ id: created.rows[0].id, status: "requested" }, { status: 201 });
+    return NextResponse.json({ id: bookingId, status: "requested" }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Booking request failed", error);

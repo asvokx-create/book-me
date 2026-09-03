@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import FavoriteButton from "@/components/favorite-button";
+import NotificationBell from "@/components/notification-bell";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
@@ -90,7 +91,7 @@ export default function AccountPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe</Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold md:flex"><Link href="/services" className="hover:text-[#5b7365]">Explore services</Link><Link href="/providers/join" className="hover:text-[#5b7365]">List your service</Link></nav>
-          <div className="flex items-center gap-2 sm:gap-3"><Link href={isProvider ? "/provider/dashboard" : "/providers/join"} className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">{isProvider ? "Switch to " : "Become a "}</span>provider</Link><button aria-label="Notifications" className="relative hidden h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5] transition hover:bg-[#eee25a] sm:grid">🔔<span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#d45f40]" /></button><div aria-label={`${accountName ?? "BookMe"} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#e6eedf] text-sm font-bold">{initials}</div></div>
+          <div className="flex items-center gap-2 sm:gap-3"><Link href={isProvider ? "/provider/dashboard" : "/providers/join"} className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">{isProvider ? "Switch to " : "Become a "}</span>provider</Link><NotificationBell /><div aria-label={`${accountName ?? "BookMe"} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#e6eedf] text-sm font-bold">{initials}</div></div>
         </div>
       </header>
 

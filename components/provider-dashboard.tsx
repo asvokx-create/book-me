@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import ServiceImageManager from "@/components/service-image-manager";
 import AvailabilityEditor from "@/components/availability-editor";
+import NotificationBell from "@/components/notification-bell";
 
 type RequestStatus = "new" | "accepted" | "declined" | "completed";
 export type DashboardSection = "overview" | "bookings" | "revenue" | "services" | "availability" | "reviews" | "settings";
@@ -167,7 +168,7 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
       <header className="border-b border-[#183126]/10 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe <span className="hidden rounded-full bg-[#e8f0e5] px-2.5 py-1 text-[10px] uppercase tracking-wider text-[#55705e] sm:inline">Provider</span></Link>
-          <div className="flex items-center gap-2 sm:gap-3"><Link href="/account" className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">Switch to </span>customer</Link><button className="relative hidden h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5] transition hover:bg-[#eee25a] sm:grid" aria-label="Notifications">🔔</button><div aria-label={`${accountName} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#dfead9] text-sm font-bold">{initials}</div></div>
+          <div className="flex items-center gap-2 sm:gap-3"><Link href="/account" className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">Switch to </span>customer</Link><NotificationBell /><div aria-label={`${accountName} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#dfead9] text-sm font-bold">{initials}</div></div>
         </div>
       </header>
 
