@@ -25,7 +25,7 @@ export default async function ProviderProfilePage({ params }: PageProps<"/provid
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
-      <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe</Link><AccountNav /></div></header>
+      <header className="relative z-50 border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe</Link><AccountNav /></div></header>
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
         <Link href="/services" className="text-sm font-semibold text-[#63766b] hover:text-[#183126]">← Back to services</Link>
         <section className="mt-7 overflow-hidden rounded-[2.5rem] border border-[#183126]/10 bg-white shadow-[0_12px_40px_rgba(24,49,38,.08)]">

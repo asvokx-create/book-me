@@ -87,7 +87,7 @@ export default function AccountPage() {
 
   return (
     <main className="min-h-screen bg-[#f5f4ef] text-[#183126]">
-      <header className="border-b border-[#183126]/10 bg-white">
+      <header className="relative z-50 border-b border-[#183126]/10 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe</Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold md:flex"><Link href="/services" className="hover:text-[#5b7365]">Explore services</Link><Link href="/providers/join" className="hover:text-[#5b7365]">List your service</Link></nav>

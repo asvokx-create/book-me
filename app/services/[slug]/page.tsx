@@ -18,7 +18,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
-      <header className="border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
+      <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>BookMe</Link>
           <div className="flex items-center gap-3"><Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link><AccountNav /></div>
@@ -39,7 +39,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
               <div className="mt-10 border-t border-[#183126]/10 pt-9"><h2 className="text-2xl font-bold tracking-tight">Service details</h2><div className="mt-6 grid gap-4 sm:grid-cols-2"><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Typical duration</p><p className="mt-2 font-bold">{duration}</p></div><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Starting price</p><p className="mt-2 font-bold">${service.price}</p></div></div></div>
             </div>
           </div>
-          <aside className="lg:pt-16"><BookingCard serviceId={service.id} price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} /></aside>
+          <aside><BookingCard serviceId={service.id} price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} /></aside>
         </div>
       </div>
     </main>

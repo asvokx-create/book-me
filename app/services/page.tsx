@@ -26,7 +26,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
-      <header className="border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
+      <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>
