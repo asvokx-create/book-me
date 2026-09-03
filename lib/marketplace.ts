@@ -16,6 +16,7 @@ export type ServiceListing = {
   city: string;
   state: string;
   imageUrls: string[];
+  distanceMiles?: number;
 };
 
 type ServiceRow = {
@@ -50,7 +51,7 @@ function mapService(row: ServiceRow): ServiceListing {
   };
 }
 
-export async function getServices(options: { query?: string; category?: string; location?: string; radiusMiles?: number; maxPrice?: number; maxDuration?: number; limit?: number } = {}) {
+export async function getServices(options: { query?: string; category?: string; location?: string; radiusMiles?: number; maxPrice?: number; maxDuration?: number; sort?: string; limit?: number } = {}) {
   if (!isDatabaseConfigured()) return [];
 
   const values: Array<string | number> = [];
@@ -83,6 +84,7 @@ export async function getServices(options: { query?: string; category?: string; 
   }
   values.push(searchOrigin ? Math.max(requestedLimit, 200) : requestedLimit);
 
+  const orderBy = options.sort === "price-low" ? "s.price_cents ASC, s.created_at DESC" : options.sort === "price-high" ? "s.price_cents DESC, s.created_at DESC" : "s.created_at DESC";
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
@@ -94,16 +96,20 @@ export async function getServices(options: { query?: string; category?: string; 
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      WHERE ${conditions.join(" AND ")}
-     ORDER BY s.created_at DESC
+     ORDER BY ${orderBy}
      LIMIT $${values.length}`,
     values,
   );
   const services = result.rows.map(mapService);
   if (!searchOrigin || !radiusMiles) return services;
-  return services.filter((service) => {
+  const nearbyServices = services.flatMap((service) => {
     const serviceArea = getServiceAreaCoordinates(`${service.city}, ${service.state}`);
-    return serviceArea ? distanceMiles(searchOrigin, serviceArea) <= radiusMiles : false;
-  }).slice(0, requestedLimit);
+    if (!serviceArea) return [];
+    const distance = distanceMiles(searchOrigin, serviceArea);
+    return distance <= radiusMiles ? [{ ...service, distanceMiles: distance }] : [];
+  });
+  if (options.sort === "nearest" || !options.sort) nearbyServices.sort((left, right) => (left.distanceMiles ?? 0) - (right.distanceMiles ?? 0));
+  return nearbyServices.slice(0, requestedLimit);
 }
 
 export async function getServiceBySlug(slug: string) {

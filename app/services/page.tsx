@@ -5,6 +5,7 @@ import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
 import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORIES, SERVICE_CATEGORY_ICONS } from "@/lib/service-categories";
 import LocationFilter from "@/components/location-filter";
+import SortSelect from "@/components/sort-select";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,8 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const radius = Number(getParam(params.radius)) || 10;
   const maxPrice = Number(getParam(params.maxPrice)) || undefined;
   const maxDuration = Number(getParam(params.maxDuration)) || undefined;
-  const filteredServices = await getServices({ query, category: selectedCategory, location, radiusMiles: radius, maxPrice, maxDuration });
+  const sort = getParam(params.sort) || "nearest";
+  const filteredServices = await getServices({ query, category: selectedCategory, location, radiusMiles: radius, maxPrice, maxDuration, sort });
 
   function serviceHref(category: string) {
     const queryString = new URLSearchParams();
@@ -37,6 +39,19 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
     queryString.set("radius", String(radius));
     if (maxPrice) queryString.set("maxPrice", String(maxPrice));
     if (maxDuration) queryString.set("maxDuration", String(maxDuration));
+    if (sort !== "nearest") queryString.set("sort", sort);
+    return `/services?${queryString.toString()}`;
+  }
+
+  function removeFilter(name: "location" | "radius" | "category" | "maxPrice" | "maxDuration") {
+    const queryString = new URLSearchParams();
+    if (query) queryString.set("q", query);
+    if (selectedCategory !== "All services" && name !== "category") queryString.set("category", selectedCategory);
+    queryString.set("location", name === "location" ? "Issaquah, WA" : location);
+    queryString.set("radius", String(name === "radius" || name === "location" ? 10 : radius));
+    if (maxPrice && name !== "maxPrice") queryString.set("maxPrice", String(maxPrice));
+    if (maxDuration && name !== "maxDuration") queryString.set("maxDuration", String(maxDuration));
+    if (sort !== "nearest") queryString.set("sort", sort);
     return `/services?${queryString.toString()}`;
   }
 
@@ -69,10 +84,11 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <span className="sr-only">Search services</span>
               <input name="q" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" className="w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" />
             </label>
-            <div className="border-t border-[#183126]/10 sm:min-w-[330px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} /></div>
+            <div className="border-t border-[#183126]/10 sm:min-w-[330px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} /></div>
             {selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
             {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}
             {maxDuration && <input type="hidden" name="maxDuration" value={maxDuration} />}
+            {sort !== "nearest" && <input type="hidden" name="sort" value={sort} />}
             <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Search</button>
           </form>
         </div>
@@ -92,7 +108,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={serviceHref(category)} className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><span>{SERVICE_CATEGORY_ICONS[category] ?? "✨"}</span>{category}</Link>)}</div>
               <form action="/services" className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                {query && <input type="hidden" name="q" value={query} />}<input type="hidden" name="location" value={location} /><input type="hidden" name="radius" value={radius} />{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
+                {query && <input type="hidden" name="q" value={query} />}<input type="hidden" name="location" value={location} /><input type="hidden" name="radius" value={radius} />{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}{sort !== "nearest" && <input type="hidden" name="sort" value={sort} />}
                 <label><span className="mb-2 block text-xs font-bold">Maximum price</span><select name="maxPrice" defaultValue={maxPrice ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any price</option><option value="50">Up to $50</option><option value="100">Up to $100</option><option value="250">Up to $250</option><option value="500">Up to $500</option></select></label>
                 <label><span className="mb-2 block text-xs font-bold">Maximum duration</span><select name="maxDuration" defaultValue={maxDuration ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any duration</option><option value="60">Up to 1 hour</option><option value="120">Up to 2 hours</option><option value="240">Up to half day</option><option value="480">Up to full day</option></select></label>
                 <button type="submit" className="rounded-xl bg-[#eee25a] px-5 py-3 text-sm font-bold transition hover:bg-[#f5ea6b]">Apply filters</button>
@@ -101,12 +117,21 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           </details>
         </div>
 
+        <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-bold">
+          <span className="text-[#718078]">Active filters</span>
+          <Link href={removeFilter("location")} title="Reset location" className="rounded-full bg-[#edf3e7] px-3 py-2 transition hover:bg-[#dce9d8]">📍 {location} ×</Link>
+          <Link href={removeFilter("radius")} title="Reset radius" className="rounded-full bg-[#edf3e7] px-3 py-2 transition hover:bg-[#dce9d8]">Within {radius} mi ×</Link>
+          {selectedCategory !== "All services" && <Link href={removeFilter("category")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">{selectedCategory} ×</Link>}
+          {maxPrice && <Link href={removeFilter("maxPrice")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Up to ${maxPrice} ×</Link>}
+          {maxDuration && <Link href={removeFilter("maxDuration")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Up to {maxDuration >= 240 ? maxDuration === 480 ? "full day" : "half day" : `${maxDuration / 60} hr`} ×</Link>}
+        </div>
+
         <div className="mt-8 flex items-end justify-between gap-5">
           <div>
             <p className="text-sm text-[#6c7d74]">{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} found</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">{query ? `Results for “${query}”` : selectedCategory}</h2>
           </div>
-          {(query || selectedCategory !== "All services" || maxPrice || maxDuration) && <Link href="/services" className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}
+          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} />{(query || selectedCategory !== "All services" || maxPrice || maxDuration || location !== "Issaquah, WA" || radius !== 10) && <Link href="/services" className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
         </div>
 
         {filteredServices.length > 0 ? (
@@ -120,7 +145,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                   {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{getServiceVisual(service.category).art}</span>}
                 </div>
                 <div className="p-6">
-                  <div className="flex items-center justify-between text-sm"><span className="font-semibold text-[#5f7568]">📍 {service.city}, {service.state}</span><span className="font-bold">From ${service.price}</span></div>
+                  <div className="flex items-center justify-between gap-3 text-sm"><span className="font-semibold text-[#5f7568]">📍 {service.city}, {service.state}{typeof service.distanceMiles === "number" ? ` · ${service.distanceMiles < 0.1 ? "Nearby" : `${service.distanceMiles.toFixed(1)} mi`}` : ""}</span><span className="shrink-0 font-bold">From ${service.price}</span></div>
                   <p className="mt-4 text-xs font-bold uppercase tracking-[.13em] text-[#75847c]">{service.category}</p>
                   <h3 className="mt-1 text-xl font-bold tracking-[-.025em]">{service.title}</h3>
                   <p className="mt-2 text-sm text-[#6a7a72]">by {service.provider}</p>

@@ -1,23 +1,58 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { closestServiceArea, nearbyServiceAreas, serviceAreaLabel } from "@/lib/service-areas";
 
 type LocationFilterProps = {
   initialLocation?: string;
   initialRadius?: number;
+  restoreRemembered?: boolean;
 };
 
-export default function LocationFilter({ initialLocation = "Issaquah, WA", initialRadius = 10 }: LocationFilterProps) {
+const STORAGE_KEY = "bookme-service-area";
+
+export default function LocationFilter({ initialLocation = "Issaquah, WA", initialRadius = 10, restoreRemembered = false }: LocationFilterProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [location, setLocation] = useState(initialLocation);
   const [radius, setRadius] = useState(initialRadius);
   const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState("");
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const nearby = useMemo(() => nearbyServiceAreas(location), [location]);
+  const currentSearch = searchParams.toString();
+
+  useEffect(() => {
+    if (!restoreRemembered) return;
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as { location?: string; radius?: number } | null;
+        if (!saved?.location) return;
+        const savedRadius = [5, 10, 25, 50].includes(saved.radius ?? 0) ? saved.radius! : initialRadius;
+        setLocation(saved.location);
+        setRadius(savedRadius);
+        if (pathname === "/services" && !new URLSearchParams(currentSearch).has("location")) {
+          const params = new URLSearchParams(currentSearch);
+          params.set("location", saved.location);
+          params.set("radius", String(savedRadius));
+          router.replace(`/services?${params.toString()}`, { scroll: false });
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [currentSearch, initialRadius, pathname, restoreRemembered, router]);
+
+  function remember(nextLocation: string, nextRadius: number) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ location: nextLocation, radius: nextRadius }));
+  }
 
   function chooseLocation(nextLocation: string) {
     setLocation(nextLocation);
+    remember(nextLocation, radius);
     setMessage("");
     if (detailsRef.current) detailsRef.current.open = false;
   }
@@ -32,7 +67,9 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const closest = closestServiceArea(coords.latitude, coords.longitude);
-        setLocation(serviceAreaLabel(closest));
+        const closestLabel = serviceAreaLabel(closest);
+        setLocation(closestLabel);
+        remember(closestLabel, radius);
         setLocating(false);
         setMessage(`Using the nearest supported city: ${serviceAreaLabel(closest)}.`);
       },
@@ -64,7 +101,7 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
           <button type="button" onClick={() => chooseLocation(location.trim() || initialLocation)} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">Use this city</button>
         </div>
       </details>
-      <label className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><select name="radius" value={radius} onChange={(event) => setRadius(Number(event.target.value))} aria-label="Search radius" className="bg-transparent font-semibold outline-none"><option value="5">5 mi</option><option value="10">10 mi</option><option value="25">25 mi</option><option value="50">50 mi</option></select></label>
+      <label className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><select name="radius" value={radius} onChange={(event) => { const nextRadius = Number(event.target.value); setRadius(nextRadius); remember(location, nextRadius); }} aria-label="Search radius" className="bg-transparent font-semibold outline-none"><option value="5">5 mi</option><option value="10">10 mi</option><option value="25">25 mi</option><option value="50">50 mi</option></select></label>
     </div>
   );
 }

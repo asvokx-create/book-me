@@ -57,7 +57,7 @@ export default async function Home() {
             />
           </div>
 
-          <div className="md:min-w-[330px]"><LocationFilter /></div>
+          <div className="md:min-w-[330px]"><LocationFilter restoreRemembered /></div>
 
           <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">
             Find a pro
