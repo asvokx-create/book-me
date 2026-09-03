@@ -3,16 +3,20 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 
-type BookingAction = "accepted" | "declined" | "completed";
+type BookingAction = "accepted" | "declined" | "completed" | "cancel";
 
 export async function PATCH(request: Request, context: RouteContext<"/api/providers/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const { bookingId } = await context.params;
-  const body = (await request.json()) as { action?: unknown };
+  const body = (await request.json()) as { action?: unknown; reason?: unknown };
   const action = body.action as BookingAction;
-  if (!(["accepted", "declined", "completed"] as BookingAction[]).includes(action)) {
+  if (!(["accepted", "declined", "completed", "cancel"] as BookingAction[]).includes(action)) {
     return NextResponse.json({ error: "Choose a valid booking action." }, { status: 400 });
+  }
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  if ((action === "declined" || action === "cancel") && (reason.length < 3 || reason.length > 500)) {
+    return NextResponse.json({ error: "Add a brief reason so the customer knows what happened." }, { status: 400 });
   }
 
   const client = await database.connect();
@@ -47,24 +51,34 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "This job can be completed after its scheduled end time." }, { status: 409 });
       }
-      await client.query("UPDATE bookings SET status = 'completed' WHERE id::text = $1", [bookingId]);
+      await client.query("UPDATE bookings SET status = 'completed', completed_at = now() WHERE id::text = $1", [bookingId]);
       await client.query(
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
-         VALUES ($1, $2, 'booking_completed', 'Service completed', $3, '/account', 'booking-completed-' || $2::text || '-customer')
+         VALUES ($1, $2, 'booking_completed', 'Service completed', $3, '/account/bookings/' || $2::text, 'booking-completed-' || $2::text || '-customer')
          ON CONFLICT (dedupe_key) DO NOTHING`,
         [booking.customer_id, bookingId, `${booking.service_title} was marked complete. You can now review your experience.`],
       );
-    } else if (action === "declined") {
-      if (booking.status !== "requested") {
+    } else if (action === "declined" || action === "cancel") {
+      const allowedStatus = action === "declined" ? "requested" : "confirmed";
+      if (booking.status !== allowedStatus) {
         await client.query("ROLLBACK");
-        return NextResponse.json({ error: "Only new requests can be declined." }, { status: 409 });
+        return NextResponse.json({ error: action === "declined" ? "Only new requests can be declined." : "Only confirmed bookings can be cancelled." }, { status: 409 });
       }
-      await client.query("UPDATE bookings SET status = 'cancelled' WHERE id::text = $1", [bookingId]);
+      await client.query(
+        "UPDATE bookings SET status = 'cancelled', cancelled_by = 'provider', cancellation_reason = $2 WHERE id::text = $1",
+        [bookingId, reason],
+      );
       await client.query(
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
-         VALUES ($1, $2, 'booking_declined', 'Booking request declined', $3, '/account', 'booking-declined-' || $2::text || '-customer')
+         VALUES ($1, $2, 'booking_declined', $3, $4, '/account/bookings/' || $2::text, $5)
          ON CONFLICT (dedupe_key) DO NOTHING`,
-        [booking.customer_id, bookingId, `The provider could not accept your ${booking.service_title} request. No charge was made.`],
+        [
+          booking.customer_id,
+          bookingId,
+          action === "declined" ? "Booking request declined" : "Booking cancelled by provider",
+          `${booking.service_title}: ${reason}`,
+          `${action === "declined" ? "booking-declined" : "booking-cancelled"}-${bookingId}-customer`,
+        ],
       );
     } else {
       if (booking.status !== "requested") {
@@ -86,7 +100,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       await client.query("UPDATE bookings SET status = 'confirmed' WHERE id::text = $1", [bookingId]);
       await client.query(
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
-         VALUES ($1, $2, 'booking_accepted', 'Booking confirmed', $3, '/account', 'booking-accepted-' || $2::text || '-customer')
+         VALUES ($1, $2, 'booking_accepted', 'Booking confirmed', $3, '/account/bookings/' || $2::text, 'booking-accepted-' || $2::text || '-customer')
          ON CONFLICT (dedupe_key) DO NOTHING`,
         [booking.customer_id, bookingId, `Your ${booking.service_title} booking was accepted.`],
       );

@@ -106,10 +106,17 @@ export async function POST(request: Request) {
     );
     const bookingId = created.rows[0].id;
     await client.query(
+      `INSERT INTO conversations (customer_id, provider_id, service_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (customer_id, provider_id) DO UPDATE
+         SET service_id = EXCLUDED.service_id, updated_at = now()`,
+      [session.user.id, service.provider_id, service.id],
+    );
+    await client.query(
       `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
        VALUES
          ($1, $3::uuid, 'booking_requested', 'New booking request', $4, '/provider/dashboard/bookings', 'booking-requested-' || ($3::uuid)::text || '-provider'),
-         ($2, $3::uuid, 'booking_requested', 'Booking request sent', $5, '/account', 'booking-requested-' || ($3::uuid)::text || '-customer')
+         ($2, $3::uuid, 'booking_requested', 'Booking request sent', $5, '/account/bookings/' || ($3::uuid)::text, 'booking-requested-' || ($3::uuid)::text || '-customer')
        ON CONFLICT (dedupe_key) DO NOTHING`,
       [
         service.provider_user_id,

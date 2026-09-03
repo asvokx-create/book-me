@@ -34,6 +34,11 @@ type RevenueSummary = {
   recentEarnings: Array<{ id: string; service: string; customer: string; completedAt: string; amount: number }>;
 };
 
+type ProviderReview = {
+  id: string; bookingId: string; customerName: string; serviceTitle: string;
+  rating: number; body: string; createdAt: string;
+};
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
 }
@@ -83,6 +88,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   const [revenueLoaded, setRevenueLoaded] = useState(false);
   const [bookingActionId, setBookingActionId] = useState("");
   const [bookingError, setBookingError] = useState("");
+  const [reviews, setReviews] = useState<ProviderReview[]>([]);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
 
   useEffect(() => {
     const photoNoticeTimer = window.setTimeout(() => {
@@ -115,6 +122,17 @@ export default function ProviderDashboard({ section = "overview", initialConvers
       .catch(() => null)
       .then((data) => { if (active) setRevenue(data); })
       .finally(() => { if (active) setRevenueLoaded(true); });
+    return () => { active = false; };
+  }, [section]);
+
+  useEffect(() => {
+    if (section !== "reviews") return;
+    let active = true;
+    fetch("/api/providers/reviews", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() as Promise<{ reviews: ProviderReview[] }> : null)
+      .catch(() => null)
+      .then((data) => { if (active && data) setReviews(data.reviews); })
+      .finally(() => { if (active) setReviewsLoaded(true); });
     return () => { active = false; };
   }, [section]);
 
@@ -227,7 +245,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
               {requests.length === 0 && <div className="rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="font-bold">No booking requests yet</p><p className="mt-1 text-sm text-[#73827b]">New customer requests will appear here.</p></div>}
               {requests.map((request) => <div key={request.id} className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 xl:flex-row xl:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#e7eee2] text-sm font-bold">{request.initials}</span><div className="min-w-0"><div className="flex items-center gap-2"><p className="font-bold">{request.customer}</p>{request.status === "new" && <span className="rounded-full bg-[#fff2c1] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#806817]">New</span>}</div><p className="mt-1 truncate text-sm text-[#6f7e76]">{request.service} · {request.location}</p></div></div>
-                <div className="flex items-center justify-between gap-6 xl:w-[52%]"><div><p className="text-sm font-bold">{formatBookingDate(request.startsAt)}</p><p className="mt-1 text-xs text-[#74827b]">{formatBookingTime(request.startsAt)} · ${request.price}</p></div>{request.status === "new" ? <div className="flex gap-2"><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "declined")} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#f4d8cc] disabled:opacity-50">Decline</button><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{bookingActionId === request.id ? "Saving…" : "Accept"}</button></div> : request.status === "accepted" ? <div className="flex items-center gap-2"><span className="rounded-full bg-[#e4f1e5] px-3 py-1.5 text-xs font-bold text-[#35704a]">Accepted ✓</span><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "completed")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#eee25a] disabled:opacity-50">Mark complete</button></div> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "completed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "completed" ? "Completed ✓" : "Declined"}</span>}</div>
+                <div className="flex flex-wrap items-center justify-between gap-4 xl:w-[58%]"><div><p className="text-sm font-bold">{formatBookingDate(request.startsAt)}</p><p className="mt-1 text-xs text-[#74827b]">{formatBookingTime(request.startsAt)} · ${request.price}</p></div><div className="flex flex-wrap items-center justify-end gap-2"><Link href={`/provider/dashboard/bookings/${request.id}`} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View details</Link>{request.status === "new" ? <button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{bookingActionId === request.id ? "Saving…" : "Accept"}</button> : request.status === "accepted" ? <><span className="rounded-full bg-[#e4f1e5] px-3 py-1.5 text-xs font-bold text-[#35704a]">Accepted ✓</span><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "completed")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#eee25a] disabled:opacity-50">Mark complete</button></> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "completed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "completed" ? "Completed ✓" : "Declined"}</span>}</div></div>
               </div>)}
             </div>
           </section>}
@@ -246,7 +264,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
               {provider ? <AvailabilityEditor key={provider.availability.map((slot) => `${slot.weekday}-${slot.startTime}-${slot.endTime}`).join("|")} initialSlots={provider.availability} onSaved={(slots) => setProvider((current) => current ? { ...current, availability: slots } : current)} /> : <div className="mt-6 rounded-2xl bg-[#f5f5ef] p-6 text-sm text-[#738179]">{providerLoaded ? "Create your provider profile before setting working hours." : "Loading your current hours…"}</div>}
           </section>}
           {section === "reviews" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
-              <h2 className="text-xl font-bold">Reviews</h2><p className="mt-1 text-sm text-[#738179]">Feedback from completed customer bookings.</p><div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">☆</p><p className="mt-2 font-bold">No reviews yet</p><p className="mt-1 text-sm text-[#738179]">Your first review will appear here after a completed booking.</p></div>
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><h2 className="text-xl font-bold">Verified reviews</h2><p className="mt-1 text-sm text-[#738179]">Feedback can only come from completed BookMe bookings.</p></div>{reviews.length > 0 && <div className="rounded-full bg-[#edf2e8] px-4 py-2 text-sm font-bold"><span className="text-[#d0a51d]">★</span> {(reviews.reduce((total, item) => total + item.rating, 0) / reviews.length).toFixed(1)} · {reviews.length} {reviews.length === 1 ? "review" : "reviews"}</div>}</div>
+              {!reviewsLoaded ? <p className="mt-6 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">Loading reviews…</p> : reviews.length ? <div className="mt-6 grid gap-4 lg:grid-cols-2">{reviews.map((item) => <article key={item.id} className="rounded-2xl border border-[#183126]/10 bg-[#fafaf6] p-5"><div className="flex items-start justify-between gap-4"><div><p className="font-bold">{item.customerName}</p><p className="mt-1 text-xs text-[#74827b]">{item.serviceTitle} · {new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p></div><span className="shrink-0 text-[#d0a51d]">{"★".repeat(item.rating)}<span className="text-[#d8ddd9]">{"★".repeat(5 - item.rating)}</span></span></div><p className="mt-4 text-sm leading-6 text-[#52665b]">{item.body}</p><Link href={`/provider/dashboard/bookings/${item.bookingId}`} className="mt-4 inline-flex text-xs font-bold underline decoration-[#c5b940] decoration-2 underline-offset-4">View booking</Link></article>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">☆</p><p className="mt-2 font-bold">No reviews yet</p><p className="mt-1 text-sm text-[#738179]">Your first review will appear here after a completed booking.</p></div>}
           </section>}
 
           {section === "settings" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">

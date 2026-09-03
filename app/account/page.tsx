@@ -43,20 +43,6 @@ export default function AccountPage() {
     return () => { active = false; };
   }, []);
 
-  async function cancelBooking(id: string) {
-    const response = await fetch(`/api/bookings/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel" }) }).catch(() => null);
-    if (!response) {
-      setToast("We could not cancel that booking. Please try again.");
-      return;
-    }
-    if (!response.ok) {
-      setToast("We could not cancel that booking. Please try again.");
-      return;
-    }
-    setBookings((current) => current.map((booking) => booking.id === id ? { ...booking, state: "cancelled" as BookingState } : booking));
-    setToast("Booking cancelled. No charge was made.");
-  }
-
   function requestReschedule(service: string) {
     setToast(`Reschedule options requested for ${service}.`);
   }
@@ -118,12 +104,12 @@ export default function AccountPage() {
                   <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.state === "confirmed" ? "bg-[#e3f1e5] text-[#34704a]" : "bg-[#fff1bf] text-[#7e681b]"}`}>{booking.state === "confirmed" ? "Confirmed" : "Awaiting provider"}</span></div><h3 className="mt-2 text-lg font-bold">{booking.service}</h3><p className="mt-1 text-sm text-[#6e7d75]">{booking.provider}</p></div>
                   <div className="sm:text-right"><p className="font-bold">{bookingDate(booking.startsAt)}</p><p className="mt-1 text-sm text-[#708078]">{bookingTime(booking.startsAt)} · ${booking.price}</p><p className="mt-1 text-xs text-[#89958f]">{booking.location}</p></div>
                 </div>
-                <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-[#183126]/10 pt-4"><button onClick={() => cancelBooking(booking.id)} className="rounded-full px-4 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">Cancel</button><button onClick={() => requestReschedule(booking.service)} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Reschedule</button><Link href={`/account/messages?providerId=${booking.providerId}&serviceId=${booking.serviceId}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">✉ Message provider</Link><Link href={`/services/${booking.serviceSlug}`} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846]">View details</Link></div>
+                <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-[#183126]/10 pt-4"><button onClick={() => requestReschedule(booking.service)} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Reschedule</button><Link href={`/account/messages?providerId=${booking.providerId}&serviceId=${booking.serviceId}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">✉ Message provider</Link><Link href={`/account/bookings/${booking.id}`} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846]">Manage booking</Link></div>
               </article>) : <div className="rounded-[2rem] bg-white p-12 text-center"><p className="text-3xl">📅</p><h3 className="mt-3 font-bold">Nothing on the calendar</h3><Link href="/services" className="mt-4 inline-block text-sm font-bold underline">Find a service</Link></div>}
             </div>
 
             <h2 className="mt-10 text-xl font-bold tracking-tight">History</h2>
-            <div className="mt-4 divide-y divide-[#183126]/10 rounded-2xl border border-[#183126]/10 bg-white px-5">{history.length > 0 ? history.map((booking) => <div key={booking.id} className="flex items-center gap-4 py-4"><span className="text-2xl grayscale">{bookingVisual(booking.category)}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{booking.service}</p><p className="text-xs text-[#7a8881]">{booking.provider} · {bookingDate(booking.startsAt)}</p></div><span className={`text-xs font-bold capitalize ${booking.state === "cancelled" ? "text-[#9a5a47]" : "text-[#5c7766]"}`}>{booking.state}</span></div>) : <p className="py-5 text-sm text-[#7a8881]">Completed and cancelled bookings will appear here.</p>}</div>
+            <div className="mt-4 divide-y divide-[#183126]/10 rounded-2xl border border-[#183126]/10 bg-white px-5">{history.length > 0 ? history.map((booking) => <Link href={`/account/bookings/${booking.id}`} key={booking.id} className="flex items-center gap-4 py-4 transition hover:bg-[#f5f5ef]"><span className="text-2xl grayscale">{bookingVisual(booking.category)}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{booking.service}</p><p className="text-xs text-[#7a8881]">{booking.provider} · {bookingDate(booking.startsAt)}</p></div><span className={`text-xs font-bold capitalize ${booking.state === "cancelled" ? "text-[#9a5a47]" : "text-[#5c7766]"}`}>{booking.state}</span><span aria-hidden="true">→</span></Link>) : <p className="py-5 text-sm text-[#7a8881]">Completed and cancelled bookings will appear here.</p>}</div>
           </div>
 
           <aside><div className="rounded-[2rem] bg-[#183126] p-6 text-white"><span className="text-3xl">☂</span><h2 className="mt-4 text-xl font-bold">You&apos;re covered.</h2><p className="mt-2 text-sm leading-6 text-[#b7c6be]">Every booking includes our BookMe Promise, with vetted providers and support when you need it.</p><button className="mt-5 rounded-full px-3 py-2 text-sm font-bold text-[#eee25a] transition hover:bg-white/15">Learn more →</button></div><div className="mt-4 rounded-[2rem] border border-[#183126]/10 bg-white p-6"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#74837b]">Need help?</p><p className="mt-3 text-sm leading-6 text-[#65766d]">Our support team is here seven days a week.</p><button className="mt-4 rounded-full px-3 py-2 text-sm font-bold underline decoration-[#c8bc43] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Contact support</button></div></aside>
