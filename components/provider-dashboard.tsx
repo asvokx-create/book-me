@@ -6,10 +6,11 @@ import { authClient } from "@/lib/auth-client";
 import ServiceImageManager from "@/components/service-image-manager";
 import AvailabilityEditor from "@/components/availability-editor";
 
-type RequestStatus = "new" | "accepted" | "declined";
+type RequestStatus = "new" | "accepted" | "declined" | "completed";
 export type DashboardSection = "overview" | "bookings" | "revenue" | "services" | "availability" | "reviews" | "settings";
 
-const initialRequests: Array<{ id: number; customer: string; initials: string; service: string; date: string; time: string; location: string; price: number; status: RequestStatus }> = [];
+type ProviderBooking = { id: string; customer: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus };
+const initialRequests: ProviderBooking[] = [];
 
 type ProviderSummary = {
   name: string;
@@ -49,6 +50,14 @@ function formatTime(time: string) {
   return `${hour % 12 || 12}:${minute} ${hour >= 12 ? "PM" : "AM"}`;
 }
 
+function formatBookingDate(startsAt: string) {
+  return new Date(startsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatBookingTime(startsAt: string) {
+  return new Date(startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
 const dashboardNav: Array<{ section: DashboardSection; href: string; icon: string; label: string }> = [
   { section: "overview", href: "/provider/dashboard", icon: "▦", label: "Overview" },
   { section: "bookings", href: "/provider/dashboard/bookings", icon: "◷", label: "Bookings" },
@@ -69,6 +78,8 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
   const [listingDeleted, setListingDeleted] = useState(false);
   const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
   const [revenueLoaded, setRevenueLoaded] = useState(false);
+  const [bookingActionId, setBookingActionId] = useState("");
+  const [bookingError, setBookingError] = useState("");
 
   useEffect(() => {
     const photoNoticeTimer = window.setTimeout(() => {
@@ -85,6 +96,15 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
   }, []);
 
   useEffect(() => {
+    let active = true;
+    fetch("/api/providers/bookings")
+      .then(async (response) => response.ok ? response.json() as Promise<{ bookings: ProviderBooking[] }> : null)
+      .catch(() => null)
+      .then((data) => { if (active && data) setRequests(data.bookings); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
     if (section !== "revenue" && section !== "overview") return;
     let active = true;
     fetch("/api/providers/revenue")
@@ -95,8 +115,31 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
     return () => { active = false; };
   }, [section]);
 
-  function updateRequest(id: number, status: RequestStatus) {
-    setRequests((current) => current.map((request) => request.id === id ? { ...request, status } : request));
+  async function updateRequest(id: string, action: "accepted" | "declined" | "completed") {
+    setBookingActionId(id);
+    setBookingError("");
+    const response = await fetch(`/api/providers/bookings/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    }).catch(() => null);
+    if (!response) {
+      setBookingError("We could not update this booking. Please try again.");
+      setBookingActionId("");
+      return;
+    }
+    const data = await response.json() as { error?: string };
+    if (!response.ok) {
+      setBookingError(data.error ?? "We could not update this booking.");
+      setBookingActionId("");
+      return;
+    }
+    const refreshed = await fetch("/api/providers/bookings");
+    if (refreshed.ok) {
+      const refreshedData = await refreshed.json() as { bookings: ProviderBooking[] };
+      setRequests(refreshedData.bookings);
+    }
+    setBookingActionId("");
   }
 
   const accountName = provider?.name ?? session?.user.name ?? "Provider";
@@ -124,22 +167,22 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
       <header className="border-b border-[#183126]/10 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe <span className="hidden rounded-full bg-[#e8f0e5] px-2.5 py-1 text-[10px] uppercase tracking-wider text-[#55705e] sm:inline">Provider</span></Link>
-          <div className="flex items-center gap-2 sm:gap-3"><Link href="/account" className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-white sm:text-sm">↔ <span className="hidden sm:inline">Switch to </span>customer</Link><button className="relative hidden h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5] sm:grid" aria-label="Notifications">🔔</button><div aria-label={`${accountName} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#dfead9] text-sm font-bold">{initials}</div></div>
+          <div className="flex items-center gap-2 sm:gap-3"><Link href="/account" className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">Switch to </span>customer</Link><button className="relative hidden h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5] transition hover:bg-[#eee25a] sm:grid" aria-label="Notifications">🔔</button><div aria-label={`${accountName} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#dfead9] text-sm font-bold">{initials}</div></div>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-7xl gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[210px_1fr]">
         <aside className="hidden lg:block">
           <nav className="sticky top-8 space-y-1 text-sm font-semibold">
-            {dashboardNav.map((item) => <div key={item.section}>{item.section === "settings" && <div className="my-4 border-t border-[#183126]/10" />}<Link href={item.href} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "bg-[#183126] text-white" : "hover:bg-white"}`}><span>{item.icon}</span>{item.label}{item.section === "bookings" && <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] ${section === "bookings" ? "bg-[#eee25a] text-[#183126]" : "bg-[#eee25a]"}`}>{requests.length}</span>}</Link></div>)}
+            {dashboardNav.map((item) => <div key={item.section}>{item.section === "settings" && <div className="my-4 border-t border-[#183126]/10" />}<Link href={item.href} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "bg-[#183126] text-white" : "hover:bg-[#dfead9]"}`}><span>{item.icon}</span>{item.label}{item.section === "bookings" && <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] ${section === "bookings" ? "bg-[#eee25a] text-[#183126]" : "bg-[#eee25a]"}`}>{activeRequests}</span>}</Link></div>)}
           </nav>
         </aside>
 
         <div>
           <nav className="mb-6 flex gap-2 overflow-x-auto pb-2 text-sm font-bold lg:hidden">{dashboardNav.map((item) => <Link key={item.section} href={item.href} className={`shrink-0 rounded-full px-4 py-2.5 ${section === item.section ? "bg-[#183126] text-white" : "border border-[#183126]/10 bg-white"}`}>{item.label}</Link>)}</nav>
-          {notice && provider && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Welcome to BookMe, {provider.businessName}!</p><p className="mt-1 text-[#567060]">Your provider profile and first service are saved.</p></div><button onClick={() => setNotice(false)} aria-label="Dismiss" className="text-lg text-[#64786a]">×</button></div>}
-          {photoUploadFailed && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#e0b58f] bg-[#fff3e9] p-4 text-sm"><div><p className="font-bold">Your listing was saved, but a photo did not upload.</p><p className="mt-1 text-[#765e4c]">You can add it again under Your services below.</p></div><button onClick={() => setPhotoUploadFailed(false)} aria-label="Dismiss" className="text-lg text-[#806b5b]">×</button></div>}
-          {listingDeleted && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Listing deleted.</p><p className="mt-1 text-[#567060]">It is no longer visible in customer searches.</p></div><button onClick={() => setListingDeleted(false)} aria-label="Dismiss" className="text-lg text-[#64786a]">×</button></div>}
+          {notice && provider && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Welcome to BookMe, {provider.businessName}!</p><p className="mt-1 text-[#567060]">Your provider profile and first service are saved.</p></div><button onClick={() => setNotice(false)} aria-label="Dismiss" className="rounded-full px-2 text-lg text-[#64786a] transition hover:bg-[#cbdcc8]">×</button></div>}
+          {photoUploadFailed && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#e0b58f] bg-[#fff3e9] p-4 text-sm"><div><p className="font-bold">Your listing was saved, but a photo did not upload.</p><p className="mt-1 text-[#765e4c]">You can add it again under Your services below.</p></div><button onClick={() => setPhotoUploadFailed(false)} aria-label="Dismiss" className="rounded-full px-2 text-lg text-[#806b5b] transition hover:bg-[#f4d8cc]">×</button></div>}
+          {listingDeleted && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Listing deleted.</p><p className="mt-1 text-[#567060]">It is no longer visible in customer searches.</p></div><button onClick={() => setListingDeleted(false)} aria-label="Dismiss" className="rounded-full px-2 text-lg text-[#64786a] transition hover:bg-[#cbdcc8]">×</button></div>}
 
           {providerLoaded && !provider && <div className="mb-6 rounded-2xl border border-[#d6ca65] bg-[#fff8cd] p-5 text-sm"><p className="font-bold">Create your provider profile to use this dashboard.</p><p className="mt-1 text-[#6f6840]">Add your business, first service, and availability to start getting discovered.</p><Link href="/providers/join" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 font-bold text-white">Start provider setup</Link></div>}
 
@@ -159,7 +202,7 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
           <div className="mt-6 grid gap-5 xl:grid-cols-2">
             <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
               <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Bookings</p><h2 className="mt-2 text-xl font-bold">Latest requests</h2></div><Link href="/provider/dashboard/bookings" className="text-sm font-bold underline decoration-[#c5b940] decoration-2 underline-offset-4">View bookings</Link></div>
-              {requests.length ? <div className="mt-5 space-y-3">{requests.slice(0, 3).map((request) => <div key={request.id} className="flex items-center gap-3 rounded-2xl bg-[#f5f5ef] p-4"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#e5ede0] text-xs font-bold">{request.initials}</span><div className="min-w-0 flex-1"><p className="truncate font-bold">{request.customer}</p><p className="truncate text-xs text-[#738179]">{request.service} · {request.date}</p></div><span className="rounded-full bg-[#fff1bf] px-2.5 py-1 text-[10px] font-bold uppercase">{request.status}</span></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">📅</p><p className="mt-2 font-bold">No requests yet</p><p className="mt-1 text-sm text-[#738179]">New customer booking requests will appear here.</p></div>}
+              {requests.length ? <div className="mt-5 space-y-3">{requests.slice(0, 3).map((request) => <div key={request.id} className="flex items-center gap-3 rounded-2xl bg-[#f5f5ef] p-4"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#e5ede0] text-xs font-bold">{request.initials}</span><div className="min-w-0 flex-1"><p className="truncate font-bold">{request.customer}</p><p className="truncate text-xs text-[#738179]">{request.service} · {formatBookingDate(request.startsAt)}</p></div><span className="rounded-full bg-[#fff1bf] px-2.5 py-1 text-[10px] font-bold uppercase">{request.status}</span></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">📅</p><p className="mt-2 font-bold">No requests yet</p><p className="mt-1 text-sm text-[#738179]">New customer booking requests will appear here.</p></div>}
             </section>
 
             <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
@@ -176,11 +219,12 @@ export default function ProviderDashboard({ section = "overview" }: { section?: 
 
           {section === "bookings" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-[0_6px_24px_rgba(24,49,38,.05)] sm:p-7">
             <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold tracking-tight">Booking requests</h2><p className="mt-1 text-sm text-[#73827b]">Respond quickly to keep customers in the loop.</p></div><span className="rounded-full bg-[#f0f1eb] px-3 py-1.5 text-xs font-bold">{requests.length} total</span></div>
+            {bookingError && <p role="alert" className="mt-5 rounded-xl bg-[#fff1e8] px-4 py-3 text-sm font-semibold text-[#9a4e25]">{bookingError}</p>}
             <div className="mt-6 divide-y divide-[#183126]/10">
               {requests.length === 0 && <div className="rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="font-bold">No booking requests yet</p><p className="mt-1 text-sm text-[#73827b]">New customer requests will appear here.</p></div>}
               {requests.map((request) => <div key={request.id} className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 xl:flex-row xl:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#e7eee2] text-sm font-bold">{request.initials}</span><div className="min-w-0"><div className="flex items-center gap-2"><p className="font-bold">{request.customer}</p>{request.status === "new" && <span className="rounded-full bg-[#fff2c1] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#806817]">New</span>}</div><p className="mt-1 truncate text-sm text-[#6f7e76]">{request.service} · {request.location}</p></div></div>
-                <div className="flex items-center justify-between gap-6 xl:w-[46%]"><div><p className="text-sm font-bold">{request.date}</p><p className="mt-1 text-xs text-[#74827b]">{request.time} · ${request.price}</p></div>{request.status === "new" ? <div className="flex gap-2"><button onClick={() => updateRequest(request.id, "declined")} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold hover:bg-[#f5f4ef]">Decline</button><button onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white">Accept</button></div> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "accepted" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "accepted" ? "Accepted ✓" : "Declined"}</span>}</div>
+                <div className="flex items-center justify-between gap-6 xl:w-[52%]"><div><p className="text-sm font-bold">{formatBookingDate(request.startsAt)}</p><p className="mt-1 text-xs text-[#74827b]">{formatBookingTime(request.startsAt)} · ${request.price}</p></div>{request.status === "new" ? <div className="flex gap-2"><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "declined")} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#f4d8cc] disabled:opacity-50">Decline</button><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{bookingActionId === request.id ? "Saving…" : "Accept"}</button></div> : request.status === "accepted" ? <div className="flex items-center gap-2"><span className="rounded-full bg-[#e4f1e5] px-3 py-1.5 text-xs font-bold text-[#35704a]">Accepted ✓</span><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "completed")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#eee25a] disabled:opacity-50">Mark complete</button></div> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "completed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "completed" ? "Completed ✓" : "Declined"}</span>}</div>
               </div>)}
             </div>
           </section>}

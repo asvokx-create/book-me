@@ -38,7 +38,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
               <div className="mt-10 border-t border-[#183126]/10 pt-9"><h2 className="text-2xl font-bold tracking-tight">Service details</h2><div className="mt-6 grid gap-4 sm:grid-cols-2"><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Typical duration</p><p className="mt-2 font-bold">{duration}</p></div><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Starting price</p><p className="mt-2 font-bold">${service.price}</p></div></div></div>
             </div>
           </div>
-          <aside className="lg:pt-16"><BookingCard price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} /></aside>
+          <aside className="lg:pt-16"><BookingCard serviceId={service.id} price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} /></aside>
         </div>
       </div>
     </main>
