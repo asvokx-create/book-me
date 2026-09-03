@@ -2,16 +2,9 @@ import Link from "next/link";
 import { getServices, getServiceVisual } from "@/lib/marketplace";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
+import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORY_ICONS } from "@/lib/service-categories";
 
 export const dynamic = "force-dynamic";
-
-const categories = [
-  { name: "Car detailing", icon: "🚗" },
-  { name: "Lawn & garden", icon: "🌿" },
-  { name: "Home cleaning", icon: "🧽" },
-  { name: "Handyman", icon: "🔨" },
-  { name: "Photography", icon: "📷" },
-];
 
 export default async function Home() {
   const services = await getServices({ location: "Issaquah, WA", limit: 3 });
@@ -25,6 +18,7 @@ export default async function Home() {
           </h1>
 
           <div className="flex items-center gap-3">
+            <Link href="/pricing" className="hidden rounded-xl px-4 py-2 text-sm font-medium transition hover:bg-[#183126]/5 md:block">Pricing</Link>
             <Link href="/providers/join" className="hidden rounded-xl px-4 py-2 text-sm font-medium transition hover:bg-[#183126]/5 sm:block">
               List your service
             </Link>
@@ -79,15 +73,15 @@ export default async function Home() {
         <h3 className="mb-7 mt-2 text-3xl font-bold tracking-[-.04em]">What can we take off your plate?</h3>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {categories.map((category) => (
+          {FEATURED_SERVICE_CATEGORIES.map((category) => (
             <Link
-              key={category.name}
-              href={`/services?category=${encodeURIComponent(category.name)}`}
+              key={category}
+              href={`/services?category=${encodeURIComponent(category)}`}
               className="rounded-3xl border border-[#183126]/10 bg-white p-5 text-left shadow-[0_4px_20px_rgba(24,49,38,.04)] transition hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(24,49,38,.1)]"
             >
-              <div className="mb-4 text-3xl">{category.icon}</div>
+              <div className="mb-4 text-3xl">{SERVICE_CATEGORY_ICONS[category]}</div>
 
-              <p className="font-semibold">{category.name}</p>
+              <p className="font-semibold">{category}</p>
             </Link>
           ))}
         </div>

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 
-const categories = ["Home cleaning", "Car detailing", "Lawn & garden", "Handyman", "Photography"];
 const durations = [
   { value: 60, label: "1 hour" },
   { value: 120, label: "2 hours" },
@@ -102,7 +102,7 @@ export default function ListingEditor({ serviceId }: { serviceId: string }) {
           {!loading && !listing && <div className="mt-8 rounded-2xl bg-[#fff1e8] p-5 text-sm font-semibold text-[#9a4e25]">{error || "Listing not found."}</div>}
           {listing && <form onSubmit={save} className="mt-8 space-y-5">
             <label className="block"><span className="mb-2 block text-sm font-bold">Service title</span><input value={listing.title} onChange={(event) => change("title", event.target.value)} className={inputClass} /></label>
-            <label className="block"><span className="mb-2 block text-sm font-bold">Category</span><select value={listing.category} onChange={(event) => change("category", event.target.value)} className={inputClass}>{categories.map((category) => <option key={category}>{category}</option>)}</select></label>
+            <label className="block"><span className="mb-2 block text-sm font-bold">Category</span><select value={listing.category} onChange={(event) => change("category", event.target.value)} className={inputClass}>{SERVICE_CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block"><span className="mb-2 block text-sm font-bold">Starting price</span><div className="relative"><span className="absolute left-4 top-3.5 text-sm text-[#65766d]">$</span><input type="number" min="1" step="0.01" value={listing.price} onChange={(event) => change("price", Number(event.target.value))} className={`${inputClass} pl-8`} /></div></label>
               <label className="block"><span className="mb-2 block text-sm font-bold">Typical duration</span><select value={listing.durationMinutes} onChange={(event) => change("durationMinutes", Number(event.target.value))} className={inputClass}>{durations.map((duration) => <option key={duration.value} value={duration.value}>{duration.label}</option>)}</select></label>

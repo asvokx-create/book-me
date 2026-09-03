@@ -2,8 +2,8 @@
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 
-const categories = ["Home cleaning", "Car detailing", "Lawn & garden", "Handyman", "Photography"];
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function OnboardingForm() {
@@ -124,7 +124,7 @@ export default function OnboardingForm() {
       <form onSubmit={next} className="mt-8">
         {step === 1 && <div className="space-y-5">
           <label className="block"><span className="mb-2 block text-sm font-bold">Business name</span><input value={business} onChange={(event) => setBusiness(event.target.value)} placeholder="Your business name" className={inputClass} /></label>
-          <label className="block"><span className="mb-2 block text-sm font-bold">Main category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass}><option value="">Choose a category</option>{categories.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label className="block"><span className="mb-2 block text-sm font-bold">Main category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass}><option value="">Choose a category</option>{SERVICE_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label className="block"><span className="mb-2 block text-sm font-bold">Service area</span><input value={city} onChange={(event) => setCity(event.target.value)} className={inputClass} /></label>
         </div>}
 

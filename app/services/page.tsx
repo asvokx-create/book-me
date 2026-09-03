@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getServices, getServiceVisual } from "@/lib/marketplace";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
+import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORIES, SERVICE_CATEGORY_ICONS } from "@/lib/service-categories";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
   description: "Search trusted local service providers near Issaquah.",
 };
 
-const categories = ["All services", "Car detailing", "Lawn & garden", "Home cleaning", "Handyman", "Photography"];
+const quickCategories = ["All services", ...FEATURED_SERVICE_CATEGORIES];
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -22,7 +23,19 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const query = getParam(params.q).trim();
   const selectedCategory = getParam(params.category) || "All services";
   const location = getParam(params.location) || "Issaquah, WA";
-  const filteredServices = await getServices({ query, category: selectedCategory, location });
+  const maxPrice = Number(getParam(params.maxPrice)) || undefined;
+  const maxDuration = Number(getParam(params.maxDuration)) || undefined;
+  const filteredServices = await getServices({ query, category: selectedCategory, location, maxPrice, maxDuration });
+
+  function serviceHref(category: string) {
+    const queryString = new URLSearchParams();
+    if (query) queryString.set("q", query);
+    if (category !== "All services") queryString.set("category", category);
+    queryString.set("location", location);
+    if (maxPrice) queryString.set("maxPrice", String(maxPrice));
+    if (maxDuration) queryString.set("maxDuration", String(maxDuration));
+    return `/services?${queryString.toString()}`;
+  }
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
@@ -33,6 +46,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             BookMe
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
+            <Link href="/pricing" className="hidden rounded-full px-4 py-2 text-sm font-semibold transition hover:bg-[#183126]/5 md:block">Pricing</Link>
             <Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link>
             <AccountNav />
           </div>
@@ -54,6 +68,8 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             </label>
             <label className="flex items-center gap-2 rounded-full border-t border-[#183126]/10 px-4 py-3 sm:min-w-[185px] sm:border-l sm:border-t-0"><span aria-hidden="true">📍</span><span className="sr-only">Location</span><input name="location" defaultValue={location} className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label>
             {selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
+            {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}
+            {maxDuration && <input type="hidden" name="maxDuration" value={maxDuration} />}
             <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Search</button>
           </form>
         </div>
@@ -61,16 +77,25 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
 
       <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
         <div className="flex gap-2 overflow-x-auto pb-3">
-          {categories.map((category) => {
+          {quickCategories.map((category) => {
             const active = category === selectedCategory;
-            const queryString = new URLSearchParams();
-            if (query) queryString.set("q", query);
-            if (category !== "All services") queryString.set("category", category);
-            queryString.set("location", location);
             return (
-              <Link key={category} href={`/services?${queryString.toString()}`} className={`shrink-0 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${active ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white hover:border-[#496958]"}`}>{category}</Link>
+              <Link key={category} href={serviceHref(category)} className={`shrink-0 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${active ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white hover:border-[#496958] hover:bg-[#edf3e7]"}`}>{category}</Link>
             );
           })}
+          <details className="group shrink-0">
+            <summary className="list-none rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-sm font-semibold transition hover:border-[#496958] hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">More filters <span className="inline-block transition group-open:rotate-180">⌄</span></summary>
+            <div className="absolute left-5 right-5 z-20 mt-3 rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 shadow-[0_20px_55px_rgba(24,49,38,.15)] sm:left-auto sm:right-8 sm:w-[620px] sm:p-6">
+              <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={serviceHref(category)} className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><span>{SERVICE_CATEGORY_ICONS[category] ?? "✨"}</span>{category}</Link>)}</div>
+              <form action="/services" className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                {query && <input type="hidden" name="q" value={query} />}<input type="hidden" name="location" value={location} />{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
+                <label><span className="mb-2 block text-xs font-bold">Maximum price</span><select name="maxPrice" defaultValue={maxPrice ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any price</option><option value="50">Up to $50</option><option value="100">Up to $100</option><option value="250">Up to $250</option><option value="500">Up to $500</option></select></label>
+                <label><span className="mb-2 block text-xs font-bold">Maximum duration</span><select name="maxDuration" defaultValue={maxDuration ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any duration</option><option value="60">Up to 1 hour</option><option value="120">Up to 2 hours</option><option value="240">Up to half day</option><option value="480">Up to full day</option></select></label>
+                <button type="submit" className="rounded-xl bg-[#eee25a] px-5 py-3 text-sm font-bold transition hover:bg-[#f5ea6b]">Apply filters</button>
+              </form>
+            </div>
+          </details>
         </div>
 
         <div className="mt-8 flex items-end justify-between gap-5">
@@ -78,7 +103,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             <p className="text-sm text-[#6c7d74]">{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} found</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">{query ? `Results for “${query}”` : selectedCategory}</h2>
           </div>
-          {(query || selectedCategory !== "All services") && <Link href="/services" className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}
+          {(query || selectedCategory !== "All services" || maxPrice || maxDuration) && <Link href="/services" className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}
         </div>
 
         {filteredServices.length > 0 ? (

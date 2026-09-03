@@ -2,8 +2,8 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 
-const categories = ["Home cleaning", "Car detailing", "Lawn & garden", "Handyman", "Photography"];
 const allowedDurations = new Set([60, 120, 180, 240, 480]);
 
 async function getSessionUserId() {
@@ -63,7 +63,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   const price = Number(body.price);
   const durationMinutes = Number(body.durationMinutes);
 
-  if (!title || title.length > 120 || !categories.includes(category) || description.length < 10 || description.length > 2000 || !location || location.length > 120 || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !allowedDurations.has(durationMinutes)) {
+  if (!title || title.length > 120 || !SERVICE_CATEGORIES.includes(category as (typeof SERVICE_CATEGORIES)[number]) || description.length < 10 || description.length > 2000 || !location || location.length > 120 || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !allowedDurations.has(durationMinutes)) {
     return NextResponse.json({ error: "Complete every field with valid listing details." }, { status: 400 });
   }
 
