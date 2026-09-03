@@ -5,6 +5,23 @@ import { database } from "@/lib/database";
 
 type BookingAction = "accepted" | "declined" | "completed" | "cancel";
 
+export async function DELETE(_request: Request, context: RouteContext<"/api/providers/bookings/[bookingId]">) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const { bookingId } = await context.params;
+  const result = await database.query(
+    `UPDATE bookings b SET provider_deleted_at = now()
+     FROM provider_profiles p
+     WHERE b.id::text = $1 AND b.provider_id = p.id AND p.user_id = $2
+       AND b.status = 'cancelled' AND b.provider_deleted_at IS NULL`,
+    [bookingId, session.user.id],
+  );
+  if (!result.rowCount) {
+    return NextResponse.json({ error: "Only cancelled booking requests can be removed." }, { status: 409 });
+  }
+  return NextResponse.json({ ok: true });
+}
+
 export async function PATCH(request: Request, context: RouteContext<"/api/providers/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
@@ -54,7 +71,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       await client.query("UPDATE bookings SET status = 'completed', completed_at = now() WHERE id::text = $1", [bookingId]);
       await client.query(
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
-         VALUES ($1, $2, 'booking_completed', 'Service completed', $3, '/account/bookings/' || $2::text, 'booking-completed-' || $2::text || '-customer')
+         VALUES ($1, $2::uuid, 'booking_completed', 'Service completed', $3, '/account/bookings/' || $2::uuid::text, 'booking-completed-' || $2::uuid::text || '-customer')
          ON CONFLICT (dedupe_key) DO NOTHING`,
         [booking.customer_id, bookingId, `${booking.service_title} was marked complete. You can now review your experience.`],
       );
@@ -70,7 +87,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       );
       await client.query(
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
-         VALUES ($1, $2, 'booking_declined', $3, $4, '/account/bookings/' || $2::text, $5)
+         VALUES ($1, $2::uuid, 'booking_declined', $3, $4, '/account/bookings/' || $2::uuid::text, $5)
          ON CONFLICT (dedupe_key) DO NOTHING`,
         [
           booking.customer_id,
@@ -100,7 +117,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       await client.query("UPDATE bookings SET status = 'confirmed' WHERE id::text = $1", [bookingId]);
       await client.query(
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
-         VALUES ($1, $2, 'booking_accepted', 'Booking confirmed', $3, '/account/bookings/' || $2::text, 'booking-accepted-' || $2::text || '-customer')
+         VALUES ($1, $2::uuid, 'booking_accepted', 'Booking confirmed', $3, '/account/bookings/' || $2::uuid::text, 'booking-accepted-' || $2::uuid::text || '-customer')
          ON CONFLICT (dedupe_key) DO NOTHING`,
         [booking.customer_id, bookingId, `Your ${booking.service_title} booking was accepted.`],
       );

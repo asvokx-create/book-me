@@ -24,8 +24,13 @@ BEFORE UPDATE ON reviews
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 INSERT INTO conversations (customer_id, provider_id, service_id)
-SELECT DISTINCT ON (b.customer_id, b.provider_id)
+SELECT DISTINCT ON (b.customer_id, b.provider_id, b.service_id)
   b.customer_id, b.provider_id, b.service_id
 FROM bookings b
-ORDER BY b.customer_id, b.provider_id, b.created_at DESC
-ON CONFLICT (customer_id, provider_id) DO NOTHING;
+WHERE NOT EXISTS (
+  SELECT 1 FROM conversations c
+  WHERE c.customer_id = b.customer_id AND c.provider_id = b.provider_id
+    AND c.service_id = b.service_id
+)
+ORDER BY b.customer_id, b.provider_id, b.service_id, b.created_at DESC
+ON CONFLICT DO NOTHING;

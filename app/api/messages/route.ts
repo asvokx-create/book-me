@@ -15,15 +15,19 @@ async function getConversation(userId: string, conversationId: string) {
             p.business_name AS provider_name, u.name AS customer_name, s.title AS service_title,
             latest.body AS last_message, latest.created_at AS last_message_at,
             (SELECT count(*)::int FROM messages unread
-             WHERE unread.conversation_id = c.id AND unread.sender_id <> $1 AND unread.read_at IS NULL) AS unread_count
+             WHERE unread.conversation_id = c.id AND unread.sender_id <> $1
+               AND unread.read_at IS NULL AND unread.deleted_at IS NULL) AS unread_count
      FROM conversations c
      JOIN provider_profiles p ON p.id = c.provider_id
      JOIN "user" u ON u.id = c.customer_id
      LEFT JOIN services s ON s.id = c.service_id
      LEFT JOIN LATERAL (
-       SELECT body, created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1
+       SELECT body, created_at FROM messages
+       WHERE conversation_id = c.id AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1
      ) latest ON true
-     WHERE c.id::text = $2 AND (c.customer_id = $1 OR p.user_id = $1)
+     WHERE c.id::text = $2
+       AND ((c.customer_id = $1 AND c.customer_deleted_at IS NULL)
+         OR (p.user_id = $1 AND c.provider_deleted_at IS NULL))
      LIMIT 1`,
     [userId, conversationId],
   );
@@ -40,24 +44,28 @@ export async function GET(request: Request) {
             p.business_name AS provider_name, u.name AS customer_name, s.title AS service_title,
             latest.body AS last_message, latest.created_at AS last_message_at,
             (SELECT count(*)::int FROM messages unread
-             WHERE unread.conversation_id = c.id AND unread.sender_id <> $1 AND unread.read_at IS NULL) AS unread_count
+             WHERE unread.conversation_id = c.id AND unread.sender_id <> $1
+               AND unread.read_at IS NULL AND unread.deleted_at IS NULL) AS unread_count
      FROM conversations c
      JOIN provider_profiles p ON p.id = c.provider_id
      JOIN "user" u ON u.id = c.customer_id
      LEFT JOIN services s ON s.id = c.service_id
      LEFT JOIN LATERAL (
-       SELECT body, created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1
+       SELECT body, created_at FROM messages
+       WHERE conversation_id = c.id AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1
      ) latest ON true
-     WHERE c.customer_id = $1 OR p.user_id = $1
+     WHERE (c.customer_id = $1 AND c.customer_deleted_at IS NULL)
+        OR (p.user_id = $1 AND c.provider_deleted_at IS NULL)
      ORDER BY c.updated_at DESC`,
     [session.user.id],
   );
 
   const selected = conversationId ? await getConversation(session.user.id, conversationId) : conversationsResult.rows[0] ?? null;
   const messages = selected ? await database.query<{
-    id: string; body: string; is_mine: boolean; sender_name: string; created_at: Date;
+    id: string; body: string; is_mine: boolean; sender_name: string; created_at: Date; deleted_at: Date | null;
   }>(
-    `SELECT m.id::text, m.body, (m.sender_id = $1) AS is_mine, sender.name AS sender_name, m.created_at
+    `SELECT m.id::text, m.body, (m.sender_id = $1) AS is_mine, sender.name AS sender_name,
+            m.created_at, m.deleted_at
      FROM messages m
      JOIN "user" sender ON sender.id = m.sender_id
      WHERE m.conversation_id::text = $2
@@ -87,6 +95,7 @@ export async function GET(request: Request) {
       isMine: message.is_mine,
       senderName: message.sender_name,
       createdAt: message.created_at,
+      deleted: Boolean(message.deleted_at),
     })) ?? [],
   });
 }
@@ -119,22 +128,36 @@ export async function POST(request: Request) {
       );
       conversation = result.rows[0] ?? null;
     } else if (providerId) {
-      const result = await client.query<ConversationRow>(
-        `INSERT INTO conversations (customer_id, provider_id, service_id)
-         SELECT $1, p.id, CASE WHEN s.id IS NULL THEN NULL ELSE s.id END
-         FROM provider_profiles p
-         LEFT JOIN services s ON s.id::text = NULLIF($3, '') AND s.provider_id = p.id AND s.is_active = true
-         WHERE p.id::text = $2 AND p.is_active = true AND p.user_id <> $1
-           AND (NULLIF($3, '') IS NULL OR s.id IS NOT NULL)
-         ON CONFLICT (customer_id, provider_id) DO UPDATE
-           SET service_id = COALESCE(EXCLUDED.service_id, conversations.service_id), updated_at = now()
-         RETURNING id::text, customer_id, provider_id::text,
-           (SELECT user_id FROM provider_profiles WHERE id = provider_id) AS provider_user_id,
-           (SELECT business_name FROM provider_profiles WHERE id = provider_id) AS provider_name,
-           (SELECT name FROM "user" WHERE id = customer_id) AS customer_name,
-           NULL::text AS service_title, NULL::text AS last_message, NULL::timestamptz AS last_message_at, 0::int AS unread_count`,
-        [session.user.id, providerId, serviceId],
-      );
+      const result = serviceId
+        ? await client.query<ConversationRow>(
+          `INSERT INTO conversations (customer_id, provider_id, service_id)
+           SELECT $1, p.id, s.id
+           FROM provider_profiles p
+           JOIN services s ON s.id::text = $3 AND s.provider_id = p.id AND s.is_active = true
+           WHERE p.id::text = $2 AND p.is_active = true AND p.user_id <> $1
+           ON CONFLICT (customer_id, provider_id, service_id) WHERE service_id IS NOT NULL DO UPDATE
+             SET customer_deleted_at = NULL, provider_deleted_at = NULL, updated_at = now()
+           RETURNING id::text, customer_id, provider_id::text,
+             (SELECT user_id FROM provider_profiles WHERE id = provider_id) AS provider_user_id,
+             (SELECT business_name FROM provider_profiles WHERE id = provider_id) AS provider_name,
+             (SELECT name FROM "user" WHERE id = customer_id) AS customer_name,
+             NULL::text AS service_title, NULL::text AS last_message, NULL::timestamptz AS last_message_at, 0::int AS unread_count`,
+          [session.user.id, providerId, serviceId],
+        )
+        : await client.query<ConversationRow>(
+          `INSERT INTO conversations (customer_id, provider_id, service_id)
+           SELECT $1, p.id, NULL
+           FROM provider_profiles p
+           WHERE p.id::text = $2 AND p.is_active = true AND p.user_id <> $1
+           ON CONFLICT (customer_id, provider_id) WHERE service_id IS NULL DO UPDATE
+             SET customer_deleted_at = NULL, provider_deleted_at = NULL, updated_at = now()
+           RETURNING id::text, customer_id, provider_id::text,
+             (SELECT user_id FROM provider_profiles WHERE id = provider_id) AS provider_user_id,
+             (SELECT business_name FROM provider_profiles WHERE id = provider_id) AS provider_name,
+             (SELECT name FROM "user" WHERE id = customer_id) AS customer_name,
+             NULL::text AS service_title, NULL::text AS last_message, NULL::timestamptz AS last_message_at, 0::int AS unread_count`,
+          [session.user.id, providerId],
+        );
       conversation = result.rows[0] ?? null;
     }
 
@@ -149,7 +172,10 @@ export async function POST(request: Request) {
        RETURNING id::text`,
       [conversation.id, session.user.id, message],
     );
-    await client.query("UPDATE conversations SET updated_at = now() WHERE id::text = $1", [conversation.id]);
+    await client.query(
+      "UPDATE conversations SET updated_at = now(), customer_deleted_at = NULL, provider_deleted_at = NULL WHERE id::text = $1",
+      [conversation.id],
+    );
     const recipientId = conversation.customer_id === session.user.id ? conversation.provider_user_id : conversation.customer_id;
     const recipientHref = conversation.customer_id === session.user.id
       ? `/provider/dashboard/messages?conversationId=${conversation.id}`
@@ -185,4 +211,38 @@ export async function PATCH(request: Request) {
     [conversationId, session.user.id],
   );
   return NextResponse.json({ ok: true, updated: result.rowCount });
+}
+
+export async function DELETE(request: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const body = (await request.json()) as { messageId?: unknown; conversationId?: unknown };
+  const messageId = typeof body.messageId === "string" ? body.messageId : "";
+  const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
+
+  if (messageId) {
+    const result = await database.query(
+      `UPDATE messages SET body = 'Message deleted', deleted_at = now()
+       WHERE id::text = $1 AND sender_id = $2 AND deleted_at IS NULL`,
+      [messageId, session.user.id],
+    );
+    if (!result.rowCount) return NextResponse.json({ error: "You can only delete messages you sent." }, { status: 403 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (conversationId) {
+    const result = await database.query(
+      `UPDATE conversations c
+       SET customer_deleted_at = CASE WHEN c.customer_id = $2 THEN now() ELSE c.customer_deleted_at END,
+           provider_deleted_at = CASE WHEN p.user_id = $2 THEN now() ELSE c.provider_deleted_at END
+       FROM provider_profiles p
+       WHERE c.id::text = $1 AND p.id = c.provider_id
+         AND (c.customer_id = $2 OR p.user_id = $2)`,
+      [conversationId, session.user.id],
+    );
+    if (!result.rowCount) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+    return NextResponse.json({ ok: true });
+  }
+
+  return NextResponse.json({ error: "Choose a message or conversation to delete." }, { status: 400 });
 }

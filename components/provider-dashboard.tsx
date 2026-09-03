@@ -8,7 +8,7 @@ import AvailabilityEditor from "@/components/availability-editor";
 import NotificationBell from "@/components/notification-bell";
 import MessagingCenter from "@/components/messaging-center";
 
-type RequestStatus = "new" | "accepted" | "declined" | "completed";
+type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
 export type DashboardSection = "overview" | "bookings" | "messages" | "revenue" | "services" | "availability" | "reviews" | "settings";
 
 type ProviderBooking = { id: string; customer: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus };
@@ -163,6 +163,17 @@ export default function ProviderDashboard({ section = "overview", initialConvers
     setBookingActionId("");
   }
 
+  async function deleteCancelledRequest(id: string) {
+    if (!window.confirm("Are you sure you want to remove this cancelled request from your dashboard?")) return;
+    setBookingActionId(id);
+    setBookingError("");
+    const response = await fetch(`/api/providers/bookings/${id}`, { method: "DELETE" }).catch(() => null);
+    const data = response ? await response.json() as { error?: string } : null;
+    if (!response?.ok) setBookingError(data?.error ?? "We could not delete this booking request.");
+    else setRequests((current) => current.filter((request) => request.id !== id));
+    setBookingActionId("");
+  }
+
   const accountName = provider?.name ?? session?.user.name ?? "Provider";
   const firstName = accountName.trim().split(/\s+/)[0] || "Provider";
   const initials = accountName
@@ -245,7 +256,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
               {requests.length === 0 && <div className="rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="font-bold">No booking requests yet</p><p className="mt-1 text-sm text-[#73827b]">New customer requests will appear here.</p></div>}
               {requests.map((request) => <div key={request.id} className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 xl:flex-row xl:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#e7eee2] text-sm font-bold">{request.initials}</span><div className="min-w-0"><div className="flex items-center gap-2"><p className="font-bold">{request.customer}</p>{request.status === "new" && <span className="rounded-full bg-[#fff2c1] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#806817]">New</span>}</div><p className="mt-1 truncate text-sm text-[#6f7e76]">{request.service} · {request.location}</p></div></div>
-                <div className="flex flex-wrap items-center justify-between gap-4 xl:w-[58%]"><div><p className="text-sm font-bold">{formatBookingDate(request.startsAt)}</p><p className="mt-1 text-xs text-[#74827b]">{formatBookingTime(request.startsAt)} · ${request.price}</p></div><div className="flex flex-wrap items-center justify-end gap-2"><Link href={`/provider/dashboard/bookings/${request.id}`} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View details</Link>{request.status === "new" ? <button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{bookingActionId === request.id ? "Saving…" : "Accept"}</button> : request.status === "accepted" ? <><span className="rounded-full bg-[#e4f1e5] px-3 py-1.5 text-xs font-bold text-[#35704a]">Accepted ✓</span><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "completed")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#eee25a] disabled:opacity-50">Mark complete</button></> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "completed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "completed" ? "Completed ✓" : "Declined"}</span>}</div></div>
+                <div className="flex flex-wrap items-center justify-between gap-4 xl:w-[58%]"><div><p className="text-sm font-bold">{formatBookingDate(request.startsAt)}</p><p className="mt-1 text-xs text-[#74827b]">{formatBookingTime(request.startsAt)} · ${request.price}</p></div><div className="flex flex-wrap items-center justify-end gap-2"><Link href={`/provider/dashboard/bookings/${request.id}`} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View details</Link>{request.status === "new" ? <button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{bookingActionId === request.id ? "Saving…" : "Accept"}</button> : request.status === "accepted" ? <><span className="rounded-full bg-[#e4f1e5] px-3 py-1.5 text-xs font-bold text-[#35704a]">Accepted ✓</span><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "completed")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#eee25a] disabled:opacity-50">Mark complete</button></> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "completed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "completed" ? "Completed ✓" : "Cancelled"}</span>}{request.status === "cancelled" && <button disabled={bookingActionId === request.id} onClick={() => deleteCancelledRequest(request.id)} className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Delete</button>}</div></div>
               </div>)}
             </div>
           </section>}

@@ -108,8 +108,8 @@ export async function POST(request: Request) {
     await client.query(
       `INSERT INTO conversations (customer_id, provider_id, service_id)
        VALUES ($1, $2, $3)
-       ON CONFLICT (customer_id, provider_id) DO UPDATE
-         SET service_id = EXCLUDED.service_id, updated_at = now()`,
+       ON CONFLICT (customer_id, provider_id, service_id) WHERE service_id IS NOT NULL DO UPDATE
+         SET customer_deleted_at = NULL, provider_deleted_at = NULL, updated_at = now()`,
       [session.user.id, service.provider_id, service.id],
     );
     await client.query(

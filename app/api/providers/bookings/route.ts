@@ -17,7 +17,7 @@ export async function GET() {
      JOIN provider_profiles p ON p.id = b.provider_id
      JOIN services s ON s.id = b.service_id
      JOIN "user" u ON u.id = b.customer_id
-     WHERE p.user_id = $1
+     WHERE p.user_id = $1 AND b.provider_deleted_at IS NULL
      ORDER BY CASE b.status WHEN 'requested' THEN 0 WHEN 'confirmed' THEN 1 ELSE 2 END,
               b.starts_at ASC`,
     [session.user.id],
@@ -31,6 +31,6 @@ export async function GET() {
     startsAt: row.starts_at,
     location: row.location,
     price: row.price_cents / 100,
-    status: row.status === "requested" ? "new" : row.status === "confirmed" ? "accepted" : row.status === "completed" ? "completed" : "declined",
+    status: row.status === "requested" ? "new" : row.status === "confirmed" ? "accepted" : row.status === "completed" ? "completed" : "cancelled",
   })) });
 }

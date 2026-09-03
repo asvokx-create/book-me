@@ -7,7 +7,7 @@ type Conversation = {
   serviceTitle: string | null; lastMessage: string | null; lastMessageAt: string | null;
   unreadCount: number; isProvider: boolean;
 };
-type Message = { id: string; body: string; isMine: boolean; senderName: string; createdAt: string };
+type Message = { id: string; body: string; isMine: boolean; senderName: string; createdAt: string; deleted: boolean };
 type MessageData = { conversations: Conversation[]; selectedConversation: Conversation | null; messages: Message[] };
 
 export default function MessagingCenter({
@@ -104,6 +104,46 @@ export default function MessagingCenter({
     setSending(false);
   }
 
+  async function deleteMessage(messageId: string) {
+    if (!window.confirm("Delete this message? The chat will show that a message was deleted.")) return;
+    setError("");
+    const response = await fetch("/api/messages", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId }),
+    }).catch(() => null);
+    const result = response ? await response.json() as { error?: string } : null;
+    if (!response?.ok) {
+      setError(result?.error ?? "We could not delete that message.");
+      return;
+    }
+    setData((current) => ({
+      ...current,
+      messages: current.messages.map((item) => item.id === messageId ? { ...item, body: "Message deleted", deleted: true } : item),
+    }));
+  }
+
+  async function deleteConversation() {
+    if (!selectedId || !window.confirm("Remove this entire conversation from your inbox? This will not erase it for the other person.")) return;
+    setError("");
+    const response = await fetch("/api/messages", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: selectedId }),
+    }).catch(() => null);
+    const result = response ? await response.json() as { error?: string } : null;
+    if (!response?.ok) {
+      setError(result?.error ?? "We could not remove that conversation.");
+      return;
+    }
+    const remaining = data.conversations.filter((conversation) => conversation.id !== selectedId);
+    const nextId = remaining[0]?.id ?? "";
+    selectedIdRef.current = nextId;
+    setSelectedId(nextId);
+    setData((current) => ({ ...current, conversations: remaining, selectedConversation: null, messages: [] }));
+    if (nextId) await loadMessages(nextId);
+  }
+
   const selected = data.selectedConversation;
   const contactName = selected ? (mode === "provider" ? selected.customerName : selected.providerName) : initialProviderName;
   const serviceTitle = selected?.serviceTitle ?? initialServiceTitle;
@@ -125,10 +165,10 @@ export default function MessagingCenter({
 
         <div className="flex min-h-[480px] flex-col">
           {(selected || canStartConversation) ? <>
-            <div className="border-b border-[#183126]/10 px-5 py-4"><p className="font-bold">{contactName}</p>{serviceTitle && <p className="mt-1 text-xs text-[#728179]">About {serviceTitle}</p>}</div>
+            <div className="flex items-center justify-between gap-4 border-b border-[#183126]/10 px-5 py-4"><div><p className="font-bold">{contactName}</p>{serviceTitle && <p className="mt-1 text-xs text-[#728179]">About {serviceTitle}</p>}</div>{selected && <button type="button" onClick={deleteConversation} className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">Delete conversation</button>}</div>
             <div className="flex-1 space-y-4 overflow-y-auto bg-[#fcfcf8] p-5 sm:p-7">
               {!selected && <div className="mx-auto max-w-sm rounded-2xl bg-[#edf2e9] p-4 text-center text-sm leading-6 text-[#5e7067]">Ask about availability, pricing, or anything you want to know before booking.</div>}
-              {data.messages.map((item) => <div key={item.id} className={`flex ${item.isMine ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] rounded-2xl px-4 py-3 ${item.isMine ? "rounded-br-md bg-[#183126] text-white" : "rounded-bl-md border border-[#183126]/10 bg-white"}`}><p className="whitespace-pre-wrap break-words text-sm leading-6">{item.body}</p><p className={`mt-1.5 text-[10px] ${item.isMine ? "text-white/55" : "text-[#8a9690]"}`}>{new Date(item.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p></div></div>)}
+              {data.messages.map((item) => <div key={item.id} className={`flex ${item.isMine ? "justify-end" : "justify-start"}`}><div className={`group max-w-[82%] rounded-2xl px-4 py-3 ${item.isMine ? "rounded-br-md bg-[#183126] text-white" : "rounded-bl-md border border-[#183126]/10 bg-white"}`}><p className={`whitespace-pre-wrap break-words text-sm leading-6 ${item.deleted ? "italic opacity-60" : ""}`}>{item.body}</p><div className="mt-1.5 flex items-center justify-between gap-4"><p className={`text-[10px] ${item.isMine ? "text-white/55" : "text-[#8a9690]"}`}>{new Date(item.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>{item.isMine && !item.deleted && <button type="button" onClick={() => deleteMessage(item.id)} className="rounded px-1.5 py-0.5 text-[10px] font-bold text-white/55 opacity-0 transition hover:bg-white/15 hover:text-white group-hover:opacity-100 focus:opacity-100">Delete</button>}</div></div></div>)}
               <div ref={messageEndRef} />
             </div>
             <form onSubmit={sendMessage} className="border-t border-[#183126]/10 bg-white p-4 sm:p-5">

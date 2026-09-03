@@ -47,7 +47,7 @@ export async function POST(request: Request, context: RouteContext<"/api/booking
     }
     await client.query(
       `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
-       VALUES ($1, $2, 'new_review', 'New customer review', $3, '/provider/dashboard/reviews', 'review-' || $2::text || '-provider')
+       VALUES ($1, $2::uuid, 'new_review', 'New customer review', $3, '/provider/dashboard/reviews', 'review-' || $2::uuid::text || '-provider')
        ON CONFLICT (dedupe_key) DO NOTHING`,
       [booking.provider_user_id, bookingId, `${session.user.name || "A customer"} left a ${rating}-star review for ${booking.service_title}.`],
     );

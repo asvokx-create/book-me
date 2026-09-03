@@ -25,9 +25,11 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
      JOIN "user" customer ON customer.id = b.customer_id
      JOIN provider_profiles p ON p.id = b.provider_id
      JOIN services s ON s.id = b.service_id
-     LEFT JOIN conversations c ON c.customer_id = b.customer_id AND c.provider_id = b.provider_id
+     LEFT JOIN conversations c ON c.customer_id = b.customer_id
+       AND c.provider_id = b.provider_id AND c.service_id = b.service_id
      LEFT JOIN reviews r ON r.booking_id = b.id
-     WHERE b.id::text = $1 AND (b.customer_id = $2 OR p.user_id = $2)
+     WHERE b.id::text = $1
+       AND (b.customer_id = $2 OR (p.user_id = $2 AND b.provider_deleted_at IS NULL))
      LIMIT 1`,
     [bookingId, session.user.id],
   );
@@ -87,7 +89,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
     }
     await client.query(
       `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
-       VALUES ($1, $2, 'booking_cancelled', 'Booking cancelled', $3, '/provider/dashboard/bookings/' || $2::text, 'booking-cancelled-' || $2::text || '-provider')
+       VALUES ($1, $2::uuid, 'booking_cancelled', 'Booking cancelled', $3, '/provider/dashboard/bookings/' || $2::uuid::text, 'booking-cancelled-' || $2::uuid::text || '-provider')
        ON CONFLICT (dedupe_key) DO NOTHING`,
       [cancelled.provider_user_id, bookingId, `${session.user.name || "The customer"} cancelled ${cancelled.service_title}: ${reason}`],
     );
