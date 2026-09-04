@@ -28,8 +28,8 @@ export default async function Home() {
         </div>
       </header>
 
-      <section className="relative isolate overflow-hidden">
-        <div className="pointer-events-none absolute -right-48 top-8 -z-10 h-[620px] w-[620px] rounded-full bg-[#d8e7d3] blur-2xl sm:right-[-8rem] sm:top-4" />
+      <section className="relative z-10 isolate">
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"><div className="absolute -right-48 top-8 h-[620px] w-[620px] rounded-full bg-[#d8e7d3] blur-2xl sm:right-[-8rem] sm:top-4" /></div>
         <div className="relative z-10 mx-auto max-w-6xl px-6 py-20 sm:py-24">
         <div className="max-w-3xl">
           <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#183126]/10 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#4d6b59] shadow-sm">
@@ -66,9 +66,9 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 pb-14">
+      <section className="relative z-0 mx-auto max-w-6xl px-6 pb-14">
         <p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Explore nearby</p>
-        <h3 className="mb-7 mt-2 text-3xl font-bold tracking-[-.04em]">What can we take off your plate?</h3>
+        <div className="mb-7 mt-2 flex items-end justify-between gap-4"><h3 className="text-3xl font-bold tracking-[-.04em]">What can we take off your plate?</h3><Link href="/services?showFilters=1#all-filters" className="shrink-0 rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a]">View all</Link></div>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {FEATURED_SERVICE_CATEGORIES.map((category) => (

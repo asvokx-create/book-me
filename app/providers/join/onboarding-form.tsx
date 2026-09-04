@@ -6,7 +6,7 @@ import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export default function OnboardingForm() {
+export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" | "pro" | "business" }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
@@ -76,7 +76,7 @@ export default function OnboardingForm() {
     const response = await fetch("/api/providers/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ business, category, city, service, price, duration, description, selectedDays, startTime, endTime }),
+      body: JSON.stringify({ business, category, city, service, price, duration, description, selectedDays, startTime, endTime, plan }),
     });
     const result = (await response.json()) as { error?: string; serviceId?: string };
 

@@ -18,6 +18,8 @@ type ProviderSummary = {
   name: string;
   businessName: string;
   location: string;
+  plan: "starter" | "pro" | "business";
+  isAdmin: boolean;
   service: ProviderService | null;
   services: ProviderService[];
   availability: Array<{ weekday: number; startTime: string; endTime: string }>;
@@ -199,7 +201,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
       <header className="relative z-50 border-b border-[#183126]/10 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe <span className="hidden rounded-full bg-[#e8f0e5] px-2.5 py-1 text-[10px] uppercase tracking-wider text-[#55705e] sm:inline">Provider</span></Link>
-          <div className="flex items-center gap-2 sm:gap-3"><Link href="/account" className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">Switch to </span>customer</Link><NotificationBell /><div aria-label={`${accountName} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#dfead9] text-sm font-bold">{initials}</div></div>
+          <div className="flex items-center gap-2 sm:gap-3">{provider?.isAdmin && <Link href="/admin" className="rounded-full bg-[#eee25a] px-4 py-2.5 text-xs font-bold transition hover:bg-[#f5ea6b] sm:text-sm">Admin</Link>}<Link href="/account" className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">Switch to </span>customer</Link><NotificationBell /><div aria-label={`${accountName} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#dfead9] text-sm font-bold">{initials}</div></div>
         </div>
       </header>
 
@@ -219,7 +221,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           {providerLoaded && !provider && <div className="mb-6 rounded-2xl border border-[#d6ca65] bg-[#fff8cd] p-5 text-sm"><p className="font-bold">Create your provider profile to use this dashboard.</p><p className="mt-1 text-[#6f6840]">Add your business, first service, and availability to start getting discovered.</p><Link href="/providers/join" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 font-bold text-white">Start provider setup</Link></div>}
 
           {section === "overview" && <><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div><p className="text-sm font-semibold text-[#687a70]">Today&apos;s overview</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Welcome, {firstName}.</h1><p className="mt-2 text-sm text-[#687a70]">{provider ? `${provider.businessName} · ${provider.location}` : "Here's what’s happening with your business."}</p></div>
+            <div><p className="text-sm font-semibold text-[#687a70]">Today&apos;s overview</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Welcome, {firstName}.</h1><div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[#687a70]"><span>{provider ? `${provider.businessName} · ${provider.location}` : "Here's what’s happening with your business."}</span>{provider && <span className="rounded-full bg-[#eee25a] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#183126]">{provider.plan} plan</span>}</div></div>
             <Link href="/providers/join" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Add a service</Link>
           </div>
 

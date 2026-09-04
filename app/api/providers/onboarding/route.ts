@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
+import { hasAdminAccess } from "@/lib/admin";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
   const description = typeof body.description === "string" ? body.description.trim() : "";
   const duration = typeof body.duration === "string" ? body.duration : "";
   const price = Number(body.price);
+  const requestedPlan = body.plan === "pro" || body.plan === "business" ? body.plan : "starter";
   const selectedDays = Array.isArray(body.selectedDays)
     ? body.selectedDays.filter((day): day is string => typeof day === "string" && day in weekdayNumbers)
     : [];
@@ -59,6 +61,7 @@ export async function POST(request: Request) {
   }
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "provider_listing", fields: [business, service, description, serviceArea] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
+  const plan = await hasAdminAccess(session.user.id, session.user.email) ? "business" : requestedPlan;
 
   const locationParts = serviceArea.split(",").map((part) => part.trim()).filter(Boolean);
   const state = locationParts.length > 1 ? locationParts.pop()! : "WA";
@@ -70,16 +73,17 @@ export async function POST(request: Request) {
     await client.query('UPDATE "user" SET role = $1, "updatedAt" = now() WHERE id = $2', ["provider", session.user.id]);
 
     const profileResult = await client.query<{ id: string }>(
-      `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state, plan)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (user_id) DO UPDATE SET
          business_name = EXCLUDED.business_name,
          bio = EXCLUDED.bio,
          phone = EXCLUDED.phone,
          city = EXCLUDED.city,
-         state = EXCLUDED.state
+         state = EXCLUDED.state,
+         plan = EXCLUDED.plan
        RETURNING id`,
-      [session.user.id, business, description, session.user.phone ?? null, city, state],
+      [session.user.id, business, description, session.user.phone ?? null, city, state, plan],
     );
     const providerId = profileResult.rows[0].id;
 

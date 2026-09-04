@@ -16,7 +16,7 @@ export async function GET() {
      JOIN provider_profiles p ON p.id = r.provider_id
      JOIN "user" customer ON customer.id = r.customer_id
      JOIN services s ON s.id = r.service_id
-     WHERE p.user_id = $1
+     WHERE p.user_id = $1 AND r.is_hidden = false
      ORDER BY r.created_at DESC`,
     [session.user.id],
   );

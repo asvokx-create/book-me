@@ -12,6 +12,24 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  databaseHooks: {
+    session: {
+      create: {
+        async before(session) {
+          const restriction = await database.query<{ blocked: boolean }>(
+            `SELECT true AS blocked
+             FROM account_restrictions
+             WHERE user_id = $1
+               AND status IN ('suspended', 'banned')
+               AND (expires_at IS NULL OR expires_at > now())
+             LIMIT 1`,
+            [session.userId],
+          );
+          if (restriction.rows[0]?.blocked) return false;
+        },
+      },
+    },
+  },
   user: {
     additionalFields: {
       phone: {

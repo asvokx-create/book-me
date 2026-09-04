@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { hasAdminAccess } from "@/lib/admin";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -14,8 +15,9 @@ export async function GET() {
     business_name: string;
     city: string;
     state: string;
+    plan: "starter" | "pro" | "business";
   }>(
-    `SELECT p.id::text, p.business_name, p.city, p.state
+    `SELECT p.id::text, p.business_name, p.city, p.state, p.plan
      FROM provider_profiles p
      WHERE p.user_id = $1`,
     [session.user.id],
@@ -26,6 +28,7 @@ export async function GET() {
   }
 
   const provider = providerResult.rows[0];
+  const isAdmin = await hasAdminAccess(session.user.id, session.user.email);
   const serviceResult = await database.query<{
     id: string;
     slug: string;
@@ -70,6 +73,8 @@ export async function GET() {
     name: session.user.name,
     businessName: provider.business_name,
     location: `${provider.city}, ${provider.state}`,
+    plan: provider.plan,
+    isAdmin,
     service: services[0] ?? null,
     services,
     availability: availabilityResult.rows.map((slot) => ({

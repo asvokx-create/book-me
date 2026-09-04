@@ -22,6 +22,7 @@ function getParam(value: string | string[] | undefined) {
 
 export default async function ServicesPage({ searchParams }: PageProps<"/services">) {
   const params = await searchParams;
+  const showFilters = getParam(params.showFilters) === "1";
   const query = getParam(params.q).trim();
   const selectedCategory = getParam(params.category) || "All services";
   const location = getParam(params.location) || "Issaquah, WA";
@@ -94,7 +95,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
+      <section id="all-filters" className="mx-auto max-w-7xl scroll-mt-6 px-5 py-10 sm:px-8 sm:py-14">
         <div className="flex gap-2 overflow-x-auto pb-3">
           {quickCategories.map((category) => {
             const active = category === selectedCategory;
@@ -102,7 +103,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <Link key={category} href={serviceHref(category)} className={`shrink-0 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${active ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white hover:border-[#496958] hover:bg-[#edf3e7]"}`}>{category}</Link>
             );
           })}
-          <details className="group shrink-0">
+          <details open={showFilters} className="group shrink-0">
             <summary className="list-none rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-sm font-semibold transition hover:border-[#496958] hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">More filters <span className="inline-block transition group-open:rotate-180">⌄</span></summary>
             <div className="absolute left-5 right-5 z-20 mt-3 rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 shadow-[0_20px_55px_rgba(24,49,38,.15)] sm:left-auto sm:right-8 sm:w-[620px] sm:p-6">
               <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>

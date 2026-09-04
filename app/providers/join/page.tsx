@@ -46,7 +46,7 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
             {["Keep control of your pricing", "Choose when and where you work", "Build trust with verified reviews"].map((benefit) => <div key={benefit} className="flex items-center gap-3 text-sm font-semibold"><span className="grid h-7 w-7 place-items-center rounded-full bg-[#dfeee2] text-[#37724c]">✓</span>{benefit}</div>)}
           </div>
         </div>
-        <OnboardingForm />
+        <OnboardingForm plan={requestedPlan === "pro" || requestedPlan === "business" ? requestedPlan : "starter"} />
       </section>
     </main>
   );
