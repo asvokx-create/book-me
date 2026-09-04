@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { hasAdminAccess } from "@/lib/admin";
+import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -61,7 +62,10 @@ export async function POST(request: Request) {
   }
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "provider_listing", fields: [business, service, description, serviceArea] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
-  const plan = await hasAdminAccess(session.user.id, session.user.email) ? "business" : requestedPlan;
+  const existingProfile = await database.query<{ plan: ProviderPlan }>("SELECT plan FROM provider_profiles WHERE user_id = $1", [session.user.id]);
+  const plan: ProviderPlan = await hasAdminAccess(session.user.id, session.user.email)
+    ? "business"
+    : existingProfile.rows[0]?.plan ?? requestedPlan;
 
   const locationParts = serviceArea.split(",").map((part) => part.trim()).filter(Boolean);
   const state = locationParts.length > 1 ? locationParts.pop()! : "WA";
@@ -86,6 +90,15 @@ export async function POST(request: Request) {
       [session.user.id, business, description, session.user.phone ?? null, city, state, plan],
     );
     const providerId = profileResult.rows[0].id;
+
+    const serviceLimit = PLAN_ENTITLEMENTS[plan].serviceLimit;
+    if (serviceLimit !== null) {
+      const serviceCount = await client.query<{ count: number }>("SELECT count(*)::int AS count FROM services WHERE provider_id = $1 AND is_active = true", [providerId]);
+      if (serviceCount.rows[0].count >= serviceLimit) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: `Your ${PLAN_ENTITLEMENTS[plan].name} plan allows up to ${serviceLimit} active services. Upgrade from Billing to add more.`, upgradeRequired: true }, { status: 403 });
+      }
+    }
 
     const serviceResult = await client.query<{ id: string }>(
       `INSERT INTO services (provider_id, slug, category, title, description, price_cents, duration_minutes)

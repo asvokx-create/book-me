@@ -7,9 +7,12 @@ import ServiceImageManager from "@/components/service-image-manager";
 import AvailabilityEditor from "@/components/availability-editor";
 import NotificationBell from "@/components/notification-bell";
 import MessagingCenter from "@/components/messaging-center";
+import TeamManager from "@/components/team-manager";
+import BillingPanel from "@/components/billing-panel";
+import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
-export type DashboardSection = "overview" | "bookings" | "messages" | "revenue" | "services" | "availability" | "reviews" | "settings";
+export type DashboardSection = "overview" | "bookings" | "messages" | "revenue" | "services" | "availability" | "reviews" | "team" | "billing" | "settings";
 
 type ProviderBooking = { id: string; customer: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus };
 const initialRequests: ProviderBooking[] = [];
@@ -18,7 +21,7 @@ type ProviderSummary = {
   name: string;
   businessName: string;
   location: string;
-  plan: "starter" | "pro" | "business";
+  plan: ProviderPlan;
   isAdmin: boolean;
   service: ProviderService | null;
   services: ProviderService[];
@@ -75,6 +78,8 @@ const dashboardNav: Array<{ section: DashboardSection; href: string; icon: strin
   { section: "services", href: "/provider/dashboard/services", icon: "◇", label: "Services" },
   { section: "availability", href: "/provider/dashboard/availability", icon: "□", label: "Availability" },
   { section: "reviews", href: "/provider/dashboard/reviews", icon: "☆", label: "Reviews" },
+  { section: "team", href: "/provider/dashboard/team", icon: "♙", label: "Team" },
+  { section: "billing", href: "/provider/dashboard/billing", icon: "▤", label: "Billing" },
   { section: "settings", href: "/provider/dashboard/settings", icon: "⚙", label: "Settings" },
 ];
 
@@ -265,7 +270,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
           {section === "messages" && <MessagingCenter mode="provider" initialConversationId={initialConversationId} />}
 
-          {section === "revenue" && <RevenuePanel revenue={revenue} loaded={revenueLoaded} />}
+          {section === "revenue" && <RevenuePanel revenue={revenue} loaded={revenueLoaded} plan={provider?.plan ?? "starter"} />}
 
           {section === "services" && <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
             <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-center justify-between"><div><h2 className="text-xl font-bold">Your services</h2><p className="mt-1 text-xs text-[#738179]">Edit details, photos, pricing, or remove a listing.</p></div><Link href="/providers/join" className="text-sm font-bold">+ Add</Link></div>{provider?.services.length ? <div className="mt-5 space-y-5">{provider.services.map((service) => <div key={service.id} className="rounded-2xl bg-[#f5f5ef] p-4"><div className="flex items-center gap-4"><span role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cover bg-center ${service.imageUrls[0] ? "" : "bg-gradient-to-br from-lime-700 to-yellow-200 text-3xl"}`}>{service.imageUrls[0] ? "" : "🧰"}</span><div className="min-w-0 flex-1"><p className="truncate font-bold">{service.title}</p><p className="mt-1 text-xs text-[#738179]">From ${service.price} · {formatDuration(service.durationMinutes)}</p></div><Link href={`/provider/services/${service.id}/edit`} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 text-xs font-bold hover:border-[#4d725d]">Edit</Link></div><ServiceImageManager serviceId={service.id} initialImageUrls={service.imageUrls} compact /></div>)}</div> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">You do not have any active services. Add one to appear in customer searches.</p>}</section>
@@ -281,8 +286,13 @@ export default function ProviderDashboard({ section = "overview", initialConvers
               {!reviewsLoaded ? <p className="mt-6 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">Loading reviews…</p> : reviews.length ? <div className="mt-6 grid gap-4 lg:grid-cols-2">{reviews.map((item) => <article key={item.id} className="rounded-2xl border border-[#183126]/10 bg-[#fafaf6] p-5"><div className="flex items-start justify-between gap-4"><div><p className="font-bold">{item.customerName}</p><p className="mt-1 text-xs text-[#74827b]">{item.serviceTitle} · {new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p></div><span className="shrink-0 text-[#d0a51d]">{"★".repeat(item.rating)}<span className="text-[#d8ddd9]">{"★".repeat(5 - item.rating)}</span></span></div><p className="mt-4 text-sm leading-6 text-[#52665b]">{item.body}</p><Link href={`/provider/dashboard/bookings/${item.bookingId}`} className="mt-4 inline-flex text-xs font-bold underline decoration-[#c5b940] decoration-2 underline-offset-4">View booking</Link></article>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">☆</p><p className="mt-2 font-bold">No reviews yet</p><p className="mt-1 text-sm text-[#738179]">Your first review will appear here after a completed booking.</p></div>}
           </section>}
 
+          {section === "team" && <TeamManager />}
+
+          {section === "billing" && (provider ? <BillingPanel plan={provider.plan} /> : <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-7"><h1 className="text-xl font-bold">{providerLoaded ? "Create your provider profile first" : "Loading billing…"}</h1>{providerLoaded && <><p className="mt-2 text-sm text-[#738179]">Billing and provider plans become available after your business profile is created.</p><Link href="/providers/join" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Start provider setup</Link></>}</section>)}
+
           {section === "settings" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
-            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center"><div><h2 className="text-xl font-bold">Business settings</h2><p className="mt-1 text-sm text-[#738179]">{provider ? `${provider.businessName} · ${provider.location}` : "Complete your provider profile to manage business settings."}</p></div><div className="flex flex-wrap gap-2"><Link href="/providers/join" className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold">Edit profile</Link>{provider?.service && <Link href={`/provider/services/${provider.service.id}/edit`} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white">Manage listing</Link>}</div></div>
+            <div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Provider account</p><h2 className="mt-2 text-2xl font-bold">Settings</h2><p className="mt-1 text-sm text-[#738179]">Manage your BookMe account, security, business profile, listings, and schedule.</p></div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2"><Link href="/account/settings" className="rounded-2xl bg-[#183126] p-5 text-white transition hover:bg-[#315846]"><span className="text-2xl">⚙</span><p className="mt-3 font-bold">Account settings</p><p className="mt-1 text-xs leading-5 text-[#b8c7bf]">Name, phone, location, notifications, password, and security.</p></Link><Link href="/providers/join" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">▦</span><p className="mt-3 font-bold">Business profile</p><p className="mt-1 text-xs leading-5 text-[#738179]">{provider ? `${provider.businessName} · ${provider.location}` : "Create your provider profile."}</p></Link><Link href="/provider/dashboard/services" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">◇</span><p className="mt-3 font-bold">Services and pricing</p><p className="mt-1 text-xs leading-5 text-[#738179]">Edit listings, prices, descriptions, duration, and photos.</p></Link><Link href="/provider/dashboard/availability" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">□</span><p className="mt-3 font-bold">Availability</p><p className="mt-1 text-xs leading-5 text-[#738179]">Control the days and times customers can request.</p></Link><Link href="/provider/dashboard/team" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">♙</span><p className="mt-3 font-bold">Company team</p><p className="mt-1 text-xs leading-5 text-[#738179]">Add workers within your plan&apos;s seat allowance.</p></Link><Link href="/provider/dashboard/billing" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">▤</span><p className="mt-3 font-bold">Plan and billing</p><p className="mt-1 text-xs leading-5 text-[#738179]">Review plan limits and future Stripe billing.</p></Link></div>
           </section>}
         </div>
       </div>
@@ -290,7 +300,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   );
 }
 
-function RevenuePanel({ revenue, loaded }: { revenue: RevenueSummary | null; loaded: boolean }) {
+function RevenuePanel({ revenue, loaded, plan }: { revenue: RevenueSummary | null; loaded: boolean; plan: ProviderPlan }) {
   if (!loaded) return <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-8 text-sm text-[#738179]">Loading your revenue…</div>;
   if (!revenue) return <div className="rounded-[2rem] border border-[#d6ca65] bg-[#fff8cd] p-6"><h1 className="text-xl font-bold">Revenue is not available yet</h1><p className="mt-2 text-sm text-[#6f6840]">Complete your provider profile to start tracking completed jobs and revenue.</p></div>;
 
@@ -313,7 +323,7 @@ function RevenuePanel({ revenue, loaded }: { revenue: RevenueSummary | null; loa
       <RevenueCard label="Last month" value={formatCurrency(revenue.lastMonthRevenue)} note="Completed jobs last month" />
     </div>
 
-    <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-[0_5px_22px_rgba(24,49,38,.04)] sm:p-7">
+    {PLAN_ENTITLEMENTS[plan].advancedAnalytics ? <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-[0_5px_22px_rgba(24,49,38,.04)] sm:p-7">
       <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Last six months</p><h2 className="mt-2 text-xl font-bold">Revenue trend</h2></div><p className="text-sm font-bold">{formatCurrency(revenue.monthlyRevenue.reduce((sum, month) => sum + month.revenue, 0))}</p></div>
       <div className="mt-6 overflow-x-auto">
         <div className="min-w-[620px]">
@@ -325,7 +335,7 @@ function RevenuePanel({ revenue, loaded }: { revenue: RevenueSummary | null; loa
         </div>
       </div>
       {revenue.completedJobs === 0 && <div className="mt-3 rounded-2xl bg-[#f5f5ef] p-4 text-center text-sm text-[#738179]">Your graph will grow as you complete BookMe jobs.</div>}
-    </section>
+    </section> : <section className="mt-6 rounded-[2rem] border border-[#d8cb63] bg-[#fff9d9] p-7"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#756d3f]">Pro feature</p><h2 className="mt-2 text-xl font-bold">Unlock advanced revenue analytics</h2><p className="mt-2 text-sm leading-6 text-[#706942]">Starter includes your revenue totals. Pro and Business add the six-month graph and detailed trends.</p><Link href="/provider/dashboard/billing" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Compare plans</Link></section>}
 
     <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-5 sm:p-7"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Activity</p><h2 className="mt-2 text-xl font-bold">Recent earnings</h2></div>{revenue.recentEarnings.length ? <div className="mt-5 divide-y divide-[#183126]/10">{revenue.recentEarnings.map((earning) => <div key={earning.id} className="flex items-center gap-4 py-4"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e7eee2] font-bold text-[#476452]">$</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{earning.service}</p><p className="mt-1 text-xs text-[#74827b]">{earning.customer} · {new Date(earning.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p></div><p className="font-bold text-[#35704a]">+{formatCurrency(earning.amount)}</p></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">↗</p><p className="mt-2 font-bold">No earnings yet</p><p className="mt-1 text-sm text-[#738179]">Completed jobs will appear here automatically.</p></div>}</section>
   </div>;

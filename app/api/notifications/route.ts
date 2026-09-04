@@ -19,7 +19,9 @@ export async function GET() {
        (b.customer_id, '/account'),
        (p.user_id, '/provider/dashboard/bookings')
      ) AS audience(user_id, href)
+     LEFT JOIN user_settings us ON us.user_id = audience.user_id
      WHERE audience.user_id = $1 AND b.status = 'confirmed'
+       AND COALESCE(us.booking_notifications, true)
        AND b.starts_at > now() AND b.starts_at <= now() + interval '24 hours'
      ON CONFLICT (dedupe_key) DO NOTHING`,
     [session.user.id],
@@ -28,15 +30,24 @@ export async function GET() {
   const result = await database.query<{
     id: string; type: string; title: string; message: string; href: string; read_at: Date | null; created_at: Date;
   }>(
-    `SELECT id::text, type, title, message, href, read_at, created_at
-     FROM notifications
-     WHERE user_id = $1
-     ORDER BY created_at DESC
+    `SELECT n.id::text, n.type, n.title, n.message, n.href, n.read_at, n.created_at
+     FROM notifications n
+     LEFT JOIN user_settings us ON us.user_id = n.user_id
+     WHERE n.user_id = $1
+       AND (CASE WHEN n.type LIKE 'booking_%' THEN COALESCE(us.booking_notifications, true)
+                 WHEN n.type = 'new_message' OR n.type LIKE 'message_%' THEN COALESCE(us.message_notifications, true)
+                 ELSE true END)
+     ORDER BY n.created_at DESC
      LIMIT 30`,
     [session.user.id],
   );
   const unreadResult = await database.query<{ count: number }>(
-    "SELECT count(*)::int AS count FROM notifications WHERE user_id = $1 AND read_at IS NULL",
+    `SELECT count(*)::int AS count FROM notifications n
+     LEFT JOIN user_settings us ON us.user_id = n.user_id
+     WHERE n.user_id = $1 AND n.read_at IS NULL
+       AND (CASE WHEN n.type LIKE 'booking_%' THEN COALESCE(us.booking_notifications, true)
+                 WHEN n.type = 'new_message' OR n.type LIKE 'message_%' THEN COALESCE(us.message_notifications, true)
+                 ELSE true END)`,
     [session.user.id],
   );
 

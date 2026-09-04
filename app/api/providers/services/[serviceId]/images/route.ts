@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { deleteImage, uploadPublicImage } from "@/lib/spaces";
+import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 
 export const runtime = "nodejs";
 
@@ -26,19 +27,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ ser
   if (!session) return NextResponse.json({ error: "Log in before adding listing photos." }, { status: 401 });
 
   const { serviceId } = await params;
-  const ownership = await database.query<{ image_count: string }>(
-    `SELECT COUNT(si.id)::text AS image_count
+  const ownership = await database.query<{ image_count: string; total_image_count: string; plan: ProviderPlan }>(
+    `SELECT COUNT(si.id)::text AS image_count, p.plan,
+            (SELECT COUNT(*)::text FROM service_images all_images
+             JOIN services provider_service ON provider_service.id = all_images.service_id
+             WHERE provider_service.provider_id = p.id AND provider_service.is_active = true) AS total_image_count
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      LEFT JOIN service_images si ON si.service_id = s.id
      WHERE s.id::text = $1 AND p.user_id = $2
-     GROUP BY s.id`,
+     GROUP BY s.id, p.id, p.plan`,
     [serviceId, session.user.id],
   );
   if (!ownership.rows[0]) return NextResponse.json({ error: "Service not found." }, { status: 404 });
 
   const imageCount = Number(ownership.rows[0].image_count);
-  if (imageCount >= 5) return NextResponse.json({ error: "A listing can have up to 5 photos." }, { status: 400 });
+  const photoLimit = PLAN_ENTITLEMENTS[ownership.rows[0].plan].photoLimit;
+  if (photoLimit !== null && Number(ownership.rows[0].total_image_count) >= photoLimit) {
+    return NextResponse.json({ error: `Your ${PLAN_ENTITLEMENTS[ownership.rows[0].plan].name} plan allows ${photoLimit} photos across all listings. Upgrade from Billing for unlimited photos.`, upgradeRequired: true }, { status: 403 });
+  }
 
   const formData = await request.formData();
   const image = formData.get("image");
