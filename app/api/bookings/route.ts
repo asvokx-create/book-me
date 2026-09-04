@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
+import { sendBookingUpdateEmails } from "@/lib/booking-email";
+import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -37,6 +39,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in before requesting a booking." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "booking-create", limit: 8 })) {
+    return NextResponse.json({ error: "Too many booking requests. Please wait a minute and try again." }, { status: 429 });
+  }
 
   const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; location?: unknown; notes?: unknown };
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
@@ -110,6 +115,11 @@ export async function POST(request: Request) {
     );
     const bookingId = created.rows[0].id;
     await client.query(
+      `INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
+       VALUES ($1::uuid, $2, 'requested', 'Customer sent the booking request.')`,
+      [bookingId, session.user.id],
+    );
+    await client.query(
       `INSERT INTO conversations (customer_id, provider_id, service_id)
        VALUES ($1, $2, $3)
        ON CONFLICT (customer_id, provider_id, service_id) WHERE service_id IS NOT NULL DO UPDATE
@@ -131,6 +141,8 @@ export async function POST(request: Request) {
       ],
     );
     await client.query("COMMIT");
+    await recordActivity({ userId: session.user.id, action: "booking_created", targetType: "booking", targetId: bookingId });
+    await sendBookingUpdateEmails(bookingId, "requested");
     return NextResponse.json({ id: bookingId, status: "requested" }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK");

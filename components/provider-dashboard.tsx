@@ -9,10 +9,12 @@ import NotificationBell from "@/components/notification-bell";
 import MessagingCenter from "@/components/messaging-center";
 import TeamManager from "@/components/team-manager";
 import BillingPanel from "@/components/billing-panel";
+import ProviderTrustSettings from "@/components/provider-trust-settings";
+import BookingCalendar from "@/components/booking-calendar";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
-export type DashboardSection = "overview" | "bookings" | "messages" | "revenue" | "services" | "availability" | "reviews" | "team" | "billing" | "settings";
+export type DashboardSection = "overview" | "bookings" | "calendar" | "messages" | "revenue" | "services" | "availability" | "reviews" | "team" | "billing" | "settings";
 
 type ProviderBooking = { id: string; customer: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus };
 const initialRequests: ProviderBooking[] = [];
@@ -26,6 +28,13 @@ type ProviderSummary = {
   service: ProviderService | null;
   services: ProviderService[];
   availability: Array<{ weekday: number; startTime: string; endTime: string }>;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  identityVerified: boolean;
+  businessVerified: boolean;
+  cancellationWindowHours: number;
+  cancellationPolicy: string;
+  noShowPolicy: string;
 };
 
 type ProviderService = { id: string; slug: string; title: string; category: string; price: number; durationMinutes: number; imageUrls: string[] };
@@ -73,6 +82,7 @@ function formatBookingTime(startsAt: string) {
 const dashboardNav: Array<{ section: DashboardSection; href: string; icon: string; label: string }> = [
   { section: "overview", href: "/provider/dashboard", icon: "▦", label: "Overview" },
   { section: "bookings", href: "/provider/dashboard/bookings", icon: "◷", label: "Bookings" },
+  { section: "calendar", href: "/provider/dashboard/calendar", icon: "▣", label: "Calendar" },
   { section: "messages", href: "/provider/dashboard/messages", icon: "✉", label: "Messages" },
   { section: "revenue", href: "/provider/dashboard/revenue", icon: "$", label: "Revenue" },
   { section: "services", href: "/provider/dashboard/services", icon: "◇", label: "Services" },
@@ -270,6 +280,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
           {section === "messages" && <MessagingCenter mode="provider" initialConversationId={initialConversationId} />}
 
+          {section === "calendar" && <BookingCalendar role="provider" />}
+
           {section === "revenue" && <RevenuePanel revenue={revenue} loaded={revenueLoaded} plan={provider?.plan ?? "starter"} />}
 
           {section === "services" && <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
@@ -293,6 +305,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           {section === "settings" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
             <div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Provider account</p><h2 className="mt-2 text-2xl font-bold">Settings</h2><p className="mt-1 text-sm text-[#738179]">Manage your BookMe account, security, business profile, listings, and schedule.</p></div>
             <div className="mt-6 grid gap-4 md:grid-cols-2"><Link href="/account/settings" className="rounded-2xl bg-[#183126] p-5 text-white transition hover:bg-[#315846]"><span className="text-2xl">⚙</span><p className="mt-3 font-bold">Account settings</p><p className="mt-1 text-xs leading-5 text-[#b8c7bf]">Name, phone, location, notifications, password, and security.</p></Link><Link href="/providers/join" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">▦</span><p className="mt-3 font-bold">Business profile</p><p className="mt-1 text-xs leading-5 text-[#738179]">{provider ? `${provider.businessName} · ${provider.location}` : "Create your provider profile."}</p></Link><Link href="/provider/dashboard/services" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">◇</span><p className="mt-3 font-bold">Services and pricing</p><p className="mt-1 text-xs leading-5 text-[#738179]">Edit listings, prices, descriptions, duration, and photos.</p></Link><Link href="/provider/dashboard/availability" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">□</span><p className="mt-3 font-bold">Availability</p><p className="mt-1 text-xs leading-5 text-[#738179]">Control the days and times customers can request.</p></Link><Link href="/provider/dashboard/team" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">♙</span><p className="mt-3 font-bold">Company team</p><p className="mt-1 text-xs leading-5 text-[#738179]">Add workers within your plan&apos;s seat allowance.</p></Link><Link href="/provider/dashboard/billing" className="rounded-2xl bg-[#f5f5ef] p-5 transition hover:bg-[#e3ecde]"><span className="text-2xl">▤</span><p className="mt-3 font-bold">Plan and billing</p><p className="mt-1 text-xs leading-5 text-[#738179]">Review plan limits and future Stripe billing.</p></Link></div>
+            {provider && <ProviderTrustSettings initial={provider} />}
           </section>}
         </div>
       </div>

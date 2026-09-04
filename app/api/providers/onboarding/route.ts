@@ -6,6 +6,7 @@ import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { hasAdminAccess } from "@/lib/admin";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
+import { getServiceAreaCoordinates } from "@/lib/service-areas";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
   const business = typeof body.business === "string" ? body.business.trim() : "";
   const category = typeof body.category === "string" ? body.category.trim() : "";
   const serviceArea = typeof body.city === "string" ? body.city.trim() : "";
+  const coordinates = getServiceAreaCoordinates(serviceArea);
   const service = typeof body.service === "string" ? body.service.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
   const duration = typeof body.duration === "string" ? body.duration : "";
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
   const endTime = typeof body.endTime === "string" ? body.endTime : "17:00";
   const validTime = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-  if (!business || !category || !serviceArea || !service || !description || !Number.isFinite(price) || price <= 0 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
+  if (!business || !category || !serviceArea || !coordinates || !service || !description || !Number.isFinite(price) || price <= 0 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "provider_listing", fields: [business, service, description, serviceArea] });
@@ -77,17 +79,19 @@ export async function POST(request: Request) {
     await client.query('UPDATE "user" SET role = $1, "updatedAt" = now() WHERE id = $2', ["provider", session.user.id]);
 
     const profileResult = await client.query<{ id: string }>(
-      `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state, plan)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state, plan, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (user_id) DO UPDATE SET
          business_name = EXCLUDED.business_name,
          bio = EXCLUDED.bio,
          phone = EXCLUDED.phone,
          city = EXCLUDED.city,
          state = EXCLUDED.state,
-         plan = EXCLUDED.plan
+         plan = EXCLUDED.plan,
+         latitude = EXCLUDED.latitude,
+         longitude = EXCLUDED.longitude
        RETURNING id`,
-      [session.user.id, business, description, session.user.phone ?? null, city, state, plan],
+      [session.user.id, business, description, session.user.phone ?? null, city, state, plan, coordinates.latitude, coordinates.longitude],
     );
     const providerId = profileResult.rows[0].id;
 

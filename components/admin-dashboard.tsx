@@ -23,6 +23,7 @@ type Account = {
   id: string; name: string; email: string; role: string; created_at: string;
   restriction_status: string | null; restriction_reason: string | null;
   provider_id: string | null; business_name: string | null; provider_active: boolean | null;
+  phone_verified: boolean | null; identity_verified: boolean | null; business_verified: boolean | null;
 };
 type Listing = {
   id: string; title: string; category: string; is_active: boolean; price_cents: number;
@@ -169,6 +170,7 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
           <div className="flex items-center gap-3">
             <Link href="/admin/reported-bugs" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Bug reports</Link>
             <Link href="/admin/disputes" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Disputes</Link>
+            <Link href="/admin/operations" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Operations</Link>
             <Link href="/account" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#e4ecdf] sm:inline-flex">View marketplace</Link>
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#e5eddf] text-sm font-bold">{initials}</span>
             <button onClick={signOut} className="rounded-full px-3 py-2 text-sm font-bold text-[#66766e] transition hover:bg-[#fff0e7] hover:text-[#8d4827]">Log out</button>
@@ -263,6 +265,7 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
                         <button disabled={busyId === account.id} onClick={() => void runAction({ action: "account_status", targetId: account.id, status: "banned", needsReason: true, confirmText: "Permanently ban this account and sign it out everywhere?", successText: "Account banned and signed out." })} className="rounded-full bg-[#521f1f] px-4 py-2 text-xs font-bold text-white transition hover:bg-black">Ban</button>
                       </>}
                       {account.provider_id && <button disabled={busyId === account.provider_id} onClick={() => void runAction({ action: "provider_status", targetId: account.provider_id!, status: account.provider_active ? "inactive" : "active", confirmText: account.provider_active ? "Pause this provider and hide all of their services?" : "Restore this provider profile?", successText: account.provider_active ? "Provider profile paused." : "Provider profile restored." })} className="rounded-full px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">{account.provider_active ? "Pause provider" : "Restore provider"}</button>}
+                      {account.provider_id && <><button disabled={busyId === account.provider_id} onClick={() => void runAction({ action: "provider_verification", targetId: account.provider_id!, status: "phone", confirmText: `${account.phone_verified ? "Remove" : "Approve"} phone verification?`, successText: "Phone verification updated." })} className="rounded-full px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">{account.phone_verified ? "✓ Phone" : "Verify phone"}</button><button disabled={busyId === account.provider_id} onClick={() => void runAction({ action: "provider_verification", targetId: account.provider_id!, status: "identity", confirmText: `${account.identity_verified ? "Remove" : "Approve"} identity verification?`, successText: "Identity verification updated." })} className="rounded-full px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">{account.identity_verified ? "✓ Identity" : "Verify identity"}</button><button disabled={busyId === account.provider_id} onClick={() => void runAction({ action: "provider_verification", targetId: account.provider_id!, status: "business", confirmText: `${account.business_verified ? "Remove" : "Approve"} business verification?`, successText: "Business verification updated." })} className="rounded-full px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">{account.business_verified ? "✓ Business" : "Verify business"}</button></>}
                     </div>
                   </div>
                 </article>

@@ -16,9 +16,19 @@ export async function GET() {
     city: string;
     state: string;
     plan: "starter" | "pro" | "business";
+    email_verified: boolean;
+    phone_verified: boolean;
+    identity_verified: boolean;
+    business_verified: boolean;
+    cancellation_window_hours: number;
+    cancellation_policy: string;
+    no_show_policy: string;
   }>(
-    `SELECT p.id::text, p.business_name, p.city, p.state, p.plan
+    `SELECT p.id::text, p.business_name, p.city, p.state, p.plan,
+            u."emailVerified" AS email_verified, p.phone_verified, p.identity_verified,
+            p.business_verified, p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy
      FROM provider_profiles p
+     JOIN "user" u ON u.id = p.user_id
      WHERE p.user_id = $1`,
     [session.user.id],
   );
@@ -75,6 +85,13 @@ export async function GET() {
     location: `${provider.city}, ${provider.state}`,
     plan: provider.plan,
     isAdmin,
+    emailVerified: provider.email_verified,
+    phoneVerified: provider.phone_verified,
+    identityVerified: provider.identity_verified,
+    businessVerified: provider.business_verified,
+    cancellationWindowHours: provider.cancellation_window_hours,
+    cancellationPolicy: provider.cancellation_policy,
+    noShowPolicy: provider.no_show_policy,
     service: services[0] ?? null,
     services,
     availability: availabilityResult.rows.map((slot) => ({

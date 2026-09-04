@@ -46,7 +46,8 @@ async function loadDashboard() {
     database.query(
       `SELECT u.id, u.name, u.email, u.role, u."createdAt" AS created_at,
               ar.status AS restriction_status, ar.reason AS restriction_reason,
-              p.id::text AS provider_id, p.business_name, p.is_active AS provider_active
+              p.id::text AS provider_id, p.business_name, p.is_active AS provider_active,
+              p.phone_verified, p.identity_verified, p.business_verified
        FROM "user" u
        LEFT JOIN account_restrictions ar ON ar.user_id = u.id
          AND (ar.expires_at IS NULL OR ar.expires_at > now())
@@ -184,6 +185,12 @@ export async function PATCH(request: Request) {
       if (!result.rowCount) throw new Error("NOT_FOUND");
       targetType = "provider";
       auditAction = status === "active" ? "provider_restored" : "provider_paused";
+    } else if (action === "provider_verification" && ["phone", "identity", "business"].includes(status)) {
+      const column = status === "phone" ? "phone_verified" : status === "identity" ? "identity_verified" : "business_verified";
+      const result = await client.query(`UPDATE provider_profiles SET ${column} = NOT ${column}, is_verified = CASE WHEN $2 = 'identity' OR $2 = 'business' THEN true ELSE is_verified END, updated_at = now() WHERE id::text = $1`, [targetId, status]);
+      if (!result.rowCount) throw new Error("NOT_FOUND");
+      targetType = "provider";
+      auditAction = `provider_${status}_verification_toggled`;
     } else if (action === "review_status" && (status === "visible" || status === "hidden")) {
       const result = await client.query(
         "UPDATE reviews SET is_hidden = $2, updated_at = now() WHERE id::text = $1",

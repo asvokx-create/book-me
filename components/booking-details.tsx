@@ -25,6 +25,8 @@ type Booking = {
   cancellationReason: string | null;
   completedAt: string | null;
   conversationId: string | null;
+  reschedule: { requestedBy: string | null; startsAt: string; endsAt: string; reason: string | null; requestedAt: string | null } | null;
+  history: Array<{ id: string; type: string; message: string; createdAt: string }>;
   review: { id: string; rating: number; body: string } | null;
 };
 
@@ -51,6 +53,9 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
   const [cancelReason, setCancelReason] = useState("");
   const [rating, setRating] = useState(5);
   const [review, setReview] = useState("");
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleReason, setRescheduleReason] = useState("");
 
   const loadBooking = useCallback(async () => {
     const response = await fetch(`/api/bookings/${bookingId}`, { cache: "no-store" }).catch(() => null);
@@ -65,11 +70,14 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
   }, [bookingId, expectedRole]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void loadBooking(); }, 0);
+    const timer = window.setTimeout(() => {
+      void loadBooking();
+      if (new URLSearchParams(window.location.search).get("reschedule") === "1") setRescheduleOpen(true);
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [loadBooking]);
 
-  async function providerAction(action: "accepted" | "declined" | "completed" | "cancel", reason = "") {
+  async function providerAction(action: "accepted" | "declined" | "completed" | "cancel" | "approve_reschedule" | "decline_reschedule", reason = "") {
     setWorking(true);
     setError("");
     const response = await fetch(`/api/providers/bookings/${bookingId}`, {
@@ -84,6 +92,17 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       setCancelReason("");
       await loadBooking();
     }
+    setWorking(false);
+  }
+
+  async function requestReschedule(event: FormEvent) {
+    event.preventDefault();
+    setWorking(true); setError("");
+    const response = await fetch(`/api/bookings/${bookingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "request_reschedule", startsAt: new Date(rescheduleDate).toISOString(), reason: rescheduleReason }) }).catch(() => null);
+    const result = response ? await response.json() as { error?: string } : null;
+    if (!response?.ok) setError(result?.error ?? "We could not send your reschedule request.");
+    else { setRescheduleOpen(false); setRescheduleDate(""); setRescheduleReason(""); await loadBooking(); }
     setWorking(false);
   }
 
@@ -167,6 +186,8 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           <h2 className="text-lg font-bold">Manage this booking</h2>
           <div className="mt-5 grid gap-3">
             <Link href={contactHref} className="rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]">✉ Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>
+            {booking.viewerRole === "customer" && canCancel && !booking.reschedule && <button onClick={() => setRescheduleOpen(true)} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#eee25a]">Request a new time</button>}
+            {booking.status === "confirmed" && <a href={`/api/bookings/${booking.id}/calendar`} className="rounded-full border border-[#183126]/15 px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e5eddf]">Add to Google / Apple Calendar</a>}
             {booking.viewerRole === "provider" && booking.status === "requested" && <button disabled={working} onClick={() => providerAction("accepted")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">Accept booking</button>}
             {canComplete && <button disabled={working} onClick={() => providerAction("completed")} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf] disabled:opacity-50">Mark job complete</button>}
             {canCancel && <button onClick={() => { setError(""); setCancelOpen(true); }} className="rounded-full px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">{booking.viewerRole === "provider" && booking.status === "requested" ? "Decline request" : "Cancel booking"}</button>}
@@ -179,6 +200,10 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       </aside>
     </div>
 
+    {booking.reschedule && <section className="mt-6 rounded-[2rem] border border-[#d1c653] bg-[#fff9d8] p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#756d3f]">Pending reschedule</p><h2 className="mt-2 text-2xl font-bold">New time requested</h2><p className="mt-3 font-bold">{new Date(booking.reschedule.startsAt).toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</p><p className="mt-2 text-sm text-[#6f6840]">{booking.reschedule.reason}</p>{booking.viewerRole === "provider" && <div className="mt-5 flex flex-wrap gap-2"><button disabled={working} onClick={() => providerAction("approve_reschedule")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white hover:bg-[#315846]">Approve new time</button><button disabled={working} onClick={() => { const reason = window.prompt("Why are you declining this new time?"); if (reason) void providerAction("decline_reschedule", reason); }} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold hover:bg-[#f4d8cc]">Decline</button></div>}</section>}
+
+    <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Activity</p><h2 className="mt-2 text-2xl font-bold">Booking history</h2><div className="mt-5 space-y-4">{booking.history.length ? booking.history.map((event) => <div key={event.id} className="flex gap-4"><span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-[#eee25a] ring-4 ring-[#f8f3bd]" /><div><p className="text-sm font-semibold">{event.message}</p><p className="mt-1 text-xs text-[#7a8881]">{new Date(event.createdAt).toLocaleString()}</p></div></div>) : <p className="text-sm text-[#718078]">Future booking changes will be recorded here.</p>}</div></section>
+
     {booking.viewerRole === "customer" && booking.status === "completed" && <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8">
       <p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Verified booking</p>
       <h2 className="mt-2 text-2xl font-bold">{booking.review ? "Your review" : "How was your service?"}</h2>
@@ -186,6 +211,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     </section>}
 
     {cancelOpen && <div className="fixed inset-0 z-[70] grid place-items-center bg-[#10251c]/55 p-5" role="dialog" aria-modal="true" aria-labelledby="cancel-title"><form onSubmit={cancelBooking} className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><h2 id="cancel-title" className="text-2xl font-bold">{booking.viewerRole === "provider" && booking.status === "requested" ? "Decline this request?" : "Cancel this booking?"}</h2><p className="mt-2 text-sm leading-6 text-[#687970]">Give a short reason. It will be shared with the other person so they know what happened.</p><label htmlFor="cancellation-reason" className="mt-5 block text-sm font-bold">Reason</label><textarea id="cancellation-reason" autoFocus required minLength={3} maxLength={500} rows={4} value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none focus:border-[#6f7f4c] focus:ring-2 focus:ring-[#eee25a]/50" placeholder="For example: My schedule changed unexpectedly." /><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setCancelOpen(false)} className="rounded-full px-5 py-3 text-sm font-bold transition hover:bg-[#edf1ec]">Keep booking</button><button disabled={working} className="rounded-full bg-[#9b4e3a] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#7f3d2d] disabled:opacity-50">{working ? "Saving…" : "Confirm"}</button></div></form></div>}
+    {rescheduleOpen && booking.viewerRole === "customer" && <div className="fixed inset-0 z-[70] grid place-items-center bg-[#10251c]/55 p-5" role="dialog" aria-modal="true"><form onSubmit={requestReschedule} className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><h2 className="text-2xl font-bold">Request a new time</h2><p className="mt-2 text-sm text-[#687970]">The provider must approve your request before the booking moves.</p><label htmlFor="reschedule-date" className="mt-5 block text-sm font-bold">New date and time</label><input id="reschedule-date" type="datetime-local" required value={rescheduleDate} onChange={(event) => setRescheduleDate(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3" /><label htmlFor="reschedule-reason" className="mt-4 block text-sm font-bold">Reason</label><textarea id="reschedule-reason" required minLength={3} maxLength={500} rows={3} value={rescheduleReason} onChange={(event) => setRescheduleReason(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3" placeholder="Why do you need a different time?" /><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setRescheduleOpen(false)} className="rounded-full px-5 py-3 text-sm font-bold hover:bg-[#edf1ec]">Close</button><button disabled={working} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white hover:bg-[#315846]">{working ? "Sending…" : "Send request"}</button></div></form></div>}
   </>;
 }
 

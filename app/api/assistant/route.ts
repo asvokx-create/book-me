@@ -6,6 +6,7 @@ import { checkAndRecordContent } from "@/lib/content-safety";
 import { database } from "@/lib/database";
 import type { ProviderPlan } from "@/lib/plans";
 import { PLAN_ENTITLEMENTS } from "@/lib/plans";
+import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 
 async function access() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -27,6 +28,9 @@ export async function POST(request: Request) {
   if (!result.session) return NextResponse.json({ error: "Log in to use BookMe AI." }, { status: 401 });
   if (!result.eligible) return NextResponse.json({ error: "BookMe AI is included with Pro and Business provider plans." }, { status: 403 });
   if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "BookMe AI is being configured. Please try again later." }, { status: 503 });
+  if (!await enforceRateLimit({ request, userId: result.session.user.id, bucket: "ai-assistant", limit: 12 })) {
+    return NextResponse.json({ error: "You have reached the AI help limit for this minute. Please try again shortly." }, { status: 429 });
+  }
   const body = (await request.json()) as { message?: unknown; history?: unknown };
   const message = typeof body.message === "string" ? body.message.trim() : "";
   if (message.length < 2 || message.length > 1000) return NextResponse.json({ error: "Ask a question in 2–1,000 characters." }, { status: 400 });
@@ -58,6 +62,7 @@ export async function POST(request: Request) {
     }
     const answer = data.output?.flatMap((item) => item.content ?? []).filter((part) => part.type === "output_text").map((part) => part.text ?? "").join("\n").trim();
     if (!answer) return NextResponse.json({ error: "BookMe AI did not return an answer." }, { status: 502 });
+    await recordActivity({ userId: result.session.user.id, action: "ai_assistant_used", targetType: "assistant" });
     return NextResponse.json({ answer });
   } catch (error) {
     console.error("BookMe AI request failed", error);

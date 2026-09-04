@@ -2,12 +2,16 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 
 const categories = new Set(["harassment", "spam", "unsafe", "other"]);
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "safety-report", limit: 6, windowSeconds: 3600 })) {
+    return NextResponse.json({ error: "Too many reports. Please try again later." }, { status: 429 });
+  }
   const body = (await request.json()) as { conversationId?: unknown; bookingId?: unknown; category?: unknown; details?: unknown };
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   const bookingId = typeof body.bookingId === "string" ? body.bookingId : "";
@@ -41,5 +45,6 @@ export async function POST(request: Request) {
       [bookingId, session.user.id, category, details],
     );
   if (!result.rows[0]) return NextResponse.json({ error: "That booking or conversation was not found." }, { status: 404 });
+  await recordActivity({ userId: session.user.id, action: "safety_report_created", targetType: "safety_report", targetId: result.rows[0].id });
   return NextResponse.json({ ok: true, reportId: result.rows[0].id }, { status: 201 });
 }

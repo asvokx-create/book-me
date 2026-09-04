@@ -1,6 +1,9 @@
 import { betterAuth } from "better-auth";
 import { twoFactor } from "better-auth/plugins";
 import { database } from "./database";
+import { isEmailConfigured, sendAuthEmail } from "./email";
+
+const emailEnabled = isEmailConfigured();
 
 export const auth = betterAuth({
   appName: "BookMe",
@@ -11,6 +14,21 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: emailEnabled,
+    sendResetPassword: async ({ user, url }) => {
+      void sendAuthEmail({ to: user.email, name: user.name, url, kind: "reset" });
+    },
+    resetPasswordTokenExpiresIn: 3600,
+    revokeSessionsOnPasswordReset: true,
+  },
+  emailVerification: {
+    sendOnSignUp: emailEnabled,
+    sendOnSignIn: emailEnabled,
+    autoSignInAfterVerification: true,
+    expiresIn: 3600,
+    sendVerificationEmail: async ({ user, url }) => {
+      void sendAuthEmail({ to: user.email, name: user.name, url, kind: "verify" });
+    },
   },
   databaseHooks: {
     session: {

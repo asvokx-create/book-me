@@ -11,6 +11,9 @@ type BookingCardProps = {
   provider: string;
   isSignedIn: boolean;
   returnPath: string;
+  cancellationPolicy: string;
+  cancellationWindowHours: number;
+  noShowPolicy: string;
 };
 
 function formatTime(time: string) {
@@ -19,7 +22,7 @@ function formatTime(time: string) {
   return `${hours % 12 || 12}:${minutes} ${hours >= 12 ? "PM" : "AM"}`;
 }
 
-export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, isSignedIn, returnPath }: BookingCardProps) {
+export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy }: BookingCardProps) {
   const [location, setLocation] = useState("Issaquah, WA");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -152,6 +155,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
       </form>
 
       <p className="mt-4 text-center text-xs leading-5 text-[#7c8a83]">No charge yet. The provider will confirm your request before the time is reserved. Text is checked by the BookMe Safety Bot.</p>
+      <div className="mt-4 rounded-2xl bg-[#f5f5ef] p-4"><p className="text-xs font-bold">Cancellation policy · {cancellationWindowHours}h notice</p><p className="mt-1 text-xs leading-5 text-[#718078]">{cancellationPolicy}</p><p className="mt-3 text-xs font-bold">No-show policy</p><p className="mt-1 text-xs leading-5 text-[#718078]">{noShowPolicy}</p></div>
       <div className="mt-6 border-t border-[#183126]/10 pt-6">
         <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e8f2e9] text-xl">✓</span><div><p className="text-sm font-bold">BookMe Promise</p><p className="text-xs text-[#76847d]">Vetted providers and secure booking</p></div></div>
       </div>

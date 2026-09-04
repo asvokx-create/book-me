@@ -16,6 +16,13 @@ export type ServiceListing = {
   city: string;
   state: string;
   imageUrls: string[];
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  identityVerified: boolean;
+  businessVerified: boolean;
+  cancellationWindowHours: number;
+  cancellationPolicy: string;
+  noShowPolicy: string;
   distanceMiles?: number;
 };
 
@@ -31,6 +38,13 @@ type ServiceRow = {
   business_name: string;
   city: string;
   state: string;
+  email_verified: boolean;
+  phone_verified: boolean;
+  identity_verified: boolean;
+  business_verified: boolean;
+  cancellation_window_hours: number;
+  cancellation_policy: string;
+  no_show_policy: string;
   image_urls: string[] | null;
 };
 
@@ -47,6 +61,13 @@ function mapService(row: ServiceRow): ServiceListing {
     provider: row.business_name,
     city: row.city,
     state: row.state,
+    emailVerified: row.email_verified,
+    phoneVerified: row.phone_verified,
+    identityVerified: row.identity_verified,
+    businessVerified: row.business_verified,
+    cancellationWindowHours: row.cancellation_window_hours,
+    cancellationPolicy: row.cancellation_policy,
+    noShowPolicy: row.no_show_policy,
     imageUrls: row.image_urls ?? [],
   };
 }
@@ -88,13 +109,16 @@ export async function getServices(options: { query?: string; category?: string; 
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state,
+            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            p.phone_verified, p.identity_verified, p.business_verified,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
+     JOIN "user" owner ON owner.id = p.user_id
      WHERE ${conditions.join(" AND ")}
      ORDER BY ${orderBy}
      LIMIT $${values.length}`,
@@ -117,13 +141,16 @@ export async function getServiceBySlug(slug: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state,
+            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            p.phone_verified, p.identity_verified, p.business_verified,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
+     JOIN "user" owner ON owner.id = p.user_id
      WHERE s.slug = $1 AND s.is_active = true AND p.is_active = true
      LIMIT 1`,
     [slug],
@@ -136,13 +163,16 @@ export async function getServiceById(id: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state,
+            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            p.phone_verified, p.identity_verified, p.business_verified,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
+     JOIN "user" owner ON owner.id = p.user_id
      WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true
      LIMIT 1`,
     [id],
@@ -159,10 +189,20 @@ export async function getProviderById(id: string) {
     city: string;
     state: string;
     is_verified: boolean;
+    email_verified: boolean;
+    phone_verified: boolean;
+    identity_verified: boolean;
+    business_verified: boolean;
+    cancellation_window_hours: number;
+    cancellation_policy: string;
+    no_show_policy: string;
   }>(
     `SELECT p.id::text, p.business_name, p.bio, p.city, p.state,
-            p.is_verified
+            p.is_verified, owner."emailVerified" AS email_verified, p.phone_verified,
+            p.identity_verified, p.business_verified, p.cancellation_window_hours,
+            p.cancellation_policy, p.no_show_policy
      FROM provider_profiles p
+     JOIN "user" owner ON owner.id = p.user_id
      WHERE p.id::text = $1 AND p.is_active = true
      LIMIT 1`,
     [id],
@@ -171,6 +211,18 @@ export async function getProviderById(id: string) {
   if (!provider) return null;
 
   const services = await getServicesForProvider(provider.id);
+  const reviewsResult = await database.query<{ id: string; rating: number; body: string; customer_name: string; service_title: string; created_at: Date }>(
+    `SELECT r.id::text, r.rating, r.body, customer.name AS customer_name,
+            s.title AS service_title, r.created_at
+     FROM reviews r
+     JOIN bookings b ON b.id = r.booking_id AND b.status = 'completed'
+     JOIN "user" customer ON customer.id = r.customer_id
+     JOIN services s ON s.id = r.service_id
+     WHERE r.provider_id::text = $1 AND r.is_hidden = false
+     ORDER BY r.created_at DESC
+     LIMIT 20`,
+    [provider.id],
+  );
   return {
     id: provider.id,
     businessName: provider.business_name,
@@ -178,6 +230,14 @@ export async function getProviderById(id: string) {
     city: provider.city,
     state: provider.state,
     isVerified: provider.is_verified,
+    emailVerified: provider.email_verified,
+    phoneVerified: provider.phone_verified,
+    identityVerified: provider.identity_verified,
+    businessVerified: provider.business_verified,
+    cancellationWindowHours: provider.cancellation_window_hours,
+    cancellationPolicy: provider.cancellation_policy,
+    noShowPolicy: provider.no_show_policy,
+    reviews: reviewsResult.rows.map((review) => ({ id: review.id, rating: review.rating, body: review.body, customerName: review.customer_name, serviceTitle: review.service_title, createdAt: review.created_at })),
     services,
   };
 }
@@ -186,13 +246,16 @@ async function getServicesForProvider(providerId: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state,
+            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            p.phone_verified, p.identity_verified, p.business_verified,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
+     JOIN "user" owner ON owner.id = p.user_id
      WHERE p.id = $1 AND s.is_active = true
      ORDER BY s.created_at DESC`,
     [providerId],
@@ -205,7 +268,9 @@ export async function getFavoriteServices(customerId: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state,
+            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            p.phone_verified, p.identity_verified, p.business_verified,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
@@ -213,6 +278,7 @@ export async function getFavoriteServices(customerId: string) {
      FROM favorites f
      JOIN services s ON s.id = f.service_id
      JOIN provider_profiles p ON p.id = s.provider_id
+     JOIN "user" owner ON owner.id = p.user_id
      WHERE f.customer_id = $1 AND s.is_active = true AND p.is_active = true
      ORDER BY f.created_at DESC`,
     [customerId],

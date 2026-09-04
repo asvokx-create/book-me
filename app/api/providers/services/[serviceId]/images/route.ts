@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { deleteImage, uploadPublicImage } from "@/lib/spaces";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
+import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,9 @@ function hasValidSignature(buffer: Buffer, type: string) {
 export async function POST(request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in before adding listing photos." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "image-upload", limit: 12, windowSeconds: 3600 })) {
+    return NextResponse.json({ error: "Too many photo uploads. Please try again later." }, { status: 429 });
+  }
 
   const { serviceId } = await params;
   const ownership = await database.query<{ image_count: string; total_image_count: string; plan: ProviderPlan }>(
@@ -66,6 +70,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ser
        RETURNING id::text, public_url, sort_order`,
       [serviceId, objectKey, publicUrl, imageCount],
     );
+    await recordActivity({ userId: session.user.id, action: "service_image_uploaded", targetType: "service", targetId: serviceId });
     return NextResponse.json({
       image: { id: result.rows[0].id, url: result.rows[0].public_url, sortOrder: result.rows[0].sort_order },
     });

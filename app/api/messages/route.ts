@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
+import { sendTransactionalEmail } from "@/lib/email";
+import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 
 type ConversationRow = {
   id: string; customer_id: string; provider_id: string; provider_user_id: string;
@@ -104,6 +106,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to send a message." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "message-send", limit: 30 })) {
+    return NextResponse.json({ error: "You are sending messages too quickly. Please wait a minute." }, { status: 429 });
+  }
   const body = (await request.json()) as { conversationId?: unknown; providerId?: unknown; serviceId?: unknown; message?: unknown };
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   const providerId = typeof body.providerId === "string" ? body.providerId : "";
@@ -190,6 +195,14 @@ export async function POST(request: Request) {
       [recipientId, `${session.user.name || "Someone"} sent you a message.`, recipientHref, `message-${created.rows[0].id}`],
     );
     await client.query("COMMIT");
+    await recordActivity({ userId: session.user.id, action: "message_sent", targetType: "conversation", targetId: conversation.id });
+    const recipient = await database.query<{ email: string; enabled: boolean }>(
+      `SELECT u.email, COALESCE(settings.message_notifications, true) AS enabled
+       FROM "user" u LEFT JOIN user_settings settings ON settings.user_id = u.id
+       WHERE u.id = $1`,
+      [recipientId],
+    );
+    if (recipient.rows[0]?.enabled) await sendTransactionalEmail({ to: recipient.rows[0].email, userId: recipientId, emailType: `new_message_${created.rows[0].id}`, subject: "You have a new BookMe message", heading: "New message", message: `${session.user.name || "Someone"} sent you a message about a BookMe service. Sign in to read and reply securely.`, actionLabel: "Read message", actionUrl: recipientHref });
     return NextResponse.json({ conversationId: conversation.id, messageId: created.rows[0].id }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK");

@@ -17,7 +17,9 @@ export default function SecuritySettings() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verificationSending, setVerificationSending] = useState(false);
   const twoFactorEnabled = Boolean((session?.user as { twoFactorEnabled?: boolean } | undefined)?.twoFactorEnabled);
+  const emailVerified = Boolean((session?.user as { emailVerified?: boolean } | undefined)?.emailVerified);
   const manualKey = useMemo(() => {
     if (!enrollment) return "";
     try { return new URL(enrollment.totpURI).searchParams.get("secret") ?? ""; } catch { return ""; }
@@ -74,6 +76,15 @@ export default function SecuritySettings() {
     await refetch();
   }
 
+  async function resendVerification() {
+    if (!session?.user.email) return;
+    setVerificationSending(true); setError(""); setMessage("");
+    const result = await authClient.sendVerificationEmail({ email: session.user.email, callbackURL: "/account/security" });
+    setVerificationSending(false);
+    if (result.error) { setError(result.error.message ?? "We could not send the verification email."); return; }
+    setMessage("Verification email sent. Open the link within one hour.");
+  }
+
   if (isPending || !session) return <main className="grid min-h-screen place-items-center bg-[#f5f4ef] text-[#183126]"><p className="font-semibold">Loading security…</p></main>;
 
   const inputClass = "w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
@@ -90,6 +101,7 @@ export default function SecuritySettings() {
           <div className="flex items-start gap-4"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#e6eedf] text-2xl">🔐</span><div><p className="text-xs font-bold uppercase tracking-[.15em] text-[#6f8077]">Account security</p><h1 className="mt-1 text-3xl font-bold tracking-tight">Authenticator protection</h1><p className="mt-2 text-sm leading-6 text-[#6f7f77]">Sharing the BookMe link never shares your login. Turn this on for an extra code from Google Authenticator, Microsoft Authenticator, Authy, or another authenticator app.</p></div></div>
 
           <div className={`mt-7 rounded-2xl p-4 ${twoFactorEnabled ? "bg-[#e7f3e8]" : "bg-[#fff7c9]"}`}><p className="font-bold">{twoFactorEnabled ? "✓ Authenticator is on" : "Authenticator is off"}</p><p className="mt-1 text-sm text-[#66776e]">{twoFactorEnabled ? "A code is required when your account signs in on a new device." : "Your password still protects your account. Add an authenticator for stronger protection."}</p></div>
+          <div className={`mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 ${emailVerified ? "bg-[#e7f3e8]" : "bg-[#fff7c9]"}`}><div><p className="font-bold">{emailVerified ? "✓ Email is verified" : "Email needs verification"}</p><p className="mt-1 text-sm text-[#66776e]">{session.user.email}</p></div>{!emailVerified && <button type="button" disabled={verificationSending} onClick={resendVerification} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{verificationSending ? "Sending…" : "Send verification"}</button>}</div>
 
           {message && <p role="status" className="mt-5 rounded-xl bg-[#e7f3e8] px-4 py-3 text-sm font-semibold text-[#33704a]">{message}</p>}
           {error && <p role="alert" className="mt-5 rounded-xl bg-[#fff1e8] px-4 py-3 text-sm font-semibold text-[#9a4e25]">{error}</p>}
