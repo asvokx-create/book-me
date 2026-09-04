@@ -169,7 +169,7 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
           <div className="flex items-center gap-3">
             <Link href="/admin/reported-bugs" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Bug reports</Link>
             <Link href="/admin/disputes" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Disputes</Link>
-            <Link href="/account" className="rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#e4ecdf]">View marketplace</Link>
+            <Link href="/account" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#e4ecdf] sm:inline-flex">View marketplace</Link>
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#e5eddf] text-sm font-bold">{initials}</span>
             <button onClick={signOut} className="rounded-full px-3 py-2 text-sm font-bold text-[#66766e] transition hover:bg-[#fff0e7] hover:text-[#8d4827]">Log out</button>
           </div>

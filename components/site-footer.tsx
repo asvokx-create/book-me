@@ -8,13 +8,13 @@ export default function SiteFooter() {
         <div>
           <p className="flex items-center gap-2 font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#183126] text-xs text-[#eee25a]">B</span>BookMe</p>
           <p className="mt-2 text-xs text-[#6d7c74]">Local services, safer conversations, clear choices.</p>
+          <div className="mt-3 w-fit rounded-lg border border-[#183126]/10 bg-white px-1 py-0.5 shadow-sm"><BugReportButton /></div>
         </div>
         <nav aria-label="Legal and safety" className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
           <Link href="/terms" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Terms</Link>
           <Link href="/privacy" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Privacy</Link>
           <Link href="/ai-transparency" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">AI & safety</Link>
           <Link href="/disputes" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Disputes</Link>
-          <BugReportButton />
         </nav>
       </div>
     </footer>

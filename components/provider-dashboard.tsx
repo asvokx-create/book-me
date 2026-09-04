@@ -217,7 +217,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           </nav>
         </aside>
 
-        <div>
+        <div className="min-w-0">
           <nav className="mb-6 flex gap-2 overflow-x-auto pb-2 text-sm font-bold lg:hidden">{dashboardNav.map((item) => <Link key={item.section} href={item.href} className={`shrink-0 rounded-full px-4 py-2.5 ${section === item.section ? "bg-[#183126] text-white" : "border border-[#183126]/10 bg-white"}`}>{item.label}</Link>)}</nav>
           {notice && provider && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Welcome to BookMe, {provider.businessName}!</p><p className="mt-1 text-[#567060]">Your provider profile and first service are saved.</p></div><button onClick={() => setNotice(false)} aria-label="Dismiss" className="rounded-full px-2 text-lg text-[#64786a] transition hover:bg-[#cbdcc8]">×</button></div>}
           {photoUploadFailed && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#e0b58f] bg-[#fff3e9] p-4 text-sm"><div><p className="font-bold">Your listing was saved, but a photo did not upload.</p><p className="mt-1 text-[#765e4c]">You can add it again under Your services below.</p></div><button onClick={() => setPhotoUploadFailed(false)} aria-label="Dismiss" className="rounded-full px-2 text-lg text-[#806b5b] transition hover:bg-[#f4d8cc]">×</button></div>}
