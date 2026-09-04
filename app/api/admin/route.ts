@@ -24,12 +24,14 @@ async function loadDashboard() {
       `SELECT sr.id::text, sr.category, sr.details, sr.status, sr.created_at,
               reporter.name AS reporter_name, reporter.email AS reporter_email,
               reported.name AS reported_name, reported.email AS reported_email,
-              COALESCE(s.title, 'General conversation') AS service_title
+              COALESCE(conversation_service.title, booking_service.title, 'General report') AS service_title
        FROM safety_reports sr
        JOIN "user" reporter ON reporter.id = sr.reporter_id
        JOIN "user" reported ON reported.id = sr.reported_user_id
-       JOIN conversations c ON c.id = sr.conversation_id
-       LEFT JOIN services s ON s.id = c.service_id
+       LEFT JOIN conversations c ON c.id = sr.conversation_id
+       LEFT JOIN services conversation_service ON conversation_service.id = c.service_id
+       LEFT JOIN bookings b ON b.id = sr.booking_id
+       LEFT JOIN services booking_service ON booking_service.id = b.service_id
        ORDER BY CASE sr.status WHEN 'open' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END, sr.created_at DESC
        LIMIT 50`,
     ),

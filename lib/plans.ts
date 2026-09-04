@@ -9,6 +9,7 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: 10,
     teamSeatLimit: 1,
     advancedAnalytics: false,
+    aiAssistant: false,
   },
   pro: {
     name: "Pro",
@@ -18,6 +19,7 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: null,
     teamSeatLimit: 3,
     advancedAnalytics: true,
+    aiAssistant: true,
   },
   business: {
     name: "Business",
@@ -27,6 +29,7 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: null,
     teamSeatLimit: null,
     advancedAnalytics: true,
+    aiAssistant: true,
   },
 } as const satisfies Record<ProviderPlan, {
   name: string;
@@ -36,6 +39,7 @@ export const PLAN_ENTITLEMENTS = {
   photoLimit: number | null;
   teamSeatLimit: number | null;
   advancedAnalytics: boolean;
+  aiAssistant: boolean;
 }>;
 
 export function isProviderPlan(value: unknown): value is ProviderPlan {

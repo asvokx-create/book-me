@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BugReportButton from "@/components/bug-report-button";
 
 export default function SiteFooter() {
   return (
@@ -12,6 +13,8 @@ export default function SiteFooter() {
           <Link href="/terms" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Terms</Link>
           <Link href="/privacy" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Privacy</Link>
           <Link href="/ai-transparency" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">AI & safety</Link>
+          <Link href="/disputes" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Disputes</Link>
+          <BugReportButton />
         </nav>
       </div>
     </footer>

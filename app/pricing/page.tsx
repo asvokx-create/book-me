@@ -25,7 +25,7 @@ const plans = [
     cadence: "per month",
     fee: "4% booking fee",
     description: "More tools for a growing service business.",
-    features: ["Unlimited services & photos", "Custom booking questions", "Automated reminders", "Advanced analytics", "Promo codes", "Repeat-customer tools", "Up to 3 team members"],
+    features: ["Unlimited services & photos", "BookMe AI assistant", "Custom booking questions", "Automated reminders", "Advanced analytics", "Promo codes", "Repeat-customer tools", "Up to 3 team members"],
     featured: true,
   },
   {
