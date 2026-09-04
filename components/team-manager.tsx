@@ -14,7 +14,7 @@ export default function TeamManager() {
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [role, setRole] = useState<"worker" | "manager">("worker");
   const [busy, setBusy] = useState(""); const [error, setError] = useState(""); const [message, setMessage] = useState("");
 
-  useEffect(() => { fetch("/api/providers/team", { cache: "no-store" }).then(async (response) => { const data = await response.json() as { members?: Member[]; plan?: ProviderPlan; seatLimit?: number | null; error?: string }; if (!response.ok) throw new Error(data.error); setMembers(data.members ?? []); setPlan(data.plan ?? "starter"); setSeatLimit(data.seatLimit ?? 1); }).catch((reason: Error) => setError(reason.message)).finally(() => setLoaded(true)); }, []);
+  useEffect(() => { fetch("/api/providers/team", { cache: "no-store" }).then(async (response) => { const data = await response.json() as { members?: Member[]; plan?: ProviderPlan; seatLimit?: number | null; error?: string }; if (!response.ok) throw new Error(data.error); setMembers(data.members ?? []); setPlan(data.plan ?? "starter"); setSeatLimit(data.seatLimit === undefined ? 1 : data.seatLimit); }).catch((reason: Error) => setError(reason.message)).finally(() => setLoaded(true)); }, []);
   const activeWorkers = members.filter((member) => member.status === "active").length;
   const workerLimit = seatLimit === null ? null : Math.max(seatLimit - 1, 0);
   const canAdd = workerLimit === null || activeWorkers < workerLimit;
