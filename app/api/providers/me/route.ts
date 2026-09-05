@@ -2,7 +2,8 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
-import { hasAdminAccess } from "@/lib/admin";
+import { hasAdminAccess, isOwnerEmail } from "@/lib/admin";
+import type { ProviderPlan } from "@/lib/plans";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -15,7 +16,7 @@ export async function GET() {
     business_name: string;
     city: string;
     state: string;
-    plan: "starter" | "pro" | "business";
+    plan: ProviderPlan;
     email_verified: boolean;
     phone_verified: boolean;
     identity_verified: boolean;
@@ -88,7 +89,7 @@ export async function GET() {
     name: session.user.name,
     businessName: provider.business_name,
     location: `${provider.city}, ${provider.state}`,
-    plan: provider.plan,
+    plan: isOwnerEmail(session.user.email) ? "owner" : provider.plan,
     isAdmin,
     emailVerified: provider.email_verified,
     phoneVerified: provider.phone_verified,

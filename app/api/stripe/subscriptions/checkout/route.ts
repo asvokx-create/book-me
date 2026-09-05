@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { hasAdminAccess } from "@/lib/admin";
+import { isOwnerEmail } from "@/lib/admin";
 import { database } from "@/lib/database";
-import { isProviderPlan } from "@/lib/plans";
+import { isPurchasableProviderPlan } from "@/lib/plans";
 import { getStripe, getStripePriceId, isStripeReady } from "@/lib/stripe";
 import { enforceRateLimit } from "@/lib/request-security";
 
@@ -14,8 +14,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many checkout attempts. Please wait and try again." }, { status: 429 });
   if (!isStripeReady()) return NextResponse.json({ error: "Stripe test mode still needs to be connected by the BubsBookings administrator." }, { status: 503 });
   const body = await request.json() as { plan?: unknown };
-  if (!isProviderPlan(body.plan) || body.plan === "starter") return NextResponse.json({ error: "Choose Pro or Business." }, { status: 400 });
-  if (await hasAdminAccess(session.user.id, session.user.email)) return NextResponse.json({ error: "Your admin account already includes Business at no charge." }, { status: 409 });
+  if (!isPurchasableProviderPlan(body.plan)) return NextResponse.json({ error: "Choose Pro or Business." }, { status: 400 });
+  if (isOwnerEmail(session.user.email)) return NextResponse.json({ error: "Your private Owner Plan already includes every feature at no charge." }, { status: 409 });
 
   const providerResult = await database.query<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null }>(
     "SELECT id::text, stripe_customer_id, stripe_subscription_id FROM provider_profiles WHERE user_id = $1 AND is_active = true",

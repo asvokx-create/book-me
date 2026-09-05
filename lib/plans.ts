@@ -1,4 +1,4 @@
-export type ProviderPlan = "starter" | "pro" | "business";
+export type ProviderPlan = "starter" | "pro" | "business" | "owner";
 
 export const PLAN_ENTITLEMENTS = {
   starter: {
@@ -9,7 +9,6 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: 5,
     teamSeatLimit: 1,
     advancedAnalytics: false,
-    aiAssistant: false,
   },
   pro: {
     name: "Pro",
@@ -19,7 +18,6 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: null,
     teamSeatLimit: 3,
     advancedAnalytics: true,
-    aiAssistant: true,
   },
   business: {
     name: "Business",
@@ -29,7 +27,15 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: null,
     teamSeatLimit: null,
     advancedAnalytics: true,
-    aiAssistant: true,
+  },
+  owner: {
+    name: "Owner Plan",
+    monthlyPrice: 0,
+    bookingFeePercent: 0,
+    serviceLimit: null,
+    photoLimit: null,
+    teamSeatLimit: null,
+    advancedAnalytics: true,
   },
 } as const satisfies Record<ProviderPlan, {
   name: string;
@@ -39,9 +45,12 @@ export const PLAN_ENTITLEMENTS = {
   photoLimit: number | null;
   teamSeatLimit: number | null;
   advancedAnalytics: boolean;
-  aiAssistant: boolean;
 }>;
 
 export function isProviderPlan(value: unknown): value is ProviderPlan {
-  return value === "starter" || value === "pro" || value === "business";
+  return value === "starter" || value === "pro" || value === "business" || value === "owner";
+}
+
+export function isPurchasableProviderPlan(value: unknown): value is "pro" | "business" {
+  return value === "pro" || value === "business";
 }

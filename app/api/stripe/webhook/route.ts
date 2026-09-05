@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { database } from "@/lib/database";
-import { isProviderPlan } from "@/lib/plans";
+import { isPurchasableProviderPlan } from "@/lib/plans";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ function idOf(value: string | { id: string } | null) {
 async function updateSubscription(subscription: Stripe.Subscription) {
   const providerId = subscription.metadata.providerId;
   const plan = subscription.metadata.plan;
-  if (!providerId || !isProviderPlan(plan) || plan === "starter") return;
+  if (!providerId || !isPurchasableProviderPlan(plan)) return;
   const active = subscription.status === "active" || subscription.status === "trialing";
   const periodEnd = subscription.items.data[0]?.current_period_end;
   await database.query(`UPDATE provider_profiles SET
@@ -21,7 +21,7 @@ async function updateSubscription(subscription: Stripe.Subscription) {
       stripe_subscription_id = $2,
       stripe_subscription_status = $5,
       stripe_current_period_end = CASE WHEN $6::bigint IS NULL THEN NULL ELSE to_timestamp($6) END
-    WHERE id::text = $1`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null]);
+    WHERE id::text = $1 AND plan <> 'owner'`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null]);
 }
 
 async function processEvent(event: Stripe.Event) {
@@ -48,7 +48,7 @@ async function processEvent(event: Stripe.Event) {
     case "customer.subscription.deleted": {
       const subscription = event.data.object;
       await database.query(`UPDATE provider_profiles SET plan = 'starter', stripe_subscription_status = $2,
-        stripe_current_period_end = NULL WHERE stripe_subscription_id = $1`, [subscription.id, subscription.status]);
+        stripe_current_period_end = NULL WHERE stripe_subscription_id = $1 AND plan <> 'owner'`, [subscription.id, subscription.status]);
       break;
     }
     case "account.updated": {

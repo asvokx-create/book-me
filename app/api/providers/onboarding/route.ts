@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
-import { hasAdminAccess } from "@/lib/admin";
+import { isOwnerEmail } from "@/lib/admin";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getServiceAreaCoordinates } from "@/lib/service-areas";
 import { screenProviderProfile } from "@/lib/provider-screening";
@@ -87,8 +87,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: screening.summary, screening }, { status: 422 });
   }
   const existingProfile = await database.query<{ plan: ProviderPlan }>("SELECT plan FROM provider_profiles WHERE user_id = $1", [session.user.id]);
-  const plan: ProviderPlan = await hasAdminAccess(session.user.id, session.user.email)
-    ? "business"
+  const plan: ProviderPlan = isOwnerEmail(session.user.email)
+    ? "owner"
     : existingProfile.rows[0]?.plan ?? "starter";
 
   const locationParts = serviceArea.split(",").map((part) => part.trim()).filter(Boolean);

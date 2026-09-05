@@ -6,6 +6,10 @@ import { database } from "@/lib/database";
 
 const PRIMARY_ADMIN_EMAIL = "asvokx@gmail.com";
 
+export function isOwnerEmail(email: string | null | undefined) {
+  return email?.trim().toLowerCase() === PRIMARY_ADMIN_EMAIL;
+}
+
 function configuredAdminEmails() {
   return new Set(
     (process.env.BOOKME_ADMIN_EMAILS ?? "")
@@ -18,7 +22,7 @@ function configuredAdminEmails() {
 export function isAdminEmail(email: string | null | undefined) {
   if (!email) return false;
   const normalizedEmail = email.trim().toLowerCase();
-  return normalizedEmail === PRIMARY_ADMIN_EMAIL || configuredAdminEmails().has(normalizedEmail);
+  return isOwnerEmail(normalizedEmail) || configuredAdminEmails().has(normalizedEmail);
 }
 
 export async function hasAdminAccess(userId: string, email: string | null | undefined) {

@@ -3,8 +3,9 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import AccountNav from "@/components/account-nav";
 import { auth, isAuthConfigured } from "@/lib/auth";
+import { isOwnerEmail } from "@/lib/admin";
 import { database } from "@/lib/database";
-import type { ProviderPlan } from "@/lib/plans";
+import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "Provider pricing | BubsBookings",
@@ -29,7 +30,7 @@ const plans = [
     cadence: "per month",
     fee: "4% booking fee",
     description: "More tools for a growing service business.",
-    features: ["Unlimited services & photos", "BubsBookings AI assistant", "Custom booking questions", "Automated reminders", "Advanced analytics", "Promo codes", "Repeat-customer tools", "Up to 3 team members"],
+    features: ["Unlimited services & photos", "Custom booking questions", "Automated reminders", "Advanced analytics", "Promo codes", "Repeat-customer tools", "Up to 3 team members"],
     featured: true,
   },
   {
@@ -54,6 +55,7 @@ async function getCurrentProviderPlan(): Promise<ProviderPlan | null> {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) return null;
+    if (isOwnerEmail(session.user.email)) return "owner";
     const result = await database.query<{ plan: ProviderPlan }>(
       "SELECT plan FROM provider_profiles WHERE user_id = $1 AND is_active = true LIMIT 1",
       [session.user.id],
@@ -88,7 +90,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
       </section>
 
       <section id="plans" className="mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
-        {currentPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#183126] px-5 py-4 text-center text-white sm:flex-row sm:text-left"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b8c8c0]">Your current plan</p><p className="mt-1 text-xl font-bold">{plans.find((plan) => plan.id === currentPlan)?.name}</p></div><Link href="/provider/dashboard/billing" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Manage billing</Link></div>}
+        {currentPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#183126] px-5 py-4 text-center text-white sm:flex-row sm:text-left"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b8c8c0]">Your current plan</p><p className="mt-1 text-xl font-bold">{PLAN_ENTITLEMENTS[currentPlan].name}</p>{currentPlan === "owner" && <p className="mt-1 text-xs text-[#b8c8c0]">Private account access · $0/month · 0% booking fee · all features unlocked</p>}</div><Link href="/provider/dashboard/billing" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Manage billing</Link></div>}
         {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : "Create your provider profile first, then finish secure Stripe checkout from Billing."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : "/provider/dashboard/billing"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : "Continue to billing"}</Link></div>}
 
         <div className="grid gap-6 lg:grid-cols-3">

@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
-import { hasAdminAccess } from "@/lib/admin";
+import { hasAdminAccess, isOwnerEmail } from "@/lib/admin";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 
 async function currentProvider() {
@@ -15,10 +15,13 @@ async function currentProvider() {
   const provider = result.rows[0];
   if (!provider) return null;
 
-  if (await hasAdminAccess(session.user.id, session.user.email)) {
-    if (provider.plan !== "business") {
-      await database.query("UPDATE provider_profiles SET plan = 'business', updated_at = now() WHERE id::text = $1", [provider.id]);
+  if (isOwnerEmail(session.user.email)) {
+    if (provider.plan !== "owner") {
+      await database.query("UPDATE provider_profiles SET plan = 'owner', updated_at = now() WHERE id::text = $1", [provider.id]);
     }
+    return { ...provider, plan: "owner" as const };
+  }
+  if (await hasAdminAccess(session.user.id, session.user.email)) {
     return { ...provider, plan: "business" as const };
   }
 
@@ -44,6 +47,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const isOwner = isOwnerEmail(session.user.email);
   const isAdmin = await hasAdminAccess(session.user.id, session.user.email);
   const body = (await request.json()) as Record<string, unknown>;
   const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
@@ -60,10 +64,10 @@ export async function POST(request: Request) {
       [session.user.id],
     );
     const savedProvider = providerResult.rows[0];
-    const provider = savedProvider && isAdmin ? { ...savedProvider, plan: "business" as const } : savedProvider;
+    const provider = savedProvider && isOwner ? { ...savedProvider, plan: "owner" as const } : savedProvider && isAdmin ? { ...savedProvider, plan: "business" as const } : savedProvider;
     if (!provider) { await client.query("ROLLBACK"); return NextResponse.json({ error: "Provider profile not found." }, { status: 404 }); }
-    if (isAdmin && savedProvider.plan !== "business") {
-      await client.query("UPDATE provider_profiles SET plan = 'business', updated_at = now() WHERE id::text = $1", [provider.id]);
+    if (isOwner && savedProvider.plan !== "owner") {
+      await client.query("UPDATE provider_profiles SET plan = 'owner', updated_at = now() WHERE id::text = $1", [provider.id]);
     }
     const seats = PLAN_ENTITLEMENTS[provider.plan].teamSeatLimit;
     const countResult = await client.query<{ count: number }>("SELECT count(*)::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'", [provider.id]);
