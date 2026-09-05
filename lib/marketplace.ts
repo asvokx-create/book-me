@@ -20,6 +20,7 @@ export type ServiceListing = {
   phoneVerified: boolean;
   identityVerified: boolean;
   businessVerified: boolean;
+  profileScreened: boolean;
   cancellationWindowHours: number;
   cancellationPolicy: string;
   noShowPolicy: string;
@@ -42,6 +43,7 @@ type ServiceRow = {
   phone_verified: boolean;
   identity_verified: boolean;
   business_verified: boolean;
+  is_verified: boolean;
   cancellation_window_hours: number;
   cancellation_policy: string;
   no_show_policy: string;
@@ -65,6 +67,7 @@ function mapService(row: ServiceRow): ServiceListing {
     phoneVerified: row.phone_verified,
     identityVerified: row.identity_verified,
     businessVerified: row.business_verified,
+    profileScreened: row.is_verified,
     cancellationWindowHours: row.cancellation_window_hours,
     cancellationPolicy: row.cancellation_policy,
     noShowPolicy: row.no_show_policy,
@@ -110,7 +113,7 @@ export async function getServices(options: { query?: string; category?: string; 
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
-            p.phone_verified, p.identity_verified, p.business_verified,
+            p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -142,7 +145,7 @@ export async function getServiceBySlug(slug: string) {
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
-            p.phone_verified, p.identity_verified, p.business_verified,
+            p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -164,7 +167,7 @@ export async function getServiceById(id: string) {
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
-            p.phone_verified, p.identity_verified, p.business_verified,
+            p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -247,7 +250,7 @@ async function getServicesForProvider(providerId: string) {
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
-            p.phone_verified, p.identity_verified, p.business_verified,
+            p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -269,7 +272,7 @@ export async function getFavoriteServices(customerId: string) {
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
-            p.phone_verified, p.identity_verified, p.business_verified,
+            p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)

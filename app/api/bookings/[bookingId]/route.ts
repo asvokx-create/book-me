@@ -14,7 +14,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     id: string; customer_id: string; customer_name: string; provider_id: string; provider_name: string;
     service_id: string; service_slug: string; service_title: string; category: string; starts_at: Date; ends_at: Date;
     service_address: string; notes: string; price_cents: number; status: string; cancelled_by: string | null;
-    cancellation_reason: string | null; completed_at: Date | null; conversation_id: string | null;
+    cancellation_reason: string | null; late_cancellation: boolean; cancellation_window_hours: number;
+    cancellation_policy: string; completed_at: Date | null; conversation_id: string | null;
     review_id: string | null; rating: number | null; review_body: string | null; reschedule_requested_by: string | null;
     reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null; reschedule_requested_at: Date | null;
     assigned_team_member_id: string | null; assignee_name: string;
@@ -22,7 +23,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text,
             p.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
             s.category, b.starts_at, b.ends_at, b.service_address, b.notes, b.price_cents, b.status,
-            b.cancelled_by, b.cancellation_reason, b.completed_at, b.reschedule_requested_by,
+            b.cancelled_by, b.cancellation_reason, b.late_cancellation, p.cancellation_window_hours,
+            p.cancellation_policy, b.completed_at, b.reschedule_requested_by,
             b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.reschedule_requested_at,
             b.assigned_team_member_id::text, COALESCE(member.name, 'Company owner') AS assignee_name,
             c.id::text AS conversation_id, r.id::text AS review_id, r.rating, r.body AS review_body
@@ -47,6 +49,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     serviceTitle: row.service_title, category: row.category, startsAt: row.starts_at, endsAt: row.ends_at,
     location: row.service_address, notes: row.notes, price: row.price_cents / 100, status: row.status,
     cancelledBy: row.cancelled_by, cancellationReason: row.cancellation_reason, completedAt: row.completed_at,
+    lateCancellation: row.late_cancellation, cancellationWindowHours: row.cancellation_window_hours,
+    cancellationPolicy: row.cancellation_policy,
     conversationId: row.conversation_id,
     assignedTeamMemberId: row.assigned_team_member_id,
     assigneeName: row.assignee_name,
@@ -75,8 +79,9 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ provider_id: string; provider_user_id: string; service_title: string; status: string; duration_minutes: number; assigned_team_member_id: string | null }>(
+    const result = await client.query<{ provider_id: string; provider_user_id: string; service_title: string; status: string; duration_minutes: number; assigned_team_member_id: string | null; starts_at: Date; cancellation_window_hours: number }>(
       `SELECT b.provider_id::text, p.user_id AS provider_user_id, s.title AS service_title, b.status, s.duration_minutes,
+              b.starts_at, p.cancellation_window_hours,
               b.assigned_team_member_id::text
        FROM bookings b JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
        WHERE b.id::text = $1 AND b.customer_id = $2 FOR UPDATE OF b`, [bookingId, session.user.id],
@@ -87,11 +92,14 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
       return NextResponse.json({ error: "This booking can no longer be changed." }, { status: 409 });
     }
     if (action === "cancel") {
+      const noticeDeadline = booking.starts_at.getTime() - booking.cancellation_window_hours * 60 * 60 * 1000;
+      const lateCancellation = booking.status === "confirmed" && booking.cancellation_window_hours > 0 && Date.now() > noticeDeadline;
       await client.query(`UPDATE bookings SET status = 'cancelled', cancelled_by = 'customer', cancellation_reason = $2,
+        late_cancellation = $3,
         reschedule_requested_by = NULL, reschedule_starts_at = NULL, reschedule_ends_at = NULL, reschedule_reason = NULL,
-        reschedule_requested_at = NULL WHERE id::text = $1`, [bookingId, reason]);
+        reschedule_requested_at = NULL WHERE id::text = $1`, [bookingId, reason, lateCancellation]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
-        VALUES ($1::uuid, $2, 'cancelled', $3)`, [bookingId, session.user.id, `Customer cancelled the booking: ${reason}`]);
+        VALUES ($1::uuid, $2, 'cancelled', $3)`, [bookingId, session.user.id, `${lateCancellation ? "Late cancellation" : "Customer cancelled the booking"}: ${reason}`]);
       await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
         VALUES ($1, $2::uuid, 'booking_cancelled', 'Booking cancelled', $3, '/provider/dashboard/bookings/' || $2::uuid::text,
         'booking-cancelled-' || $2::uuid::text || '-provider') ON CONFLICT (dedupe_key) DO NOTHING`,

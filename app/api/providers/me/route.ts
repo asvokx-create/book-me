@@ -20,13 +20,18 @@ export async function GET() {
     phone_verified: boolean;
     identity_verified: boolean;
     business_verified: boolean;
+    screening_status: "not_screened" | "passed" | "needs_changes";
+    screening_score: number | null;
+    screening_summary: string;
+    screening_checked_at: Date | null;
     cancellation_window_hours: number;
     cancellation_policy: string;
     no_show_policy: string;
   }>(
     `SELECT p.id::text, p.business_name, p.city, p.state, p.plan,
             u."emailVerified" AS email_verified, p.phone_verified, p.identity_verified,
-            p.business_verified, p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy
+            p.business_verified, p.screening_status, p.screening_score, p.screening_summary,
+            p.screening_checked_at, p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy
      FROM provider_profiles p
      JOIN "user" u ON u.id = p.user_id
      WHERE p.user_id = $1`,
@@ -89,6 +94,10 @@ export async function GET() {
     phoneVerified: provider.phone_verified,
     identityVerified: provider.identity_verified,
     businessVerified: provider.business_verified,
+    screeningStatus: provider.screening_status,
+    screeningScore: provider.screening_score,
+    screeningSummary: provider.screening_summary,
+    screeningCheckedAt: provider.screening_checked_at,
     cancellationWindowHours: provider.cancellation_window_hours,
     cancellationPolicy: provider.cancellation_policy,
     noShowPolicy: provider.no_show_policy,

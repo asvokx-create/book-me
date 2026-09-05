@@ -7,6 +7,8 @@ import { checkAndRecordContent } from "@/lib/content-safety";
 import { hasAdminAccess } from "@/lib/admin";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getServiceAreaCoordinates } from "@/lib/service-areas";
+import { screenProviderProfile } from "@/lib/provider-screening";
+import { sendTransactionalEmail } from "@/lib/email";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -64,6 +66,27 @@ export async function POST(request: Request) {
   }
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "provider_listing", fields: [business, service, description, serviceArea] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
+  const screening = screenProviderProfile({
+    emailVerified: Boolean(session.user.emailVerified),
+    phone: session.user.phone ?? "",
+    business,
+    service,
+    description,
+    serviceArea,
+  });
+  if (!screening.allowed) {
+    await sendTransactionalEmail({
+      to: session.user.email,
+      userId: session.user.id,
+      emailType: "provider_screening_needs_changes",
+      subject: "Your BubsBookings provider profile needs a few changes",
+      heading: "A few details need attention",
+      message: `${screening.summary} Return to provider setup, make the changes, and submit again for an immediate automated check.`,
+      actionLabel: "Update provider profile",
+      actionUrl: "/providers/join",
+    });
+    return NextResponse.json({ error: screening.summary, screening }, { status: 422 });
+  }
   const existingProfile = await database.query<{ plan: ProviderPlan }>("SELECT plan FROM provider_profiles WHERE user_id = $1", [session.user.id]);
   const plan: ProviderPlan = await hasAdminAccess(session.user.id, session.user.email)
     ? "business"
@@ -79,8 +102,9 @@ export async function POST(request: Request) {
     await client.query('UPDATE "user" SET role = $1, "updatedAt" = now() WHERE id = $2', ["provider", session.user.id]);
 
     const profileResult = await client.query<{ id: string }>(
-      `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state, plan, latitude, longitude)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state, plan, latitude, longitude,
+          screening_status, screening_score, screening_summary, screening_checked_at, is_verified, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'passed', $10, $11, now(), true, true)
        ON CONFLICT (user_id) DO UPDATE SET
          business_name = EXCLUDED.business_name,
          bio = EXCLUDED.bio,
@@ -89,9 +113,15 @@ export async function POST(request: Request) {
          state = EXCLUDED.state,
          plan = EXCLUDED.plan,
          latitude = EXCLUDED.latitude,
-         longitude = EXCLUDED.longitude
+         longitude = EXCLUDED.longitude,
+         screening_status = EXCLUDED.screening_status,
+         screening_score = EXCLUDED.screening_score,
+         screening_summary = EXCLUDED.screening_summary,
+         screening_checked_at = EXCLUDED.screening_checked_at,
+         is_verified = true,
+         is_active = true
        RETURNING id`,
-      [session.user.id, business, description, session.user.phone ?? null, city, state, plan, coordinates.latitude, coordinates.longitude],
+      [session.user.id, business, description, session.user.phone ?? null, city, state, plan, coordinates.latitude, coordinates.longitude, screening.score, screening.summary],
     );
     const providerId = profileResult.rows[0].id;
 
@@ -121,6 +151,16 @@ export async function POST(request: Request) {
     }
 
     await client.query("COMMIT");
+    await sendTransactionalEmail({
+      to: session.user.email,
+      userId: session.user.id,
+      emailType: "provider_screening_passed",
+      subject: "Your BubsBookings provider profile is live",
+      heading: "Automated screening passed",
+      message: `${business} passed the BubsBookings profile and content checks. Your service is now visible to customers.`,
+      actionLabel: "Open provider dashboard",
+      actionUrl: "/provider/dashboard",
+    });
     return NextResponse.json({ ok: true, serviceId: serviceResult.rows[0].id });
   } catch (error) {
     await client.query("ROLLBACK");

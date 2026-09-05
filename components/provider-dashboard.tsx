@@ -32,6 +32,10 @@ type ProviderSummary = {
   phoneVerified: boolean;
   identityVerified: boolean;
   businessVerified: boolean;
+  screeningStatus: "not_screened" | "passed" | "needs_changes";
+  screeningScore: number | null;
+  screeningSummary: string;
+  screeningCheckedAt: string | null;
   cancellationWindowHours: number;
   cancellationPolicy: string;
   noShowPolicy: string;

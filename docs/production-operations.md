@@ -4,12 +4,15 @@
 
 - `RESEND_API_KEY`: transactional-email API key.
 - `EMAIL_FROM`: verified sender, for example `BubsBookings <updates@bookme.example>`.
-- `CRON_SECRET`: a long random value used only by the reminder job.
 - `NEXT_PUBLIC_APP_URL` and `BETTER_AUTH_URL`: the final HTTPS BubsBookings address.
+
+Optional fallback:
+
+- `CRON_SECRET`: a long random value used only when an external service calls the manual reminder endpoint.
 
 ## Appointment reminder job
 
-Schedule an HTTPS POST to `/api/cron/booking-reminders` every 10 minutes. Send the header `Authorization: Bearer <CRON_SECRET>`. The endpoint is idempotent and records each run.
+The production web service starts an internal reminder check every 10 minutes and records each run. It sends 24-hour and 1-hour reminders for confirmed bookings and uses idempotency keys to avoid duplicates. The protected `/api/cron/booking-reminders` endpoint remains available as a manual fallback; send `Authorization: Bearer <CRON_SECRET>` when using it.
 
 ## Monitoring
 
