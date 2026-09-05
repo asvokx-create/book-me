@@ -18,7 +18,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     cancellation_policy: string; completed_at: Date | null; conversation_id: string | null;
     review_id: string | null; rating: number | null; review_body: string | null; reschedule_requested_by: string | null;
     reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null; reschedule_requested_at: Date | null;
-    assigned_team_member_id: string | null; assignee_name: string;
+    assigned_team_member_id: string | null; assignee_name: string; quote_status: string;
+    quoted_price_cents: number | null; quote_message: string; quote_sent_at: Date | null; quote_responded_at: Date | null;
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text,
             p.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
@@ -26,6 +27,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             b.cancelled_by, b.cancellation_reason, b.late_cancellation, p.cancellation_window_hours,
             p.cancellation_policy, b.completed_at, b.reschedule_requested_by,
             b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.reschedule_requested_at,
+            b.quote_status, b.quoted_price_cents, b.quote_message, b.quote_sent_at, b.quote_responded_at,
             b.assigned_team_member_id::text, COALESCE(member.name, 'Company owner') AS assignee_name,
             c.id::text AS conversation_id, r.id::text AS review_id, r.rating, r.body AS review_body
      FROM bookings b JOIN "user" customer ON customer.id = b.customer_id
@@ -54,6 +56,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     conversationId: row.conversation_id,
     assignedTeamMemberId: row.assigned_team_member_id,
     assigneeName: row.assignee_name,
+    quote: { status: row.quote_status, price: row.quoted_price_cents === null ? null : row.quoted_price_cents / 100,
+      message: row.quote_message, sentAt: row.quote_sent_at, respondedAt: row.quote_responded_at },
     teamMembers: team,
     reschedule: row.reschedule_starts_at ? { requestedBy: row.reschedule_requested_by, startsAt: row.reschedule_starts_at,
       endsAt: row.reschedule_ends_at, reason: row.reschedule_reason, requestedAt: row.reschedule_requested_at } : null,
@@ -71,17 +75,16 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
   const body = (await request.json()) as { action?: unknown; reason?: unknown; startsAt?: unknown };
   const action = body.action;
   const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-  if (action !== "cancel" && action !== "request_reschedule") return NextResponse.json({ error: "Choose a valid booking action." }, { status: 400 });
-  if (reason.length < 3 || reason.length > 500) return NextResponse.json({ error: "Add a brief reason." }, { status: 400 });
-  const safety = await checkAndRecordContent({ userId: session.user.id, surface: action === "cancel" ? "booking_cancellation" : "booking_reschedule", fields: [reason] });
-  if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
+  if (!["cancel", "request_reschedule", "accept_quote", "decline_quote"].includes(String(action))) return NextResponse.json({ error: "Choose a valid booking action." }, { status: 400 });
+  if ((action === "cancel" || action === "request_reschedule") && (reason.length < 3 || reason.length > 500)) return NextResponse.json({ error: "Add a brief reason." }, { status: 400 });
+  if (reason) { const safety = await checkAndRecordContent({ userId: session.user.id, surface: action === "cancel" ? "booking_cancellation" : "booking_reschedule", fields: [reason] }); if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 }); }
 
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ provider_id: string; provider_user_id: string; service_title: string; status: string; duration_minutes: number; assigned_team_member_id: string | null; starts_at: Date; cancellation_window_hours: number }>(
+    const result = await client.query<{ provider_id: string; provider_user_id: string; service_title: string; status: string; duration_minutes: number; assigned_team_member_id: string | null; starts_at: Date; cancellation_window_hours: number; quote_status: string; quoted_price_cents: number | null }>(
       `SELECT b.provider_id::text, p.user_id AS provider_user_id, s.title AS service_title, b.status, s.duration_minutes,
-              b.starts_at, p.cancellation_window_hours,
+              b.starts_at, p.cancellation_window_hours, b.quote_status, b.quoted_price_cents,
               b.assigned_team_member_id::text
        FROM bookings b JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
        WHERE b.id::text = $1 AND b.customer_id = $2 FOR UPDATE OF b`, [bookingId, session.user.id],
@@ -91,7 +94,17 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "This booking can no longer be changed." }, { status: 409 });
     }
-    if (action === "cancel") {
+    if (action === "accept_quote" || action === "decline_quote") {
+      if (booking.status !== "requested" || booking.quote_status !== "pending" || booking.quoted_price_cents === null) { await client.query("ROLLBACK"); return NextResponse.json({ error: "This quote is no longer awaiting your response." }, { status: 409 }); }
+      const accepted = action === "accept_quote";
+      await client.query(`UPDATE bookings SET quote_status = $2, quote_responded_at = now(),
+        price_cents = CASE WHEN $2 = 'accepted' THEN quoted_price_cents ELSE price_cents END WHERE id::text = $1`, [bookingId, accepted ? "accepted" : "declined"]);
+      await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
+        VALUES ($1::uuid, $2, $3, $4)`, [bookingId, session.user.id, accepted ? "quote_accepted" : "quote_declined", accepted ? "Customer approved the provider's quote." : "Customer declined the provider's quote."]);
+      await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+        VALUES ($1, $2::uuid, 'booking_quote', $3, $4, '/provider/dashboard/bookings/' || $2::uuid::text,
+        $5 || '-' || extract(epoch from now())::bigint)`, [booking.provider_user_id, bookingId, accepted ? "Quote approved" : "Quote declined", `${session.user.name || "The customer"} ${accepted ? "approved" : "declined"} your quote for ${booking.service_title}.`, action]);
+    } else if (action === "cancel") {
       const noticeDeadline = booking.starts_at.getTime() - booking.cancellation_window_hours * 60 * 60 * 1000;
       const lateCancellation = booking.status === "confirmed" && booking.cancellation_window_hours > 0 && Date.now() > noticeDeadline;
       await client.query(`UPDATE bookings SET status = 'cancelled', cancelled_by = 'customer', cancellation_reason = $2,

@@ -6,7 +6,7 @@ import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 
-type BookingAction = "accepted" | "declined" | "completed" | "cancel" | "approve_reschedule" | "decline_reschedule" | "assign";
+type BookingAction = "accepted" | "declined" | "completed" | "cancel" | "approve_reschedule" | "decline_reschedule" | "assign" | "send_quote";
 
 export async function DELETE(_request: Request, context: RouteContext<"/api/providers/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -32,13 +32,13 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
     return NextResponse.json({ error: "Too many booking changes. Please wait a minute and try again." }, { status: 429 });
   }
   const { bookingId } = await context.params;
-  const body = (await request.json()) as { action?: unknown; reason?: unknown; memberId?: unknown };
+  const body = (await request.json()) as { action?: unknown; reason?: unknown; memberId?: unknown; price?: unknown };
   const action = body.action as BookingAction;
-  if (!(["accepted", "declined", "completed", "cancel", "approve_reschedule", "decline_reschedule", "assign"] as BookingAction[]).includes(action)) {
+  if (!(["accepted", "declined", "completed", "cancel", "approve_reschedule", "decline_reschedule", "assign", "send_quote"] as BookingAction[]).includes(action)) {
     return NextResponse.json({ error: "Choose a valid booking action." }, { status: 400 });
   }
   const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-  if ((action === "declined" || action === "cancel" || action === "decline_reschedule") && (reason.length < 3 || reason.length > 500)) {
+  if ((action === "declined" || action === "cancel" || action === "decline_reschedule" || action === "send_quote") && (reason.length < 3 || reason.length > 500)) {
     return NextResponse.json({ error: "Add a brief reason so the customer knows what happened." }, { status: 400 });
   }
   if (reason) {
@@ -53,11 +53,12 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       id: string; provider_id: string; starts_at: Date; ends_at: Date; status: string;
       customer_id: string; customer_name: string; service_title: string;
       reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null;
-      assigned_team_member_id: string | null;
+      assigned_team_member_id: string | null; quote_status: string;
     }>(
       `SELECT b.id::text, b.provider_id::text, b.starts_at, b.ends_at, b.status,
               b.customer_id, u.name AS customer_name, s.title AS service_title,
-              b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.assigned_team_member_id::text
+              b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.assigned_team_member_id::text,
+              b.quote_status
        FROM bookings b
        JOIN provider_profiles p ON p.id = b.provider_id
        JOIN services s ON s.id = b.service_id
@@ -72,7 +73,20 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       return NextResponse.json({ error: "Booking not found." }, { status: 404 });
     }
 
-    if (action === "assign") {
+    if (action === "send_quote") {
+      const price = Number(body.price);
+      if (booking.status !== "requested") { await client.query("ROLLBACK"); return NextResponse.json({ error: "Quotes can only be sent before a booking is confirmed." }, { status: 409 }); }
+      if (!Number.isFinite(price) || price < 1 || price > 1000000) { await client.query("ROLLBACK"); return NextResponse.json({ error: "Enter a quote between $1 and $1,000,000." }, { status: 400 }); }
+      const cents = Math.round(price * 100);
+      await client.query(`UPDATE bookings SET quote_status = 'pending', quoted_price_cents = $2,
+        quote_message = $3, quote_sent_at = now(), quote_responded_at = NULL WHERE id::text = $1`, [bookingId, cents, reason]);
+      await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message, metadata)
+        VALUES ($1::uuid, $2, 'quote_sent', $3, jsonb_build_object('priceCents', $4::integer))`, [bookingId, session.user.id, `Provider sent a $${price.toFixed(2)} quote: ${reason}`, cents]);
+      await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+        VALUES ($1, $2::uuid, 'booking_quote', 'New quote from your provider', $3,
+        '/account/bookings/' || $2::uuid::text, 'booking-quote-' || $2::uuid::text || '-' || extract(epoch from now())::bigint)`,
+        [booking.customer_id, bookingId, `${booking.service_title}: $${price.toFixed(2)}. Review and approve it before the booking is confirmed.`]);
+    } else if (action === "assign") {
       if (!["requested", "confirmed"].includes(booking.status)) { await client.query("ROLLBACK"); return NextResponse.json({ error: "This booking can no longer be assigned." }, { status: 409 }); }
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
       const memberId = body.memberId === "owner" || body.memberId === null ? null : typeof body.memberId === "string" ? body.memberId : "";
@@ -107,6 +121,10 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         return NextResponse.json({ error: "There is no active reschedule request." }, { status: 409 });
       }
       if (action === "approve_reschedule") {
+        if (booking.status === "requested" && (booking.quote_status === "pending" || booking.quote_status === "declined")) {
+          await client.query("ROLLBACK");
+          return NextResponse.json({ error: booking.quote_status === "pending" ? "The customer must approve or decline the quote before this request can be confirmed." : "Send a revised quote before confirming this request." }, { status: 409 });
+        }
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
         const conflict = await client.query(
           `SELECT 1 FROM bookings WHERE provider_id::text = $1 AND id::text <> $2 AND status = 'confirmed'
@@ -212,6 +230,8 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Only new requests can be accepted." }, { status: 409 });
       }
+      if (booking.quote_status === "pending") { await client.query("ROLLBACK"); return NextResponse.json({ error: "The customer must approve or decline the new quote before you confirm this booking." }, { status: 409 }); }
+      if (booking.quote_status === "declined") { await client.query("ROLLBACK"); return NextResponse.json({ error: "The customer declined the quote. Send a revised quote or decline the booking request." }, { status: 409 }); }
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
       const working = await client.query(`WITH hours AS (
         SELECT a.weekday, a.start_time, a.end_time, a.timezone FROM availability a WHERE a.provider_id::text = $1 AND $4::uuid IS NULL
@@ -268,7 +288,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
     }
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action, targetType: "booking", targetId: bookingId });
-    if (!action.includes("reschedule") && action !== "assign") await sendBookingUpdateEmails(bookingId, action === "accepted" ? "accepted" : action === "completed" ? "completed" : action === "declined" ? "declined" : "cancelled");
+    if (!action.includes("reschedule") && action !== "assign" && action !== "send_quote") await sendBookingUpdateEmails(bookingId, action === "accepted" ? "accepted" : action === "completed" ? "completed" : action === "declined" ? "declined" : "cancelled");
     return NextResponse.json({ ok: true });
   } catch (error) {
     await client.query("ROLLBACK");
