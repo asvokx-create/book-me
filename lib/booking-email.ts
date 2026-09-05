@@ -49,15 +49,15 @@ export async function sendBookingUpdateEmails(bookingId: string, event: "request
 
   if (event === "requested") {
     if (booking.provider_notifications) await sendTransactionalEmail({ to: booking.provider_email, userId: booking.provider_user_id, bookingId, emailType: "booking_requested_provider", subject: `New request for ${booking.service_title}`, heading: "You have a new booking request", message: `${booking.customer_name} requested ${booking.service_title} for ${when}.`, actionLabel: "Review request", actionUrl: "/provider/dashboard/bookings" });
-    if (booking.customer_notifications) await sendTransactionalEmail({ to: booking.customer_email, userId: booking.customer_id, bookingId, emailType: "booking_requested_customer", subject: "Your BookMe request was sent", heading: "Your request is with the provider", message: `${booking.provider_name} received your request for ${booking.service_title} on ${when}.`, actionLabel: "View booking", actionUrl: `/account/bookings/${bookingId}` });
+    if (booking.customer_notifications) await sendTransactionalEmail({ to: booking.customer_email, userId: booking.customer_id, bookingId, emailType: "booking_requested_customer", subject: "Your BubsBookings request was sent", heading: "Your request is with the provider", message: `${booking.provider_name} received your request for ${booking.service_title} on ${when}.`, actionLabel: "View booking", actionUrl: `/account/bookings/${bookingId}` });
     return;
   }
 
   const content = {
-    accepted: { subject: "Your BookMe booking is confirmed", heading: "Booking confirmed", message: `${booking.provider_name} accepted ${booking.service_title} for ${when}.` },
-    declined: { subject: "Your BookMe request was declined", heading: "Booking request declined", message: `${booking.provider_name} could not accept ${booking.service_title} for ${when}.` },
-    cancelled: { subject: "A BookMe booking was cancelled", heading: "Booking cancelled", message: `${booking.service_title}, scheduled for ${when}, was cancelled.` },
-    completed: { subject: "Your BookMe service is complete", heading: "How did it go?", message: `${booking.service_title} was marked complete. You can now leave a verified review.` },
+    accepted: { subject: "Your BubsBookings booking is confirmed", heading: "Booking confirmed", message: `${booking.provider_name} accepted ${booking.service_title} for ${when}.` },
+    declined: { subject: "Your BubsBookings request was declined", heading: "Booking request declined", message: `${booking.provider_name} could not accept ${booking.service_title} for ${when}.` },
+    cancelled: { subject: "A BubsBookings booking was cancelled", heading: "Booking cancelled", message: `${booking.service_title}, scheduled for ${when}, was cancelled.` },
+    completed: { subject: "Your BubsBookings service is complete", heading: "How did it go?", message: `${booking.service_title} was marked complete. You can now leave a verified review.` },
   }[event];
   if (booking.customer_notifications) await sendTransactionalEmail({ to: booking.customer_email, userId: booking.customer_id, bookingId, emailType: `booking_${event}_customer`, ...content, actionLabel: "View booking", actionUrl: `/account/bookings/${bookingId}` });
   if (event === "cancelled" && booking.provider_notifications) await sendTransactionalEmail({ to: booking.provider_email, userId: booking.provider_user_id, bookingId, emailType: "booking_cancelled_provider", subject: content.subject, heading: content.heading, message: `${booking.customer_name}'s ${booking.service_title} booking for ${when} was cancelled.`, actionLabel: "View bookings", actionUrl: "/provider/dashboard/bookings" });
@@ -65,7 +65,7 @@ export async function sendBookingUpdateEmails(bookingId: string, event: "request
 
 export async function sendBookingReminder(booking: BookingEmailRow, hours: 24 | 1) {
   const when = appointmentLabel(booking.starts_at);
-  const message = `${booking.service_title} is scheduled for ${when}. Open BookMe for the latest details or to message the other person.`;
+  const message = `${booking.service_title} is scheduled for ${when}. Open BubsBookings for the latest details or to message the other person.`;
   const results = await Promise.all([
     booking.customer_notifications ? sendTransactionalEmail({ to: booking.customer_email, userId: booking.customer_id, bookingId: booking.id, emailType: `reminder_${hours}h_customer`, subject: `Reminder: ${booking.service_title} is coming up`, heading: hours === 24 ? "Your booking is tomorrow" : "Your booking starts soon", message, actionLabel: "View booking", actionUrl: `/account/bookings/${booking.id}` }) : null,
     booking.provider_notifications ? sendTransactionalEmail({ to: booking.provider_email, userId: booking.provider_user_id, bookingId: booking.id, emailType: `reminder_${hours}h_provider`, subject: `Reminder: ${booking.service_title} is coming up`, heading: hours === 24 ? "You have a booking tomorrow" : "Your booking starts soon", message, actionLabel: "View bookings", actionUrl: "/provider/dashboard/bookings" }) : null,

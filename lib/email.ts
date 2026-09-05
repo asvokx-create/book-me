@@ -47,7 +47,7 @@ export async function sendTransactionalEmail(input: EmailInput) {
   }
 
   const actionUrl = input.actionUrl ? absoluteUrl(input.actionUrl) : "";
-  const html = `<!doctype html><html><body style="margin:0;background:#f4f4ef;font-family:Arial,sans-serif;color:#183126"><div style="max-width:600px;margin:0 auto;padding:32px 18px"><div style="background:#fff;border:1px solid #dfe5df;border-radius:24px;padding:32px"><p style="font-weight:700;font-size:20px;margin:0 0 28px">BookMe</p><h1 style="font-size:28px;line-height:1.15;margin:0 0 16px">${escapeHtml(input.heading)}</h1><p style="font-size:16px;line-height:1.65;color:#5f7067;margin:0">${escapeHtml(input.message)}</p>${actionUrl ? `<p style="margin:28px 0 0"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#eee25a;color:#183126;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px">${escapeHtml(input.actionLabel ?? "Open BookMe")}</a></p>` : ""}<p style="font-size:12px;line-height:1.5;color:#829087;margin:30px 0 0">BookMe will never ask for your password by email.</p></div></div></body></html>`;
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f4ef;font-family:Arial,sans-serif;color:#183126"><div style="max-width:600px;margin:0 auto;padding:32px 18px"><div style="background:#fff;border:1px solid #dfe5df;border-radius:24px;padding:32px"><p style="font-weight:700;font-size:20px;margin:0 0 28px">BubsBookings</p><h1 style="font-size:28px;line-height:1.15;margin:0 0 16px">${escapeHtml(input.heading)}</h1><p style="font-size:16px;line-height:1.65;color:#5f7067;margin:0">${escapeHtml(input.message)}</p>${actionUrl ? `<p style="margin:28px 0 0"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#eee25a;color:#183126;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px">${escapeHtml(input.actionLabel ?? "Open BubsBookings")}</a></p>` : ""}<p style="font-size:12px;line-height:1.5;color:#829087;margin:30px 0 0">BubsBookings will never ask for your password by email.</p></div></div></body></html>`;
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
@@ -75,11 +75,11 @@ export function sendAuthEmail(input: { to: string; name?: string; url: string; k
   const verification = input.kind === "verify";
   return sendTransactionalEmail({
     to: input.to,
-    subject: verification ? "Verify your BookMe email" : "Reset your BookMe password",
+    subject: verification ? "Verify your BubsBookings email" : "Reset your BubsBookings password",
     heading: verification ? "Verify your email address" : "Reset your password",
     message: verification
-      ? `Hi ${input.name || "there"}, confirm this email address to finish securing your BookMe account.`
-      : `Hi ${input.name || "there"}, use the secure link below to choose a new BookMe password. If you did not request this, you can ignore this email.`,
+      ? `Hi ${input.name || "there"}, confirm this email address to finish securing your BubsBookings account.`
+      : `Hi ${input.name || "there"}, use the secure link below to choose a new BubsBookings password. If you did not request this, you can ignore this email.`,
     actionLabel: verification ? "Verify email" : "Reset password",
     actionUrl: input.url,
     emailType: verification ? "account_verification" : "password_reset",

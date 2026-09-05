@@ -10,7 +10,7 @@ export default function AiAssistant() {
   const [configured, setConfigured] = useState(false);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: "Hi! I’m BookMe AI. Ask me how to manage listings, bookings, teams, reports, or account settings." },
+    { role: "assistant", content: "Hi! I’m BubsBookings AI. Ask me how to manage listings, bookings, teams, reports, or account settings." },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,7 +47,7 @@ export default function AiAssistant() {
     const data = response ? await response.json() as { answer?: string; error?: string } : null;
     setBusy(false);
     if (!response?.ok || !data?.answer) {
-      setError(data?.error ?? "BookMe AI could not answer right now.");
+      setError(data?.error ?? "BubsBookings AI could not answer right now.");
       return;
     }
     setMessages((current) => [...current, { role: "assistant", content: data.answer! }]);
@@ -58,8 +58,8 @@ export default function AiAssistant() {
       {open && (
         <section className="mb-3 flex h-[min(520px,calc(100dvh-6.5rem))] w-[min(380px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-2xl">
           <header className="flex items-center justify-between bg-[#183126] px-5 py-4 text-white">
-            <div><p className="font-bold">BookMe AI</p><p className="text-[10px] text-white/60">Included with your paid plan</p></div>
-            <button onClick={() => setOpen(false)} aria-label="Close BookMe AI" className="rounded-full px-2 py-1 hover:bg-white/15">×</button>
+            <div><p className="font-bold">BubsBookings AI</p><p className="text-[10px] text-white/60">Included with your paid plan</p></div>
+            <button onClick={() => setOpen(false)} aria-label="Close BubsBookings AI" className="rounded-full px-2 py-1 hover:bg-white/15">×</button>
           </header>
           <div className="flex-1 space-y-3 overflow-y-auto bg-[#fafaf6] p-4">
             {messages.map((item, index) => <div key={index} className={`flex ${item.role === "user" ? "justify-end" : "justify-start"}`}><p className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-5 ${item.role === "user" ? "rounded-br-md bg-[#183126] text-white" : "rounded-bl-md border border-[#183126]/10 bg-white"}`}>{item.content}</p></div>)}
@@ -69,7 +69,7 @@ export default function AiAssistant() {
           <form onSubmit={submit} className="border-t border-[#183126]/10 p-4">
             {!configured && <p className="mb-2 rounded-xl bg-[#fff4bf] p-2 text-xs font-bold">The AI connection still needs its server key.</p>}
             {error && <p className="mb-2 rounded-xl bg-[#fff0e8] p-2 text-xs font-bold text-[#964f2c]">{error}</p>}
-            <div className="flex gap-2"><input value={input} onChange={(event) => setInput(event.target.value)} maxLength={1000} placeholder="Ask BookMe AI…" className="min-w-0 flex-1 rounded-full border border-[#183126]/15 px-4 py-2.5 text-sm outline-none" /><button disabled={busy || !input.trim()} className="rounded-full bg-[#eee25a] px-4 py-2.5 text-sm font-bold disabled:opacity-50">Send</button></div>
+            <div className="flex gap-2"><input value={input} onChange={(event) => setInput(event.target.value)} maxLength={1000} placeholder="Ask BubsBookings AI…" className="min-w-0 flex-1 rounded-full border border-[#183126]/15 px-4 py-2.5 text-sm outline-none" /><button disabled={busy || !input.trim()} className="rounded-full bg-[#eee25a] px-4 py-2.5 text-sm font-bold disabled:opacity-50">Send</button></div>
             <p className="mt-2 text-center text-[9px] text-[#849087]">Powered by OpenAI. AI can make mistakes. Don’t share sensitive information. <Link href="/ai-transparency" className="underline">Learn more</Link></p>
           </form>
         </section>

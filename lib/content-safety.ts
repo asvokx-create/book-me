@@ -90,10 +90,10 @@ export function scanContent(value: string): SafetyResult {
   for (const rule of rules) {
     if (rule.patterns.some((pattern) => pattern.test(normalized))) {
       const message = rule.severity === "critical"
-        ? "This content may put someone at risk and cannot be posted. Keep BookMe safe and professional."
+        ? "This content may put someone at risk and cannot be posted. Keep BubsBookings safe and professional."
         : rule.severity === "high"
           ? "This content cannot be posted. Remove hateful, sexual, illegal, threatening, or abusive language."
-          : "Please remove profanity or insulting language and keep BookMe professional and family-friendly.";
+          : "Please remove profanity or insulting language and keep BubsBookings professional and family-friendly.";
       return { allowed: false, category: rule.category, severity: rule.severity, message };
     }
   }

@@ -1,11 +1,11 @@
-# BookMe production operations
+# BubsBookings production operations
 
 ## Required DigitalOcean environment variables
 
 - `RESEND_API_KEY`: transactional-email API key.
-- `EMAIL_FROM`: verified sender, for example `BookMe <updates@bookme.example>`.
+- `EMAIL_FROM`: verified sender, for example `BubsBookings <updates@bookme.example>`.
 - `CRON_SECRET`: a long random value used only by the reminder job.
-- `NEXT_PUBLIC_APP_URL` and `BETTER_AUTH_URL`: the final HTTPS BookMe address.
+- `NEXT_PUBLIC_APP_URL` and `BETTER_AUTH_URL`: the final HTTPS BubsBookings address.
 
 ## Appointment reminder job
 

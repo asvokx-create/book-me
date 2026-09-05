@@ -9,7 +9,7 @@ ALTER TABLE provider_profiles
   ADD COLUMN IF NOT EXISTS cancellation_policy text NOT NULL DEFAULT
     'Cancel at least 24 hours before the appointment whenever possible.',
   ADD COLUMN IF NOT EXISTS no_show_policy text NOT NULL DEFAULT
-    'If you cannot attend, contact the other person as soon as possible. Repeated no-shows may be reported to BookMe.';
+    'If you cannot attend, contact the other person as soon as possible. Repeated no-shows may be reported to BubsBookings.';
 
 ALTER TABLE bookings
   ADD COLUMN IF NOT EXISTS reminder_24h_sent_at timestamptz,

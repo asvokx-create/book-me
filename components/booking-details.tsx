@@ -185,7 +185,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           <Detail icon="◷" label="Date and time" value={start.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} note={`${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}–${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`} />
           <Detail icon="$" label="Service price" value={`$${booking.price.toLocaleString()}`} note="Payment will be added later" />
           <Detail icon="⌖" label="Service location" value={booking.location} note="Shared only with this booking" />
-          <Detail icon="✉" label={booking.viewerRole === "customer" ? "Service professional" : "Customer"} value={booking.viewerRole === "customer" ? booking.assigneeName : booking.customerName} note={booking.viewerRole === "customer" ? `From ${booking.providerName}` : "Message through BookMe"} />
+          <Detail icon="✉" label={booking.viewerRole === "customer" ? "Service professional" : "Customer"} value={booking.viewerRole === "customer" ? booking.assigneeName : booking.customerName} note={booking.viewerRole === "customer" ? `From ${booking.providerName}` : "Message through BubsBookings"} />
         </div>
 
         {booking.notes && <div className="border-t border-[#183126]/10 px-6 py-5 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Booking notes</p><p className="mt-2 text-sm leading-6 text-[#4f6559]">{booking.notes}</p></div>}
@@ -208,7 +208,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           </div>
           <p className="mt-5 text-center text-xs leading-5 text-[#7b8982]">Both sides are notified whenever the booking status changes.</p>
         </div>
-        <div className="rounded-[2rem] bg-[#e7eee2] p-6"><p className="text-2xl">☂</p><h2 className="mt-3 font-bold">BookMe Promise</h2><p className="mt-2 text-sm leading-6 text-[#61736a]">Your booking information and messages stay together in one secure place.</p></div>
+        <div className="rounded-[2rem] bg-[#e7eee2] p-6"><p className="text-2xl">☂</p><h2 className="mt-3 font-bold">BubsBookings Promise</h2><p className="mt-2 text-sm leading-6 text-[#61736a]">Your booking information and messages stay together in one secure place.</p></div>
       </aside>
     </div>
 

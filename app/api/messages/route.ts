@@ -202,7 +202,7 @@ export async function POST(request: Request) {
        WHERE u.id = $1`,
       [recipientId],
     );
-    if (recipient.rows[0]?.enabled) await sendTransactionalEmail({ to: recipient.rows[0].email, userId: recipientId, emailType: `new_message_${created.rows[0].id}`, subject: "You have a new BookMe message", heading: "New message", message: `${session.user.name || "Someone"} sent you a message about a BookMe service. Sign in to read and reply securely.`, actionLabel: "Read message", actionUrl: recipientHref });
+    if (recipient.rows[0]?.enabled) await sendTransactionalEmail({ to: recipient.rows[0].email, userId: recipientId, emailType: `new_message_${created.rows[0].id}`, subject: "You have a new BubsBookings message", heading: "New message", message: `${session.user.name || "Someone"} sent you a message about a BubsBookings service. Sign in to read and reply securely.`, actionLabel: "Read message", actionUrl: recipientHref });
     return NextResponse.json({ conversationId: conversation.id, messageId: created.rows[0].id }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK");

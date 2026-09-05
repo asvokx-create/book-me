@@ -17,11 +17,11 @@ export async function GET(_request: Request, context: { params: Promise<{ bookin
        AND (b.customer_id = $2 OR p.user_id = $2) LIMIT 1`, [bookingId, session.user.id]);
   const booking = result.rows[0];
   if (!booking) return NextResponse.json({ error: "Calendar event not found." }, { status: 404 });
-  const content = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//BookMe//Bookings//EN", "CALSCALE:GREGORIAN",
-    "BEGIN:VEVENT", `UID:${bookingId}@bookme`, `DTSTAMP:${icsDate(new Date())}`, `DTSTART:${icsDate(booking.starts_at)}`,
+  const content = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//BubsBookings//Bookings//EN", "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT", `UID:${bookingId}@bubsbookings.com`, `DTSTAMP:${icsDate(new Date())}`, `DTSTART:${icsDate(booking.starts_at)}`,
     `DTEND:${icsDate(booking.ends_at)}`, `SUMMARY:${escapeIcs(booking.title)} with ${escapeIcs(booking.provider)}`,
-    `LOCATION:${escapeIcs(booking.location)}`, `DESCRIPTION:${escapeIcs(booking.notes || "Booked through BookMe")}`,
+    `LOCATION:${escapeIcs(booking.location)}`, `DESCRIPTION:${escapeIcs(booking.notes || "Booked through BubsBookings")}`,
     "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
   return new NextResponse(content, { headers: { "Content-Type": "text/calendar; charset=utf-8",
-    "Content-Disposition": `attachment; filename=bookme-${bookingId.slice(0, 8)}.ics` } });
+    "Content-Disposition": `attachment; filename=bubsbookings-${bookingId.slice(0, 8)}.ics` } });
 }

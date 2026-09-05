@@ -6,7 +6,7 @@ import { isEmailConfigured, sendAuthEmail } from "./email";
 const emailEnabled = isEmailConfigured();
 
 export const auth = betterAuth({
-  appName: "BookMe",
+  appName: "BubsBookings",
   database,
   secret:
     process.env.BETTER_AUTH_SECRET ??
@@ -62,7 +62,7 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: [twoFactor({ issuer: "BookMe" })],
+  plugins: [twoFactor({ issuer: "BubsBookings" })],
 });
 
 export function isAuthConfigured() {

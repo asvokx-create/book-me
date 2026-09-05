@@ -17,7 +17,7 @@ export function ForgotPasswordForm() {
     setBusy(true);
     await authClient.requestPasswordReset({ email, redirectTo: "/reset-password" });
     setBusy(false);
-    setMessage("If that email belongs to a BookMe account, a secure reset link is on its way.");
+    setMessage("If that email belongs to a BubsBookings account, a secure reset link is on its way.");
   }
 
   return <AuthCard eyebrow="Account recovery" title="Reset your password"><form onSubmit={submit} className="mt-7 space-y-4"><label className="block"><span className="mb-2 block text-sm font-bold">Email address</span><input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} /></label>{message && <p role="status" className="rounded-xl bg-[#e7f3e8] px-4 py-3 text-sm font-semibold text-[#33704a]">{message}</p>}<button disabled={busy} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold disabled:opacity-60">{busy ? "Sending…" : "Send reset link"}</button></form><Link href="/login" className="mt-6 inline-block text-sm font-bold underline">← Back to login</Link></AuthCard>;
@@ -47,5 +47,5 @@ export function ResetPasswordForm() {
 }
 
 function AuthCard({ eyebrow, title, children }: { eyebrow: string; title: string; children: React.ReactNode }) {
-  return <main className="grid min-h-screen place-items-center bg-[#f5f4ef] px-5 py-10 text-[#183126]"><section className="w-full max-w-md rounded-[2rem] border border-[#183126]/10 bg-white p-7 shadow-[0_24px_70px_rgba(24,49,38,.12)] sm:p-9"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe</Link><p className="mt-8 text-xs font-bold uppercase tracking-[.15em] text-[#6f8077]">{eyebrow}</p><h1 className="mt-2 text-3xl font-bold tracking-tight">{title}</h1>{children}</section></main>;
+  return <main className="grid min-h-screen place-items-center bg-[#f5f4ef] px-5 py-10 text-[#183126]"><section className="w-full max-w-md rounded-[2rem] border border-[#183126]/10 bg-white p-7 shadow-[0_24px_70px_rgba(24,49,38,.12)] sm:p-9"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BubsBookings</Link><p className="mt-8 text-xs font-bold uppercase tracking-[.15em] text-[#6f8077]">{eyebrow}</p><h1 className="mt-2 text-3xl font-bold tracking-tight">{title}</h1>{children}</section></main>;
 }

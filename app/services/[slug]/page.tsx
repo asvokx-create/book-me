@@ -23,7 +23,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>BookMe</Link>
+          <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>BubsBookings</Link>
           <div className="flex items-center gap-3"><Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link><AccountNav /></div>
         </div>
       </header>

@@ -29,7 +29,7 @@ try {
     await pool.query(migration);
     console.log(`Applied ${fileName}.`);
   }
-  console.log("BookMe marketplace tables are ready.");
+  console.log("BubsBookings marketplace tables are ready.");
 } finally {
   await pool.end();
 }

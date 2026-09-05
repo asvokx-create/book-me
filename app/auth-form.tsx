@@ -76,7 +76,7 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
   return (
     <div className="w-full max-w-md rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_24px_70px_rgba(24,49,38,.14)] sm:p-9">
       <div className="text-center">
-        <p className="text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{isLogin ? "Welcome back" : "Join BookMe"}</p>
+        <p className="text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{isLogin ? "Welcome back" : "Join BubsBookings"}</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-.04em]">{isLogin ? "Log in to your account" : "Create your account"}</h1>
         <p className="mt-3 text-sm leading-6 text-[#718078]">{isLogin ? "Manage bookings and connect with your favorite local pros." : "Find trusted local help and keep every booking in one place."}</p>
       </div>
@@ -98,8 +98,8 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
         <button type="submit" disabled={loading} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-[#74837b]">{isLogin ? "New to BookMe?" : "Already have an account?"} <Link href={`${isLogin ? "/signup" : "/login"}${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{isLogin ? "Sign up" : "Log in"}</Link></p>
-      {!isLogin && <p className="mt-5 text-center text-[11px] leading-5 text-[#89958f]">BookMe accounts are for adults age 18 or older.</p>}
+      <p className="mt-6 text-center text-sm text-[#74837b]">{isLogin ? "New to BubsBookings?" : "Already have an account?"} <Link href={`${isLogin ? "/signup" : "/login"}${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{isLogin ? "Sign up" : "Log in"}</Link></p>
+      {!isLogin && <p className="mt-5 text-center text-[11px] leading-5 text-[#89958f]">BubsBookings accounts are for adults age 18 or older.</p>}
     </div>
   );
 }

@@ -3,8 +3,8 @@ import Link from "next/link";
 import AccountNav from "@/components/account-nav";
 
 export const metadata: Metadata = {
-  title: "Provider pricing | BookMe",
-  description: "Choose the BookMe plan that fits your local service business.",
+  title: "Provider pricing | BubsBookings",
+  description: "Choose the BubsBookings plan that fits your local service business.",
 };
 
 const plans = [
@@ -25,7 +25,7 @@ const plans = [
     cadence: "per month",
     fee: "4% booking fee",
     description: "More tools for a growing service business.",
-    features: ["Unlimited services & photos", "BookMe AI assistant", "Custom booking questions", "Automated reminders", "Advanced analytics", "Promo codes", "Repeat-customer tools", "Up to 3 team members"],
+    features: ["Unlimited services & photos", "BubsBookings AI assistant", "Custom booking questions", "Automated reminders", "Advanced analytics", "Promo codes", "Repeat-customer tools", "Up to 3 team members"],
     featured: true,
   },
   {
@@ -52,7 +52,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="border-b border-[#183126]/10 bg-[#f8f7f3]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
-          <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>BookMe</Link>
+          <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>BubsBookings</Link>
           <div className="flex items-center gap-2 sm:gap-3"><Link href="/services" className="hidden rounded-full px-4 py-2 text-sm font-semibold transition hover:bg-[#183126]/5 sm:block">Find a service</Link><AccountNav /></div>
         </div>
       </header>

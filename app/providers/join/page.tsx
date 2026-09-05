@@ -6,8 +6,8 @@ import { auth, isAuthConfigured } from "@/lib/auth";
 import OnboardingForm from "./onboarding-form";
 
 export const metadata: Metadata = {
-  title: "Become a provider | BookMe",
-  description: "Grow your local service business with BookMe.",
+  title: "Become a provider | BubsBookings",
+  description: "Grow your local service business with BubsBookings.",
 };
 
 function getParam(value: string | string[] | undefined) {
@@ -30,7 +30,7 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>
-            BookMe
+            BubsBookings
           </Link>
           <p className="hidden text-sm text-[#6b7c73] sm:block">Already a provider? <Link href="/provider/dashboard" className="font-bold text-[#183126] underline decoration-[#c9be45] decoration-2 underline-offset-4">Open dashboard</Link></p>
         </div>

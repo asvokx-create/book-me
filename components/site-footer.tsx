@@ -6,7 +6,7 @@ export default function SiteFooter() {
     <footer className="mt-auto border-t border-[#183126]/10 bg-[#f1f2ec] text-[#183126]">
       <div className="mx-auto flex max-w-6xl flex-col gap-5 px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="flex items-center gap-2 font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#183126] text-xs text-[#eee25a]">B</span>BookMe</p>
+          <p className="flex items-center gap-2 font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#183126] text-xs text-[#eee25a]">B</span>BubsBookings</p>
           <p className="mt-2 text-xs text-[#6d7c74]">Local services, safer conversations, clear choices.</p>
           <div className="mt-3 w-fit rounded-lg border border-[#183126]/10 bg-white px-1 py-0.5 shadow-sm"><BugReportButton /></div>
         </div>

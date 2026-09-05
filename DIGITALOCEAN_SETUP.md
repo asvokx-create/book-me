@@ -1,6 +1,6 @@
-# Deploy BookMe on DigitalOcean
+# Deploy BubsBookings on DigitalOcean
 
-BookMe now uses a DigitalOcean-only architecture:
+BubsBookings now uses a DigitalOcean-only architecture:
 
 - **App Platform** runs the Next.js website and server routes.
 - **Managed PostgreSQL** stores users, sessions, providers, services, and bookings.
@@ -21,7 +21,7 @@ From the DigitalOcean app's Runtime Console, run:
 npm run db:setup
 ```
 
-This creates Better Auth's user, session, account, and verification tables, including BookMe's phone and role fields. It then safely creates BookMe's provider, service, availability, booking, and favorite tables. The command can be run again without duplicating the marketplace tables.
+This creates Better Auth's user, session, account, and verification tables, including BubsBookings's phone and role fields. It then safely creates BubsBookings's provider, service, availability, booking, and favorite tables. The command can be run again without duplicating the marketplace tables.
 
 ## 3. Set secrets
 
@@ -37,7 +37,7 @@ Never add `.env.local`, the database password, or the auth secret to GitHub.
 
 ## 4. Deploy the app
 
-Push BookMe to a private GitHub repository. In DigitalOcean App Platform, choose **Create App**, connect the repository, and use:
+Push BubsBookings to a private GitHub repository. In DigitalOcean App Platform, choose **Create App**, connect the repository, and use:
 
 - Build command: `npm ci && npm run build`
 - Run command: `npm start`

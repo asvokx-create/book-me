@@ -163,7 +163,7 @@ export async function PATCH(request: Request) {
       if (!result.rows[0]) throw new Error("NOT_FOUND");
       await client.query(
         `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
-         VALUES ($1, 'account_warning', 'Important message from BookMe', $2, '/terms', $3)`,
+         VALUES ($1, 'account_warning', 'Important message from BubsBookings', $2, '/terms', $3)`,
         [targetId, reason, "admin-warning-" + randomUUID()],
       );
       targetType = "account";

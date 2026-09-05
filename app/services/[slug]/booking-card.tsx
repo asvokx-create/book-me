@@ -109,7 +109,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
 
   if (!isSignedIn) {
     const redirect = encodeURIComponent(returnPath);
-    return <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)]"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7eee2] text-2xl">🔒</span><p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-[#6a7c72]">Account required</p><h2 className="mt-2 text-2xl font-bold">Log in to book this service</h2><p className="mt-3 text-sm leading-6 text-[#6c7b74]">Every customer needs their own BookMe account so bookings, messages, and safety records stay with the right person.</p><div className="mt-6 grid gap-3"><Link href={`/login?redirect=${redirect}`} className="rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#315846]">Log in</Link><Link href={`/signup?redirect=${redirect}`} className="rounded-full bg-[#eee25a] px-6 py-3.5 text-sm font-bold transition hover:bg-[#e1d43d]">Create an account</Link></div></div>;
+    return <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)]"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7eee2] text-2xl">🔒</span><p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-[#6a7c72]">Account required</p><h2 className="mt-2 text-2xl font-bold">Log in to book this service</h2><p className="mt-3 text-sm leading-6 text-[#6c7b74]">Every customer needs their own BubsBookings account so bookings, messages, and safety records stay with the right person.</p><div className="mt-6 grid gap-3"><Link href={`/login?redirect=${redirect}`} className="rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#315846]">Log in</Link><Link href={`/signup?redirect=${redirect}`} className="rounded-full bg-[#eee25a] px-6 py-3.5 text-sm font-bold transition hover:bg-[#e1d43d]">Create an account</Link></div></div>;
   }
 
   return (
@@ -154,10 +154,10 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         )}
       </form>
 
-      <p className="mt-4 text-center text-xs leading-5 text-[#7c8a83]">No charge yet. The provider will confirm your request before the time is reserved. Text is checked by the BookMe Safety Bot.</p>
+      <p className="mt-4 text-center text-xs leading-5 text-[#7c8a83]">No charge yet. The provider will confirm your request before the time is reserved. Text is checked by the BubsBookings Safety Bot.</p>
       <div className="mt-4 rounded-2xl bg-[#f5f5ef] p-4"><p className="text-xs font-bold">Cancellation policy · {cancellationWindowHours}h notice</p><p className="mt-1 text-xs leading-5 text-[#718078]">{cancellationPolicy}</p><p className="mt-3 text-xs font-bold">No-show policy</p><p className="mt-1 text-xs leading-5 text-[#718078]">{noShowPolicy}</p></div>
       <div className="mt-6 border-t border-[#183126]/10 pt-6">
-        <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e8f2e9] text-xl">✓</span><div><p className="text-sm font-bold">BookMe Promise</p><p className="text-xs text-[#76847d]">Vetted providers and secure booking</p></div></div>
+        <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e8f2e9] text-xl">✓</span><div><p className="text-sm font-bold">BubsBookings Promise</p><p className="text-xs text-[#76847d]">Vetted providers and secure booking</p></div></div>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ import SortSelect from "@/components/sort-select";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Explore local services | BookMe",
+  title: "Explore local services | BubsBookings",
   description: "Search trusted local service providers near Issaquah.",
 };
 
@@ -62,7 +62,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>
-            BookMe
+            BubsBookings
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/pricing" className="hidden rounded-full px-4 py-2 text-sm font-semibold transition hover:bg-[#183126]/5 md:block">Pricing</Link>

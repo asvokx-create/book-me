@@ -25,9 +25,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const result = await access();
-  if (!result.session) return NextResponse.json({ error: "Log in to use BookMe AI." }, { status: 401 });
-  if (!result.eligible) return NextResponse.json({ error: "BookMe AI is included with Pro and Business provider plans." }, { status: 403 });
-  if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "BookMe AI is being configured. Please try again later." }, { status: 503 });
+  if (!result.session) return NextResponse.json({ error: "Log in to use BubsBookings AI." }, { status: 401 });
+  if (!result.eligible) return NextResponse.json({ error: "BubsBookings AI is included with Pro and Business provider plans." }, { status: 403 });
+  if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "BubsBookings AI is being configured. Please try again later." }, { status: 503 });
   if (!await enforceRateLimit({ request, userId: result.session.user.id, bucket: "ai-assistant", limit: 12 })) {
     return NextResponse.json({ error: "You have reached the AI help limit for this minute. Please try again shortly." }, { status: 429 });
   }
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       headers: { "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL ?? "gpt-5.4-mini",
-        instructions: "You are BookMe AI, a concise support assistant for a local-services marketplace. Help users understand BookMe navigation, listings, schedules, bookings, teams, plans, disputes, reports, and account settings. Never claim to change an account or booking. Never request passwords, payment-card details, authentication codes, or sensitive personal information. For emergencies or threats, tell the user to contact local emergency services and use BookMe's Report feature. For disputes, direct them to /disputes. Be clear that payments are not yet active when relevant.",
+        instructions: "You are BubsBookings AI, a concise support assistant for a local-services marketplace. Help users understand BubsBookings navigation, listings, schedules, bookings, teams, plans, disputes, reports, and account settings. Never claim to change an account or booking. Never request passwords, payment-card details, authentication codes, or sensitive personal information. For emergencies or threats, tell the user to contact local emergency services and use BubsBookings's Report feature. For disputes, direct them to /disputes. Be clear that payments are not yet active when relevant.",
         input: [...history, { role: "user", content: message }],
         max_output_tokens: 450,
         store: false,
@@ -58,14 +58,14 @@ export async function POST(request: Request) {
     const data = await response.json() as { output?: Array<{ content?: Array<{ type?: string; text?: string }> }>; error?: { message?: string } };
     if (!response.ok) {
       console.error("OpenAI response failed", response.status, data.error?.message);
-      return NextResponse.json({ error: "BookMe AI could not answer right now." }, { status: 502 });
+      return NextResponse.json({ error: "BubsBookings AI could not answer right now." }, { status: 502 });
     }
     const answer = data.output?.flatMap((item) => item.content ?? []).filter((part) => part.type === "output_text").map((part) => part.text ?? "").join("\n").trim();
-    if (!answer) return NextResponse.json({ error: "BookMe AI did not return an answer." }, { status: 502 });
+    if (!answer) return NextResponse.json({ error: "BubsBookings AI did not return an answer." }, { status: 502 });
     await recordActivity({ userId: result.session.user.id, action: "ai_assistant_used", targetType: "assistant" });
     return NextResponse.json({ answer });
   } catch (error) {
-    console.error("BookMe AI request failed", error);
-    return NextResponse.json({ error: "BookMe AI could not answer right now." }, { status: 502 });
+    console.error("BubsBookings AI request failed", error);
+    return NextResponse.json({ error: "BubsBookings AI could not answer right now." }, { status: 502 });
   }
 }

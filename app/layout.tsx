@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BookMe | Trusted local services",
+  title: "BubsBookings | Trusted local services",
   description: "Find and book trusted local professionals for the jobs on your list.",
 };
 

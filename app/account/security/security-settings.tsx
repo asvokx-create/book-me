@@ -34,7 +34,7 @@ export default function SecuritySettings() {
     setError("");
     setMessage("");
     setLoading(true);
-    const { data, error: authError } = await authClient.twoFactor.enable({ password, method: "totp", issuer: "BookMe" });
+    const { data, error: authError } = await authClient.twoFactor.enable({ password, method: "totp", issuer: "BubsBookings" });
     setLoading(false);
     if (authError || !data || data.method !== "totp") {
       setError(authError?.message ?? "We could not start authenticator setup. Check your password and try again.");
@@ -93,12 +93,12 @@ export default function SecuritySettings() {
     <main className="min-h-screen bg-[#f5f4ef] px-5 py-8 text-[#183126] sm:px-8">
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center justify-between gap-4">
-          <Link href="/account" className="flex items-center gap-2.5 text-xl font-bold"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BookMe</Link>
+          <Link href="/account" className="flex items-center gap-2.5 text-xl font-bold"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BubsBookings</Link>
           <Link href="/account" className="rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#dfead9]">← My account</Link>
         </div>
 
         <section className="mt-10 rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_18px_55px_rgba(24,49,38,.08)] sm:p-9">
-          <div className="flex items-start gap-4"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#e6eedf] text-2xl">🔐</span><div><p className="text-xs font-bold uppercase tracking-[.15em] text-[#6f8077]">Account security</p><h1 className="mt-1 text-3xl font-bold tracking-tight">Authenticator protection</h1><p className="mt-2 text-sm leading-6 text-[#6f7f77]">Sharing the BookMe link never shares your login. Turn this on for an extra code from Google Authenticator, Microsoft Authenticator, Authy, or another authenticator app.</p></div></div>
+          <div className="flex items-start gap-4"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#e6eedf] text-2xl">🔐</span><div><p className="text-xs font-bold uppercase tracking-[.15em] text-[#6f8077]">Account security</p><h1 className="mt-1 text-3xl font-bold tracking-tight">Authenticator protection</h1><p className="mt-2 text-sm leading-6 text-[#6f7f77]">Sharing the BubsBookings link never shares your login. Turn this on for an extra code from Google Authenticator, Microsoft Authenticator, Authy, or another authenticator app.</p></div></div>
 
           <div className={`mt-7 rounded-2xl p-4 ${twoFactorEnabled ? "bg-[#e7f3e8]" : "bg-[#fff7c9]"}`}><p className="font-bold">{twoFactorEnabled ? "✓ Authenticator is on" : "Authenticator is off"}</p><p className="mt-1 text-sm text-[#66776e]">{twoFactorEnabled ? "A code is required when your account signs in on a new device." : "Your password still protects your account. Add an authenticator for stronger protection."}</p></div>
           <div className={`mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 ${emailVerified ? "bg-[#e7f3e8]" : "bg-[#fff7c9]"}`}><div><p className="font-bold">{emailVerified ? "✓ Email is verified" : "Email needs verification"}</p><p className="mt-1 text-sm text-[#66776e]">{session.user.email}</p></div>{!emailVerified && <button type="button" disabled={verificationSending} onClick={resendVerification} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{verificationSending ? "Sending…" : "Send verification"}</button>}</div>
