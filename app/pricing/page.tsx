@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import AccountNav from "@/components/account-nav";
+import { auth, isAuthConfigured } from "@/lib/auth";
+import { database } from "@/lib/database";
+import type { ProviderPlan } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "Provider pricing | BubsBookings",
@@ -44,9 +48,26 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
+async function getCurrentProviderPlan(): Promise<ProviderPlan | null> {
+  if (!isAuthConfigured()) return null;
+
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session) return null;
+    const result = await database.query<{ plan: ProviderPlan }>(
+      "SELECT plan FROM provider_profiles WHERE user_id = $1 AND is_active = true LIMIT 1",
+      [session.user.id],
+    );
+    return result.rows[0]?.plan ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function PricingPage({ searchParams }: PageProps<"/pricing">) {
   const selected = getParam((await searchParams).plan).toLowerCase();
   const selectedPlan = plans.find((plan) => plan.id === selected);
+  const currentPlan = await getCurrentProviderPlan();
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
@@ -67,17 +88,23 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
       </section>
 
       <section id="plans" className="mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
+        {currentPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#183126] px-5 py-4 text-center text-white sm:flex-row sm:text-left"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b8c8c0]">Your current plan</p><p className="mt-1 text-xl font-bold">{plans.find((plan) => plan.id === currentPlan)?.name}</p></div><Link href="/provider/dashboard/billing" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Manage billing</Link></div>}
         {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : "Create your provider profile first, then finish secure Stripe checkout from Billing."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : "/provider/dashboard/billing"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : "Continue to billing"}</Link></div>}
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {plans.map((plan) => <article key={plan.id} className={`relative flex flex-col rounded-[2rem] border bg-white p-7 shadow-[0_10px_35px_rgba(24,49,38,.06)] sm:p-8 ${plan.featured ? "border-[#183126] ring-4 ring-[#eee25a]/60" : "border-[#183126]/10"}`}>
+          {plans.map((plan) => {
+            const isCurrent = currentPlan === plan.id;
+            return <article key={plan.id} className={`relative flex flex-col rounded-[2rem] border bg-white p-7 shadow-[0_10px_35px_rgba(24,49,38,.06)] sm:p-8 ${plan.featured || isCurrent ? "border-[#183126] ring-4 ring-[#eee25a]/60" : "border-[#183126]/10"}`}>
             {plan.featured && <span className="absolute -top-3 left-7 rounded-full bg-[#eee25a] px-3 py-1 text-xs font-bold">Most popular</span>}
+            {isCurrent && <span className="absolute -top-3 right-7 rounded-full bg-[#183126] px-3 py-1 text-xs font-bold text-white">Current plan</span>}
             <h2 className="text-2xl font-bold">{plan.name}</h2><p className="mt-2 min-h-12 text-sm leading-6 text-[#687970]">{plan.description}</p>
             <div className="mt-7 flex items-end gap-2"><span className="text-4xl font-bold tracking-[-.04em]">{plan.price}</span><span className="pb-1 text-sm text-[#6f7f77]">{plan.cadence}</span></div>
             <p className="mt-2 inline-flex w-fit rounded-full bg-[#edf3e7] px-3 py-1.5 text-xs font-bold text-[#496756]">{plan.fee}</p>
             <ul className="mt-7 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex gap-3 text-sm"><span className="font-bold text-[#4c8a60]">✓</span><span>{feature}</span></li>)}</ul>
-            <Link href={`/pricing?plan=${plan.id}#plans`} className={`mt-8 rounded-full px-5 py-3.5 text-center text-sm font-bold transition hover:-translate-y-0.5 ${plan.featured ? "bg-[#eee25a] hover:bg-[#f5ea6b]" : "bg-[#183126] text-white hover:bg-[#294b3c]"}`}>{selected === plan.id ? "Selected" : `Choose ${plan.name}`}</Link>
-          </article>)}
+            {isCurrent
+              ? <span className="mt-8 rounded-full bg-[#edf3e7] px-5 py-3.5 text-center text-sm font-bold text-[#496756]">Your current plan</span>
+              : <Link href={`/pricing?plan=${plan.id}#plans`} className={`mt-8 rounded-full px-5 py-3.5 text-center text-sm font-bold transition hover:-translate-y-0.5 ${plan.featured ? "bg-[#eee25a] hover:bg-[#f5ea6b]" : "bg-[#183126] text-white hover:bg-[#294b3c]"}`}>{selected === plan.id ? "Selected" : `Choose ${plan.name}`}</Link>}
+          </article>})}
         </div>
         <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">Paid subscriptions only begin after you review and confirm the purchase in Stripe Checkout. Booking fees are deducted when a customer pays for a confirmed service.</p>
       </section>
