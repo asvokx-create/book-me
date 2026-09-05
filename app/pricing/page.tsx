@@ -62,12 +62,12 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
         <div className="relative mx-auto max-w-7xl px-5 py-16 text-center sm:px-8 sm:py-20">
           <p className="text-xs font-bold uppercase tracking-[.18em] text-[#65796d]">Simple provider pricing</p>
           <h1 className="mx-auto mt-3 max-w-3xl text-4xl font-bold tracking-[-.05em] sm:text-6xl">Start free. Grow when <span className="underline decoration-[#eee25a] decoration-[10px] underline-offset-[-4px]">you&apos;re ready.</span></h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-[#607269]">Every plan includes a business profile, services, scheduling, customer messaging, reviews, and online payments.</p>
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-[#607269]">Every plan includes a business profile, services, scheduling, customer messaging, reviews, and secure online payments.</p>
         </div>
       </section>
 
       <section id="plans" className="mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
-        {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">Your choice is saved in this signup link. Billing is not active yet, so you will not be charged.</p></div><Link href={`/providers/join?plan=${selectedPlan.id}`} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">Continue as a provider</Link></div>}
+        {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : "Create your provider profile first, then finish secure Stripe checkout from Billing."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : "/provider/dashboard/billing"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : "Continue to billing"}</Link></div>}
 
         <div className="grid gap-6 lg:grid-cols-3">
           {plans.map((plan) => <article key={plan.id} className={`relative flex flex-col rounded-[2rem] border bg-white p-7 shadow-[0_10px_35px_rgba(24,49,38,.06)] sm:p-8 ${plan.featured ? "border-[#183126] ring-4 ring-[#eee25a]/60" : "border-[#183126]/10"}`}>
@@ -79,7 +79,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
             <Link href={`/pricing?plan=${plan.id}#plans`} className={`mt-8 rounded-full px-5 py-3.5 text-center text-sm font-bold transition hover:-translate-y-0.5 ${plan.featured ? "bg-[#eee25a] hover:bg-[#f5ea6b]" : "bg-[#183126] text-white hover:bg-[#294b3c]"}`}>{selected === plan.id ? "Selected" : `Choose ${plan.name}`}</Link>
           </article>)}
         </div>
-        <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">Plan selection is available now. Paid subscriptions and booking fees will only begin after secure payment processing is connected and you confirm a purchase.</p>
+        <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">Paid subscriptions only begin after you review and confirm the purchase in Stripe Checkout. Booking fees are deducted when a customer pays for a confirmed service.</p>
       </section>
     </main>
   );

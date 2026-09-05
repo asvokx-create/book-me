@@ -20,6 +20,8 @@ type Booking = {
   location: string;
   notes: string;
   price: number;
+  paymentStatus: "unpaid" | "pending" | "paid" | "refunded" | "failed";
+  paidAt: string | null;
   status: BookingStatus;
   cancelledBy: string | null;
   cancellationReason: string | null;
@@ -55,6 +57,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [working, setWorking] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -83,6 +86,8 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     const timer = window.setTimeout(() => {
       void loadBooking();
       if (new URLSearchParams(window.location.search).get("reschedule") === "1") setRescheduleOpen(true);
+      if (new URLSearchParams(window.location.search).get("payment") === "success") setNotice("Payment submitted securely through Stripe. Your receipt and payment status will appear after confirmation.");
+      if (new URLSearchParams(window.location.search).get("payment") === "cancelled") setNotice("Payment checkout was cancelled. Nothing was charged.");
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadBooking]);
@@ -140,6 +145,18 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     setWorking(false);
   }
 
+  async function payForBooking() {
+    setWorking(true); setError(""); setNotice("");
+    const response = await fetch(`/api/stripe/bookings/${bookingId}/checkout`, { method: "POST" }).catch(() => null);
+    const result = response ? await response.json() as { url?: string; error?: string } : null;
+    if (!response?.ok || !result?.url) {
+      setError(result?.error ?? "We could not open secure payment.");
+      setWorking(false);
+      return;
+    }
+    window.location.assign(result.url);
+  }
+
   async function cancelBooking(event: FormEvent) {
     event.preventDefault();
     if (!booking) return;
@@ -194,6 +211,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
   const canComplete = booking.viewerRole === "provider" && booking.status === "confirmed";
 
   return <>
+    {notice && <p role="status" className="mb-5 rounded-2xl bg-[#e6f2e6] px-5 py-4 text-sm font-semibold text-[#34704a]">{notice}</p>}
     {error && <p role="alert" className="mb-5 rounded-2xl bg-[#fff0e8] px-5 py-4 text-sm font-semibold text-[#964f2c]">{error}</p>}
     <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
       <div className="space-y-5">
@@ -207,7 +225,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
 
         <div className="grid gap-6 p-6 sm:grid-cols-2 sm:p-8">
           <Detail icon="◷" label="Date and time" value={start.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} note={`${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}–${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`} />
-          <Detail icon="$" label={booking.quote.status === "accepted" ? "Approved quote" : "Service price"} value={`$${booking.price.toLocaleString()}`} note={booking.quote.status === "accepted" ? "Customer approved this price" : "Payment will be added later"} />
+          <Detail icon="$" label={booking.quote.status === "accepted" ? "Approved quote" : "Service price"} value={`$${booking.price.toLocaleString()}`} note={booking.paymentStatus === "paid" ? "Paid securely through Stripe" : booking.paymentStatus === "refunded" ? "Payment refunded" : booking.quote.status === "accepted" ? "Customer approved this price" : "Payment due after confirmation"} />
           <Detail icon="⌖" label="Service location" value={booking.location} note="Shared only with this booking" />
           <Detail icon="✉" label={booking.viewerRole === "customer" ? "Service professional" : "Customer"} value={booking.viewerRole === "customer" ? booking.assigneeName : booking.customerName} note={booking.viewerRole === "customer" ? `From ${booking.providerName}` : "Message through BubsBookings"} />
         </div>
@@ -224,6 +242,8 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           <h2 className="text-lg font-bold">Manage this booking</h2>
           <div className="mt-5 grid gap-3">
             <Link href={contactHref} className="rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]">✉ Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>
+            {booking.viewerRole === "customer" && booking.status === "confirmed" && booking.paymentStatus !== "paid" && booking.paymentStatus !== "refunded" && <button disabled={working} onClick={() => void payForBooking()} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Opening Stripe…" : `Pay $${booking.price.toLocaleString()} securely`}</button>}
+            {booking.paymentStatus === "paid" && <div className="rounded-2xl bg-[#e6f2e6] px-4 py-3 text-center text-sm font-bold text-[#34704a]">✓ Payment complete</div>}
             {booking.viewerRole === "provider" && canCancel && <label className="text-sm font-bold">Assigned professional<select disabled={working} value={booking.assignedTeamMemberId ?? "owner"} onChange={(event) => void assignBooking(event.target.value)} className="mt-2 w-full rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3"><option value="owner">Company owner</option>{booking.teamMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>}
             {booking.viewerRole === "provider" && booking.status === "requested" && <button disabled={working} onClick={() => { setQuotePrice(String(booking.quote.price ?? booking.price)); setQuoteMessage(booking.quote.message); setQuoteOpen(true); }} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#eee25a] disabled:opacity-50">{booking.quote.status === "none" ? "Send a custom quote" : "Send revised quote"}</button>}
             {booking.viewerRole === "customer" && canCancel && !booking.reschedule && <button onClick={() => setRescheduleOpen(true)} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#eee25a]">Request a new time</button>}

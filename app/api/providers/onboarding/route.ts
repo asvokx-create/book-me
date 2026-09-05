@@ -53,7 +53,6 @@ export async function POST(request: Request) {
   const description = typeof body.description === "string" ? body.description.trim() : "";
   const duration = typeof body.duration === "string" ? body.duration : "";
   const price = Number(body.price);
-  const requestedPlan = body.plan === "pro" || body.plan === "business" ? body.plan : "starter";
   const selectedDays = Array.isArray(body.selectedDays)
     ? body.selectedDays.filter((day): day is string => typeof day === "string" && day in weekdayNumbers)
     : [];
@@ -90,7 +89,7 @@ export async function POST(request: Request) {
   const existingProfile = await database.query<{ plan: ProviderPlan }>("SELECT plan FROM provider_profiles WHERE user_id = $1", [session.user.id]);
   const plan: ProviderPlan = await hasAdminAccess(session.user.id, session.user.email)
     ? "business"
-    : existingProfile.rows[0]?.plan ?? requestedPlan;
+    : existingProfile.rows[0]?.plan ?? "starter";
 
   const locationParts = serviceArea.split(",").map((part) => part.trim()).filter(Boolean);
   const state = locationParts.length > 1 ? locationParts.pop()! : "WA";
