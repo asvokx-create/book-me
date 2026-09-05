@@ -44,7 +44,7 @@ async function loadDashboard() {
        LIMIT 50`,
     ),
     database.query(
-      `SELECT u.id, u.name, u.email, u.role, u."createdAt" AS created_at,
+      `SELECT u.id, u.name, u.email, u.image, u.role, u."createdAt" AS created_at,
               ar.status AS restriction_status, ar.reason AS restriction_reason,
               p.id::text AS provider_id, p.business_name, p.is_active AS provider_active,
               p.phone_verified, p.identity_verified, p.business_verified
@@ -170,8 +170,8 @@ export async function PATCH(request: Request) {
       auditAction = "account_warned";
       details = { reason };
     } else if (action === "listing_status" && (status === "active" || status === "inactive")) {
-      const result = await client.query(
-        "UPDATE services SET is_active = $2, updated_at = now() WHERE id::text = $1",
+      const result = await client.query<{ id: string; is_active: boolean }>(
+        "UPDATE services SET is_active = $2, updated_at = now() WHERE id = $1::uuid RETURNING id::text, is_active",
         [targetId, status === "active"],
       );
       if (!result.rowCount) throw new Error("NOT_FOUND");
@@ -210,7 +210,7 @@ export async function PATCH(request: Request) {
       [session.user.id, auditAction, targetType, targetId, JSON.stringify(details)],
     );
     await client.query("COMMIT");
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, action: auditAction, targetId });
   } catch (error) {
     await client.query("ROLLBACK");
     if (error instanceof Error && error.message === "NOT_FOUND") {

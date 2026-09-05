@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import FavoriteButton from "@/components/favorite-button";
 import NotificationBell from "@/components/notification-bell";
+import ProfileAvatar from "@/components/profile-avatar";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
@@ -47,13 +48,6 @@ export default function AccountPage() {
   const history = bookings.filter((booking) => booking.state === "completed" || booking.state === "cancelled");
   const accountName = session?.user.name?.trim();
   const firstName = accountName?.split(/\s+/)[0] ?? "there";
-  const initials = accountName
-    ? accountName
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join("")
-    : "B";
   const isProvider = hasProviderProfile || (session?.user as { role?: string } | undefined)?.role === "provider";
   const bookingVisual = (category: string) => {
     const normalized = category.toLowerCase();
@@ -73,7 +67,7 @@ export default function AccountPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BubsBookings</Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold md:flex"><Link href="/services" className="hover:text-[#5b7365]">Explore services</Link><Link href="/providers/join" className="hover:text-[#5b7365]">List your service</Link></nav>
-          <div className="flex items-center gap-2 sm:gap-3"><Link href={isProvider ? "/provider/dashboard" : "/providers/join"} className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">{isProvider ? "Switch to " : "Become a "}</span>provider</Link><NotificationBell /><div aria-label={`${accountName ?? "BubsBookings"} account`} className="grid h-10 w-10 place-items-center rounded-full bg-[#e6eedf] text-sm font-bold">{initials}</div></div>
+          <div className="flex items-center gap-2 sm:gap-3"><Link href={isProvider ? "/provider/dashboard" : "/providers/join"} className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">{isProvider ? "Switch to " : "Become a "}</span>provider</Link><NotificationBell /><ProfileAvatar name={accountName ?? "BubsBookings"} imageUrl={session?.user.image} className="h-10 w-10 text-sm" /></div>
         </div>
       </header>
 

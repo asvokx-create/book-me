@@ -6,6 +6,7 @@ import { database } from "@/lib/database";
 type SettingsRow = {
   name: string;
   email: string;
+  image: string | null;
   phone: string | null;
   city: string;
   state: string;
@@ -20,7 +21,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const result = await database.query<SettingsRow>(
-    `SELECT u.name, u.email, u.phone,
+    `SELECT u.name, u.email, u.image, u.phone,
             COALESCE(us.city, p.city, '') AS city,
             COALESCE(us.state, p.state, 'WA') AS state,
             COALESCE(us.search_radius_miles, p.service_radius_miles, 10)::int AS search_radius_miles,
@@ -39,6 +40,7 @@ export async function GET() {
   return NextResponse.json({
     name: row.name,
     email: row.email,
+    imageUrl: row.image ?? "",
     phone: row.phone ?? "",
     city: row.city,
     state: row.state,

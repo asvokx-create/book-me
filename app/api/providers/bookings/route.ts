@@ -8,10 +8,10 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const result = await database.query<{
-    id: string; customer: string; service: string; starts_at: Date; location: string;
+    id: string; customer: string; customer_image: string | null; service: string; starts_at: Date; location: string;
     price_cents: number; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string;
   }>(
-    `SELECT b.id::text, u.name AS customer, s.title AS service, b.starts_at,
+    `SELECT b.id::text, u.name AS customer, u.image AS customer_image, s.title AS service, b.starts_at,
             b.service_address AS location, b.price_cents, b.status, COALESCE(member.name, 'Company owner') AS assignee_name
      FROM bookings b
      JOIN provider_profiles p ON p.id = b.provider_id
@@ -27,6 +27,7 @@ export async function GET() {
   return NextResponse.json({ bookings: result.rows.map((row) => ({
     id: row.id,
     customer: row.customer,
+    customerImage: row.customer_image ?? "",
     initials: row.customer.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join(""),
     service: row.service,
     startsAt: row.starts_at,

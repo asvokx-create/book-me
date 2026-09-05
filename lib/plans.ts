@@ -4,9 +4,9 @@ export const PLAN_ENTITLEMENTS = {
   starter: {
     name: "Starter",
     monthlyPrice: 0,
-    bookingFeePercent: 8,
-    serviceLimit: 5,
-    photoLimit: 10,
+    bookingFeePercent: 10,
+    serviceLimit: 2,
+    photoLimit: 5,
     teamSeatLimit: 1,
     advancedAnalytics: false,
     aiAssistant: false,

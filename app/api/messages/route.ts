@@ -9,6 +9,7 @@ import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 type ConversationRow = {
   id: string; customer_id: string; provider_id: string; provider_user_id: string;
   provider_name: string; customer_name: string; service_title: string | null;
+  provider_image: string | null; customer_image: string | null;
   last_message: string | null; last_message_at: Date | null; unread_count: number;
 };
 
@@ -16,12 +17,14 @@ async function getConversation(userId: string, conversationId: string) {
   const result = await database.query<ConversationRow>(
     `SELECT c.id::text, c.customer_id, c.provider_id::text, p.user_id AS provider_user_id,
             p.business_name AS provider_name, u.name AS customer_name, s.title AS service_title,
+            provider_owner.image AS provider_image, u.image AS customer_image,
             latest.body AS last_message, latest.created_at AS last_message_at,
             (SELECT count(*)::int FROM messages unread
              WHERE unread.conversation_id = c.id AND unread.sender_id <> $1
                AND unread.read_at IS NULL AND unread.deleted_at IS NULL) AS unread_count
      FROM conversations c
      JOIN provider_profiles p ON p.id = c.provider_id
+     JOIN "user" provider_owner ON provider_owner.id = p.user_id
      JOIN "user" u ON u.id = c.customer_id
      LEFT JOIN services s ON s.id = c.service_id
      LEFT JOIN LATERAL (
@@ -45,12 +48,14 @@ export async function GET(request: Request) {
   const conversationsResult = await database.query<ConversationRow>(
     `SELECT c.id::text, c.customer_id, c.provider_id::text, p.user_id AS provider_user_id,
             p.business_name AS provider_name, u.name AS customer_name, s.title AS service_title,
+            provider_owner.image AS provider_image, u.image AS customer_image,
             latest.body AS last_message, latest.created_at AS last_message_at,
             (SELECT count(*)::int FROM messages unread
              WHERE unread.conversation_id = c.id AND unread.sender_id <> $1
                AND unread.read_at IS NULL AND unread.deleted_at IS NULL) AS unread_count
      FROM conversations c
      JOIN provider_profiles p ON p.id = c.provider_id
+     JOIN "user" provider_owner ON provider_owner.id = p.user_id
      JOIN "user" u ON u.id = c.customer_id
      LEFT JOIN services s ON s.id = c.service_id
      LEFT JOIN LATERAL (
@@ -82,6 +87,8 @@ export async function GET(request: Request) {
     providerId: row.provider_id,
     providerName: row.provider_name,
     customerName: row.customer_name,
+    providerImage: row.provider_image ?? "",
+    customerImage: row.customer_image ?? "",
     serviceTitle: row.service_title,
     lastMessage: row.last_message,
     lastMessageAt: row.last_message_at,

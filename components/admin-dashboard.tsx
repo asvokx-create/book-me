@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import ProfileAvatar from "@/components/profile-avatar";
 
 type AdminSection = "overview" | "reports" | "moderation" | "accounts" | "listings" | "reviews" | "audit";
 type Stats = {
@@ -20,7 +21,7 @@ type ModerationEvent = {
   created_at: string; user_name: string; user_email: string;
 };
 type Account = {
-  id: string; name: string; email: string; role: string; created_at: string;
+  id: string; name: string; email: string; image: string | null; role: string; created_at: string;
   restriction_status: string | null; restriction_reason: string | null;
   provider_id: string | null; business_name: string | null; provider_active: boolean | null;
   phone_verified: boolean | null; identity_verified: boolean | null; business_verified: boolean | null;
@@ -40,6 +41,10 @@ type AuditEntry = {
 type DashboardData = {
   stats: Stats; reports: SafetyReport[]; events: ModerationEvent[];
   accounts: Account[]; listings: Listing[]; reviews: Review[]; audit: AuditEntry[];
+};
+type AdminActionOptions = {
+  action: string; targetId: string; status?: string; needsReason?: boolean;
+  confirmText?: string; successText: string;
 };
 
 const navItems: Array<{ id: AdminSection; label: string; icon: string }> = [
@@ -73,7 +78,7 @@ function StatusPill({ value }: { value: string }) {
   return <span className={"rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider " + color}>{label(value)}</span>;
 }
 
-export default function AdminDashboard({ adminName }: { adminName: string }) {
+export default function AdminDashboard({ adminName, adminImage = "" }: { adminName: string; adminImage?: string }) {
   const router = useRouter();
   const [section, setSection] = useState<AdminSection>("overview");
   const [data, setData] = useState<DashboardData | null>(null);
@@ -81,6 +86,7 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
   const [busyId, setBusyId] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [pendingAction, setPendingAction] = useState<AdminActionOptions | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,11 +117,12 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
     return () => { active = false; };
   }, []);
 
-  async function runAction(options: {
-    action: string; targetId: string; status?: string; needsReason?: boolean;
-    confirmText?: string; successText: string;
-  }) {
-    if (options.confirmText && !window.confirm(options.confirmText)) return;
+  async function runAction(options: AdminActionOptions) {
+    if (options.confirmText) { setPendingAction(options); return; }
+    await executeAction(options);
+  }
+
+  async function executeAction(options: AdminActionOptions) {
     let reason = "";
     if (options.needsReason) {
       reason = window.prompt("Add a clear reason. This is saved in the audit history.")?.trim() ?? "";
@@ -135,6 +142,7 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
       await load();
     }
     setBusyId("");
+    setPendingAction(null);
   }
 
   async function signOut() {
@@ -144,7 +152,6 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
   }
 
   const firstName = adminName.trim().split(/\s+/)[0] || "Admin";
-  const initials = adminName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
   const openReports = data?.reports.filter((report) => report.status === "open" || report.status === "reviewing") ?? [];
   const criticalEvents = data?.events.filter((event) => event.severity === "critical" || event.severity === "high") ?? [];
   const statCards = data ? [
@@ -172,7 +179,7 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
             <Link href="/admin/disputes" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Disputes</Link>
             <Link href="/admin/operations" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Operations</Link>
             <Link href="/account" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#e4ecdf] sm:inline-flex">View marketplace</Link>
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#e5eddf] text-sm font-bold">{initials}</span>
+            <ProfileAvatar name={adminName} imageUrl={adminImage} className="h-10 w-10 text-sm" />
             <button onClick={signOut} className="rounded-full px-3 py-2 text-sm font-bold text-[#66766e] transition hover:bg-[#fff0e7] hover:text-[#8d4827]">Log out</button>
           </div>
         </div>
@@ -256,7 +263,7 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
               {data.accounts.map((account) => (
                 <article key={account.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
-                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#e5eddf] font-bold">{account.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span>
+                    <ProfileAvatar name={account.name} imageUrl={account.image} className="h-12 w-12 text-sm" />
                     <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{account.name}</h2><StatusPill value={account.restriction_status ?? "active"} /><span className="rounded-full bg-[#f0f1eb] px-2.5 py-1 text-[10px] font-bold uppercase">{account.role}</span></div><p className="mt-1 break-all text-sm text-[#718078]">{account.email}</p><p className="mt-1 text-xs text-[#8a9690]">Joined {formatDate(account.created_at)}{account.business_name ? " · " + account.business_name : ""}</p>{account.restriction_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Reason: {account.restriction_reason}</p>}</div>
                     <div className="flex flex-wrap gap-2">
                       <button disabled={busyId === account.id} onClick={() => void runAction({ action: "warn_account", targetId: account.id, needsReason: true, successText: "Warning sent to the account." })} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Warn</button>
@@ -296,6 +303,7 @@ export default function AdminDashboard({ adminName }: { adminName: string }) {
           )}
         </section>
       </div>
+      {pendingAction && <div className="fixed inset-0 z-[100] grid place-items-center bg-[#10251c]/55 p-5" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title"><div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Confirm admin action</p><h2 id="admin-confirm-title" className="mt-2 text-2xl font-bold">Are you sure?</h2><p className="mt-3 text-sm leading-6 text-[#687970]">{pendingAction.confirmText}</p><p className="mt-4 rounded-2xl bg-[#f5f5ef] p-4 text-xs leading-5 text-[#718078]">This change is recorded in the permanent admin audit history.</p><div className="mt-6 flex justify-end gap-2"><button type="button" disabled={Boolean(busyId)} onClick={() => setPendingAction(null)} className="rounded-full px-5 py-3 text-sm font-bold transition hover:bg-[#edf1ec]">Cancel</button><button type="button" disabled={Boolean(busyId)} onClick={() => void executeAction({ ...pendingAction, confirmText: undefined })} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{busyId ? "Saving…" : pendingAction.status === "active" || pendingAction.status === "visible" ? "Restore" : "Confirm"}</button></div></div></div>}
     </main>
   );
 }

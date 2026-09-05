@@ -28,7 +28,7 @@ async function currentProvider() {
 export async function GET() {
   const provider = await currentProvider();
   if (!provider) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
-  const result = await database.query<{ id: string; name: string; email: string; role: "worker" | "manager"; status: "active" | "inactive"; created_at: Date }>(
+  const result = await database.query<{ id: string; name: string; email: string; role: string; status: "active" | "inactive"; created_at: Date }>(
     `SELECT id::text, name, email, role, status, created_at
      FROM provider_team_members WHERE provider_id = $1
      ORDER BY status, created_at`,
@@ -48,8 +48,9 @@ export async function POST(request: Request) {
   const body = (await request.json()) as Record<string, unknown>;
   const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  const role = body.role === "manager" ? "manager" : "worker";
+  const role = typeof body.role === "string" ? body.role.trim().replace(/\s+/g, " ") : "";
   if (name.length < 2 || name.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter the worker's name and a valid email." }, { status: 400 });
+  if (role.length < 2 || role.length > 40 || !/^[A-Za-z0-9 &'./-]+$/.test(role)) return NextResponse.json({ error: "Enter a professional role between 2 and 40 characters." }, { status: 400 });
 
   const client = await database.connect();
   try {
@@ -92,8 +93,8 @@ export async function PATCH(request: Request) {
   if (!provider) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
   const body = (await request.json()) as Record<string, unknown>;
   const memberId = typeof body.memberId === "string" ? body.memberId : "";
-  const role = body.role === "manager" ? "manager" : body.role === "worker" ? "worker" : "";
-  if (!memberId || !role) return NextResponse.json({ error: "Choose a valid team member and role." }, { status: 400 });
+  const role = typeof body.role === "string" ? body.role.trim().replace(/\s+/g, " ") : "";
+  if (!memberId || role.length < 2 || role.length > 40 || !/^[A-Za-z0-9 &'./-]+$/.test(role)) return NextResponse.json({ error: "Enter a professional role between 2 and 40 characters." }, { status: 400 });
   const result = await database.query("UPDATE provider_team_members SET role = $1 WHERE id::text = $2 AND provider_id = $3", [role, memberId, provider.id]);
   if (!result.rowCount) return NextResponse.json({ error: "Team member not found." }, { status: 404 });
   return NextResponse.json({ ok: true });

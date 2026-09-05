@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import ProfileAvatar from "@/components/profile-avatar";
 
 type Conversation = {
   id: string; providerId: string; providerName: string; customerName: string;
+  providerImage: string; customerImage: string;
   serviceTitle: string | null; lastMessage: string | null; lastMessageAt: string | null;
   unreadCount: number; isProvider: boolean;
 };
@@ -173,6 +175,7 @@ export default function MessagingCenter({
 
   const selected = data.selectedConversation;
   const contactName = selected ? (mode === "provider" ? selected.customerName : selected.providerName) : initialProviderName;
+  const contactImage = selected ? (mode === "provider" ? selected.customerImage : selected.providerImage) : "";
   const serviceTitle = selected?.serviceTitle ?? initialServiceTitle;
   const canStartConversation = mode === "customer" && Boolean(initialProviderId);
 
@@ -184,15 +187,15 @@ export default function MessagingCenter({
           <div className="max-h-64 overflow-y-auto lg:max-h-[540px]">
             {loading && data.conversations.length === 0 ? <p className="p-5 text-sm text-[#718078]">Loading conversations…</p> : data.conversations.length === 0 ? <div className="p-6 text-center"><p className="text-3xl">✉</p><p className="mt-3 font-bold">No conversations yet</p><p className="mt-1 text-sm leading-6 text-[#718078]">{mode === "provider" ? "Customer questions will appear here." : "Contact a provider from one of their listings."}</p></div> : data.conversations.map((conversation) => {
               const name = mode === "provider" ? conversation.customerName : conversation.providerName;
-              const initials = name.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
-              return <button key={conversation.id} type="button" onClick={() => chooseConversation(conversation.id)} className={`flex w-full gap-3 border-b border-[#183126]/8 p-4 text-left transition hover:bg-[#e7eee2] ${selectedId === conversation.id ? "bg-[#e7eee2]" : ""}`}><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-[#eee25a]">{initials}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-bold">{name}</span>{conversation.unreadCount > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#eee25a] px-1 text-[10px] font-bold">{conversation.unreadCount}</span>}</span><span className="mt-1 block truncate text-xs text-[#728179]">{conversation.lastMessage ?? conversation.serviceTitle ?? "New conversation"}</span></span></button>;
+              const imageUrl = mode === "provider" ? conversation.customerImage : conversation.providerImage;
+              return <button key={conversation.id} type="button" onClick={() => chooseConversation(conversation.id)} className={`flex w-full gap-3 border-b border-[#183126]/8 p-4 text-left transition hover:bg-[#e7eee2] ${selectedId === conversation.id ? "bg-[#e7eee2]" : ""}`}><ProfileAvatar name={name} imageUrl={imageUrl} className="h-10 w-10 bg-[#183126] text-xs text-[#eee25a]" /><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-bold">{name}</span>{conversation.unreadCount > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#eee25a] px-1 text-[10px] font-bold">{conversation.unreadCount}</span>}</span><span className="mt-1 block truncate text-xs text-[#728179]">{conversation.lastMessage ?? conversation.serviceTitle ?? "New conversation"}</span></span></button>;
             })}
           </div>
         </aside>
 
         <div className="flex min-h-[480px] flex-col">
           {(selected || canStartConversation) ? <>
-            <div className="flex items-center justify-between gap-4 border-b border-[#183126]/10 px-5 py-4"><div><p className="font-bold">{contactName}</p>{serviceTitle && <p className="mt-1 text-xs text-[#728179]">About {serviceTitle}</p>}</div>{selected && <div className="flex items-center gap-1"><button type="button" onClick={() => { setReportNotice(""); setReportOpen(true); }} className="rounded-full px-3 py-2 text-xs font-bold text-[#7a681d] transition hover:bg-[#fff3b0]">Report</button><button type="button" onClick={deleteConversation} className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">Delete conversation</button></div>}</div>
+            <div className="flex items-center justify-between gap-4 border-b border-[#183126]/10 px-5 py-4"><div className="flex min-w-0 items-center gap-3"><ProfileAvatar name={contactName || "BubsBookings user"} imageUrl={contactImage} className="h-10 w-10 text-xs" /><div className="min-w-0"><p className="truncate font-bold">{contactName}</p>{serviceTitle && <p className="mt-1 truncate text-xs text-[#728179]">About {serviceTitle}</p>}</div></div>{selected && <div className="flex items-center gap-1"><button type="button" onClick={() => { setReportNotice(""); setReportOpen(true); }} className="rounded-full px-3 py-2 text-xs font-bold text-[#7a681d] transition hover:bg-[#fff3b0]">Report</button><button type="button" onClick={deleteConversation} className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">Delete conversation</button></div>}</div>
             <div className="flex-1 space-y-4 overflow-y-auto bg-[#fcfcf8] p-5 sm:p-7">
               {!selected && <div className="mx-auto max-w-sm rounded-2xl bg-[#edf2e9] p-4 text-center text-sm leading-6 text-[#5e7067]">Ask about availability, pricing, or anything you want to know before booking.</div>}
               {data.messages.map((item) => <div key={item.id} className={`flex ${item.isMine ? "justify-end" : "justify-start"}`}><div className={`group max-w-[82%] rounded-2xl px-4 py-3 ${item.isMine ? "rounded-br-md bg-[#183126] text-white" : "rounded-bl-md border border-[#183126]/10 bg-white"}`}><p className={`whitespace-pre-wrap break-words text-sm leading-6 ${item.deleted ? "italic opacity-60" : ""}`}>{item.body}</p><div className="mt-1.5 flex items-center justify-between gap-4"><p className={`text-[10px] ${item.isMine ? "text-white/55" : "text-[#8a9690]"}`}>{new Date(item.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>{item.isMine && !item.deleted && <button type="button" onClick={() => deleteMessage(item.id)} className="rounded px-1.5 py-0.5 text-[10px] font-bold text-white/55 opacity-0 transition hover:bg-white/15 hover:text-white group-hover:opacity-100 focus:opacity-100">Delete</button>}</div></div></div>)}

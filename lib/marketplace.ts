@@ -196,6 +196,7 @@ export async function getProviderById(id: string) {
     phone_verified: boolean;
     identity_verified: boolean;
     business_verified: boolean;
+    profile_image_url: string | null;
     cancellation_window_hours: number;
     cancellation_policy: string;
     no_show_policy: string;
@@ -203,7 +204,7 @@ export async function getProviderById(id: string) {
     `SELECT p.id::text, p.business_name, p.bio, p.city, p.state,
             p.is_verified, owner."emailVerified" AS email_verified, p.phone_verified,
             p.identity_verified, p.business_verified, p.cancellation_window_hours,
-            p.cancellation_policy, p.no_show_policy
+            p.cancellation_policy, p.no_show_policy, owner.image AS profile_image_url
      FROM provider_profiles p
      JOIN "user" owner ON owner.id = p.user_id
      WHERE p.id::text = $1 AND p.is_active = true
@@ -237,6 +238,7 @@ export async function getProviderById(id: string) {
     phoneVerified: provider.phone_verified,
     identityVerified: provider.identity_verified,
     businessVerified: provider.business_verified,
+    profileImageUrl: provider.profile_image_url ?? "",
     cancellationWindowHours: provider.cancellation_window_hours,
     cancellationPolicy: provider.cancellation_policy,
     noShowPolicy: provider.no_show_policy,

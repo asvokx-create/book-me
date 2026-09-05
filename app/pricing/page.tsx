@@ -13,9 +13,9 @@ const plans = [
     name: "Starter",
     price: "$0",
     cadence: "forever",
-    fee: "8% booking fee",
+    fee: "10% booking fee",
     description: "Everything you need to start getting booked.",
-    features: ["Up to 5 services", "Up to 10 photos", "Booking calendar", "Customer messaging", "Basic reminders", "Basic analytics", "1 team member"],
+    features: ["Up to 2 services", "Up to 5 photos", "Booking calendar", "Customer messaging", "Basic reminders", "Basic analytics", "Owner only"],
     featured: false,
   },
   {
