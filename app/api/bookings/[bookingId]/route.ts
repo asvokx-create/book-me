@@ -17,15 +17,18 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     cancellation_reason: string | null; completed_at: Date | null; conversation_id: string | null;
     review_id: string | null; rating: number | null; review_body: string | null; reschedule_requested_by: string | null;
     reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null; reschedule_requested_at: Date | null;
+    assigned_team_member_id: string | null; assignee_name: string;
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text,
             p.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
             s.category, b.starts_at, b.ends_at, b.service_address, b.notes, b.price_cents, b.status,
             b.cancelled_by, b.cancellation_reason, b.completed_at, b.reschedule_requested_by,
             b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.reschedule_requested_at,
+            b.assigned_team_member_id::text, COALESCE(member.name, 'Company owner') AS assignee_name,
             c.id::text AS conversation_id, r.id::text AS review_id, r.rating, r.body AS review_body
      FROM bookings b JOIN "user" customer ON customer.id = b.customer_id
      JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
+     LEFT JOIN provider_team_members member ON member.id = b.assigned_team_member_id
      LEFT JOIN conversations c ON c.customer_id = b.customer_id AND c.provider_id = b.provider_id AND c.service_id = b.service_id
      LEFT JOIN reviews r ON r.booking_id = b.id AND r.is_hidden = false
      WHERE b.id::text = $1 AND (b.customer_id = $2 OR (p.user_id = $2 AND b.provider_deleted_at IS NULL)) LIMIT 1`,
@@ -36,6 +39,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   const history = await database.query<{ id: string; event_type: string; message: string; created_at: Date }>(
     `SELECT id::text, event_type, message, created_at FROM booking_events WHERE booking_id::text = $1 ORDER BY created_at DESC`, [bookingId],
   );
+  const team = row.customer_id === session.user.id ? [] : (await database.query<{ id: string; name: string }>(
+    `SELECT id::text, name FROM provider_team_members WHERE provider_id::text = $1 AND status = 'active' ORDER BY name`, [row.provider_id])).rows;
   return NextResponse.json({ booking: {
     id: row.id, viewerRole: row.customer_id === session.user.id ? "customer" : "provider", customerName: row.customer_name,
     providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceSlug: row.service_slug,
@@ -43,6 +48,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     location: row.service_address, notes: row.notes, price: row.price_cents / 100, status: row.status,
     cancelledBy: row.cancelled_by, cancellationReason: row.cancellation_reason, completedAt: row.completed_at,
     conversationId: row.conversation_id,
+    assignedTeamMemberId: row.assigned_team_member_id,
+    assigneeName: row.assignee_name,
+    teamMembers: team,
     reschedule: row.reschedule_starts_at ? { requestedBy: row.reschedule_requested_by, startsAt: row.reschedule_starts_at,
       endsAt: row.reschedule_ends_at, reason: row.reschedule_reason, requestedAt: row.reschedule_requested_at } : null,
     history: history.rows.map((event) => ({ id: event.id, type: event.event_type, message: event.message, createdAt: event.created_at })),
@@ -67,8 +75,9 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ provider_id: string; provider_user_id: string; service_title: string; status: string; duration_minutes: number }>(
-      `SELECT b.provider_id::text, p.user_id AS provider_user_id, s.title AS service_title, b.status, s.duration_minutes
+    const result = await client.query<{ provider_id: string; provider_user_id: string; service_title: string; status: string; duration_minutes: number; assigned_team_member_id: string | null }>(
+      `SELECT b.provider_id::text, p.user_id AS provider_user_id, s.title AS service_title, b.status, s.duration_minutes,
+              b.assigned_team_member_id::text
        FROM bookings b JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
        WHERE b.id::text = $1 AND b.customer_id = $2 FOR UPDATE OF b`, [bookingId, session.user.id],
     );
@@ -92,13 +101,21 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
       if (Number.isNaN(start.getTime()) || start <= new Date()) { await client.query("ROLLBACK"); return NextResponse.json({ error: "Choose a future date and time." }, { status: 400 }); }
       const end = new Date(start.getTime() + booking.duration_minutes * 60_000);
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
-      const available = await client.query(`SELECT 1 FROM availability a WHERE a.provider_id::text = $1
-        AND a.weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE a.timezone)
-        AND ($2::timestamptz AT TIME ZONE a.timezone)::time >= a.start_time
-        AND ($3::timestamptz AT TIME ZONE a.timezone)::time <= a.end_time LIMIT 1`, [booking.provider_id, start, end]);
+      const available = await client.query(`WITH hours AS (
+        SELECT a.weekday, a.start_time, a.end_time, a.timezone FROM availability a
+          WHERE a.provider_id::text = $1 AND $4::uuid IS NULL
+        UNION ALL
+        SELECT worker.weekday, worker.start_time, worker.end_time, worker.timezone FROM team_member_availability worker
+          JOIN provider_team_members member ON member.id = worker.team_member_id
+          WHERE member.provider_id::text = $1 AND member.id = $4::uuid AND member.status = 'active'
+      ) SELECT 1 FROM hours WHERE weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE timezone)
+        AND ($2::timestamptz AT TIME ZONE timezone)::time >= start_time
+        AND ($3::timestamptz AT TIME ZONE timezone)::time <= end_time LIMIT 1`, [booking.provider_id, start, end, booking.assigned_team_member_id]);
       const conflict = await client.query(`SELECT 1 FROM bookings WHERE provider_id::text = $1 AND id::text <> $2
-        AND status = 'confirmed' AND starts_at < $4 AND ends_at > $3 LIMIT 1`, [booking.provider_id, bookingId, start, end]);
-      if (!available.rowCount || conflict.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: "That time is outside the provider's hours or already booked." }, { status: 409 }); }
+        AND assigned_team_member_id IS NOT DISTINCT FROM $3::uuid AND status = 'confirmed' AND starts_at < $5 AND ends_at > $4 LIMIT 1`, [booking.provider_id, bookingId, booking.assigned_team_member_id, start, end]);
+      const blocked = await client.query(`SELECT 1 FROM provider_time_off WHERE provider_id::text = $1
+        AND team_member_id IS NOT DISTINCT FROM $2::uuid AND starts_at < $4 AND ends_at > $3 LIMIT 1`, [booking.provider_id, booking.assigned_team_member_id, start, end]);
+      if (!available.rowCount || conflict.rowCount || blocked.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: "That time is outside the assigned professional's hours or already booked." }, { status: 409 }); }
       await client.query(`UPDATE bookings SET reschedule_requested_by = 'customer', reschedule_starts_at = $2,
         reschedule_ends_at = $3, reschedule_reason = $4, reschedule_requested_at = now() WHERE id::text = $1`, [bookingId, start, end, reason]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message, metadata)

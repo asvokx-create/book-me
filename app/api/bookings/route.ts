@@ -15,15 +15,16 @@ export async function GET() {
 
   const result = await database.query<{
     id: string; service_id: string; provider_id: string; service: string; service_slug: string; category: string; provider: string;
-    starts_at: Date; price_cents: number; location: string; status: "requested" | "confirmed" | "completed" | "cancelled";
+    starts_at: Date; price_cents: number; location: string; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string;
   }>(
     `SELECT b.id::text, s.id::text AS service_id, p.id::text AS provider_id,
             s.title AS service, s.slug AS service_slug, s.category,
             p.business_name AS provider, b.starts_at, b.price_cents,
-            b.service_address AS location, b.status
+            b.service_address AS location, b.status, COALESCE(member.name, 'Company owner') AS assignee_name
      FROM bookings b
      JOIN services s ON s.id = b.service_id
      JOIN provider_profiles p ON p.id = b.provider_id
+     LEFT JOIN provider_team_members member ON member.id = b.assigned_team_member_id
      WHERE b.customer_id = $1
      ORDER BY b.starts_at DESC`,
     [session.user.id],
@@ -33,6 +34,7 @@ export async function GET() {
     service: row.service, serviceSlug: row.service_slug, category: row.category,
     provider: row.provider, startsAt: row.starts_at, price: row.price_cents / 100,
     location: row.location, state: row.status,
+    assigneeName: row.assignee_name,
   })) });
 }
 
@@ -57,31 +59,23 @@ export async function POST(request: Request) {
 
   const serviceResult = await database.query<{
     id: string; provider_id: string; duration_minutes: number; price_cents: number;
-    start_time: string; end_time: string; timezone: string; provider_user_id: string; title: string;
+    timezone: string; provider_user_id: string; title: string;
   }>(
     `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title,
-            a.start_time::text, a.end_time::text, a.timezone, p.user_id AS provider_user_id
+            COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id LIMIT 1),
+                     (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id WHERE member.provider_id = p.id LIMIT 1),
+                     'America/Los_Angeles') AS timezone,
+            p.user_id AS provider_user_id
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id AND p.is_active = true
-     JOIN availability a ON a.provider_id = s.provider_id
-       AND a.weekday = EXTRACT(DOW FROM $2::date)
      WHERE s.id::text = $1 AND s.is_active = true
      LIMIT 1`,
-    [serviceId, date],
+    [serviceId],
   );
   const service = serviceResult.rows[0];
   if (!service) return NextResponse.json({ error: "This provider is not available on that day." }, { status: 409 });
 
-  const toMinutes = (value: string) => {
-    const [hours, minutes] = value.slice(0, 5).split(":").map(Number);
-    return hours * 60 + minutes;
-  };
-  const requestedMinutes = toMinutes(time);
-  const startMinutes = toMinutes(service.start_time);
-  const endMinutes = toMinutes(service.end_time);
-  if (requestedMinutes < startMinutes || requestedMinutes + service.duration_minutes > endMinutes || (requestedMinutes - startMinutes) % 30 !== 0) {
-    return NextResponse.json({ error: "That time is outside the provider's working hours." }, { status: 409 });
-  }
+  if (Number(time.slice(3, 5)) % 30 !== 0) return NextResponse.json({ error: "Choose a listed 30-minute time." }, { status: 409 });
 
   const timeResult = await database.query<{ starts_at: Date; ends_at: Date }>(
     `SELECT (($1::date + $2::time) AT TIME ZONE $3) AS starts_at,
@@ -95,29 +89,44 @@ export async function POST(request: Request) {
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [service.provider_id]);
-    const conflict = await client.query(
-      `SELECT 1 FROM bookings
-       WHERE provider_id::text = $1
-         AND starts_at < $3 AND ends_at > $2
-         AND (status = 'confirmed' OR (customer_id = $4 AND status = 'requested'))
-       LIMIT 1`,
+    const candidate = await client.query<{ member_id: string | null; name: string }>(
+      `WITH staff_hours AS (
+         SELECT NULL::uuid AS member_id, 'Company owner'::text AS name, a.weekday, a.start_time, a.end_time, a.timezone, 0 AS priority
+         FROM availability a WHERE a.provider_id::text = $1
+         UNION ALL
+         SELECT member.id, member.name, hours.weekday, hours.start_time, hours.end_time, hours.timezone, 1 AS priority
+         FROM provider_team_members member JOIN team_member_availability hours ON hours.team_member_id = member.id
+         WHERE member.provider_id::text = $1 AND member.status = 'active'
+       )
+       SELECT staff.member_id::text, staff.name FROM staff_hours staff
+       WHERE staff.weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE staff.timezone)
+         AND ($2::timestamptz AT TIME ZONE staff.timezone)::time >= staff.start_time
+         AND ($3::timestamptz AT TIME ZONE staff.timezone)::time <= staff.end_time
+         AND NOT EXISTS (SELECT 1 FROM provider_time_off blocked WHERE blocked.provider_id::text = $1
+           AND blocked.team_member_id IS NOT DISTINCT FROM staff.member_id AND blocked.starts_at < $3 AND blocked.ends_at > $2)
+         AND NOT EXISTS (SELECT 1 FROM bookings existing WHERE existing.provider_id::text = $1
+           AND existing.assigned_team_member_id IS NOT DISTINCT FROM staff.member_id AND existing.status = 'confirmed'
+           AND existing.starts_at < $3 AND existing.ends_at > $2)
+         AND NOT EXISTS (SELECT 1 FROM bookings own_request WHERE own_request.customer_id = $4 AND own_request.provider_id::text = $1
+           AND own_request.status = 'requested' AND own_request.starts_at < $3 AND own_request.ends_at > $2)
+       ORDER BY staff.priority, staff.name LIMIT 1`,
       [service.provider_id, startsAt, endsAt, session.user.id],
     );
-    if (conflict.rowCount) {
+    if (!candidate.rows[0]) {
       await client.query("ROLLBACK");
-      return NextResponse.json({ error: "That time is already booked or requested. Choose another available time." }, { status: 409 });
+      return NextResponse.json({ error: "That time is no longer available. Choose another listed time." }, { status: 409 });
     }
     const created = await client.query<{ id: string }>(
-      `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address, notes, price_cents)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address, notes, price_cents, assigned_team_member_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid)
        RETURNING id::text`,
-      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, notes, service.price_cents],
+      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, notes, service.price_cents, candidate.rows[0].member_id],
     );
     const bookingId = created.rows[0].id;
     await client.query(
       `INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
-       VALUES ($1::uuid, $2, 'requested', 'Customer sent the booking request.')`,
-      [bookingId, session.user.id],
+       VALUES ($1::uuid, $2, 'requested', $3)`,
+      [bookingId, session.user.id, `Customer sent the booking request. Assigned to ${candidate.rows[0].name}.`],
     );
     await client.query(
       `INSERT INTO conversations (customer_id, provider_id, service_id)

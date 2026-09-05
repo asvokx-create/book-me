@@ -25,6 +25,9 @@ type Booking = {
   cancellationReason: string | null;
   completedAt: string | null;
   conversationId: string | null;
+  assignedTeamMemberId: string | null;
+  assigneeName: string;
+  teamMembers: Array<{ id: string; name: string }>;
   reschedule: { requestedBy: string | null; startsAt: string; endsAt: string; reason: string | null; requestedAt: string | null } | null;
   history: Array<{ id: string; type: string; message: string; createdAt: string }>;
   review: { id: string; rating: number; body: string } | null;
@@ -106,6 +109,14 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     setWorking(false);
   }
 
+  async function assignBooking(memberId: string) {
+    setWorking(true); setError("");
+    const response = await fetch(`/api/providers/bookings/${bookingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "assign", memberId }) }).catch(() => null);
+    const result = response ? await response.json() as { error?: string } : null;
+    if (!response?.ok) setError(result?.error ?? "We could not assign this booking."); else await loadBooking();
+    setWorking(false);
+  }
+
   async function cancelBooking(event: FormEvent) {
     event.preventDefault();
     if (!booking) return;
@@ -174,7 +185,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           <Detail icon="◷" label="Date and time" value={start.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} note={`${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}–${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`} />
           <Detail icon="$" label="Service price" value={`$${booking.price.toLocaleString()}`} note="Payment will be added later" />
           <Detail icon="⌖" label="Service location" value={booking.location} note="Shared only with this booking" />
-          <Detail icon="✉" label={booking.viewerRole === "customer" ? "Provider" : "Customer"} value={booking.viewerRole === "customer" ? booking.providerName : booking.customerName} note="Message through BookMe" />
+          <Detail icon="✉" label={booking.viewerRole === "customer" ? "Service professional" : "Customer"} value={booking.viewerRole === "customer" ? booking.assigneeName : booking.customerName} note={booking.viewerRole === "customer" ? `From ${booking.providerName}` : "Message through BookMe"} />
         </div>
 
         {booking.notes && <div className="border-t border-[#183126]/10 px-6 py-5 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Booking notes</p><p className="mt-2 text-sm leading-6 text-[#4f6559]">{booking.notes}</p></div>}
@@ -186,6 +197,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           <h2 className="text-lg font-bold">Manage this booking</h2>
           <div className="mt-5 grid gap-3">
             <Link href={contactHref} className="rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]">✉ Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>
+            {booking.viewerRole === "provider" && canCancel && <label className="text-sm font-bold">Assigned professional<select disabled={working} value={booking.assignedTeamMemberId ?? "owner"} onChange={(event) => void assignBooking(event.target.value)} className="mt-2 w-full rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3"><option value="owner">Company owner</option>{booking.teamMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>}
             {booking.viewerRole === "customer" && canCancel && !booking.reschedule && <button onClick={() => setRescheduleOpen(true)} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#eee25a]">Request a new time</button>}
             {booking.status === "confirmed" && <a href={`/api/bookings/${booking.id}/calendar`} className="rounded-full border border-[#183126]/15 px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e5eddf]">Add to Google / Apple Calendar</a>}
             {booking.viewerRole === "provider" && booking.status === "requested" && <button disabled={working} onClick={() => providerAction("accepted")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">Accept booking</button>}

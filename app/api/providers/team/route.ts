@@ -105,6 +105,9 @@ export async function DELETE(request: Request) {
   const body = (await request.json()) as { memberId?: unknown };
   const memberId = typeof body.memberId === "string" ? body.memberId : "";
   if (!memberId) return NextResponse.json({ error: "Choose a team member." }, { status: 400 });
+  const upcoming = await database.query(`SELECT 1 FROM bookings WHERE assigned_team_member_id::text = $1
+    AND status = 'confirmed' AND ends_at > now() LIMIT 1`, [memberId]);
+  if (upcoming.rowCount) return NextResponse.json({ error: "Reassign this worker's upcoming bookings before removing them." }, { status: 409 });
   const result = await database.query("DELETE FROM provider_team_members WHERE id::text = $1 AND provider_id = $2", [memberId, provider.id]);
   if (!result.rowCount) return NextResponse.json({ error: "Team member not found." }, { status: 404 });
   return NextResponse.json({ ok: true });

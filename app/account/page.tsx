@@ -8,7 +8,7 @@ import NotificationBell from "@/components/notification-bell";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
-type Booking = { id: string; serviceId: string; providerId: string; service: string; serviceSlug: string; category: string; provider: string; startsAt: string; price: number; location: string; state: BookingState };
+type Booking = { id: string; serviceId: string; providerId: string; service: string; serviceSlug: string; category: string; provider: string; startsAt: string; price: number; location: string; state: BookingState; assigneeName: string };
 type SavedService = { id: string; slug: string; title: string; provider: string; price: number; category: string; city: string; state: string; imageUrls: string[] };
 
 const initialBookings: Booking[] = [];
@@ -97,7 +97,7 @@ export default function AccountPage() {
               {upcoming.length ? upcoming.map((booking) => <article key={booking.id} className="rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-[0_5px_22px_rgba(24,49,38,.05)] sm:p-6">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
                   <span className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#d8e7d3] to-[#f0e66d] text-4xl">{bookingVisual(booking.category)}</span>
-                  <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.state === "confirmed" ? "bg-[#e3f1e5] text-[#34704a]" : "bg-[#fff1bf] text-[#7e681b]"}`}>{booking.state === "confirmed" ? "Confirmed" : "Awaiting provider"}</span></div><h3 className="mt-2 text-lg font-bold">{booking.service}</h3><p className="mt-1 text-sm text-[#6e7d75]">{booking.provider}</p></div>
+                  <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.state === "confirmed" ? "bg-[#e3f1e5] text-[#34704a]" : "bg-[#fff1bf] text-[#7e681b]"}`}>{booking.state === "confirmed" ? "Confirmed" : "Awaiting provider"}</span></div><h3 className="mt-2 text-lg font-bold">{booking.service}</h3><p className="mt-1 text-sm text-[#6e7d75]">{booking.provider} · {booking.assigneeName}</p></div>
                   <div className="sm:text-right"><p className="font-bold">{bookingDate(booking.startsAt)}</p><p className="mt-1 text-sm text-[#708078]">{bookingTime(booking.startsAt)} · ${booking.price}</p><p className="mt-1 text-xs text-[#89958f]">{booking.location}</p></div>
                 </div>
                 <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-[#183126]/10 pt-4"><Link href={`/account/bookings/${booking.id}?reschedule=1`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Reschedule</Link><Link href={`/account/messages?providerId=${booking.providerId}&serviceId=${booking.serviceId}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">✉ Message provider</Link><Link href={`/account/bookings/${booking.id}`} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846]">Manage booking</Link></div>

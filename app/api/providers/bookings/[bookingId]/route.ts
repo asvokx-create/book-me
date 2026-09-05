@@ -6,7 +6,7 @@ import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 
-type BookingAction = "accepted" | "declined" | "completed" | "cancel" | "approve_reschedule" | "decline_reschedule";
+type BookingAction = "accepted" | "declined" | "completed" | "cancel" | "approve_reschedule" | "decline_reschedule" | "assign";
 
 export async function DELETE(_request: Request, context: RouteContext<"/api/providers/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -32,9 +32,9 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
     return NextResponse.json({ error: "Too many booking changes. Please wait a minute and try again." }, { status: 429 });
   }
   const { bookingId } = await context.params;
-  const body = (await request.json()) as { action?: unknown; reason?: unknown };
+  const body = (await request.json()) as { action?: unknown; reason?: unknown; memberId?: unknown };
   const action = body.action as BookingAction;
-  if (!(["accepted", "declined", "completed", "cancel", "approve_reschedule", "decline_reschedule"] as BookingAction[]).includes(action)) {
+  if (!(["accepted", "declined", "completed", "cancel", "approve_reschedule", "decline_reschedule", "assign"] as BookingAction[]).includes(action)) {
     return NextResponse.json({ error: "Choose a valid booking action." }, { status: 400 });
   }
   const reason = typeof body.reason === "string" ? body.reason.trim() : "";
@@ -53,10 +53,11 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       id: string; provider_id: string; starts_at: Date; ends_at: Date; status: string;
       customer_id: string; customer_name: string; service_title: string;
       reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null;
+      assigned_team_member_id: string | null;
     }>(
       `SELECT b.id::text, b.provider_id::text, b.starts_at, b.ends_at, b.status,
               b.customer_id, u.name AS customer_name, s.title AS service_title,
-              b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason
+              b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.assigned_team_member_id::text
        FROM bookings b
        JOIN provider_profiles p ON p.id = b.provider_id
        JOIN services s ON s.id = b.service_id
@@ -71,7 +72,36 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       return NextResponse.json({ error: "Booking not found." }, { status: 404 });
     }
 
-    if (action === "approve_reschedule" || action === "decline_reschedule") {
+    if (action === "assign") {
+      if (!["requested", "confirmed"].includes(booking.status)) { await client.query("ROLLBACK"); return NextResponse.json({ error: "This booking can no longer be assigned." }, { status: 409 }); }
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
+      const memberId = body.memberId === "owner" || body.memberId === null ? null : typeof body.memberId === "string" ? body.memberId : "";
+      if (memberId === "") { await client.query("ROLLBACK"); return NextResponse.json({ error: "Choose a valid staff member." }, { status: 400 }); }
+      let assigneeName = "Company owner";
+      if (memberId) {
+        const member = await client.query<{ name: string }>("SELECT name FROM provider_team_members WHERE id::text = $1 AND provider_id::text = $2 AND status = 'active'", [memberId, booking.provider_id]);
+        if (!member.rows[0]) { await client.query("ROLLBACK"); return NextResponse.json({ error: "Worker not found." }, { status: 404 }); }
+        assigneeName = member.rows[0].name;
+      }
+      const working = await client.query(`WITH hours AS (
+        SELECT a.weekday, a.start_time, a.end_time, a.timezone FROM availability a WHERE a.provider_id::text = $1 AND $4::uuid IS NULL
+        UNION ALL SELECT worker.weekday, worker.start_time, worker.end_time, worker.timezone FROM team_member_availability worker
+          JOIN provider_team_members member ON member.id = worker.team_member_id
+          WHERE member.provider_id::text = $1 AND member.id = $4::uuid AND member.status = 'active'
+      ) SELECT 1 FROM hours WHERE weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE timezone)
+        AND ($2::timestamptz AT TIME ZONE timezone)::time >= start_time AND ($3::timestamptz AT TIME ZONE timezone)::time <= end_time LIMIT 1`,
+        [booking.provider_id, booking.starts_at, booking.ends_at, memberId]);
+      const conflict = await client.query(`SELECT 1 FROM bookings WHERE provider_id::text = $1 AND id::text <> $2 AND status = 'confirmed'
+        AND assigned_team_member_id IS NOT DISTINCT FROM $3::uuid AND starts_at < $5 AND ends_at > $4 LIMIT 1`,
+        [booking.provider_id, bookingId, memberId, booking.starts_at, booking.ends_at]);
+      const blocked = await client.query(`SELECT 1 FROM provider_time_off WHERE provider_id::text = $1
+        AND team_member_id IS NOT DISTINCT FROM $2::uuid AND starts_at < $4 AND ends_at > $3 LIMIT 1`,
+        [booking.provider_id, memberId, booking.starts_at, booking.ends_at]);
+      if (!working.rowCount || conflict.rowCount || blocked.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: `${assigneeName} is unavailable at this time.` }, { status: 409 }); }
+      await client.query("UPDATE bookings SET assigned_team_member_id = $2::uuid WHERE id::text = $1", [bookingId, memberId]);
+      await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
+        VALUES ($1::uuid, $2, 'assigned', $3)`, [bookingId, session.user.id, `Booking assigned to ${assigneeName}.`]);
+    } else if (action === "approve_reschedule" || action === "decline_reschedule") {
       if (!booking.reschedule_starts_at || !booking.reschedule_ends_at || !["requested", "confirmed"].includes(booking.status)) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "There is no active reschedule request." }, { status: 409 });
@@ -80,10 +110,21 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
         const conflict = await client.query(
           `SELECT 1 FROM bookings WHERE provider_id::text = $1 AND id::text <> $2 AND status = 'confirmed'
-             AND starts_at < $4 AND ends_at > $3 LIMIT 1`,
-          [booking.provider_id, bookingId, booking.reschedule_starts_at, booking.reschedule_ends_at],
+             AND assigned_team_member_id IS NOT DISTINCT FROM $3::uuid AND starts_at < $5 AND ends_at > $4 LIMIT 1`,
+          [booking.provider_id, bookingId, booking.assigned_team_member_id, booking.reschedule_starts_at, booking.reschedule_ends_at],
         );
-        if (conflict.rowCount) {
+        const blocked = await client.query(`SELECT 1 FROM provider_time_off WHERE provider_id::text = $1
+          AND team_member_id IS NOT DISTINCT FROM $2::uuid AND starts_at < $4 AND ends_at > $3 LIMIT 1`,
+          [booking.provider_id, booking.assigned_team_member_id, booking.reschedule_starts_at, booking.reschedule_ends_at]);
+        const working = await client.query(`WITH hours AS (
+          SELECT a.weekday, a.start_time, a.end_time, a.timezone FROM availability a WHERE a.provider_id::text = $1 AND $4::uuid IS NULL
+          UNION ALL SELECT worker.weekday, worker.start_time, worker.end_time, worker.timezone FROM team_member_availability worker
+            JOIN provider_team_members member ON member.id = worker.team_member_id
+            WHERE member.provider_id::text = $1 AND member.id = $4::uuid AND member.status = 'active'
+        ) SELECT 1 FROM hours WHERE weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE timezone)
+          AND ($2::timestamptz AT TIME ZONE timezone)::time >= start_time AND ($3::timestamptz AT TIME ZONE timezone)::time <= end_time LIMIT 1`,
+          [booking.provider_id, booking.reschedule_starts_at, booking.reschedule_ends_at, booking.assigned_team_member_id]);
+        if (!working.rowCount || conflict.rowCount || blocked.rowCount) {
           await client.query("ROLLBACK");
           return NextResponse.json({ error: "That requested time is no longer available." }, { status: 409 });
         }
@@ -97,6 +138,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
           UPDATE bookings SET status = 'cancelled', cancelled_by = 'system',
             cancellation_reason = 'The provider accepted another booking for this time.'
           WHERE provider_id::text = $1 AND id::text <> $2 AND status = 'requested'
+            AND assigned_team_member_id IS NOT DISTINCT FROM $5::uuid
             AND starts_at < $4 AND ends_at > $3 RETURNING id, customer_id, service_id
         ), events AS (
           INSERT INTO booking_events (booking_id, event_type, message)
@@ -108,7 +150,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
           'Another booking was confirmed for the time you requested for ' || s.title || '. Please choose another time.',
           '/account/bookings/' || cancelled.id::text, 'booking-conflict-' || cancelled.id::text || '-customer'
         FROM cancelled JOIN services s ON s.id = cancelled.service_id JOIN events ON events.booking_id = cancelled.id
-        ON CONFLICT (dedupe_key) DO NOTHING`, [booking.provider_id, bookingId, booking.reschedule_starts_at, booking.reschedule_ends_at]);
+        ON CONFLICT (dedupe_key) DO NOTHING`, [booking.provider_id, bookingId, booking.reschedule_starts_at, booking.reschedule_ends_at, booking.assigned_team_member_id]);
       } else {
         await client.query(`UPDATE bookings SET reschedule_requested_by = NULL, reschedule_starts_at = NULL,
           reschedule_ends_at = NULL, reschedule_reason = NULL, reschedule_requested_at = NULL WHERE id::text = $1`, [bookingId]);
@@ -171,14 +213,25 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         return NextResponse.json({ error: "Only new requests can be accepted." }, { status: 409 });
       }
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
+      const working = await client.query(`WITH hours AS (
+        SELECT a.weekday, a.start_time, a.end_time, a.timezone FROM availability a WHERE a.provider_id::text = $1 AND $4::uuid IS NULL
+        UNION ALL SELECT worker.weekday, worker.start_time, worker.end_time, worker.timezone FROM team_member_availability worker
+          JOIN provider_team_members member ON member.id = worker.team_member_id
+          WHERE member.provider_id::text = $1 AND member.id = $4::uuid AND member.status = 'active'
+      ) SELECT 1 FROM hours WHERE weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE timezone)
+        AND ($2::timestamptz AT TIME ZONE timezone)::time >= start_time AND ($3::timestamptz AT TIME ZONE timezone)::time <= end_time LIMIT 1`,
+        [booking.provider_id, booking.starts_at, booking.ends_at, booking.assigned_team_member_id]);
       const conflict = await client.query(
         `SELECT 1 FROM bookings
          WHERE provider_id::text = $1 AND id::text <> $2 AND status = 'confirmed'
-           AND starts_at < $4 AND ends_at > $3
+           AND assigned_team_member_id IS NOT DISTINCT FROM $3::uuid AND starts_at < $5 AND ends_at > $4
          LIMIT 1`,
-        [booking.provider_id, bookingId, booking.starts_at, booking.ends_at],
+        [booking.provider_id, bookingId, booking.assigned_team_member_id, booking.starts_at, booking.ends_at],
       );
-      if (conflict.rowCount) {
+      const blocked = await client.query(`SELECT 1 FROM provider_time_off WHERE provider_id::text = $1
+        AND team_member_id IS NOT DISTINCT FROM $2::uuid AND starts_at < $4 AND ends_at > $3 LIMIT 1`,
+        [booking.provider_id, booking.assigned_team_member_id, booking.starts_at, booking.ends_at]);
+      if (!working.rowCount || conflict.rowCount || blocked.rowCount) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "This time is already booked." }, { status: 409 });
       }
@@ -196,6 +249,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
            UPDATE bookings SET status = 'cancelled', cancelled_by = 'system',
              cancellation_reason = 'The provider accepted another booking for this time.'
            WHERE provider_id::text = $1 AND id::text <> $2 AND status = 'requested'
+             AND assigned_team_member_id IS NOT DISTINCT FROM $5::uuid
              AND starts_at < $4 AND ends_at > $3
            RETURNING id, customer_id, service_id
          ), events AS (
@@ -209,12 +263,12 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
                 '/account', 'booking-conflict-' || cancelled.id::text || '-customer'
          FROM cancelled JOIN services s ON s.id = cancelled.service_id JOIN events ON events.booking_id = cancelled.id
          ON CONFLICT (dedupe_key) DO NOTHING`,
-        [booking.provider_id, bookingId, booking.starts_at, booking.ends_at],
+        [booking.provider_id, bookingId, booking.starts_at, booking.ends_at, booking.assigned_team_member_id],
       );
     }
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action, targetType: "booking", targetId: bookingId });
-    if (!action.includes("reschedule")) await sendBookingUpdateEmails(bookingId, action === "accepted" ? "accepted" : action === "completed" ? "completed" : action === "declined" ? "declined" : "cancelled");
+    if (!action.includes("reschedule") && action !== "assign") await sendBookingUpdateEmails(bookingId, action === "accepted" ? "accepted" : action === "completed" ? "completed" : action === "declined" ? "declined" : "cancelled");
     return NextResponse.json({ ok: true });
   } catch (error) {
     await client.query("ROLLBACK");
