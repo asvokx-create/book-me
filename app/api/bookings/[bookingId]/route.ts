@@ -5,6 +5,7 @@ import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
+import { getStripeMode } from "@/lib/stripe";
 
 export async function GET(_request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -21,6 +22,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     assigned_team_member_id: string | null; assignee_name: string; quote_status: string;
     quoted_price_cents: number | null; quote_message: string; quote_sent_at: Date | null; quote_responded_at: Date | null;
     payment_status: "unpaid" | "pending" | "paid" | "refunded" | "failed"; paid_at: Date | null;
+    stripe_mode: "test" | "live" | null;
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text,
             p.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
@@ -29,7 +31,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             p.cancellation_policy, b.completed_at, b.reschedule_requested_by,
             b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.reschedule_requested_at,
             b.quote_status, b.quoted_price_cents, b.quote_message, b.quote_sent_at, b.quote_responded_at,
-            b.payment_status, b.paid_at,
+            b.payment_status, b.paid_at, b.stripe_mode,
             b.assigned_team_member_id::text, COALESCE(member.name, 'Company owner') AS assignee_name,
             c.id::text AS conversation_id, r.id::text AS review_id, r.rating, r.body AS review_body
      FROM bookings b JOIN "user" customer ON customer.id = b.customer_id
@@ -55,8 +57,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     cancelledBy: row.cancelled_by, cancellationReason: row.cancellation_reason, completedAt: row.completed_at,
     lateCancellation: row.late_cancellation, cancellationWindowHours: row.cancellation_window_hours,
     cancellationPolicy: row.cancellation_policy,
-    paymentStatus: row.payment_status,
-    paidAt: row.paid_at,
+    paymentStatus: row.stripe_mode === getStripeMode() ? row.payment_status : "unpaid",
+    paidAt: row.stripe_mode === getStripeMode() ? row.paid_at : null,
     conversationId: row.conversation_id,
     assignedTeamMemberId: row.assigned_team_member_id,
     assigneeName: row.assignee_name,

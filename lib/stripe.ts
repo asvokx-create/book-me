@@ -12,6 +12,10 @@ export function getStripe() {
   return stripeClient;
 }
 
+export function getStripeMode(): "test" | "live" {
+  return process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") ? "live" : "test";
+}
+
 export function getStripePriceId(plan: ProviderPlan) {
   if (plan === "pro") return process.env.STRIPE_PRO_PRICE_ID ?? "";
   if (plan === "business") return process.env.STRIPE_BUSINESS_PRICE_ID ?? "";

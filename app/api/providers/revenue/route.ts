@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { getStripeMode } from "@/lib/stripe";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -13,6 +14,7 @@ export async function GET() {
   );
   const providerId = providerResult.rows[0]?.id;
   if (!providerId) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
+  const stripeMode = getStripeMode();
 
   const [totalsResult, monthlyResult, recentResult] = await Promise.all([
     database.query<{
@@ -22,20 +24,20 @@ export async function GET() {
       completed_jobs: string;
     }>(
       `SELECT
-         COALESCE(SUM(price_cents) FILTER (WHERE status = 'completed'), 0)::bigint AS total_cents,
+         COALESCE(SUM(price_cents) FILTER (WHERE payment_status = 'paid' AND stripe_mode = $2), 0)::bigint AS total_cents,
          COALESCE(SUM(price_cents) FILTER (
-           WHERE status = 'completed'
-             AND starts_at >= date_trunc('month', CURRENT_TIMESTAMP)
+           WHERE payment_status = 'paid' AND stripe_mode = $2
+             AND paid_at >= date_trunc('month', CURRENT_TIMESTAMP)
          ), 0)::bigint AS this_month_cents,
          COALESCE(SUM(price_cents) FILTER (
-           WHERE status = 'completed'
-             AND starts_at >= date_trunc('month', CURRENT_TIMESTAMP) - interval '1 month'
-             AND starts_at < date_trunc('month', CURRENT_TIMESTAMP)
+           WHERE payment_status = 'paid' AND stripe_mode = $2
+             AND paid_at >= date_trunc('month', CURRENT_TIMESTAMP) - interval '1 month'
+             AND paid_at < date_trunc('month', CURRENT_TIMESTAMP)
          ), 0)::bigint AS last_month_cents,
-         COUNT(*) FILTER (WHERE status = 'completed')::bigint AS completed_jobs
+         COUNT(*) FILTER (WHERE payment_status = 'paid' AND stripe_mode = $2)::bigint AS completed_jobs
        FROM bookings
        WHERE provider_id::text = $1`,
-      [providerId],
+      [providerId, stripeMode],
     ),
     database.query<{ month: string; label: string; revenue_cents: string }>(
       `WITH months AS (
@@ -52,12 +54,13 @@ export async function GET() {
        FROM months
        LEFT JOIN bookings
          ON bookings.provider_id::text = $1
-        AND bookings.status = 'completed'
-        AND bookings.starts_at >= months.month
-        AND bookings.starts_at < months.month + interval '1 month'
+        AND bookings.payment_status = 'paid'
+        AND bookings.stripe_mode = $2
+        AND bookings.paid_at >= months.month
+        AND bookings.paid_at < months.month + interval '1 month'
        GROUP BY months.month
        ORDER BY months.month`,
-      [providerId],
+      [providerId, stripeMode],
     ),
     database.query<{
       id: string;
@@ -70,10 +73,10 @@ export async function GET() {
        FROM bookings b
        JOIN services s ON s.id = b.service_id
        JOIN "user" u ON u.id = b.customer_id
-       WHERE b.provider_id::text = $1 AND b.status = 'completed'
-       ORDER BY b.starts_at DESC
+       WHERE b.provider_id::text = $1 AND b.payment_status = 'paid' AND b.stripe_mode = $2
+       ORDER BY b.paid_at DESC
        LIMIT 5`,
-      [providerId],
+      [providerId, stripeMode],
     ),
   ]);
 

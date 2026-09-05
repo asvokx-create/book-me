@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { database } from "@/lib/database";
 import { isPurchasableProviderPlan } from "@/lib/plans";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, getStripeMode } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
@@ -20,25 +20,43 @@ async function updateSubscription(subscription: Stripe.Subscription) {
       plan = CASE WHEN $4 THEN $3 ELSE 'starter' END,
       stripe_subscription_id = $2,
       stripe_subscription_status = $5,
-      stripe_current_period_end = CASE WHEN $6::bigint IS NULL THEN NULL ELSE to_timestamp($6) END
-    WHERE id::text = $1 AND plan <> 'owner'`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null]);
+      stripe_current_period_end = CASE WHEN $6::bigint IS NULL THEN NULL ELSE to_timestamp($6) END,
+      stripe_billing_mode = $7
+    WHERE id::text = $1 AND plan <> 'owner'`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null, getStripeMode()]);
+}
+
+async function markBookingPaid(checkout: Stripe.Checkout.Session) {
+  if (checkout.metadata?.kind !== "booking_payment" || !checkout.metadata.bookingId) return;
+  const updated = await database.query(`UPDATE bookings SET payment_status = 'paid', stripe_payment_intent_id = $2,
+      stripe_mode = $4, paid_at = now()
+    WHERE id::text = $1 AND stripe_checkout_session_id = $3 AND stripe_mode = $4 AND payment_status <> 'paid'
+    RETURNING id`, [checkout.metadata.bookingId, idOf(checkout.payment_intent), checkout.id, getStripeMode()]);
+  if (!updated.rowCount) return;
+  await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
+    VALUES ($1::uuid, 'payment_received', 'Secure payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);
 }
 
 async function processEvent(event: Stripe.Event) {
   switch (event.type) {
     case "checkout.session.completed": {
       const checkout = event.data.object;
-      if (checkout.metadata?.kind === "booking_payment" && checkout.metadata.bookingId && checkout.payment_status === "paid") {
-        await database.query(`UPDATE bookings SET payment_status = 'paid', stripe_payment_intent_id = $2, paid_at = now()
-          WHERE id::text = $1 AND stripe_checkout_session_id = $3`, [checkout.metadata.bookingId, idOf(checkout.payment_intent), checkout.id]);
-        await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
-          VALUES ($1::uuid, 'payment_received', 'Secure payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);
-      }
+      if (checkout.payment_status === "paid") await markBookingPaid(checkout);
+      break;
+    }
+    case "checkout.session.async_payment_succeeded": {
+      await markBookingPaid(event.data.object);
       break;
     }
     case "checkout.session.async_payment_failed": {
       const checkout = event.data.object;
-      if (checkout.metadata?.bookingId) await database.query("UPDATE bookings SET payment_status = 'failed' WHERE id::text = $1 AND stripe_checkout_session_id = $2", [checkout.metadata.bookingId, checkout.id]);
+      if (checkout.metadata?.bookingId) await database.query("UPDATE bookings SET payment_status = 'failed' WHERE id::text = $1 AND stripe_checkout_session_id = $2 AND stripe_mode = $3", [checkout.metadata.bookingId, checkout.id, getStripeMode()]);
+      break;
+    }
+    case "checkout.session.expired": {
+      const checkout = event.data.object;
+      if (checkout.metadata?.kind === "booking_payment" && checkout.metadata.bookingId) {
+        await database.query("UPDATE bookings SET payment_status = 'unpaid' WHERE id::text = $1 AND stripe_checkout_session_id = $2 AND stripe_mode = $3 AND payment_status = 'pending'", [checkout.metadata.bookingId, checkout.id, getStripeMode()]);
+      }
       break;
     }
     case "customer.subscription.created":
@@ -48,22 +66,22 @@ async function processEvent(event: Stripe.Event) {
     case "customer.subscription.deleted": {
       const subscription = event.data.object;
       await database.query(`UPDATE provider_profiles SET plan = 'starter', stripe_subscription_status = $2,
-        stripe_current_period_end = NULL WHERE stripe_subscription_id = $1 AND plan <> 'owner'`, [subscription.id, subscription.status]);
+        stripe_current_period_end = NULL WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $3 AND plan <> 'owner'`, [subscription.id, subscription.status, getStripeMode()]);
       break;
     }
     case "account.updated": {
       const account = event.data.object;
-      await database.query("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1", [account.id, account.charges_enabled, account.payouts_enabled]);
+      await database.query("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1 AND stripe_connect_mode = $4", [account.id, account.charges_enabled, account.payouts_enabled, getStripeMode()]);
       break;
     }
     case "charge.refunded": {
       const charge = event.data.object;
-      if (charge.refunded) await database.query("UPDATE bookings SET payment_status = 'refunded', refunded_at = now() WHERE stripe_payment_intent_id = $1", [idOf(charge.payment_intent)]);
+      if (charge.refunded) await database.query("UPDATE bookings SET payment_status = 'refunded', refunded_at = now() WHERE stripe_payment_intent_id = $1 AND stripe_mode = $2", [idOf(charge.payment_intent), getStripeMode()]);
       break;
     }
     case "payment_intent.payment_failed": {
       const paymentIntent = event.data.object;
-      await database.query("UPDATE bookings SET payment_status = 'failed' WHERE stripe_payment_intent_id = $1 OR id::text = $2", [paymentIntent.id, paymentIntent.metadata.bookingId ?? ""]);
+      await database.query("UPDATE bookings SET payment_status = 'failed' WHERE stripe_mode = $3 AND (stripe_payment_intent_id = $1 OR id::text = $2)", [paymentIntent.id, paymentIntent.metadata.bookingId ?? "", getStripeMode()]);
       break;
     }
   }
