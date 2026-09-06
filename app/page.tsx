@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getServices, getServiceVisual } from "@/lib/marketplace";
+import { getServices, getServiceVisual, type ServiceListing } from "@/lib/marketplace";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
 import { FEATURED_SERVICE_CATEGORIES } from "@/lib/service-categories";
@@ -9,7 +9,10 @@ import ServiceCategoryIcon from "@/components/service-category-icon";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const services = await getServices({ location: "Issaquah, WA", limit: 3 });
+  const [services, allServices] = await Promise.all([
+    getServices({ location: "Issaquah, WA", limit: 3 }),
+    getServices({ limit: 50 }),
+  ]);
   return (
     <main className="min-h-screen overflow-hidden bg-[#f8f7f3] text-[#183126]">
       <header className="relative z-20 border-b border-[#183126]/10 bg-[#f8f7f3]">
@@ -99,44 +102,42 @@ export default async function Home() {
         </div>
 
         {services.length > 0 ? <div className="grid gap-6 md:grid-cols-3">
-          {services.map((service) => {
-            const visual = getServiceVisual(service.category);
-            return (
-            <article
-              key={service.slug}
-              className="relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]"
-            >
-              <Link href={`/services/${service.slug}`} className="block">
-              <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
-                {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-                <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>
-                {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{visual.art}</span>}
-              </div>
-
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h4 className="text-lg font-semibold">{service.title}</h4>
-
-                    <p className="mt-1 text-sm text-zinc-500">
-                      {service.provider}
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="font-bold">${service.price}</p>
-                    <p className="text-xs text-zinc-500">starting</p>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center gap-2 text-sm text-zinc-500"><span>📍</span><span>{service.city}, {service.state}</span></div>
-              </div>
-              </Link>
-              <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />
-            </article>
-          )})}
+          {services.map((service) => <HomeServiceCard key={service.id} service={service} badge="New listing" />)}
         </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-14 text-center"><span className="text-4xl">🌱</span><h4 className="mt-4 text-xl font-bold">Local services are coming soon</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Be the first local professional to create a real BubsBookings listing.</p><Link href="/providers/join" className="mt-6 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">List your service</Link></div>}
       </section>
+
+      {allServices.length > 0 && <section className="border-t border-[#183126]/10 bg-[#f1f3ed]">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+          <div className="mb-8 flex items-end justify-between gap-4">
+            <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Browse the marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">All listings</h3><p className="mt-2 text-sm text-[#687970]">Explore every active service currently available on BubsBookings.</p></div>
+            <Link href="/services#service-listings" className="shrink-0 rounded-full bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">Explore all →</Link>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {allServices.map((service) => <HomeServiceCard key={service.id} service={service} />)}
+          </div>
+        </div>
+      </section>}
     </main>
   );
+}
+
+function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: string }) {
+  const visual = getServiceVisual(service.category);
+  return <article className="group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
+    <Link href={`/services/${service.slug}`} className="block">
+      <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
+        {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
+        {badge && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{badge}</span>}
+        {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80 transition duration-300 group-hover:scale-105">{visual.art}</span>}
+      </div>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0"><h4 className="truncate text-lg font-semibold">{service.title}</h4><p className="mt-1 truncate text-sm text-zinc-500">{service.provider}</p></div>
+          <div className="shrink-0 text-right"><p className="font-bold">${service.price}</p><p className="text-xs text-zinc-500">starting</p></div>
+        </div>
+        <div className="mt-5 flex items-center gap-2 text-sm text-zinc-500"><span>📍</span><span>{service.city}, {service.state}</span></div>
+      </div>
+    </Link>
+    <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />
+  </article>;
 }
