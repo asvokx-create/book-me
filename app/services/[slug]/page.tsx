@@ -8,6 +8,8 @@ import BookingCard from "./booking-card";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
 import ContactProviderLink from "@/components/contact-provider-link";
+import { serviceCategorySlug } from "@/lib/service-categories";
+import { getServiceAreaCoordinates, serviceAreaSlug } from "@/lib/service-areas";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,8 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
 
   const visual = getServiceVisual(service.category);
   const duration = formatDuration(service.durationMinutes);
+  const serviceArea = getServiceAreaCoordinates(`${service.city}, ${service.state}`);
+  const localCategoryHref = serviceArea ? `/locations/${serviceAreaSlug(serviceArea)}/${serviceCategorySlug(service.category)}` : null;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Service",
@@ -61,7 +65,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
             <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-cover bg-center sm:h-[420px] ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!service.imageUrls[0] && <><div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" /><div className="absolute bottom-[-40%] left-[18%] h-[90%] w-[80%] rounded-[50%] border-[36px] border-white/20" /><span className="absolute bottom-8 right-10 text-8xl opacity-80 sm:text-9xl">{visual.art}</span></>}<span className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-sm backdrop-blur">New listing</span><FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-6 top-6 z-10 grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-sm backdrop-blur" /></div>
             {service.imageUrls.length > 1 && <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{service.imageUrls.slice(1).map((url, index) => <div key={url} role="img" aria-label={`${service.title} photo ${index + 2}`} style={{ backgroundImage: `url("${url}")` }} className="aspect-[4/3] rounded-2xl bg-[#e5e8e2] bg-cover bg-center" />)}</div>}
             <div className="py-8">
-              <p className="text-sm font-bold uppercase tracking-[.15em] text-[#6c7d74]">{service.category}</p>
+              <p className="text-sm font-bold uppercase tracking-[.15em] text-[#6c7d74]">{localCategoryHref ? <Link href={localCategoryHref} className="hover:underline">{service.category} in {service.city}</Link> : service.category}</p>
               <h1 className="mt-3 text-4xl font-bold tracking-[-.045em] sm:text-5xl">{service.title}</h1>
               <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm"><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${service.city}, ${service.state}`)}`} target="_blank" rel="noreferrer" className="rounded-full px-2 py-1 text-[#718078] transition hover:bg-[#e5eddf] hover:text-[#183126]">📍 {service.city}, {service.state} · View map</a><span className="text-[#718078]">Served by <Link href={`/providers/${service.providerId}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{service.provider}</Link></span>{service.profileScreened && <span className="rounded-full bg-[#edf2e9] px-3 py-1 text-xs font-bold text-[#4f6d5a]">✓ Profile screened</span>}{service.emailVerified && <span className="rounded-full bg-[#e5f1e5] px-3 py-1 text-xs font-bold text-[#376447]">✓ Email verified</span>}{service.businessVerified && <span className="rounded-full bg-[#fff3b0] px-3 py-1 text-xs font-bold text-[#735f16]">✓ Business profile checked</span>}<ContactProviderLink providerId={service.providerId} serviceId={service.id} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 font-bold text-[#183126] transition hover:border-[#597563] hover:bg-[#e5eddf]" /></div>
               <p className="mt-7 max-w-2xl text-lg leading-8 text-[#5b6d64]">{service.description}</p>
