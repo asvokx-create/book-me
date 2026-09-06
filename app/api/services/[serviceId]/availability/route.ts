@@ -52,7 +52,7 @@ export async function GET(request: Request, context: RouteContext<"/api/services
            AND b.starts_at < gs.starts_at + make_interval(mins => gs.duration_minutes)
            AND b.ends_at > gs.starts_at
        )
-     ORDER BY gs.starts_at`,
+     ORDER BY time`,
     [serviceId, date],
   );
 
