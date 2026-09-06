@@ -2,20 +2,28 @@ import "server-only";
 
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-const requiredVariables = ["SPACES_REGION", "SPACES_BUCKET", "SPACES_KEY", "SPACES_SECRET"] as const;
-
 function getSpacesConfig() {
-  const missing = requiredVariables.filter((name) => !process.env[name]);
-  if (missing.length > 0) {
+  // Read each variable directly so Next.js includes encrypted App Platform
+  // variables in the server bundle. Dynamic process.env[name] access can miss
+  // variables that are otherwise present in the deployed runtime.
+  const region = process.env.SPACES_REGION;
+  const bucket = process.env.SPACES_BUCKET;
+  const accessKeyId = process.env.SPACES_KEY;
+  const secretAccessKey = process.env.SPACES_SECRET;
+  const missing = [
+    !region && "SPACES_REGION",
+    !bucket && "SPACES_BUCKET",
+    !accessKeyId && "SPACES_KEY",
+    !secretAccessKey && "SPACES_SECRET",
+  ].filter((name): name is string => Boolean(name));
+  if (!region || !bucket || !accessKeyId || !secretAccessKey) {
     throw new Error(`Image storage is not configured. Missing: ${missing.join(", ")}`);
   }
 
-  const region = process.env.SPACES_REGION!;
-  const bucket = process.env.SPACES_BUCKET!;
   const endpoint = `https://${region}.digitaloceanspaces.com`;
   const publicBaseUrl = (process.env.SPACES_PUBLIC_URL || `https://${bucket}.${region}.digitaloceanspaces.com`).replace(/\/$/, "");
 
-  return { region, bucket, endpoint, publicBaseUrl };
+  return { region, bucket, endpoint, publicBaseUrl, accessKeyId, secretAccessKey };
 }
 
 function getSpacesClient() {
@@ -25,8 +33,8 @@ function getSpacesClient() {
     forcePathStyle: false,
     region: "us-east-1",
     credentials: {
-      accessKeyId: process.env.SPACES_KEY!,
-      secretAccessKey: process.env.SPACES_SECRET!,
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
     },
   });
 }
