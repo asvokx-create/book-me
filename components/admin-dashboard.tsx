@@ -93,6 +93,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const [busyId, setBusyId] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [accountSearch, setAccountSearch] = useState("");
   const [pendingAction, setPendingAction] = useState<AdminActionOptions | null>(null);
 
   const load = useCallback(async () => {
@@ -161,6 +162,12 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const firstName = adminName.trim().split(/\s+/)[0] || "Admin";
   const openReports = data?.reports.filter((report) => report.status === "open" || report.status === "reviewing") ?? [];
   const criticalEvents = data?.events.filter((event) => event.severity === "critical" || event.severity === "high") ?? [];
+  const normalizedAccountSearch = accountSearch.trim().toLocaleLowerCase();
+  const filteredAccounts = data?.accounts.filter((account) => {
+    if (!normalizedAccountSearch) return true;
+    return [account.name, account.email, account.role, account.business_name ?? ""]
+      .some((value) => value.toLocaleLowerCase().includes(normalizedAccountSearch));
+  }) ?? [];
   const statCards = data ? [
     { label: "Total accounts", value: data.stats.users, detail: "Customers and providers" },
     { label: "Active providers", value: data.stats.active_providers, detail: "Visible businesses" },
@@ -268,7 +275,27 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
 
           {data && section === "accounts" && (
             <div className="space-y-4">
-              {data.accounts.map((account) => (
+              <div className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5">
+                <label htmlFor="admin-account-search" className="text-sm font-bold">Search accounts</label>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <span aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg">⌕</span>
+                    <input
+                      id="admin-account-search"
+                      type="search"
+                      value={accountSearch}
+                      onChange={(event) => setAccountSearch(event.target.value)}
+                      placeholder="Search by name, email, role, or business"
+                      autoComplete="off"
+                      className="w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-[#8a9690] focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/20"
+                    />
+                  </div>
+                  <p className="shrink-0 text-xs font-semibold text-[#718078]" aria-live="polite">
+                    {normalizedAccountSearch ? `${filteredAccounts.length} of ${data.accounts.length} accounts` : `${data.accounts.length} accounts`}
+                  </p>
+                </div>
+              </div>
+              {filteredAccounts.map((account) => (
                 <article key={account.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
                     <ProfileAvatar name={account.name} imageUrl={account.image} className="h-12 w-12 text-sm" />
@@ -285,6 +312,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                   </div>
                 </article>
               ))}
+              {filteredAccounts.length === 0 && <EmptyState title="No matching accounts" body="Try searching with a different name, email, role, or business." />}
             </div>
           )}
 
