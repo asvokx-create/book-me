@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const endTime = typeof body.endTime === "string" ? body.endTime : "17:00";
   const validTime = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-  if (!business || !category || !serviceArea || !coordinates || !service || !description || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 100 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
+  if (!business || !category || !serviceArea || !coordinates || !service || !description || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "provider_listing", fields: [business, service, description, serviceArea] });

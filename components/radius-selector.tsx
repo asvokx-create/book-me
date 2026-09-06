@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const PRESET_RADII = [5, 10, 25, 50, 100];
+const PRESET_RADII = [5, 10, 25, 50, 100, 250];
 
 type RadiusSelectorProps = {
   value: number;
@@ -44,7 +44,7 @@ export default function RadiusSelector({ value, onChange, name, compact = false 
             name={name}
             type="number"
             min={1}
-            max={100}
+            max={250}
             step={1}
             required
             value={normalizedValue}

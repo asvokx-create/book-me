@@ -84,7 +84,7 @@ export async function getServices(options: { query?: string; category?: string; 
   const values: Array<string | number> = [];
   const conditions = ["s.is_active = true", "p.is_active = true"];
   const requestedLimit = options.limit ?? 50;
-  const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), 100) : undefined;
+  const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), 250) : undefined;
   const searchOrigin = options.location && radiusMiles ? getServiceAreaCoordinates(options.location) : undefined;
   if (options.category && options.category !== "All services") {
     values.push(options.category);

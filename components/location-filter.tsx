@@ -31,7 +31,7 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
       try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as { location?: string; radius?: number } | null;
         if (!saved?.location) return;
-        const savedRadius = Number.isInteger(saved.radius) && saved.radius! >= 1 && saved.radius! <= 100 ? saved.radius! : initialRadius;
+        const savedRadius = Number.isInteger(saved.radius) && saved.radius! >= 1 && saved.radius! <= 250 ? saved.radius! : initialRadius;
         setLocation(saved.location);
         setRadius(savedRadius);
         if (pathname === "/services" && !new URLSearchParams(currentSearch).has("location")) {
@@ -102,7 +102,7 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
           <button type="button" onClick={() => chooseLocation(location.trim() || initialLocation)} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">Use this city</button>
         </div>
       </details>
-      <div className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={(nextRadius) => { setRadius(nextRadius); if (Number.isInteger(nextRadius) && nextRadius >= 1 && nextRadius <= 100) remember(location, nextRadius); }} compact /></div>
+      <div className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={(nextRadius) => { setRadius(nextRadius); if (Number.isInteger(nextRadius) && nextRadius >= 1 && nextRadius <= 250) remember(location, nextRadius); }} compact /></div>
     </div>
   );
 }

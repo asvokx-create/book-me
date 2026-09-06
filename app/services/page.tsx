@@ -28,7 +28,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const selectedCategory = getParam(params.category) || "All services";
   const location = getParam(params.location) || "Issaquah, WA";
   const requestedRadius = Number(getParam(params.radius));
-  const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 100 ? requestedRadius : 25;
+  const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 250 ? requestedRadius : 25;
   const maxPrice = Number(getParam(params.maxPrice)) || undefined;
   const maxDuration = Number(getParam(params.maxDuration)) || undefined;
   const sort = getParam(params.sort) || "nearest";

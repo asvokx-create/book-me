@@ -67,7 +67,7 @@ export async function PATCH(request: Request) {
   if (phone.length !== 10) return NextResponse.json({ error: "Enter a 10-digit phone number." }, { status: 400 });
   if (city.length < 2 || city.length > 80 || !/^[A-Za-z .'-]+$/.test(city)) return NextResponse.json({ error: "Enter a valid city." }, { status: 400 });
   if (!/^[A-Z]{2}$/.test(state)) return NextResponse.json({ error: "Enter a two-letter state code." }, { status: 400 });
-  if (!Number.isInteger(radius) || radius < 1 || radius > 100) return NextResponse.json({ error: "Enter a search radius from 1 to 100 miles." }, { status: 400 });
+  if (!Number.isInteger(radius) || radius < 1 || radius > 250) return NextResponse.json({ error: "Enter a search radius from 1 to 250 miles." }, { status: 400 });
 
   const client = await database.connect();
   try {
