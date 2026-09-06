@@ -91,7 +91,8 @@ export async function refundUnreleasedBooking(bookingId: string, reason: string)
     customer_id: string; provider_name: string; service_title: string; stripe_payment_intent_id: string;
     price_cents: number; refunded_amount_cents: number;
   }>(`UPDATE bookings b SET refund_status = 'processing', refund_reason = $2,
-      refund_requested_at = COALESCE(refund_requested_at, now()), refund_amount_cents = price_cents - refunded_amount_cents,
+      refund_requested_at = COALESCE(b.refund_requested_at, now()),
+      refund_amount_cents = b.price_cents - b.refunded_amount_cents,
       refund_failure_reason = NULL
     FROM provider_profiles p, services s
     WHERE b.id::text = $1 AND p.id = b.provider_id AND s.id = b.service_id
