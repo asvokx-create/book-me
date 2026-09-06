@@ -78,16 +78,25 @@ export async function GET() {
     imageUrls: service.image_urls ?? [],
   }));
   const availabilityResult = await database.query<{
+    service_id: string | null;
     weekday: number;
     start_time: string;
     end_time: string;
   }>(
-    `SELECT weekday, start_time::text, end_time::text
+    `SELECT service_id::text, weekday, start_time::text, end_time::text
      FROM availability
      WHERE provider_id::text = $1
      ORDER BY weekday, start_time`,
     [provider.id],
   );
+  const defaultAvailability = availabilityResult.rows.filter((slot) => slot.service_id === null).map((slot) => ({
+    weekday: slot.weekday, startTime: slot.start_time, endTime: slot.end_time,
+  }));
+  const availabilityByService = Object.fromEntries(services.map((service) => {
+    const custom = availabilityResult.rows.filter((slot) => slot.service_id === service.id);
+    const slots = custom.length ? custom.map((slot) => ({ weekday: slot.weekday, startTime: slot.start_time, endTime: slot.end_time })) : defaultAvailability;
+    return [service.id, slots];
+  }));
 
   return NextResponse.json({
     name: session.user.name,
@@ -109,10 +118,7 @@ export async function GET() {
     serviceRadiusMiles: provider.service_radius_miles,
     service: services[0] ?? null,
     services,
-    availability: availabilityResult.rows.map((slot) => ({
-      weekday: slot.weekday,
-      startTime: slot.start_time,
-      endTime: slot.end_time,
-    })),
+    availability: services[0] ? availabilityByService[services[0].id] ?? [] : defaultAvailability,
+    availabilityByService,
   });
 }

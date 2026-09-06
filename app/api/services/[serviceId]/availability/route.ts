@@ -18,6 +18,9 @@ export async function GET(request: Request, context: RouteContext<"/api/services
        SELECT si.provider_id, NULL::uuid AS member_id, si.duration_minutes,
               a.weekday, a.start_time, a.end_time, a.timezone
        FROM service_info si JOIN availability a ON a.provider_id = si.provider_id
+       WHERE a.service_id = si.id OR (a.service_id IS NULL AND NOT EXISTS (
+         SELECT 1 FROM availability configured WHERE configured.provider_id = si.provider_id AND configured.service_id = si.id
+       ))
        UNION ALL
        SELECT si.provider_id, member.id AS member_id, si.duration_minutes,
               hours.weekday, hours.start_time, hours.end_time, hours.timezone

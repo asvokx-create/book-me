@@ -158,12 +158,12 @@ export async function POST(request: Request) {
       [providerId, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration], city, state, coordinates.latitude, coordinates.longitude],
     );
 
-    await client.query("DELETE FROM availability WHERE provider_id = $1", [providerId]);
+    await client.query("DELETE FROM availability WHERE provider_id = $1 AND service_id = $2", [providerId, serviceResult.rows[0].id]);
     for (const day of selectedDays) {
       await client.query(
-        `INSERT INTO availability (provider_id, weekday, start_time, end_time)
-         VALUES ($1, $2, $3, $4)`,
-        [providerId, weekdayNumbers[day], startTime, endTime],
+        `INSERT INTO availability (provider_id, service_id, weekday, start_time, end_time)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [providerId, serviceResult.rows[0].id, weekdayNumbers[day], startTime, endTime],
       );
     }
 

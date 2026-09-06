@@ -8,7 +8,7 @@ type DayState = AvailabilitySlot & { enabled: boolean; allDay: boolean };
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export default function AvailabilityEditor({ initialSlots, onSaved }: { initialSlots: AvailabilitySlot[]; onSaved: (slots: AvailabilitySlot[]) => void }) {
+export default function AvailabilityEditor({ serviceId, serviceTitle, initialSlots, onSaved }: { serviceId: string; serviceTitle: string; initialSlots: AvailabilitySlot[]; onSaved: (slots: AvailabilitySlot[]) => void }) {
   const [days, setDays] = useState<DayState[]>(() => dayNames.map((_, weekday) => {
     const saved = initialSlots.find((slot) => slot.weekday === weekday);
     return { weekday, enabled: Boolean(saved), allDay: saved ? isAllDayAvailability(saved.startTime, saved.endTime) : false, startTime: saved?.startTime.slice(0, 5) ?? "09:00", endTime: saved?.endTime.slice(0, 5) ?? "17:00" };
@@ -42,14 +42,14 @@ export default function AvailabilityEditor({ initialSlots, onSaved }: { initialS
 
     setSaving(true);
     setError("");
-    const response = await fetch("/api/providers/availability", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slots }) });
+    const response = await fetch("/api/providers/availability", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ serviceId, slots }) });
     const result = await response.json() as { error?: string };
     setSaving(false);
     if (!response.ok) {
       setError(result.error ?? "We could not save your hours.");
       return;
     }
-    setMessage("Your working hours are saved.");
+    setMessage(`${serviceTitle} hours are saved.`);
     onSaved(slots);
   }
 

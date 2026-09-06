@@ -30,6 +30,7 @@ type ProviderSummary = {
   service: ProviderService | null;
   services: ProviderService[];
   availability: Array<{ weekday: number; startTime: string; endTime: string }>;
+  availabilityByService: Record<string, Array<{ weekday: number; startTime: string; endTime: string }>>;
   emailVerified: boolean;
   phoneVerified: boolean;
   identityVerified: boolean;
@@ -114,6 +115,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   const [bookingError, setBookingError] = useState("");
   const [reviews, setReviews] = useState<ProviderReview[]>([]);
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
+  const [selectedAvailabilityServiceId, setSelectedAvailabilityServiceId] = useState("");
 
   useEffect(() => {
     const photoNoticeTimer = window.setTimeout(() => {
@@ -124,7 +126,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
     let active = true;
     fetch("/api/providers/me")
       .then(async (response) => response.ok ? response.json() as Promise<ProviderSummary> : null)
-      .then((data) => { if (active) setProvider(data); })
+      .then((data) => { if (active) { setProvider(data); setSelectedAvailabilityServiceId((current) => current || data?.services[0]?.id || ""); } })
       .finally(() => { if (active) setProviderLoaded(true); });
     return () => { active = false; window.clearTimeout(photoNoticeTimer); };
   }, []);
@@ -291,8 +293,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           </div>}
 
           {section === "availability" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
-              <div><h2 className="text-xl font-bold">Set your working hours</h2><p className="mt-1 text-sm text-[#738179]">Choose which days you work and set different start and end times for each day.</p></div>
-              {provider ? <AvailabilityEditor key={provider.availability.map((slot) => `${slot.weekday}-${slot.startTime}-${slot.endTime}`).join("|")} initialSlots={provider.availability} onSaved={(slots) => setProvider((current) => current ? { ...current, availability: slots } : current)} /> : <div className="mt-6 rounded-2xl bg-[#f5f5ef] p-6 text-sm text-[#738179]">{providerLoaded ? "Create your provider profile before setting working hours." : "Loading your current hours…"}</div>}
+              <div><h2 className="text-xl font-bold">Set each service&apos;s working hours</h2><p className="mt-1 text-sm text-[#738179]">Choose a listing, then set the days and times customers can request that service.</p></div>
+              {provider?.services.length ? <>{provider.services.length > 1 && <label className="mt-6 block"><span className="mb-2 block text-xs font-bold uppercase tracking-[.12em] text-[#61736a]">Service listing</span><select value={selectedAvailabilityServiceId} onChange={(event) => setSelectedAvailabilityServiceId(event.target.value)} className="w-full rounded-2xl border border-[#183126]/15 bg-[#f8f8f3] px-4 py-3 font-bold sm:max-w-md">{provider.services.map((service) => <option key={service.id} value={service.id}>{service.title} — {service.businessName}</option>)}</select></label>}{(() => { const selectedService = provider.services.find((service) => service.id === selectedAvailabilityServiceId) ?? provider.services[0]; const slots = provider.availabilityByService?.[selectedService.id] ?? provider.availability; return <div className="mt-6 rounded-2xl border border-[#183126]/10 bg-[#fafaf6] p-4 sm:p-5"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#e6eee2] text-xl">□</span><div><p className="font-bold">{selectedService.title}</p><p className="text-xs text-[#738179]">{selectedService.businessName}</p></div></div><AvailabilityEditor key={`${selectedService.id}-${slots.map((slot) => `${slot.weekday}-${slot.startTime}-${slot.endTime}`).join("|")}`} serviceId={selectedService.id} serviceTitle={selectedService.title} initialSlots={slots} onSaved={(savedSlots) => setProvider((current) => current ? { ...current, availability: selectedService.id === current.services[0]?.id ? savedSlots : current.availability, availabilityByService: { ...current.availabilityByService, [selectedService.id]: savedSlots } } : current)} /></div>; })()}</> : <div className="mt-6 rounded-2xl bg-[#f5f5ef] p-6 text-sm text-[#738179]">{providerLoaded ? "Add an active service before setting working hours." : "Loading your services and hours…"}</div>}
           </section>}
           {section === "reviews" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><h2 className="text-xl font-bold">Verified reviews</h2><p className="mt-1 text-sm text-[#738179]">Feedback can only come from completed BubsBookings bookings.</p></div>{reviews.length > 0 && <div className="rounded-full bg-[#edf2e8] px-4 py-2 text-sm font-bold"><span className="text-[#d0a51d]">★</span> {(reviews.reduce((total, item) => total + item.rating, 0) / reviews.length).toFixed(1)} · {reviews.length} {reviews.length === 1 ? "review" : "reviews"}</div>}</div>

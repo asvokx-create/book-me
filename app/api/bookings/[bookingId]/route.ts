@@ -113,8 +113,8 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ provider_id: string; provider_user_id: string; service_title: string; status: string; duration_minutes: number; assigned_team_member_id: string | null; starts_at: Date; cancellation_window_hours: number; quote_status: string; quoted_price_cents: number | null }>(
-      `SELECT b.provider_id::text, p.user_id AS provider_user_id, s.title AS service_title, b.status, s.duration_minutes,
+    const result = await client.query<{ provider_id: string; provider_user_id: string; service_id: string; service_title: string; status: string; duration_minutes: number; assigned_team_member_id: string | null; starts_at: Date; cancellation_window_hours: number; quote_status: string; quoted_price_cents: number | null }>(
+      `SELECT b.provider_id::text, p.user_id AS provider_user_id, b.service_id::text, s.title AS service_title, b.status, s.duration_minutes,
               b.starts_at, p.cancellation_window_hours, b.quote_status, b.quoted_price_cents,
               b.assigned_team_member_id::text
        FROM bookings b JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
@@ -158,13 +158,14 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
       const available = await client.query(`WITH hours AS (
         SELECT a.weekday, a.start_time, a.end_time, a.timezone FROM availability a
           WHERE a.provider_id::text = $1 AND $4::uuid IS NULL
+            AND (a.service_id::text = $5 OR (a.service_id IS NULL AND NOT EXISTS (SELECT 1 FROM availability configured WHERE configured.provider_id = a.provider_id AND configured.service_id::text = $5)))
         UNION ALL
         SELECT worker.weekday, worker.start_time, worker.end_time, worker.timezone FROM team_member_availability worker
           JOIN provider_team_members member ON member.id = worker.team_member_id
           WHERE member.provider_id::text = $1 AND member.id = $4::uuid AND member.status = 'active'
       ) SELECT 1 FROM hours WHERE weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE timezone)
         AND ($2::timestamptz AT TIME ZONE timezone)::time >= start_time
-        AND ($3::timestamptz AT TIME ZONE timezone)::time <= end_time LIMIT 1`, [booking.provider_id, start, end, booking.assigned_team_member_id]);
+        AND ($3::timestamptz AT TIME ZONE timezone)::time <= end_time LIMIT 1`, [booking.provider_id, start, end, booking.assigned_team_member_id, booking.service_id]);
       const conflict = await client.query(`SELECT 1 FROM bookings WHERE provider_id::text = $1 AND id::text <> $2
         AND assigned_team_member_id IS NOT DISTINCT FROM $3::uuid AND status = 'confirmed' AND starts_at < $5 AND ends_at > $4 LIMIT 1`, [booking.provider_id, bookingId, booking.assigned_team_member_id, start, end]);
       const blocked = await client.query(`SELECT 1 FROM provider_time_off WHERE provider_id::text = $1

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   }>(
     `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions,
-            COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id LIMIT 1),
+            COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id AND (service_id = s.id OR service_id IS NULL) ORDER BY (service_id = s.id) DESC LIMIT 1),
                      (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id WHERE member.provider_id = p.id LIMIT 1),
                      'America/Los_Angeles') AS timezone,
             p.user_id AS provider_user_id
@@ -102,6 +102,9 @@ export async function POST(request: Request) {
       `WITH staff_hours AS (
          SELECT NULL::uuid AS member_id, 'Company owner'::text AS name, a.weekday, a.start_time, a.end_time, a.timezone, 0 AS priority
          FROM availability a WHERE a.provider_id::text = $1
+           AND (a.service_id::text = $5 OR (a.service_id IS NULL AND NOT EXISTS (
+             SELECT 1 FROM availability configured WHERE configured.provider_id = a.provider_id AND configured.service_id::text = $5
+           )))
          UNION ALL
          SELECT member.id, member.name, hours.weekday, hours.start_time, hours.end_time, hours.timezone, 1 AS priority
          FROM provider_team_members member JOIN team_member_availability hours ON hours.team_member_id = member.id
@@ -119,7 +122,7 @@ export async function POST(request: Request) {
          AND NOT EXISTS (SELECT 1 FROM bookings own_request WHERE own_request.customer_id = $4 AND own_request.provider_id::text = $1
            AND own_request.status = 'requested' AND own_request.starts_at < $3 AND own_request.ends_at > $2)
        ORDER BY staff.priority, staff.name LIMIT 1`,
-      [service.provider_id, startsAt, endsAt, session.user.id],
+      [service.provider_id, startsAt, endsAt, session.user.id, service.id],
     );
     if (!candidate.rows[0]) {
       await client.query("ROLLBACK");
