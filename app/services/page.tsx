@@ -27,7 +27,8 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const query = getParam(params.q).trim();
   const selectedCategory = getParam(params.category) || "All services";
   const location = getParam(params.location) || "Issaquah, WA";
-  const radius = Number(getParam(params.radius)) || 10;
+  const requestedRadius = Number(getParam(params.radius));
+  const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 100 ? requestedRadius : 25;
   const maxPrice = Number(getParam(params.maxPrice)) || undefined;
   const maxDuration = Number(getParam(params.maxDuration)) || undefined;
   const sort = getParam(params.sort) || "nearest";
@@ -50,7 +51,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
     if (query) queryString.set("q", query);
     if (selectedCategory !== "All services" && name !== "category") queryString.set("category", selectedCategory);
     queryString.set("location", name === "location" ? "Issaquah, WA" : location);
-    queryString.set("radius", String(name === "radius" || name === "location" ? 10 : radius));
+    queryString.set("radius", String(name === "radius" || name === "location" ? 25 : radius));
     if (maxPrice && name !== "maxPrice") queryString.set("maxPrice", String(maxPrice));
     if (maxDuration && name !== "maxDuration") queryString.set("maxDuration", String(maxDuration));
     if (sort !== "nearest") queryString.set("sort", sort);
@@ -133,7 +134,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             <p className="text-sm text-[#6c7d74]">{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} found</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">{query ? `Results for “${query}”` : selectedCategory}</h2>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} />{(query || selectedCategory !== "All services" || maxPrice || maxDuration || location !== "Issaquah, WA" || radius !== 10) && <Link href={`/services${resultsAnchor}`} className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
+          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} />{(query || selectedCategory !== "All services" || maxPrice || maxDuration || location !== "Issaquah, WA" || radius !== 25) && <Link href={`/services${resultsAnchor}`} className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
         </div>
 
         {filteredServices.length > 0 ? (

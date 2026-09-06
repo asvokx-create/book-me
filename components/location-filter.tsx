@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { closestServiceArea, nearbyServiceAreas, serviceAreaLabel } from "@/lib/service-areas";
+import RadiusSelector from "@/components/radius-selector";
 
 type LocationFilterProps = {
   initialLocation?: string;
@@ -12,7 +13,7 @@ type LocationFilterProps = {
 
 const STORAGE_KEY = "bookme-service-area";
 
-export default function LocationFilter({ initialLocation = "Issaquah, WA", initialRadius = 10, restoreRemembered = false }: LocationFilterProps) {
+export default function LocationFilter({ initialLocation = "Issaquah, WA", initialRadius = 25, restoreRemembered = false }: LocationFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -30,7 +31,7 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
       try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as { location?: string; radius?: number } | null;
         if (!saved?.location) return;
-        const savedRadius = [5, 10, 25, 50].includes(saved.radius ?? 0) ? saved.radius! : initialRadius;
+        const savedRadius = Number.isInteger(saved.radius) && saved.radius! >= 1 && saved.radius! <= 100 ? saved.radius! : initialRadius;
         setLocation(saved.location);
         setRadius(savedRadius);
         if (pathname === "/services" && !new URLSearchParams(currentSearch).has("location")) {
@@ -101,7 +102,7 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
           <button type="button" onClick={() => chooseLocation(location.trim() || initialLocation)} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">Use this city</button>
         </div>
       </details>
-      <label className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><select name="radius" value={radius} onChange={(event) => { const nextRadius = Number(event.target.value); setRadius(nextRadius); remember(location, nextRadius); }} aria-label="Search radius" className="bg-transparent font-semibold outline-none"><option value="5">5 mi</option><option value="10">10 mi</option><option value="25">25 mi</option><option value="50">50 mi</option></select></label>
+      <div className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={(nextRadius) => { setRadius(nextRadius); if (Number.isInteger(nextRadius) && nextRadius >= 1 && nextRadius <= 100) remember(location, nextRadius); }} compact /></div>
     </div>
   );
 }

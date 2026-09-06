@@ -24,7 +24,7 @@ export async function GET() {
     `SELECT u.name, u.email, u.image, u.phone,
             COALESCE(us.city, p.city, '') AS city,
             COALESCE(us.state, p.state, 'WA') AS state,
-            COALESCE(us.search_radius_miles, p.service_radius_miles, 10)::int AS search_radius_miles,
+            COALESCE(us.search_radius_miles, 25)::int AS search_radius_miles,
             COALESCE(us.booking_notifications, true) AS booking_notifications,
             COALESCE(us.message_notifications, true) AS message_notifications,
             (p.id IS NOT NULL) AS is_provider
@@ -67,7 +67,7 @@ export async function PATCH(request: Request) {
   if (phone.length !== 10) return NextResponse.json({ error: "Enter a 10-digit phone number." }, { status: 400 });
   if (city.length < 2 || city.length > 80 || !/^[A-Za-z .'-]+$/.test(city)) return NextResponse.json({ error: "Enter a valid city." }, { status: 400 });
   if (!/^[A-Z]{2}$/.test(state)) return NextResponse.json({ error: "Enter a two-letter state code." }, { status: 400 });
-  if (![5, 10, 25, 50].includes(radius)) return NextResponse.json({ error: "Choose a valid search radius." }, { status: 400 });
+  if (!Number.isInteger(radius) || radius < 1 || radius > 100) return NextResponse.json({ error: "Enter a search radius from 1 to 100 miles." }, { status: 400 });
 
   const client = await database.connect();
   try {

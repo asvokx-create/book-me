@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   const description = typeof body.description === "string" ? body.description.trim() : "";
   const duration = typeof body.duration === "string" ? body.duration : "";
   const price = Number(body.price);
-  const serviceRadiusMiles = Number(body.serviceRadiusMiles ?? 15);
+  const serviceRadiusMiles = Number(body.serviceRadiusMiles ?? 25);
   const selectedDays = Array.isArray(body.selectedDays)
     ? body.selectedDays.filter((day): day is string => typeof day === "string" && day in weekdayNumbers)
     : [];
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const endTime = typeof body.endTime === "string" ? body.endTime : "17:00";
   const validTime = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-  if (!business || !category || !serviceArea || !coordinates || !service || !description || !Number.isFinite(price) || price <= 0 || ![5, 10, 15, 25, 50, 100].includes(serviceRadiusMiles) || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
+  if (!business || !category || !serviceArea || !coordinates || !service || !description || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 100 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "provider_listing", fields: [business, service, description, serviceArea] });
