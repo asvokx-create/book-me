@@ -190,6 +190,7 @@ export async function getProviderById(id: string) {
   if (!isDatabaseConfigured()) return null;
   const providerResult = await database.query<{
     id: string;
+    owner_name: string;
     business_name: string;
     bio: string;
     city: string;
@@ -204,7 +205,7 @@ export async function getProviderById(id: string) {
     cancellation_policy: string;
     no_show_policy: string;
   }>(
-    `SELECT p.id::text, p.business_name, p.bio, p.city, p.state,
+    `SELECT p.id::text, owner.name AS owner_name, p.business_name, p.bio, p.city, p.state,
             p.is_verified, owner."emailVerified" AS email_verified, p.phone_verified,
             p.identity_verified, p.business_verified, p.cancellation_window_hours,
             p.cancellation_policy, p.no_show_policy, owner.image AS profile_image_url
@@ -232,6 +233,7 @@ export async function getProviderById(id: string) {
   );
   return {
     id: provider.id,
+    ownerName: provider.owner_name,
     businessName: provider.business_name,
     bio: provider.bio,
     city: provider.city,
