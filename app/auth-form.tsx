@@ -5,7 +5,9 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
 
-export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "login" | "signup"; redirectTo?: string }) {
+type SocialProvider = "google";
+
+export default function AuthForm({ mode, redirectTo = "/account", socialProviders, oauthError = false }: { mode: "login" | "signup"; redirectTo?: string; socialProviders: Record<SocialProvider, boolean>; oauthError?: boolean }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -15,7 +17,32 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
   const isLogin = mode === "login";
+
+  async function continueWith(provider: SocialProvider) {
+    if (!socialProviders[provider]) return;
+    if (!isLogin && !acceptedTerms) {
+      setError("Accept the Terms, Privacy Policy, and AI & Safety disclosure before creating an account.");
+      return;
+    }
+
+    setError("");
+    setSocialLoading(provider);
+    const errorCallbackURL = `/login?oauthError=1&redirect=${encodeURIComponent(redirectTo)}`;
+    const newUserCallbackURL = `/account/settings?welcome=1&redirect=${encodeURIComponent(redirectTo)}`;
+    const { error: authError } = await authClient.signIn.social({
+      provider,
+      callbackURL: redirectTo,
+      errorCallbackURL,
+      newUserCallbackURL,
+      requestSignUp: !isLogin,
+    });
+    if (authError) {
+      setSocialLoading(null);
+      setError(authError.message ?? "We could not continue with Google.");
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -81,9 +108,8 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
         <p className="mt-3 text-sm leading-6 text-[#718078]">{isLogin ? "Manage bookings and connect with your favorite local pros." : "Find trusted local help and keep every booking in one place."}</p>
       </div>
 
-      <div className="mt-7 grid grid-cols-2 gap-3">
-        <button type="button" disabled title="Coming soon" className="cursor-not-allowed rounded-2xl border border-[#183126]/15 px-4 py-3 text-sm font-bold opacity-55"><span className="mr-2">G</span>Google</button>
-        <button type="button" disabled title="Coming soon" className="cursor-not-allowed rounded-2xl border border-[#183126]/15 px-4 py-3 text-sm font-bold opacity-55"><span className="mr-2">●</span>Apple</button>
+      <div className="mt-7">
+        <SocialButton enabled={socialProviders.google} loading={socialLoading === "google"} disabled={Boolean(socialLoading)} onClick={() => void continueWith("google")} />
       </div>
       <div className="my-6 flex items-center gap-3"><span className="h-px flex-1 bg-[#183126]/10" /><span className="text-xs text-[#89958f]">or continue with email</span><span className="h-px flex-1 bg-[#183126]/10" /></div>
 
@@ -94,7 +120,7 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
         <label className="block"><span className="mb-2 flex items-center justify-between text-sm font-bold">Password {isLogin && <Link href="/forgot-password" className="rounded-full px-2 py-1 text-xs text-[#5a7563] underline decoration-[#c7bb41] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Forgot password?</Link>}</span><input type="password" autoComplete={isLogin ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" className={inputClass} /></label>
         <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#183126]" /><span className="text-sm font-semibold">Keep me signed in on this device</span></label>
         {!isLogin && <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I am at least 18 and agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms</Link>, <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link>, and <Link href="/ai-transparency" target="_blank" className="font-bold underline">AI & Safety disclosure</Link>.</span></label>}
-        {error && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}</p>}
+        {(error || oauthError) && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error || "That social sign-in could not be completed. If you are new, use Create account first."}</p>}
         <button type="submit" disabled={loading} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
       </form>
 
@@ -102,4 +128,13 @@ export default function AuthForm({ mode, redirectTo = "/account" }: { mode: "log
       {!isLogin && <p className="mt-5 text-center text-[11px] leading-5 text-[#89958f]">BubsBookings accounts are for adults age 18 or older.</p>}
     </div>
   );
+}
+
+function SocialButton({ enabled, loading, disabled, onClick }: { enabled: boolean; loading: boolean; disabled: boolean; onClick: () => void }) {
+  const name = "Google";
+  return <button type="button" onClick={onClick} disabled={!enabled || disabled} title={enabled ? `Continue with ${name}` : `${name} sign-in is being configured`} className="flex w-full items-center justify-center rounded-2xl border border-[#183126]/15 px-4 py-3 text-sm font-bold transition hover:border-[#4d725d] hover:bg-[#e5eddf] disabled:cursor-not-allowed disabled:opacity-55"><GoogleIcon /><span className="ml-2">{loading ? "Opening…" : name}</span></button>;
+}
+
+function GoogleIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.87h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.35Z"/><path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.42l-3.24-2.51c-.9.6-2.05.96-3.38.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.59A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.39 13.9A6 6 0 0 1 6.08 12c0-.66.11-1.3.31-1.9V7.51H3.04A10 10 0 0 0 2 12c0 1.61.38 3.14 1.04 4.49l3.35-2.59Z"/><path fill="#EA4335" d="M12 5.97c1.47 0 2.79.5 3.83 1.5L18.7 4.6A9.63 9.63 0 0 0 12 2a10 10 0 0 0-8.96 5.51l3.35 2.59C7.18 7.73 9.39 5.97 12 5.97Z"/></svg>;
 }

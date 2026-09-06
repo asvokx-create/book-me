@@ -4,6 +4,7 @@ import { database } from "./database";
 import { isEmailConfigured, sendAuthEmail } from "./email";
 
 const emailEnabled = isEmailConfigured();
+const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
 export const auth = betterAuth({
   appName: "BubsBookings",
@@ -12,6 +13,19 @@ export const auth = betterAuth({
     process.env.BETTER_AUTH_SECRET ??
     "bookme-local-development-secret-change-before-deploy",
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  socialProviders: {
+    ...(googleEnabled
+      ? {
+          google: {
+            clientId: process.env.GOOGLE_CLIENT_ID!,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+            disableImplicitSignUp: true,
+            prompt: "select_account" as const,
+            mapProfileToUser: () => ({ phone: "" }),
+          },
+        }
+      : {}),
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: emailEnabled,
@@ -67,4 +81,8 @@ export const auth = betterAuth({
 
 export function isAuthConfigured() {
   return Boolean(process.env.DATABASE_URL && process.env.BETTER_AUTH_SECRET);
+}
+
+export function getSocialProviderAvailability() {
+  return { google: googleEnabled };
 }

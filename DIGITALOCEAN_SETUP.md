@@ -31,6 +31,7 @@ Set these in App Platform's environment settings:
 - `DATABASE_CA_CERT`: bind it to `${bookme-db.CA_CERT}` so PostgreSQL's TLS certificate is verified.
 - `BETTER_AUTH_SECRET`: a random secret of at least 32 characters.
 - `BETTER_AUTH_URL`: the final public URL, such as `https://bookme.example.com`.
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: Google OAuth web application credentials. Add `https://bubsbookings.com/api/auth/callback/google` as an authorized redirect URI in Google Cloud.
 - `NEXT_PUBLIC_APP_URL`: the same public URL.
 
 Never add `.env.local`, the database password, or the auth secret to GitHub.
