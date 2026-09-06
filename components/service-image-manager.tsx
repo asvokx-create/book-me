@@ -14,6 +14,7 @@ const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 export default function ServiceImageManager({ serviceId, initialImageUrls, compact = false }: ServiceImageManagerProps) {
   const [imageUrls, setImageUrls] = useState(initialImageUrls);
   const [uploading, setUploading] = useState(false);
+  const [removingUrl, setRemovingUrl] = useState("");
   const [message, setMessage] = useState("");
 
   async function addImages(event: ChangeEvent<HTMLInputElement>) {
@@ -48,16 +49,40 @@ export default function ServiceImageManager({ serviceId, initialImageUrls, compa
     setUploading(false);
   }
 
+  async function removeImage(url: string) {
+    if (!window.confirm("Remove this photo from your listing?")) return;
+    setRemovingUrl(url);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/providers/services/${serviceId}/images`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setMessage(result.error ?? "We could not remove that photo.");
+        return;
+      }
+      setImageUrls((current) => current.filter((imageUrl) => imageUrl !== url));
+      setMessage("Photo removed.");
+    } catch {
+      setMessage("We could not remove that photo. Please try again.");
+    } finally {
+      setRemovingUrl("");
+    }
+  }
+
   return (
     <div className={compact ? "mt-4" : "mt-6 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-5"}>
       {!compact && <div><p className="text-sm font-bold">Listing photos</p><p className="mt-1 text-xs leading-5 text-[#74827b]">Add up to 5 photos. Your first photo is the cover customers see.</p></div>}
-      {imageUrls.length > 0 && <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">{imageUrls.map((url, index) => <div key={url} role="img" aria-label={`Listing photo ${index + 1}`} style={{ backgroundImage: `url("${url}")` }} className="relative aspect-square rounded-xl bg-[#e4e9e2] bg-cover bg-center">{index === 0 && <span className="absolute bottom-1.5 left-1.5 rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold shadow-sm">Cover</span>}</div>)}</div>}
+      {imageUrls.length > 0 && <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">{imageUrls.map((url, index) => <div key={url} role="img" aria-label={`Listing photo ${index + 1}`} style={{ backgroundImage: `url("${url}")` }} className="relative aspect-square rounded-xl bg-[#e4e9e2] bg-cover bg-center">{index === 0 && <span className="absolute bottom-1.5 left-1.5 rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold shadow-sm">Cover</span>}<button type="button" disabled={Boolean(removingUrl)} onClick={() => removeImage(url)} aria-label={`Remove listing photo ${index + 1}`} className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-white/95 text-base font-bold text-[#9a4e25] shadow-sm transition hover:bg-[#fde8dc] disabled:cursor-wait disabled:opacity-60">{removingUrl === url ? "…" : "×"}</button></div>)}</div>}
       <label className="mt-4 inline-flex cursor-pointer items-center rounded-full border border-[#183126]/15 bg-white px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d]">
         {uploading ? "Uploading…" : imageUrls.length === 0 ? "+ Add photos" : "+ Add more photos"}
         <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploading || imageUrls.length >= 5} onChange={addImages} className="sr-only" />
       </label>
       {imageUrls.length >= 5 && <p className="mt-2 text-xs text-[#74827b]">Photo limit reached.</p>}
-      {message && <p aria-live="polite" className={`mt-2 text-xs font-semibold ${message.includes("added") ? "text-[#3f7652]" : "text-[#9a4e25]"}`}>{message}</p>}
+      {message && <p aria-live="polite" className={`mt-2 text-xs font-semibold ${message.includes("added") || message.includes("removed") ? "text-[#3f7652]" : "text-[#9a4e25]"}`}>{message}</p>}
     </div>
   );
 }

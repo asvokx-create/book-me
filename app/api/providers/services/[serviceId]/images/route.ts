@@ -68,3 +68,60 @@ export async function POST(request: Request, { params }: { params: Promise<{ ser
     return NextResponse.json({ error: "We could not upload that photo. Please try again." }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return NextResponse.json({ error: "Log in before removing listing photos." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "image-delete", limit: 20, windowSeconds: 3600 })) {
+    return NextResponse.json({ error: "Too many photo changes. Please try again later." }, { status: 429 });
+  }
+
+  const { serviceId } = await params;
+  const payload = (await request.json().catch(() => null)) as { url?: unknown } | null;
+  if (typeof payload?.url !== "string" || payload.url.length > 2048) {
+    return NextResponse.json({ error: "Choose a listing photo to remove." }, { status: 400 });
+  }
+
+  const client = await database.connect();
+  let objectKey = "";
+  try {
+    await client.query("BEGIN");
+    const removed = await client.query<{ object_key: string }>(
+      `DELETE FROM service_images si
+       USING services s, provider_profiles p
+       WHERE si.service_id = s.id
+         AND s.provider_id = p.id
+         AND s.id::text = $1
+         AND p.user_id = $2
+         AND si.public_url = $3
+       RETURNING si.object_key`,
+      [serviceId, session.user.id, payload.url],
+    );
+    if (!removed.rows[0]) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "Photo not found." }, { status: 404 });
+    }
+    objectKey = removed.rows[0].object_key;
+    await client.query(
+      `WITH ranked AS (
+         SELECT id, (ROW_NUMBER() OVER (ORDER BY sort_order, created_at) - 1)::smallint AS new_order
+         FROM service_images
+         WHERE service_id::text = $1
+       )
+       UPDATE service_images si SET sort_order = ranked.new_order
+       FROM ranked WHERE si.id = ranked.id`,
+      [serviceId],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Listing photo removal failed", error);
+    return NextResponse.json({ error: "We could not remove that photo. Please try again." }, { status: 500 });
+  } finally {
+    client.release();
+  }
+
+  await deleteImage(objectKey).catch((error) => console.error("Listing photo storage cleanup failed", error));
+  await recordActivity({ userId: session.user.id, action: "service_image_removed", targetType: "service", targetId: serviceId });
+  return NextResponse.json({ ok: true });
+}
