@@ -7,21 +7,9 @@ import { deleteImage, uploadPublicImage } from "@/lib/spaces";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { LISTING_IMAGE_MAX_BYTES, LISTING_IMAGE_MAX_MB } from "@/lib/listing-images";
+import { detectSupportedImageFormat } from "@/lib/image-format";
 
 export const runtime = "nodejs";
-
-const allowedTypes = new Map([
-  ["image/jpeg", "jpg"],
-  ["image/png", "png"],
-  ["image/webp", "webp"],
-]);
-
-function hasValidSignature(buffer: Buffer, type: string) {
-  if (type === "image/jpeg") return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-  if (type === "image/png") return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  if (type === "image/webp") return buffer.subarray(0, 4).toString() === "RIFF" && buffer.subarray(8, 12).toString() === "WEBP";
-  return false;
-}
 
 export async function POST(request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -54,16 +42,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ ser
   const formData = await request.formData();
   const image = formData.get("image");
   if (!(image instanceof File)) return NextResponse.json({ error: "Choose a photo to upload." }, { status: 400 });
-  if (!allowedTypes.has(image.type)) return NextResponse.json({ error: "Use a JPG, PNG, or WebP photo." }, { status: 400 });
   if (image.size === 0 || image.size > LISTING_IMAGE_MAX_BYTES) return NextResponse.json({ error: `Each photo must be under ${LISTING_IMAGE_MAX_MB} MB.` }, { status: 400 });
 
   const body = Buffer.from(await image.arrayBuffer());
-  if (!hasValidSignature(body, image.type)) return NextResponse.json({ error: "That file does not appear to be a valid image." }, { status: 400 });
+  const imageFormat = detectSupportedImageFormat(body);
+  if (!imageFormat) return NextResponse.json({ error: "That file does not appear to be a valid JPG, PNG, or WebP image." }, { status: 400 });
 
-  const objectKey = `services/${serviceId}/${randomUUID()}.${allowedTypes.get(image.type)}`;
+  const objectKey = `services/${serviceId}/${randomUUID()}.${imageFormat.extension}`;
   let publicUrl = "";
   try {
-    publicUrl = await uploadPublicImage({ key: objectKey, body, contentType: image.type });
+    publicUrl = await uploadPublicImage({ key: objectKey, body, contentType: imageFormat.contentType });
     const result = await database.query<{ id: string; public_url: string; sort_order: number }>(
       `INSERT INTO service_images (service_id, object_key, public_url, sort_order)
        VALUES ($1, $2, $3, $4)
