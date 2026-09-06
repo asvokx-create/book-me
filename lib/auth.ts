@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { twoFactor } from "better-auth/plugins";
 import { database } from "./database";
 import { isEmailConfigured, sendAuthEmail } from "./email";
+import { createPolicyConsentFields, POLICY_VERSION } from "./policy-consent";
 
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -21,7 +22,7 @@ export const auth = betterAuth({
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
             disableImplicitSignUp: true,
             prompt: "select_account" as const,
-            mapProfileToUser: () => ({ phone: "" }),
+            mapProfileToUser: () => ({ phone: "", ...createPolicyConsentFields() }),
           },
         }
       : {}),
@@ -45,6 +46,21 @@ export const auth = betterAuth({
     },
   },
   databaseHooks: {
+    user: {
+      create: {
+        async before(user) {
+          const termsAcceptedAt = typeof user.termsAcceptedAt === "string" ? Date.parse(user.termsAcceptedAt) : Number.NaN;
+          const privacyAcknowledgedAt = typeof user.privacyAcknowledgedAt === "string" ? Date.parse(user.privacyAcknowledgedAt) : Number.NaN;
+          const aiSafetyAcknowledgedAt = typeof user.aiSafetyAcknowledgedAt === "string" ? Date.parse(user.aiSafetyAcknowledgedAt) : Number.NaN;
+          if (
+            user.policyVersion !== POLICY_VERSION ||
+            !Number.isFinite(termsAcceptedAt) ||
+            !Number.isFinite(privacyAcknowledgedAt) ||
+            !Number.isFinite(aiSafetyAcknowledgedAt)
+          ) return false;
+        },
+      },
+    },
     session: {
       create: {
         async before(session) {
@@ -73,6 +89,30 @@ export const auth = betterAuth({
         required: true,
         defaultValue: "customer",
         input: false,
+      },
+      termsAcceptedAt: {
+        type: "string",
+        required: true,
+        returned: false,
+        fieldName: "terms_accepted_at",
+      },
+      privacyAcknowledgedAt: {
+        type: "string",
+        required: true,
+        returned: false,
+        fieldName: "privacy_acknowledged_at",
+      },
+      aiSafetyAcknowledgedAt: {
+        type: "string",
+        required: true,
+        returned: false,
+        fieldName: "ai_safety_acknowledged_at",
+      },
+      policyVersion: {
+        type: "string",
+        required: true,
+        returned: false,
+        fieldName: "policy_version",
       },
     },
   },

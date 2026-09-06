@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
+import { createPolicyConsentFields } from "../lib/policy-consent";
 
 type SocialProvider = "google";
 
@@ -14,16 +15,19 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
+  const [confirmedAge, setConfirmedAge] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acknowledgedPrivacy, setAcknowledgedPrivacy] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
   const isLogin = mode === "login";
+  const hasRequiredConsents = confirmedAge && acceptedTerms && acknowledgedPrivacy;
 
   async function continueWith(provider: SocialProvider) {
     if (!socialProviders[provider]) return;
-    if (!isLogin && !acceptedTerms) {
-      setError("Accept the Terms, Privacy Policy, and AI & Safety disclosure before creating an account.");
+    if (!isLogin && !hasRequiredConsents) {
+      setError("Complete all required agreements before creating an account.");
       return;
     }
 
@@ -47,7 +51,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const phoneDigits = phone.replace(/\D/g, "");
-    if ((!isLogin && (!name.trim() || phoneDigits.length < 10 || !acceptedTerms)) || !email.includes("@") || password.length < 8) {
+    if ((!isLogin && (!name.trim() || phoneDigits.length < 10 || !hasRequiredConsents)) || !email.includes("@") || password.length < 8) {
       setError("Enter valid account details. Phone numbers need 10 digits and passwords need at least 8 characters.");
       return;
     }
@@ -75,6 +79,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       password,
       name: name.trim(),
       phone: phone.trim(),
+      ...createPolicyConsentFields(),
       callbackURL: redirectTo,
     });
     setLoading(false);
@@ -119,9 +124,9 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
         {!isLogin && <label className="block"><span className="mb-2 block text-sm font-bold">Phone number</span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="(425) 555-0123" className={inputClass} /><span className="mt-2 block text-xs text-[#849189]">Used for booking updates and provider communication.</span></label>}
         <label className="block"><span className="mb-2 flex items-center justify-between text-sm font-bold">Password {isLogin && <Link href="/forgot-password" className="rounded-full px-2 py-1 text-xs text-[#5a7563] underline decoration-[#c7bb41] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Forgot password?</Link>}</span><input type="password" autoComplete={isLogin ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" className={inputClass} /></label>
         <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#183126]" /><span className="text-sm font-semibold">Keep me signed in on this device</span></label>
-        {!isLogin && <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I am at least 18 and agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms</Link>, <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link>, and <Link href="/ai-transparency" target="_blank" className="font-bold underline">AI & Safety disclosure</Link>.</span></label>}
+        {!isLogin && <div className="space-y-2 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#687b70]">Required agreements</p><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={confirmedAge} onChange={(event) => setConfirmedAge(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I confirm that I am at least 18 years old and can enter a binding agreement.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I have read and agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms of Service</Link>.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acknowledgedPrivacy} onChange={(event) => setAcknowledgedPrivacy(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link> and <Link href="/ai-transparency" target="_blank" className="font-bold underline">AI &amp; Safety disclosure</Link>.</span></label></div>}
         {(error || oauthError) && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error || "That social sign-in could not be completed. If you are new, use Create account first."}</p>}
-        <button type="submit" disabled={loading} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
+        <button type="submit" disabled={loading || (!isLogin && !hasRequiredConsents)} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
       </form>
 
       <p className="mt-6 text-center text-sm text-[#74837b]">{isLogin ? "New to BubsBookings?" : "Already have an account?"} <Link href={`${isLogin ? "/signup" : "/login"}${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{isLogin ? "Sign up" : "Log in"}</Link></p>
