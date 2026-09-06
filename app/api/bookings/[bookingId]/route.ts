@@ -7,6 +7,7 @@ import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { getStripeMode } from "@/lib/stripe";
 import { recordAnalytics } from "@/lib/analytics";
+import { refundUnreleasedBooking } from "@/lib/payment-release";
 
 export async function GET(_request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -26,7 +27,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     stripe_mode: "test" | "live" | null;
     refund_status: "none" | "requested" | "processing" | "refunded" | "rejected" | "failed";
     refund_reason: string | null; refund_amount_cents: number | null; refunded_amount_cents: number;
-    refund_failure_reason: string | null;
+    refund_failure_reason: string | null; payment_release_status: string; platform_fee_cents: number;
+    provider_payout_cents: number; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
+    payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null;
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text,
             p.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
@@ -37,6 +40,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             b.quote_status, b.quoted_price_cents, b.quote_message, b.quote_sent_at, b.quote_responded_at,
             b.payment_status, b.paid_at, b.stripe_mode, b.refund_status, b.refund_reason,
             b.refund_amount_cents, b.refunded_amount_cents, b.refund_failure_reason,
+            b.payment_release_status, b.platform_fee_cents, b.provider_payout_cents,
+            b.completion_confirmation_due_at, b.customer_confirmed_at, b.payout_released_at,
+            b.payout_failure_reason, b.payout_freeze_reason,
             b.assigned_team_member_id::text, COALESCE(member.name, 'Company owner') AS assignee_name,
             c.id::text AS conversation_id, r.id::text AS review_id, r.rating, r.body AS review_body
      FROM bookings b JOIN "user" customer ON customer.id = b.customer_id
@@ -64,6 +70,17 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     cancellationPolicy: row.cancellation_policy,
     paymentStatus: row.stripe_mode === getStripeMode() ? row.payment_status : "unpaid",
     paidAt: row.stripe_mode === getStripeMode() ? row.paid_at : null,
+    paymentRelease: row.stripe_mode === getStripeMode() ? {
+      status: row.payment_release_status,
+      platformFee: row.platform_fee_cents / 100,
+      providerPayout: row.provider_payout_cents / 100,
+      confirmationDueAt: row.completion_confirmation_due_at,
+      customerConfirmedAt: row.customer_confirmed_at,
+      releasedAt: row.payout_released_at,
+      failureReason: row.payout_failure_reason,
+      freezeReason: row.payout_freeze_reason,
+    } : { status: "not_applicable", platformFee: 0, providerPayout: 0, confirmationDueAt: null,
+      customerConfirmedAt: null, releasedAt: null, failureReason: null, freezeReason: null },
     refund: { status: row.stripe_mode === getStripeMode() ? row.refund_status : "none",
       reason: row.refund_reason, requestedAmount: row.refund_amount_cents === null ? null : row.refund_amount_cents / 100,
       refundedAmount: row.refunded_amount_cents / 100, failureReason: row.refund_failure_reason },
@@ -108,6 +125,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "This booking can no longer be changed." }, { status: 409 });
     }
+    let shouldAutoRefund = false;
     if (action === "accept_quote" || action === "decline_quote") {
       if (booking.status !== "requested" || booking.quote_status !== "pending" || booking.quoted_price_cents === null) { await client.query("ROLLBACK"); return NextResponse.json({ error: "This quote is no longer awaiting your response." }, { status: 409 }); }
       const accepted = action === "accept_quote";
@@ -121,6 +139,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
     } else if (action === "cancel") {
       const noticeDeadline = booking.starts_at.getTime() - booking.cancellation_window_hours * 60 * 60 * 1000;
       const lateCancellation = booking.status === "confirmed" && booking.cancellation_window_hours > 0 && Date.now() > noticeDeadline;
+      shouldAutoRefund = !lateCancellation;
       await client.query(`UPDATE bookings SET status = 'cancelled', cancelled_by = 'customer', cancellation_reason = $2,
         late_cancellation = $3,
         reschedule_requested_by = NULL, reschedule_starts_at = NULL, reschedule_ends_at = NULL, reschedule_reason = NULL,
@@ -162,10 +181,11 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
         [booking.provider_user_id, bookingId, `${session.user.name || "The customer"} requested a new time for ${booking.service_title}.`]);
     }
     await client.query("COMMIT");
+    const automaticRefund = shouldAutoRefund ? await refundUnreleasedBooking(bookingId, "Customer cancelled within the provider notice window before payout release.") : null;
     await recordActivity({ userId: session.user.id, action: String(action), targetType: "booking", targetId: bookingId });
     if (action === "cancel") await sendBookingUpdateEmails(bookingId, "cancelled");
     if (action === "cancel") await recordAnalytics({ eventName: "booking_cancelled", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { cancelledBy: "customer" } });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, refundWarning: automaticRefund && !automaticRefund.ok ? automaticRefund.error : undefined });
   } catch (error) {
     await client.query("ROLLBACK"); console.error("Customer booking update failed", error);
     return NextResponse.json({ error: "We could not update this booking. Please try again." }, { status: 500 });

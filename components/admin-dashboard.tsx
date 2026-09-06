@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import ProfileAvatar from "@/components/profile-avatar";
 
-type AdminSection = "overview" | "reports" | "moderation" | "accounts" | "listings" | "reviews" | "audit";
+type AdminSection = "overview" | "reports" | "moderation" | "accounts" | "listings" | "reviews" | "payouts" | "audit";
 type Stats = {
   users: number; active_providers: number; active_services: number; bookings_30d: number;
   open_reports: number; blocked_30d: number;
@@ -38,9 +38,15 @@ type AuditEntry = {
   id: string; action: string; target_type: string; target_id: string;
   details: Record<string, unknown>; created_at: string; actor_name: string;
 };
+type Payout = {
+  id: string; payment_release_status: string; payment_status: string; provider_payout_cents: number;
+  completion_confirmation_due_at: string | null; payout_released_at: string | null;
+  payout_freeze_reason: string | null; payout_failure_reason: string | null; booking_status: string;
+  created_at: string; customer_name: string; provider_name: string; service_title: string;
+};
 type DashboardData = {
   stats: Stats; reports: SafetyReport[]; events: ModerationEvent[];
-  accounts: Account[]; listings: Listing[]; reviews: Review[]; audit: AuditEntry[];
+  accounts: Account[]; listings: Listing[]; reviews: Review[]; payouts: Payout[]; audit: AuditEntry[];
 };
 type AdminActionOptions = {
   action: string; targetId: string; status?: string; needsReason?: boolean;
@@ -54,6 +60,7 @@ const navItems: Array<{ id: AdminSection; label: string; icon: string }> = [
   { id: "accounts", label: "Accounts", icon: "◎" },
   { id: "listings", label: "Listings", icon: "▤" },
   { id: "reviews", label: "Reviews", icon: "☆" },
+  { id: "payouts", label: "Payouts", icon: "$" },
   { id: "audit", label: "Audit history", icon: "↺" },
 ];
 
@@ -68,7 +75,7 @@ function label(value: string) {
 }
 
 function StatusPill({ value }: { value: string }) {
-  const warning = ["open", "critical", "high", "suspended", "banned", "inactive"].includes(value);
+  const warning = ["open", "critical", "high", "suspended", "banned", "inactive", "frozen", "failed"].includes(value);
   const success = ["active", "resolved"].includes(value);
   const color = warning
     ? "bg-[#fff0e7] text-[#9a4e25]"
@@ -292,6 +299,17 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
             <div className="grid gap-4 xl:grid-cols-2">
               {data.reviews.map((review) => <article key={review.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><StatusPill value={review.is_hidden ? "hidden" : "active"} /><span className="text-[#d0a51d]">{"★".repeat(review.rating)}<span className="text-[#d8ddd9]">{"★".repeat(5 - review.rating)}</span></span></div><h2 className="mt-3 font-bold">{review.customer_name}</h2><p className="mt-1 text-xs text-[#718078]">{review.customer_email} · {review.service_title}</p><p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#52665b]">{review.body || "No written comment."}</p><p className="mt-3 text-xs text-[#8a9690]">{review.business_name} · {formatDate(review.created_at)}</p></div><button disabled={busyId === review.id} onClick={() => void runAction({ action: "review_status", targetId: review.id, status: review.is_hidden ? "visible" : "hidden", confirmText: review.is_hidden ? "Restore this review?" : "Hide this review from BubsBookings?", successText: review.is_hidden ? "Review restored." : "Review hidden." })} className={"shrink-0 rounded-full px-4 py-2 text-xs font-bold transition " + (review.is_hidden ? "bg-[#34704a] text-white hover:bg-[#285b3b]" : "bg-[#fff0e7] text-[#9a4e25] hover:bg-[#f8d9ca]")}>{review.is_hidden ? "Restore" : "Hide"}</button></div></article>)}
               {data.reviews.length === 0 && <EmptyState title="No reviews yet" body="Verified customer reviews will appear here." />}
+            </div>
+          )}
+
+          {data && section === "payouts" && (
+            <div className="space-y-4">
+              {data.payouts.map((payout) => {
+                const canFreeze = ["secured", "awaiting_customer", "failed"].includes(payout.payment_release_status);
+                const frozen = payout.payment_release_status === "frozen";
+                return <article key={payout.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6"><div className="flex flex-col gap-4 xl:flex-row xl:items-center"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><StatusPill value={payout.payment_release_status} /><span className="text-xs font-bold uppercase tracking-wider text-[#718078]">${(payout.provider_payout_cents / 100).toFixed(2)} provider share</span></div><h2 className="mt-3 text-xl font-bold">{payout.service_title}</h2><p className="mt-1 text-sm text-[#718078]">{payout.customer_name} → {payout.provider_name}</p>{payout.completion_confirmation_due_at && payout.payment_release_status === "awaiting_customer" && <p className="mt-2 text-xs font-semibold text-[#78681f]">Automatic release after {formatDate(payout.completion_confirmation_due_at)}</p>}{payout.payout_freeze_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Hold reason: {payout.payout_freeze_reason}</p>}{payout.payout_failure_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Stripe error: {payout.payout_failure_reason}</p>}</div><div className="flex flex-wrap gap-2"><Link href={`/provider/dashboard/bookings/${payout.id}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View booking</Link>{payout.payment_release_status === "failed" && <button disabled={busyId === payout.id} onClick={() => void runAction({ action: "payout_retry", targetId: payout.id, confirmText: "Retry this failed Stripe payout now?", successText: "Payout released." })} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846]">Retry payout</button>}{canFreeze && <button disabled={busyId === payout.id} onClick={() => void runAction({ action: "payout_freeze", targetId: payout.id, status: "frozen", needsReason: true, confirmText: "Freeze this payout while the booking is reviewed?", successText: "Payout frozen." })} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#7b3c1b]">Freeze payout</button>}{frozen && <button disabled={busyId === payout.id} onClick={() => void runAction({ action: "payout_freeze", targetId: payout.id, status: "active", confirmText: "Remove this payout hold? The payout can release automatically if its confirmation window has ended.", successText: "Payout hold removed." })} className="rounded-full bg-[#34704a] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#285b3b]">Remove hold</button>}</div></div></article>;
+              })}
+              {data.payouts.length === 0 && <EmptyState title="No held payments" body="Paid bookings and payout controls will appear here." />}
             </div>
           )}
 

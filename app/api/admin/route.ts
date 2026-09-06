@@ -2,12 +2,13 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
+import { releaseBookingPayout } from "@/lib/payment-release";
 
 const reportStatuses = new Set(["reviewing", "resolved", "dismissed"]);
 const accountStatuses = new Set(["active", "suspended", "banned"]);
 
 async function loadDashboard() {
-  const [stats, reports, events, accounts, listings, reviews, audit] = await Promise.all([
+  const [stats, reports, events, accounts, listings, reviews, payouts, audit] = await Promise.all([
     database.query<{
       users: number; active_providers: number; active_services: number; bookings_30d: number;
       open_reports: number; blocked_30d: number;
@@ -75,6 +76,21 @@ async function loadDashboard() {
        LIMIT 75`,
     ),
     database.query(
+      `SELECT b.id::text, b.payment_release_status, b.payment_status, b.provider_payout_cents,
+              b.completion_confirmation_due_at, b.payout_released_at, b.payout_freeze_reason,
+              b.payout_failure_reason, b.status AS booking_status, b.created_at,
+              customer.name AS customer_name, p.business_name AS provider_name, s.title AS service_title
+       FROM bookings b
+       JOIN "user" customer ON customer.id = b.customer_id
+       JOIN provider_profiles p ON p.id = b.provider_id
+       JOIN services s ON s.id = b.service_id
+       WHERE b.payment_status = 'paid' AND b.payment_release_status <> 'not_applicable'
+       ORDER BY CASE b.payment_release_status
+         WHEN 'failed' THEN 0 WHEN 'frozen' THEN 1 WHEN 'awaiting_customer' THEN 2
+         WHEN 'secured' THEN 3 ELSE 4 END, b.created_at DESC
+       LIMIT 100`,
+    ),
+    database.query(
       `SELECT aal.id::text, aal.action, aal.target_type, aal.target_id, aal.details,
               aal.created_at, u.name AS actor_name
        FROM admin_audit_log aal
@@ -91,6 +107,7 @@ async function loadDashboard() {
     accounts: accounts.rows,
     listings: listings.rows,
     reviews: reviews.rows,
+    payouts: payouts.rows,
     audit: audit.rows,
   };
 }
@@ -113,6 +130,14 @@ export async function PATCH(request: Request) {
   const status = typeof body.status === "string" ? body.status : "";
   const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
   if (!targetId) return NextResponse.json({ error: "Choose an item to update." }, { status: 400 });
+
+  if (action === "payout_retry") {
+    const release = await releaseBookingPayout(targetId, "admin");
+    if (!release.ok) return NextResponse.json({ error: release.error }, { status: 409 });
+    await database.query(`INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
+      VALUES ($1, 'payout_retried', 'booking_payout', $2, $3::jsonb)`, [session.user.id, targetId, JSON.stringify({ transferId: release.transferId })]);
+    return NextResponse.json({ ok: true });
+  }
 
   const client = await database.connect();
   try {
@@ -199,6 +224,26 @@ export async function PATCH(request: Request) {
       if (!result.rowCount) throw new Error("NOT_FOUND");
       targetType = "review";
       auditAction = status === "hidden" ? "review_hidden" : "review_restored";
+    } else if (action === "payout_freeze" && (status === "frozen" || status === "active")) {
+      if (status === "frozen" && !reason) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "Add a reason for freezing this payout." }, { status: 400 });
+      }
+      const result = status === "frozen"
+        ? await client.query(`UPDATE bookings SET payout_frozen_at = now(), payout_frozen_by = $2,
+            payout_freeze_reason = $3, payment_release_status = 'frozen'
+            WHERE id::text = $1 AND payment_status = 'paid'
+              AND payment_release_status IN ('secured', 'awaiting_customer', 'failed') RETURNING id`, [targetId, session.user.id, reason])
+        : await client.query(`UPDATE bookings SET payout_frozen_at = NULL, payout_frozen_by = NULL,
+            payout_freeze_reason = NULL,
+            payment_release_status = CASE WHEN status = 'completed' THEN 'awaiting_customer' ELSE 'secured' END
+            WHERE id::text = $1 AND payment_release_status = 'frozen'
+              AND refund_status NOT IN ('requested', 'processing')
+              AND NOT EXISTS (SELECT 1 FROM booking_disputes d WHERE d.booking_id = bookings.id AND d.status IN ('open', 'reviewing'))
+            RETURNING id`, [targetId]);
+      if (!result.rowCount) throw new Error("NOT_FOUND");
+      targetType = "booking_payout";
+      auditAction = status === "frozen" ? "payout_frozen" : "payout_unfrozen";
     } else {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "That admin action is not supported." }, { status: 400 });

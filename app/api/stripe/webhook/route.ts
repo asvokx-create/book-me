@@ -28,10 +28,19 @@ async function updateSubscription(subscription: Stripe.Subscription) {
 
 async function markBookingPaid(checkout: Stripe.Checkout.Session) {
   if (checkout.metadata?.kind !== "booking_payment" || !checkout.metadata.bookingId) return;
+  const paymentIntentId = idOf(checkout.payment_intent);
+  let chargeId: string | null = null;
+  if (paymentIntentId) {
+    const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId, { expand: ["latest_charge"] });
+    chargeId = idOf(paymentIntent.latest_charge);
+  }
+  const heldTransfer = checkout.metadata.paymentFlow === "held_transfer_v1";
   const updated = await database.query(`UPDATE bookings SET payment_status = 'paid', stripe_payment_intent_id = $2,
-      stripe_mode = $4, paid_at = now()
+      stripe_charge_id = $5, stripe_mode = $4, paid_at = now(),
+      payment_release_status = CASE WHEN $6 THEN 'secured' ELSE 'paid_out' END,
+      payout_released_at = CASE WHEN $6 THEN NULL ELSE now() END
     WHERE id::text = $1 AND stripe_checkout_session_id = $3 AND stripe_mode = $4 AND payment_status <> 'paid'
-    RETURNING id`, [checkout.metadata.bookingId, idOf(checkout.payment_intent), checkout.id, getStripeMode()]);
+    RETURNING id`, [checkout.metadata.bookingId, paymentIntentId, checkout.id, getStripeMode(), chargeId, heldTransfer]);
   if (!updated.rowCount) return;
   await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
     VALUES ($1::uuid, 'payment_received', 'Secure payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);

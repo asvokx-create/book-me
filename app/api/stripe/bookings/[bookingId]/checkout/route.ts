@@ -18,10 +18,10 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     id: string; title: string; provider_name: string; price_cents: number; status: string;
     payment_status: string; quote_status: string; plan: ProviderPlan; stripe_account_id: string | null;
     stripe_connect_mode: "test" | "live" | null; stripe_mode: "test" | "live" | null;
-    stripe_checkout_session_id: string | null;
+    stripe_checkout_session_id: string | null; payment_flow: string | null;
   }>(`SELECT b.id::text, s.title, p.business_name AS provider_name, b.price_cents, b.status,
       b.payment_status, b.quote_status, p.plan, p.stripe_account_id, p.stripe_connect_mode, b.stripe_mode,
-      b.stripe_checkout_session_id
+      b.stripe_checkout_session_id, b.payment_flow
     FROM bookings b JOIN services s ON s.id = b.service_id JOIN provider_profiles p ON p.id = b.provider_id
     WHERE b.id::text = $1 AND b.customer_id = $2`, [bookingId, session.user.id]);
   const booking = result.rows[0];
@@ -36,28 +36,35 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
   const stripe = getStripe();
   if (booking.stripe_mode === mode && booking.payment_status === "pending" && booking.stripe_checkout_session_id) {
     const existing = await stripe.checkout.sessions.retrieve(booking.stripe_checkout_session_id);
-    if (existing.status === "open" && existing.url) return NextResponse.json({ url: existing.url });
+    if (existing.status === "open" && existing.url && existing.metadata?.paymentFlow === "held_transfer_v1") return NextResponse.json({ url: existing.url });
+    if (existing.status === "open") await stripe.checkout.sessions.expire(existing.id).catch(() => undefined);
   }
   const account = await stripe.accounts.retrieve(booking.stripe_account_id);
   await database.query("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1 AND stripe_connect_mode = $4", [booking.stripe_account_id, account.charges_enabled, account.payouts_enabled, mode]);
   if (!account.charges_enabled || !account.payouts_enabled) return NextResponse.json({ error: "This provider is still finishing secure payout verification." }, { status: 409 });
 
   const fee = Math.round(booking.price_cents * PLAN_ENTITLEMENTS[booking.plan].bookingFeePercent / 100);
+  const providerPayout = booking.price_cents - fee;
   const origin = new URL(request.url).origin;
   const checkout = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: session.user.email,
     line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: booking.price_cents, product_data: { name: booking.title, description: `Service from ${booking.provider_name}` } } }],
     payment_intent_data: {
-      ...(fee > 0 ? { application_fee_amount: fee } : {}),
-      transfer_data: { destination: booking.stripe_account_id },
-      metadata: { kind: "booking_payment", bookingId: booking.id },
+      transfer_group: `booking_${booking.id}`,
+      metadata: { kind: "booking_payment", bookingId: booking.id, paymentFlow: "held_transfer_v1" },
     },
     success_url: `${origin}/account/bookings/${booking.id}?payment=success`,
     cancel_url: `${origin}/account/bookings/${booking.id}?payment=cancelled`,
-    metadata: { kind: "booking_payment", bookingId: booking.id },
+    metadata: { kind: "booking_payment", bookingId: booking.id, paymentFlow: "held_transfer_v1" },
   });
-  await database.query("UPDATE bookings SET stripe_checkout_session_id = $2, stripe_payment_intent_id = NULL, stripe_mode = $3, payment_status = 'pending', paid_at = NULL WHERE id::text = $1", [booking.id, checkout.id, mode]);
+  await database.query(`UPDATE bookings SET stripe_checkout_session_id = $2, stripe_payment_intent_id = NULL,
+    stripe_charge_id = NULL, stripe_transfer_id = NULL, stripe_mode = $3, payment_status = 'pending',
+    payment_flow = 'held_transfer_v1', payment_release_status = 'awaiting_payment',
+    platform_fee_cents = $4, provider_payout_cents = $5, paid_at = NULL,
+    completion_confirmation_due_at = NULL, customer_confirmed_at = NULL, payout_released_at = NULL,
+    payout_failure_reason = NULL, payout_frozen_at = NULL, payout_frozen_by = NULL, payout_freeze_reason = NULL
+    WHERE id::text = $1`, [booking.id, checkout.id, mode, fee, providerPayout]);
   await recordAnalytics({ eventName: "checkout_started", userId: session.user.id, targetType: "booking", targetId: booking.id, metadata: { amountCents: booking.price_cents } });
   return NextResponse.json({ url: checkout.url });
 }

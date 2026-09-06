@@ -47,8 +47,15 @@ export async function PATCH(request: Request) {
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 1000) : "";
   if (!type || !id || !statuses.has(status)) return NextResponse.json({ error: "Choose a valid case update." }, { status: 400 });
   const table = type === "bugs" ? "bug_reports" : "booking_disputes";
-  const result = await database.query(`UPDATE ${table} SET status = $2, admin_note = $3, updated_at = now() WHERE id::text = $1`, [id, status, note]);
+  const result = await database.query<{ booking_id?: string }>(`UPDATE ${table} SET status = $2, admin_note = $3, updated_at = now() WHERE id::text = $1 RETURNING ${type === "disputes" ? "booking_id::text" : "NULL::text AS booking_id"}`, [id, status, note]);
   if (!result.rowCount) return NextResponse.json({ error: "That case was not found." }, { status: 404 });
+  if (type === "disputes" && (status === "resolved" || status === "dismissed") && result.rows[0]?.booking_id) {
+    await database.query(`UPDATE bookings b SET payout_frozen_at = NULL, payout_frozen_by = NULL, payout_freeze_reason = NULL,
+      payment_release_status = CASE WHEN b.status = 'completed' THEN 'awaiting_customer' ELSE 'secured' END
+      WHERE b.id::text = $1 AND b.payout_freeze_reason = 'Open booking dispute'
+        AND b.payment_status = 'paid' AND b.payment_release_status = 'frozen'
+        AND NOT EXISTS (SELECT 1 FROM booking_disputes d WHERE d.booking_id = b.id AND d.status IN ('open', 'reviewing'))`, [result.rows[0].booking_id]);
+  }
   await database.query(
     `INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
      VALUES ($1, $2, $3, $4, $5::jsonb)`,

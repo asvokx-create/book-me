@@ -56,14 +56,23 @@ export async function POST(request: Request) {
 
   try {
     const result = await database.query<{ id: string }>(
-      `INSERT INTO booking_disputes (booking_id, opened_by, against_user_id, category, details, requested_resolution)
-       SELECT b.id, $2, CASE WHEN b.customer_id = $2 THEN p.user_id ELSE b.customer_id END, $3, $4, $5
-       FROM bookings b
-       JOIN provider_profiles p ON p.id = b.provider_id
-       WHERE b.id::text = $1
-         AND (b.customer_id = $2 OR p.user_id = $2)
-         AND b.status IN ('confirmed', 'completed', 'cancelled')
-       RETURNING id::text`,
+      `WITH opened AS (
+         INSERT INTO booking_disputes (booking_id, opened_by, against_user_id, category, details, requested_resolution)
+         SELECT b.id, $2, CASE WHEN b.customer_id = $2 THEN p.user_id ELSE b.customer_id END, $3, $4, $5
+         FROM bookings b
+         JOIN provider_profiles p ON p.id = b.provider_id
+         WHERE b.id::text = $1
+           AND (b.customer_id = $2 OR p.user_id = $2)
+           AND b.status IN ('confirmed', 'completed', 'cancelled')
+         RETURNING id, booking_id
+       ), frozen AS (
+         UPDATE bookings b SET
+           payout_frozen_at = CASE WHEN payment_release_status IN ('secured', 'awaiting_customer', 'failed') THEN now() ELSE payout_frozen_at END,
+           payout_frozen_by = CASE WHEN payment_release_status IN ('secured', 'awaiting_customer', 'failed') THEN $2 ELSE payout_frozen_by END,
+           payout_freeze_reason = CASE WHEN payment_release_status IN ('secured', 'awaiting_customer', 'failed') THEN 'Open booking dispute' ELSE payout_freeze_reason END,
+           payment_release_status = CASE WHEN payment_release_status IN ('secured', 'awaiting_customer', 'failed') THEN 'frozen' ELSE payment_release_status END
+         FROM opened WHERE b.id = opened.booking_id RETURNING b.id
+       ) SELECT opened.id::text FROM opened JOIN frozen ON frozen.id = opened.booking_id`,
       [bookingId, session.user.id, category, details, requestedResolution],
     );
     if (!result.rows[0]) return NextResponse.json({ error: "That booking is not eligible for a dispute." }, { status: 404 });

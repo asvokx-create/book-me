@@ -59,10 +59,10 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
-          <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
+          <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>
-            BubsBookings
+            <span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/pricing" className="hidden rounded-full px-4 py-2 text-sm font-semibold transition hover:bg-[#183126]/5 md:block">Pricing</Link>
@@ -73,10 +73,10 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
       </header>
 
       <section className="border-b border-[#183126]/10 bg-[radial-gradient(circle_at_85%_15%,rgba(206,225,198,.8),transparent_25%)]">
-        <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
+        <div className="mx-auto max-w-7xl px-4 py-9 sm:px-8 sm:py-16">
           <Link href="/" className="text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
           <p className="mt-8 text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">Explore nearby</p>
-          <h1 className="mt-2 text-4xl font-bold tracking-[-.05em] sm:text-5xl">Find the right help for the job.</h1>
+          <h1 className="mt-2 text-[clamp(2.25rem,7vw,3rem)] font-bold leading-tight tracking-[-.05em]">Find the right help for the job.</h1>
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">Compare trusted local providers, prices, and availability around {location}.</p>
 
           <form action="/services" className="mt-8 flex max-w-4xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 shadow-[0_14px_40px_rgba(24,49,38,.1)] sm:flex-row sm:rounded-full">
@@ -95,7 +95,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         </div>
       </section>
 
-      <section id="all-filters" className="mx-auto max-w-7xl scroll-mt-6 px-5 py-10 sm:px-8 sm:py-14">
+      <section id="all-filters" className="mx-auto max-w-7xl scroll-mt-6 px-4 py-9 sm:px-8 sm:py-14">
         <div className="flex gap-2 overflow-x-auto pb-3">
           {quickCategories.map((category) => {
             const active = category === selectedCategory;

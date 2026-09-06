@@ -22,6 +22,11 @@ type Booking = {
   price: number;
   paymentStatus: "unpaid" | "pending" | "paid" | "refunded" | "failed";
   paidAt: string | null;
+  paymentRelease: {
+    status: "not_applicable" | "awaiting_payment" | "secured" | "awaiting_customer" | "processing" | "paid_out" | "partially_released" | "frozen" | "reversed" | "failed";
+    platformFee: number; providerPayout: number; confirmationDueAt: string | null; customerConfirmedAt: string | null;
+    releasedAt: string | null; failureReason: string | null; freezeReason: string | null;
+  };
   refund: { status: "none" | "requested" | "processing" | "refunded" | "rejected" | "failed"; reason: string | null; requestedAmount: number | null; refundedAmount: number; failureReason: string | null };
   status: BookingStatus;
   cancelledBy: string | null;
@@ -104,11 +109,12 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, reason }),
     }).catch(() => null);
-    const result = response ? await response.json() as { error?: string } : null;
+    const result = response ? await response.json() as { error?: string; refundWarning?: string } : null;
     if (!response?.ok) setError(result?.error ?? "We could not update this booking.");
     else {
       setCancelOpen(false);
       setCancelReason("");
+      if (result?.refundWarning) setError(result.refundWarning);
       await loadBooking();
     }
     setWorking(false);
@@ -119,7 +125,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     setWorking(true); setError("");
     const response = await fetch(`/api/bookings/${bookingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "request_reschedule", startsAt: new Date(rescheduleDate).toISOString(), reason: rescheduleReason }) }).catch(() => null);
-    const result = response ? await response.json() as { error?: string } : null;
+    const result = response ? await response.json() as { error?: string; refundWarning?: string } : null;
     if (!response?.ok) setError(result?.error ?? "We could not send your reschedule request.");
     else { setRescheduleOpen(false); setRescheduleDate(""); setRescheduleReason(""); await loadBooking(); }
     setWorking(false);
@@ -128,7 +134,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
   async function assignBooking(memberId: string) {
     setWorking(true); setError("");
     const response = await fetch(`/api/providers/bookings/${bookingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "assign", memberId }) }).catch(() => null);
-    const result = response ? await response.json() as { error?: string } : null;
+    const result = response ? await response.json() as { error?: string; refundWarning?: string } : null;
     if (!response?.ok) setError(result?.error ?? "We could not assign this booking."); else await loadBooking();
     setWorking(false);
   }
@@ -188,6 +194,16 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     setWorking(false);
   }
 
+  async function confirmCompletion() {
+    if (!window.confirm("Confirm that the service is complete and release the provider's payout?")) return;
+    setWorking(true); setError(""); setNotice("");
+    const response = await fetch(`/api/bookings/${bookingId}/completion`, { method: "POST" }).catch(() => null);
+    const result = response ? await response.json() as { error?: string } : null;
+    if (!response?.ok) setError(result?.error ?? "We could not release this payout.");
+    else { setNotice("Service confirmed. The provider's payout was released to Stripe."); await loadBooking(); }
+    setWorking(false);
+  }
+
   async function cancelBooking(event: FormEvent) {
     event.preventDefault();
     if (!booking) return;
@@ -202,11 +218,12 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "cancel", reason: cancelReason }),
     }).catch(() => null);
-    const result = response ? await response.json() as { error?: string } : null;
+    const result = response ? await response.json() as { error?: string; refundWarning?: string } : null;
     if (!response?.ok) setError(result?.error ?? "We could not cancel this booking.");
     else {
       setCancelOpen(false);
       setCancelReason("");
+      if (result?.refundWarning) setError(result.refundWarning);
       await loadBooking();
     }
     setWorking(false);
@@ -240,6 +257,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     : `/provider/dashboard/messages${booking.conversationId ? `?conversationId=${booking.conversationId}` : ""}`;
   const canCancel = booking.status === "requested" || booking.status === "confirmed";
   const canComplete = booking.viewerRole === "provider" && booking.status === "confirmed";
+  const releaseCopy = paymentReleaseCopy(booking);
 
   return <>
     {notice && <p role="status" className="mb-5 rounded-2xl bg-[#e6f2e6] px-5 py-4 text-sm font-semibold text-[#34704a]">{notice}</p>}
@@ -256,7 +274,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
 
         <div className="grid gap-6 p-6 sm:grid-cols-2 sm:p-8">
           <Detail icon="◷" label="Date and time" value={start.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} note={`${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}–${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`} />
-          <Detail icon="$" label={booking.quote.status === "accepted" ? "Approved quote" : "Service price"} value={`$${booking.price.toLocaleString()}`} note={booking.paymentStatus === "paid" ? "Paid securely through Stripe" : booking.paymentStatus === "refunded" ? "Payment refunded" : booking.quote.status === "accepted" ? "Customer approved this price" : "Payment due after confirmation"} />
+          <Detail icon="$" label={booking.quote.status === "accepted" ? "Approved quote" : "Service price"} value={`$${booking.price.toLocaleString()}`} note={releaseCopy.detail} />
           <Detail icon="⌖" label="Service location" value={booking.location} note="Shared only with this booking" />
           <Detail icon="✉" label={booking.viewerRole === "customer" ? "Service professional" : "Customer"} value={booking.viewerRole === "customer" ? booking.assigneeName : booking.customerName} note={booking.viewerRole === "customer" ? `From ${booking.providerName}` : "Message through BubsBookings"} />
         </div>
@@ -264,6 +282,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
         {booking.notes && <div className="border-t border-[#183126]/10 px-6 py-5 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Booking notes</p><p className="mt-2 text-sm leading-6 text-[#4f6559]">{booking.notes}</p></div>}
         {booking.status === "cancelled" && <div className="border-t border-[#183126]/10 bg-[#fff7f3] px-6 py-5 sm:px-8"><p className="font-bold text-[#854c3b]">Cancelled by {booking.cancelledBy ?? "a booking participant"}{booking.lateCancellation ? " · Late cancellation" : ""}</p><p className="mt-2 text-sm leading-6 text-[#765e55]">{booking.cancellationReason || "No reason was provided."}</p>{booking.lateCancellation && <p className="mt-2 text-xs font-semibold text-[#854c3b]">This was cancelled inside the provider&apos;s {booking.cancellationWindowHours}-hour notice window. Any future refund decision will follow the provider policy and payment terms.</p>}</div>}
         {booking.refund.status !== "none" && <div className="border-t border-[#183126]/10 bg-[#f3f6f0] px-6 py-5 sm:px-8"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold capitalize">Refund {booking.refund.status}</p><p className="mt-1 text-sm text-[#61736a]">{booking.refund.reason || booking.refund.failureReason || `${booking.refund.refundedAmount.toFixed(2)} returned to the original payment method.`}</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-bold">{booking.refund.requestedAmount ? `$${booking.refund.requestedAmount.toFixed(2)}` : "Payment refund"}</span></div></div>}
+        {booking.paymentStatus === "paid" && <div className="border-t border-[#183126]/10 bg-[#f7f8f3] px-6 py-5 sm:px-8"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Payment progress</p><p className="mt-2 font-bold">{releaseCopy.label}</p><p className="mt-1 max-w-2xl text-sm leading-6 text-[#61736a]">{releaseCopy.detail}</p>{booking.paymentRelease.freezeReason && <p className="mt-2 text-xs font-semibold text-[#934927]">Admin hold: {booking.paymentRelease.freezeReason}</p>}</div><span className="rounded-full bg-white px-3 py-1 text-xs font-bold">Provider share ${booking.paymentRelease.providerPayout.toFixed(2)}</span></div></div>}
       </section>
 
       {booking.quote.status !== "none" && booking.quote.price !== null && <section className={`rounded-[2rem] border p-6 sm:p-8 ${booking.quote.status === "pending" ? "border-[#d1c653] bg-[#fff9d8]" : booking.quote.status === "accepted" ? "border-[#7eaa86] bg-[#e8f3e8]" : "border-[#d8b2a2] bg-[#fff3ee]"}`}><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Custom service quote</p><div className="mt-2 flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-2xl font-bold">${booking.quote.price.toLocaleString()} quote</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#5f7168]">{booking.quote.message}</p></div><span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold capitalize">{booking.quote.status}</span></div>{booking.viewerRole === "customer" && booking.quote.status === "pending" && <div className="mt-5 flex flex-wrap gap-2"><button disabled={working} onClick={() => void respondToQuote("accept_quote")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white hover:bg-[#315846] disabled:opacity-50">Approve ${booking.quote.price.toLocaleString()}</button><button disabled={working} onClick={() => void respondToQuote("decline_quote")} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold hover:bg-[#f4d8cc] disabled:opacity-50">Decline quote</button></div>}{booking.viewerRole === "provider" && booking.quote.status === "declined" && <p className="mt-4 text-sm font-bold text-[#8a4f3d]">The customer declined this quote. You can send a revised one.</p>}</section>}
@@ -275,7 +294,8 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           <div className="mt-5 grid gap-3">
             <Link href={contactHref} className="rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]">✉ Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>
             {booking.viewerRole === "customer" && booking.status === "confirmed" && booking.paymentStatus !== "paid" && booking.paymentStatus !== "refunded" && <button disabled={working} onClick={() => void payForBooking()} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Opening Stripe…" : `Pay $${booking.price.toLocaleString()} securely`}</button>}
-            {booking.paymentStatus === "paid" && <div className="rounded-2xl bg-[#e6f2e6] px-4 py-3 text-center text-sm font-bold text-[#34704a]">✓ Payment complete</div>}
+            {booking.paymentStatus === "paid" && <div className="rounded-2xl bg-[#e6f2e6] px-4 py-3 text-center text-sm font-bold text-[#34704a]">✓ {releaseCopy.label}</div>}
+            {booking.viewerRole === "customer" && (booking.paymentRelease.status === "awaiting_customer" || (booking.paymentRelease.status === "failed" && Boolean(booking.paymentRelease.customerConfirmedAt))) && <button disabled={working} onClick={() => void confirmCompletion()} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Releasing payout…" : booking.paymentRelease.status === "failed" ? "Retry payout release" : "Confirm service complete"}</button>}
             {booking.viewerRole === "customer" && booking.paymentStatus === "paid" && !["requested", "processing", "refunded"].includes(booking.refund.status) && <button disabled={working} onClick={() => void refundAction("request")} className="rounded-full border border-[#9b4e3a]/25 px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Request a refund</button>}
             {booking.viewerRole === "provider" && booking.refund.status === "requested" && <><button disabled={working} onClick={() => void refundAction("approve")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">Approve refund</button><button disabled={working} onClick={() => void refundAction("reject")} className="rounded-full border border-[#9b4e3a]/25 px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Decline refund</button></>}
             {booking.viewerRole === "provider" && canCancel && <label className="text-sm font-bold">Assigned professional<select disabled={working} value={booking.assignedTeamMemberId ?? "owner"} onChange={(event) => void assignBooking(event.target.value)} className="mt-2 w-full rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3"><option value="owner">Company owner</option>{booking.teamMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>}
@@ -304,7 +324,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       {booking.review ? <div className="mt-5 rounded-2xl bg-[#f5f5ef] p-5"><p className="text-xl text-[#d0a51d]">{"★".repeat(booking.review.rating)}<span className="text-[#d8ddd9]">{"★".repeat(5 - booking.review.rating)}</span></p><p className="mt-3 text-sm leading-6 text-[#52665b]">{booking.review.body}</p></div> : <form onSubmit={submitReview} className="mt-5 max-w-2xl"><div className="flex gap-1" aria-label="Rating">{[1, 2, 3, 4, 5].map((star) => <button key={star} type="button" onClick={() => setRating(star)} aria-label={`${star} stars`} className={`rounded-lg px-1 text-3xl transition hover:bg-[#fff4b5] ${star <= rating ? "text-[#d0a51d]" : "text-[#d8ddd9]"}`}>★</button>)}</div><label htmlFor="review" className="mt-5 block text-sm font-bold">Share your experience</label><textarea id="review" value={review} onChange={(event) => setReview(event.target.value)} minLength={3} maxLength={1000} rows={4} required className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none focus:border-[#6f7f4c] focus:ring-2 focus:ring-[#eee25a]/50" placeholder="What went well? What should future customers know?" /><button disabled={working} className="mt-4 rounded-full bg-[#183126] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Saving…" : "Post verified review"}</button></form>}
     </section>}
 
-    {cancelOpen && <div className="fixed inset-0 z-[70] grid place-items-center bg-[#10251c]/55 p-5" role="dialog" aria-modal="true" aria-labelledby="cancel-title"><form onSubmit={cancelBooking} className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><h2 id="cancel-title" className="text-2xl font-bold">{booking.viewerRole === "provider" && booking.status === "requested" ? "Decline this request?" : "Cancel this booking?"}</h2><p className="mt-2 text-sm leading-6 text-[#687970]">Give a short reason. It will be shared with the other person so they know what happened.</p>{booking.viewerRole === "customer" && booking.status === "confirmed" && <div className="mt-4 rounded-2xl bg-[#fff5cf] p-4 text-xs leading-5 text-[#6f642d]"><p className="font-bold">Provider notice window: {booking.cancellationWindowHours} hours</p><p className="mt-1">{booking.cancellationPolicy}</p><p className="mt-2">Cancellations inside this window are recorded as late. No fee is charged until payments and refund rules are added.</p></div>}<label htmlFor="cancellation-reason" className="mt-5 block text-sm font-bold">Reason</label><textarea id="cancellation-reason" autoFocus required minLength={3} maxLength={500} rows={4} value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none focus:border-[#6f7f4c] focus:ring-2 focus:ring-[#eee25a]/50" placeholder="For example: My schedule changed unexpectedly." /><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setCancelOpen(false)} className="rounded-full px-5 py-3 text-sm font-bold transition hover:bg-[#edf1ec]">Keep booking</button><button disabled={working} className="rounded-full bg-[#9b4e3a] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#7f3d2d] disabled:opacity-50">{working ? "Saving…" : "Confirm cancellation"}</button></div></form></div>}
+    {cancelOpen && <div className="fixed inset-0 z-[70] grid place-items-center bg-[#10251c]/55 p-5" role="dialog" aria-modal="true" aria-labelledby="cancel-title"><form onSubmit={cancelBooking} className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><h2 id="cancel-title" className="text-2xl font-bold">{booking.viewerRole === "provider" && booking.status === "requested" ? "Decline this request?" : "Cancel this booking?"}</h2><p className="mt-2 text-sm leading-6 text-[#687970]">Give a short reason. It will be shared with the other person so they know what happened.</p>{booking.viewerRole === "customer" && booking.status === "confirmed" && <div className="mt-4 rounded-2xl bg-[#fff5cf] p-4 text-xs leading-5 text-[#6f642d]"><p className="font-bold">Provider notice window: {booking.cancellationWindowHours} hours</p><p className="mt-1">{booking.cancellationPolicy}</p><p className="mt-2">If your payment is still held, cancellations outside this notice window are refunded automatically. Late cancellations require review.</p></div>}<label htmlFor="cancellation-reason" className="mt-5 block text-sm font-bold">Reason</label><textarea id="cancellation-reason" autoFocus required minLength={3} maxLength={500} rows={4} value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none focus:border-[#6f7f4c] focus:ring-2 focus:ring-[#eee25a]/50" placeholder="For example: My schedule changed unexpectedly." /><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setCancelOpen(false)} className="rounded-full px-5 py-3 text-sm font-bold transition hover:bg-[#edf1ec]">Keep booking</button><button disabled={working} className="rounded-full bg-[#9b4e3a] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#7f3d2d] disabled:opacity-50">{working ? "Saving…" : "Confirm cancellation"}</button></div></form></div>}
     {rescheduleOpen && booking.viewerRole === "customer" && <div className="fixed inset-0 z-[70] grid place-items-center bg-[#10251c]/55 p-5" role="dialog" aria-modal="true"><form onSubmit={requestReschedule} className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><h2 className="text-2xl font-bold">Request a new time</h2><p className="mt-2 text-sm text-[#687970]">The provider must approve your request before the booking moves.</p><label htmlFor="reschedule-date" className="mt-5 block text-sm font-bold">New date and time</label><input id="reschedule-date" type="datetime-local" required value={rescheduleDate} onChange={(event) => setRescheduleDate(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3" /><label htmlFor="reschedule-reason" className="mt-4 block text-sm font-bold">Reason</label><textarea id="reschedule-reason" required minLength={3} maxLength={500} rows={3} value={rescheduleReason} onChange={(event) => setRescheduleReason(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3" placeholder="Why do you need a different time?" /><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setRescheduleOpen(false)} className="rounded-full px-5 py-3 text-sm font-bold hover:bg-[#edf1ec]">Close</button><button disabled={working} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white hover:bg-[#315846]">{working ? "Sending…" : "Send request"}</button></div></form></div>}
     {quoteOpen && booking.viewerRole === "provider" && <div className="fixed inset-0 z-[70] grid place-items-center bg-[#10251c]/55 p-5" role="dialog" aria-modal="true"><form onSubmit={sendQuote} className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Before confirmation</p><h2 className="mt-2 text-2xl font-bold">Send a custom quote</h2><p className="mt-2 text-sm leading-6 text-[#687970]">Explain why this job costs more or less than the starting price. The customer must approve your quote before you can confirm the booking.</p><label className="mt-5 block text-sm font-bold">Quoted price ($)<input required type="number" min="1" max="1000000" step="0.01" value={quotePrice} onChange={(event) => setQuotePrice(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3" /></label><label className="mt-4 block text-sm font-bold">What changed?<textarea required minLength={3} maxLength={500} rows={4} value={quoteMessage} onChange={(event) => setQuoteMessage(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3" placeholder="Example: The vehicle needs pet-hair removal and a deep interior treatment." /></label><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setQuoteOpen(false)} className="rounded-full px-5 py-3 text-sm font-bold hover:bg-[#edf1ec]">Cancel</button><button disabled={working} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{working ? "Sending…" : "Send quote"}</button></div></form></div>}
   </>;
@@ -312,4 +332,20 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
 
 function Detail({ icon, label, value, note }: { icon: string; label: string; value: string; note: string }) {
   return <div className="flex gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#edf2e9] font-bold">{icon}</span><div><p className="text-xs font-bold uppercase tracking-[.1em] text-[#718078]">{label}</p><p className="mt-1 font-bold">{value}</p><p className="mt-1 text-xs text-[#7d8983]">{note}</p></div></div>;
+}
+
+function paymentReleaseCopy(booking: Booking) {
+  if (booking.paymentStatus === "refunded") return { label: "Payment refunded", detail: "The payment was returned to the original payment method." };
+  if (booking.paymentStatus !== "paid") return { label: "Payment not completed", detail: booking.quote.status === "accepted" ? "Customer approved this price" : "Payment is due after booking confirmation." };
+  switch (booking.paymentRelease.status) {
+    case "secured": return { label: "Payment secured · Awaiting completion", detail: "Stripe has collected the payment. The provider share stays held until the service is completed." };
+    case "awaiting_customer": return { label: "Awaiting completion confirmation", detail: `The provider marked the service complete. Confirm it or open a dispute${booking.paymentRelease.confirmationDueAt ? ` before ${new Date(booking.paymentRelease.confirmationDueAt).toLocaleString()}` : " within 48 hours"}.` };
+    case "processing": return { label: "Payout processing", detail: "The provider payout is being released through Stripe." };
+    case "paid_out": return { label: "Paid out", detail: "The provider's full share has been released to their Stripe balance." };
+    case "partially_released": return { label: "Partially released", detail: "Part of the provider payout was reversed because of a partial refund." };
+    case "frozen": return { label: "Payout on hold", detail: "An administrator paused this payout while the booking is reviewed." };
+    case "reversed": return { label: "Payout reversed", detail: "The provider payout was withheld or reversed because the payment was refunded." };
+    case "failed": return { label: "Payout needs attention", detail: booking.paymentRelease.failureReason || "Stripe could not release this payout. BubsBookings support has been notified." };
+    default: return { label: "Payment complete", detail: "Paid securely through Stripe." };
+  }
 }

@@ -65,16 +65,16 @@ export default function AccountPage() {
   return (
     <main className="min-h-screen bg-[#f5f4ef] text-[#183126]">
       <header className="relative z-50 border-b border-[#183126]/10 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BubsBookings</Link>
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-8 sm:py-4">
+          <Link href="/" className="flex min-w-0 items-center gap-2 text-lg font-bold tracking-tight sm:gap-2.5 sm:text-xl"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span><span className="hidden min-[430px]:inline">BubsBookings</span><span className="min-[430px]:hidden">Bubs</span></Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold md:flex"><Link href="/services" className="hover:text-[#5b7365]">Explore services</Link><Link href="/providers/join" className="hover:text-[#5b7365]">List your service</Link></nav>
-          <div className="flex items-center gap-2 sm:gap-3"><Link href={isProvider ? "/provider/dashboard" : "/providers/join"} className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:text-sm">↔ <span className="hidden sm:inline">{isProvider ? "Switch to " : "Become a "}</span>provider</Link><NotificationBell /><ProfileAvatar name={accountName ?? "BubsBookings"} imageUrl={session?.user.image} className="h-10 w-10 text-sm" /></div>
+          <div className="flex min-w-0 items-center gap-1 sm:gap-3"><Link href={isProvider ? "/provider/dashboard" : "/providers/join"} aria-label={isProvider ? "Switch to provider view" : "Become a provider"} className="rounded-full border border-[#183126]/15 bg-[#faf9f5] px-3 py-2.5 text-xs font-bold transition hover:border-[#4d725d] hover:bg-[#dfead9] sm:px-4 sm:text-sm">↔ <span className="hidden min-[460px]:inline"><span className="hidden sm:inline">{isProvider ? "Switch to " : "Become a "}</span>provider</span></Link><NotificationBell /><ProfileAvatar name={accountName ?? "BubsBookings"} imageUrl={session?.user.image} className="hidden h-10 w-10 text-sm min-[500px]:grid" /></div>
         </div>
       </header>
 
       {toast && <div role="status" className="fixed right-5 top-20 z-50 flex max-w-sm items-start gap-3 rounded-2xl bg-[#183126] p-4 text-sm text-white shadow-2xl"><span className="text-[#eee25a]">✓</span><p className="font-semibold">{toast}</p><button onClick={() => setToast("")} aria-label="Dismiss" className="ml-2 rounded-full px-2 text-white/60 transition hover:bg-white/15 hover:text-white">×</button></div>}
 
-      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-14">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div><p className="text-sm font-semibold text-[#687a70]">Customer account</p><h1 className="mt-1 text-4xl font-bold tracking-[-.045em]">Hi, {firstName}.</h1><p className="mt-2 text-[#687a70]">Keep track of your bookings and favorite local pros.</p></div>
           <div className="flex flex-wrap gap-2 self-start sm:self-auto"><Link href="/account/calendar" className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">▣ Calendar</Link><Link href="/account/settings" className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">⚙ Settings</Link><Link href="/account/messages" className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">✉ Messages</Link><Link href="/services" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Book a service</Link></div>

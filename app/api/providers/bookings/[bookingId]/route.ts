@@ -6,6 +6,7 @@ import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { recordAnalytics } from "@/lib/analytics";
+import { refundUnreleasedBooking } from "@/lib/payment-release";
 
 type BookingAction = "accepted" | "declined" | "completed" | "cancel" | "approve_reschedule" | "decline_reschedule" | "assign" | "send_quote";
 
@@ -54,12 +55,12 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       id: string; provider_id: string; starts_at: Date; ends_at: Date; status: string;
       customer_id: string; customer_name: string; service_title: string;
       reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null;
-      assigned_team_member_id: string | null; quote_status: string;
+      assigned_team_member_id: string | null; quote_status: string; payment_status: string; payment_flow: string | null;
     }>(
       `SELECT b.id::text, b.provider_id::text, b.starts_at, b.ends_at, b.status,
               b.customer_id, u.name AS customer_name, s.title AS service_title,
               b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.assigned_team_member_id::text,
-              b.quote_status
+              b.quote_status, b.payment_status, b.payment_flow
        FROM bookings b
        JOIN provider_profiles p ON p.id = b.provider_id
        JOIN services s ON s.id = b.service_id
@@ -191,14 +192,23 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "This job can be completed after its scheduled end time." }, { status: 409 });
       }
-      await client.query("UPDATE bookings SET status = 'completed', completed_at = now() WHERE id::text = $1", [bookingId]);
+      await client.query(`UPDATE bookings SET status = 'completed', completed_at = now(),
+        payment_release_status = CASE
+          WHEN payment_status = 'paid' AND payment_flow = 'held_transfer_v1' AND payout_frozen_at IS NULL THEN 'awaiting_customer'
+          ELSE payment_release_status END,
+        completion_confirmation_due_at = CASE
+          WHEN payment_status = 'paid' AND payment_flow = 'held_transfer_v1' THEN now() + interval '48 hours'
+          ELSE completion_confirmation_due_at END
+        WHERE id::text = $1`, [bookingId]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
         VALUES ($1::uuid, $2, 'completed', 'Provider marked the service complete.')`, [bookingId, session.user.id]);
       await client.query(
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
          VALUES ($1, $2::uuid, 'booking_completed', 'Service completed', $3, '/account/bookings/' || $2::uuid::text, 'booking-completed-' || $2::uuid::text || '-customer')
          ON CONFLICT (dedupe_key) DO NOTHING`,
-        [booking.customer_id, bookingId, `${booking.service_title} was marked complete. You can now review your experience.`],
+        [booking.customer_id, bookingId, booking.payment_status === "paid" && booking.payment_flow === "held_transfer_v1"
+          ? `${booking.service_title} was marked complete. Confirm the work or open a dispute within 48 hours; otherwise the provider payout releases automatically.`
+          : `${booking.service_title} was marked complete. You can now review your experience.`],
       );
     } else if (action === "declined" || action === "cancel") {
       const allowedStatus = action === "declined" ? "requested" : "confirmed";
@@ -288,10 +298,11 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       );
     }
     await client.query("COMMIT");
+    const automaticRefund = action === "cancel" ? await refundUnreleasedBooking(bookingId, "Provider cancelled before payout release.") : null;
     await recordActivity({ userId: session.user.id, action, targetType: "booking", targetId: bookingId });
     if (action === "cancel" || action === "declined") await recordAnalytics({ eventName: "booking_cancelled", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { cancelledBy: "provider" } });
     if (!action.includes("reschedule") && action !== "assign" && action !== "send_quote") await sendBookingUpdateEmails(bookingId, action === "accepted" ? "accepted" : action === "completed" ? "completed" : action === "declined" ? "declined" : "cancelled");
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, refundWarning: automaticRefund && !automaticRefund.ok ? automaticRefund.error : undefined });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Provider booking update failed", error);

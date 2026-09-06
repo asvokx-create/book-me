@@ -48,3 +48,9 @@ Push BubsBookings to a private GitHub repository. In DigitalOcean App Platform, 
 ## 5. Add uploads later
 
 Create a private DigitalOcean Space and set the `DO_SPACES_*` variables from `.env.example`. Upload support is intentionally not enabled until the provider onboarding flow is connected to real data.
+
+## 6. Schedule reminders and payout releases
+
+Set a long random `CRON_SECRET`, then call `POST /api/cron/booking-reminders` every 10 minutes with the header `Authorization: Bearer YOUR_CRON_SECRET`. That single scheduled request sends due booking reminders and releases provider payments whose 48-hour customer confirmation window has ended. `POST /api/cron/payment-releases` is also available when payout processing needs a separate schedule.
+
+Never expose `CRON_SECRET` in browser code or commit it to GitHub. Monitor the Operations page for failed or delayed payout-release runs.

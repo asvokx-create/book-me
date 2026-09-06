@@ -22,15 +22,15 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>BubsBookings</Link>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
+          <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span><span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span></Link>
           <div className="flex items-center gap-3"><Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link><AccountNav /></div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-6 py-8 sm:py-12">
+      <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-12">
         <Link href="/services" className="inline-flex items-center gap-2 text-sm font-semibold text-[#5f7268] transition hover:text-[#183126]">← Back to services</Link>
-        <div className="mt-7 grid gap-10 lg:grid-cols-[1.25fr_.75fr]">
+        <div className="mt-7 grid gap-7 lg:grid-cols-[1.25fr_.75fr] lg:gap-10">
           <div>
             <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-cover bg-center sm:h-[420px] ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!service.imageUrls[0] && <><div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" /><div className="absolute bottom-[-40%] left-[18%] h-[90%] w-[80%] rounded-[50%] border-[36px] border-white/20" /><span className="absolute bottom-8 right-10 text-8xl opacity-80 sm:text-9xl">{visual.art}</span></>}<span className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-sm backdrop-blur">New listing</span><FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-6 top-6 z-10 grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-sm backdrop-blur" /></div>
             {service.imageUrls.length > 1 && <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{service.imageUrls.slice(1).map((url, index) => <div key={url} role="img" aria-label={`${service.title} photo ${index + 2}`} style={{ backgroundImage: `url("${url}")` }} className="aspect-[4/3] rounded-2xl bg-[#e5e8e2] bg-cover bg-center" />)}</div>}
