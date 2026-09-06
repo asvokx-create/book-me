@@ -8,7 +8,7 @@ let stripeClient: Stripe | null = null;
 export function getStripe() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) throw new Error("STRIPE_SECRET_KEY is not configured.");
-  stripeClient ??= new Stripe(secretKey);
+  stripeClient ??= new Stripe(secretKey, { timeout: 15_000, maxNetworkRetries: 1 });
   return stripeClient;
 }
 
