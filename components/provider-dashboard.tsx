@@ -40,6 +40,7 @@ type ProviderSummary = {
   cancellationWindowHours: number;
   cancellationPolicy: string;
   noShowPolicy: string;
+  serviceRadiusMiles: number;
 };
 
 type ProviderService = { id: string; slug: string; title: string; category: string; price: number; durationMinutes: number; imageUrls: string[] };

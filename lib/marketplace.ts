@@ -24,6 +24,7 @@ export type ServiceListing = {
   cancellationWindowHours: number;
   cancellationPolicy: string;
   noShowPolicy: string;
+  serviceRadiusMiles: number;
   distanceMiles?: number;
 };
 
@@ -47,6 +48,7 @@ type ServiceRow = {
   cancellation_window_hours: number;
   cancellation_policy: string;
   no_show_policy: string;
+  service_radius_miles: number;
   image_urls: string[] | null;
 };
 
@@ -71,6 +73,7 @@ function mapService(row: ServiceRow): ServiceListing {
     cancellationWindowHours: row.cancellation_window_hours,
     cancellationPolicy: row.cancellation_policy,
     noShowPolicy: row.no_show_policy,
+    serviceRadiusMiles: row.service_radius_miles,
     imageUrls: row.image_urls ?? [],
   };
 }
@@ -114,7 +117,7 @@ export async function getServices(options: { query?: string; category?: string; 
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
-            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
@@ -133,7 +136,7 @@ export async function getServices(options: { query?: string; category?: string; 
     const serviceArea = getServiceAreaCoordinates(`${service.city}, ${service.state}`);
     if (!serviceArea) return [];
     const distance = distanceMiles(searchOrigin, serviceArea);
-    return distance <= radiusMiles ? [{ ...service, distanceMiles: distance }] : [];
+    return distance <= radiusMiles && distance <= service.serviceRadiusMiles ? [{ ...service, distanceMiles: distance }] : [];
   });
   if (options.sort === "nearest" || !options.sort) nearbyServices.sort((left, right) => (left.distanceMiles ?? 0) - (right.distanceMiles ?? 0));
   return nearbyServices.slice(0, requestedLimit);
@@ -146,7 +149,7 @@ export async function getServiceBySlug(slug: string) {
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
-            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
@@ -168,7 +171,7 @@ export async function getServiceById(id: string) {
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
-            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
@@ -253,7 +256,7 @@ async function getServicesForProvider(providerId: string) {
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
-            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
@@ -275,7 +278,7 @@ export async function getFavoriteServices(customerId: string) {
             s.duration_minutes, p.id::text AS provider_id,
             p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
-            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
+            p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id

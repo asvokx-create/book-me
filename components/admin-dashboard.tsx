@@ -27,8 +27,8 @@ type Account = {
   phone_verified: boolean | null; identity_verified: boolean | null; business_verified: boolean | null;
 };
 type Listing = {
-  id: string; title: string; category: string; is_active: boolean; price_cents: number;
-  created_at: string; business_name: string; provider_id: string;
+  id: string; slug: string; title: string; category: string; description: string; is_active: boolean; price_cents: number;
+  created_at: string; business_name: string; city: string; state: string; provider_id: string;
 };
 type Review = {
   id: string; rating: number; body: string; is_hidden: boolean; created_at: string;
@@ -142,10 +142,10 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: options.action, targetId: options.targetId, status: options.status, reason }),
     }).catch(() => null);
-    const result = response ? await response.json() as { error?: string } : null;
+    const result = response ? await response.json() as { error?: string; message?: string } : null;
     if (!response?.ok) setError(result?.error ?? "That change could not be saved.");
     else {
-      setNotice(options.successText);
+      setNotice(result?.message ?? options.successText);
       await load();
     }
     setBusyId("");
@@ -290,7 +290,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
 
           {data && section === "listings" && (
             <div className="grid gap-4 xl:grid-cols-2">
-              {data.listings.map((listing) => <article key={listing.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><StatusPill value={listing.is_active ? "active" : "inactive"} /><span className="text-xs font-bold uppercase tracking-wider text-[#718078]">{listing.category}</span></div><h2 className="mt-3 text-xl font-bold">{listing.title}</h2><p className="mt-1 text-sm text-[#718078]">{listing.business_name} · {"$" + (listing.price_cents / 100).toFixed(0)}</p><p className="mt-2 text-xs text-[#8a9690]">Added {formatDate(listing.created_at)}</p></div><button disabled={busyId === listing.id} onClick={() => void runAction({ action: "listing_status", targetId: listing.id, status: listing.is_active ? "inactive" : "active", confirmText: listing.is_active ? "Remove this listing from the marketplace?" : "Restore this listing to the marketplace?", successText: listing.is_active ? "Listing removed." : "Listing restored." })} className={"shrink-0 rounded-full px-4 py-2 text-xs font-bold transition " + (listing.is_active ? "bg-[#fff0e7] text-[#9a4e25] hover:bg-[#f8d9ca]" : "bg-[#34704a] text-white hover:bg-[#285b3b]")}>{listing.is_active ? "Remove" : "Restore"}</button></div></article>)}
+              {data.listings.map((listing) => <article key={listing.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6"><div className="flex h-full flex-col"><div className="flex flex-wrap items-center gap-2"><StatusPill value={listing.is_active ? "active" : "inactive"} /><span className="text-xs font-bold uppercase tracking-wider text-[#718078]">{listing.category}</span></div><h2 className="mt-3 text-xl font-bold">{listing.title}</h2><p className="mt-1 text-sm text-[#718078]">{listing.business_name} · {listing.city}, {listing.state} · {"$" + (listing.price_cents / 100).toFixed(0)}</p><p className="mt-2 line-clamp-2 text-sm leading-6 text-[#64756c]">{listing.description}</p><p className="mt-2 text-xs text-[#8a9690]">Added {formatDate(listing.created_at)}</p><div className="mt-5 flex flex-wrap gap-2"><Link href={`/admin/listings/${listing.id}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View listing</Link><button disabled={busyId === listing.id} onClick={() => void runAction({ action: "listing_safety_scan", targetId: listing.id, successText: "Safety review completed." })} className="rounded-full bg-[#eee25a] px-4 py-2 text-xs font-bold transition hover:bg-[#e1d43d] disabled:opacity-50">{busyId === listing.id ? "Checking…" : "Run safety check"}</button><button disabled={busyId === listing.id} onClick={() => void runAction({ action: "listing_status", targetId: listing.id, status: listing.is_active ? "inactive" : "active", confirmText: listing.is_active ? "Remove this listing from the marketplace?" : "Restore this listing to the marketplace?", successText: listing.is_active ? "Listing removed." : "Listing restored." })} className={"rounded-full px-4 py-2 text-xs font-bold transition " + (listing.is_active ? "bg-[#fff0e7] text-[#9a4e25] hover:bg-[#f8d9ca]" : "bg-[#34704a] text-white hover:bg-[#285b3b]")}>{listing.is_active ? "Remove" : "Restore"}</button></div></div></article>)}
               {data.listings.length === 0 && <EmptyState title="No listings yet" body="Provider services will appear here." />}
             </div>
           )}

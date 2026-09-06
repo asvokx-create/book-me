@@ -14,6 +14,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   const [business, setBusiness] = useState("");
   const [category, setCategory] = useState("");
   const [city, setCity] = useState("Issaquah, WA");
+  const [serviceRadiusMiles, setServiceRadiusMiles] = useState("15");
   const [service, setService] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("2 hours");
@@ -77,7 +78,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
     const response = await fetch("/api/providers/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ business, category, city, service, price, duration, description, selectedDays, startTime, endTime, plan }),
+      body: JSON.stringify({ business, category, city, serviceRadiusMiles: Number(serviceRadiusMiles), service, price, duration, description, selectedDays, startTime, endTime, plan }),
     });
     const result = (await response.json()) as { error?: string; serviceId?: string };
 
@@ -127,6 +128,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
           <label className="block"><span className="mb-2 block text-sm font-bold">Business name</span><input value={business} onChange={(event) => setBusiness(event.target.value)} placeholder="Your business name" className={inputClass} /></label>
           <label className="block"><span className="mb-2 block text-sm font-bold">Main category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass}><option value="">Choose a category</option>{SERVICE_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label className="block"><span className="mb-2 block text-sm font-bold">Service area</span><select value={city} onChange={(event) => setCity(event.target.value)} className={inputClass}>{SERVICE_AREAS.map((area) => { const label = serviceAreaLabel(area); return <option key={label} value={label}>{label}</option>; })}</select><span className="mt-2 block text-xs text-[#74827b]">BubsBookings uses this verified city coordinate to calculate customer distance and radius results.</span></label>
+          <label className="block"><span className="mb-2 block text-sm font-bold">Working radius</span><select value={serviceRadiusMiles} onChange={(event) => setServiceRadiusMiles(event.target.value)} className={inputClass}>{[5, 10, 15, 25, 50, 100].map((value) => <option key={value} value={value}>Within {value} miles</option>)}</select><span className="mt-2 block text-xs text-[#74827b]">Your listings appear only to customers searching within this distance from your service area.</span></label>
         </div>}
 
         {step === 2 && <div className="space-y-5">

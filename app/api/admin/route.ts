@@ -1,8 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { releaseBookingPayout } from "@/lib/payment-release";
+import { scanContent } from "@/lib/content-safety";
 
 const reportStatuses = new Set(["reviewing", "resolved", "dismissed"]);
 const accountStatuses = new Set(["active", "suspended", "banned"]);
@@ -57,8 +58,8 @@ async function loadDashboard() {
        LIMIT 75`,
     ),
     database.query(
-      `SELECT s.id::text, s.title, s.category, s.is_active, s.price_cents,
-              s.created_at, p.business_name, p.id::text AS provider_id
+      `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.is_active, s.price_cents,
+              s.created_at, p.business_name, p.city, p.state, p.id::text AS provider_id
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
        ORDER BY s.created_at DESC
@@ -137,6 +138,57 @@ export async function PATCH(request: Request) {
     await database.query(`INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
       VALUES ($1, 'payout_retried', 'booking_payout', $2, $3::jsonb)`, [session.user.id, targetId, JSON.stringify({ transferId: release.transferId })]);
     return NextResponse.json({ ok: true });
+  }
+
+  if (action === "listing_safety_scan") {
+    const listingResult = await database.query<{
+      id: string; title: string; category: string; description: string;
+      business_name: string; city: string; state: string; owner_id: string;
+    }>(
+      `SELECT s.id::text, s.title, s.category, s.description,
+              p.business_name, p.city, p.state, p.user_id AS owner_id
+       FROM services s
+       JOIN provider_profiles p ON p.id = s.provider_id
+       WHERE s.id::text = $1
+       LIMIT 1`,
+      [targetId],
+    );
+    const listing = listingResult.rows[0];
+    if (!listing) return NextResponse.json({ error: "That listing no longer exists." }, { status: 404 });
+
+    const content = [listing.title, listing.category, listing.description, listing.business_name, listing.city, listing.state].join("\n");
+    const safety = scanContent(content);
+    const client = await database.connect();
+    try {
+      await client.query("BEGIN");
+      if (!safety.allowed) {
+        await client.query(
+          `INSERT INTO moderation_events (user_id, surface, category, severity, action, content_hash)
+           VALUES ($1, 'admin_listing_review', $2, $3, 'flagged', $4)`,
+          [listing.owner_id, safety.category, safety.severity, createHash("sha256").update(content).digest("hex")],
+        );
+      }
+      await client.query(
+        `INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
+         VALUES ($1, 'listing_safety_scanned', 'listing', $2, $3::jsonb)`,
+        [session.user.id, targetId, JSON.stringify({ allowed: safety.allowed, category: safety.category, severity: safety.severity })],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Listing safety scan failed", error);
+      return NextResponse.json({ error: "The Safety Bot could not review this listing." }, { status: 500 });
+    } finally {
+      client.release();
+    }
+
+    return NextResponse.json({
+      ok: true,
+      safety,
+      message: safety.allowed
+        ? `Safety Bot passed “${listing.title}”. No blocked content was found.`
+        : `Safety Bot flagged “${listing.title}” for ${safety.category} (${safety.severity}). Review the listing before taking action.`,
+    });
   }
 
   const client = await database.connect();
