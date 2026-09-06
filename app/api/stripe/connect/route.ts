@@ -19,13 +19,15 @@ export async function POST(request: Request) {
     if (!provider) return NextResponse.json({ error: "Create your provider profile before setting up payouts." }, { status: 404 });
     const stripe = getStripe();
     const mode = getStripeMode();
+    const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL;
+    const origin = configuredOrigin ? new URL(configuredOrigin).origin : new URL(request.url).origin;
     let accountId = provider.stripe_connect_mode === mode ? provider.stripe_account_id : null;
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: "express",
         country: "US",
         email: session.user.email,
-        business_profile: { name: provider.business_name, url: new URL(request.url).origin },
+        business_profile: { name: provider.business_name, url: origin },
         capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
         metadata: { providerId: provider.id, userId: session.user.id },
       }, { idempotencyKey: `provider-connect-${mode}-${provider.id}` });
@@ -33,7 +35,6 @@ export async function POST(request: Request) {
       await database.query(`UPDATE provider_profiles SET stripe_account_id = $2, stripe_connect_mode = $3,
         stripe_charges_enabled = false, stripe_payouts_enabled = false WHERE id::text = $1`, [provider.id, accountId, mode]);
     }
-    const origin = new URL(request.url).origin;
     const link = await stripe.accountLinks.create({
       account: accountId,
       type: "account_onboarding",
