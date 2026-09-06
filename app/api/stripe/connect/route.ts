@@ -30,7 +30,10 @@ export async function POST(request: Request) {
         business_profile: { name: provider.business_name, url: origin },
         capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
         metadata: { providerId: provider.id, userId: session.user.id },
-      }, { idempotencyKey: `provider-connect-${mode}-${provider.id}` });
+      // v1 can contain Stripe's cached response from before the platform's
+      // live Connect profile was approved. Keep retries idempotent while
+      // starting a fresh request now that the platform setup is complete.
+      }, { idempotencyKey: `provider-connect-${mode}-v2-${provider.id}` });
       accountId = account.id;
       await database.query(`UPDATE provider_profiles SET stripe_account_id = $2, stripe_connect_mode = $3,
         stripe_charges_enabled = false, stripe_payouts_enabled = false WHERE id::text = $1`, [provider.id, accountId, mode]);
