@@ -19,6 +19,7 @@ type Booking = {
   endsAt: string;
   location: string;
   notes: string;
+  bookingAnswers: Record<string, string>;
   price: number;
   paymentStatus: "unpaid" | "pending" | "paid" | "refunded" | "failed";
   paidAt: string | null;
@@ -280,6 +281,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
         </div>
 
         {booking.notes && <div className="border-t border-[#183126]/10 px-6 py-5 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Booking notes</p><p className="mt-2 text-sm leading-6 text-[#4f6559]">{booking.notes}</p></div>}
+        {Object.keys(booking.bookingAnswers ?? {}).length > 0 && <div className="border-t border-[#183126]/10 px-6 py-5 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Provider questions</p><div className="mt-3 space-y-3">{Object.entries(booking.bookingAnswers).map(([question, answer]) => <div key={question}><p className="text-sm font-bold">{question}</p><p className="mt-1 text-sm leading-6 text-[#4f6559]">{answer}</p></div>)}</div></div>}
         {booking.status === "cancelled" && <div className="border-t border-[#183126]/10 bg-[#fff7f3] px-6 py-5 sm:px-8"><p className="font-bold text-[#854c3b]">Cancelled by {booking.cancelledBy ?? "a booking participant"}{booking.lateCancellation ? " · Late cancellation" : ""}</p><p className="mt-2 text-sm leading-6 text-[#765e55]">{booking.cancellationReason || "No reason was provided."}</p>{booking.lateCancellation && <p className="mt-2 text-xs font-semibold text-[#854c3b]">This was cancelled inside the provider&apos;s {booking.cancellationWindowHours}-hour notice window. Any future refund decision will follow the provider policy and payment terms.</p>}</div>}
         {booking.refund.status !== "none" && <div className="border-t border-[#183126]/10 bg-[#f3f6f0] px-6 py-5 sm:px-8"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold capitalize">Refund {booking.refund.status}</p><p className="mt-1 text-sm text-[#61736a]">{booking.refund.reason || booking.refund.failureReason || `${booking.refund.refundedAmount.toFixed(2)} returned to the original payment method.`}</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-bold">{booking.refund.requestedAmount ? `$${booking.refund.requestedAmount.toFixed(2)}` : "Payment refund"}</span></div></div>}
         {booking.paymentStatus === "paid" && <div className="border-t border-[#183126]/10 bg-[#f7f8f3] px-6 py-5 sm:px-8"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Payment progress</p><p className="mt-2 font-bold">{releaseCopy.label}</p><p className="mt-1 max-w-2xl text-sm leading-6 text-[#61736a]">{releaseCopy.detail}</p>{booking.paymentRelease.freezeReason && <p className="mt-2 text-xs font-semibold text-[#934927]">Admin hold: {booking.paymentRelease.freezeReason}</p>}</div><span className="rounded-full bg-white px-3 py-1 text-xs font-bold">Provider share ${booking.paymentRelease.providerPayout.toFixed(2)}</span></div></div>}

@@ -20,7 +20,7 @@ const plans = [
     cadence: "forever",
     fee: "10% booking fee",
     description: "Everything you need to start getting booked.",
-    features: ["Up to 2 services", "Up to 5 photos", "Booking calendar", "Customer messaging", "Basic reminders", "Basic analytics", "Owner only"],
+    features: ["Up to 2 services", "Up to 5 photos", "Booking calendar", "Customer messaging", "24-hour booking reminders", "Basic analytics", "Owner only"],
     featured: false,
   },
   {
@@ -30,7 +30,7 @@ const plans = [
     cadence: "per month",
     fee: "4% booking fee",
     description: "More tools for a growing service business.",
-    features: ["Unlimited services & photos", "Custom booking questions", "Automated reminders", "Advanced analytics", "Promo codes", "Repeat-customer tools", "Up to 3 team members"],
+    features: ["Unlimited services & photos", "Custom booking questions", "24-hour and 1-hour reminders", "Advanced analytics", "Repeat-customer insights", "3 total team seats"],
     featured: true,
   },
   {
@@ -40,7 +40,7 @@ const plans = [
     cadence: "per month",
     fee: "2% booking fee",
     description: "Powerful controls for established teams.",
-    features: ["Everything in Pro", "Unlimited team members", "Multiple locations", "Priority support", "Higher featured placement", "Advanced analytics", "Unlimited services & photos"],
+    features: ["Everything in Pro", "Unlimited team members", "Multiple service locations", "Priority support", "Priority placement in browse results", "Advanced analytics", "Unlimited services & photos"],
     featured: false,
   },
 ] as const;

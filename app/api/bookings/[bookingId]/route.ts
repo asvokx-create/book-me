@@ -16,7 +16,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   const result = await database.query<{
     id: string; customer_id: string; customer_name: string; provider_id: string; provider_name: string;
     service_id: string; service_slug: string; service_title: string; category: string; starts_at: Date; ends_at: Date;
-    service_address: string; notes: string; price_cents: number; status: string; cancelled_by: string | null;
+    service_address: string; notes: string; booking_answers: Record<string, string>; price_cents: number; status: string; cancelled_by: string | null;
     cancellation_reason: string | null; late_cancellation: boolean; cancellation_window_hours: number;
     cancellation_policy: string; completed_at: Date | null; conversation_id: string | null;
     review_id: string | null; rating: number | null; review_body: string | null; reschedule_requested_by: string | null;
@@ -33,7 +33,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text,
             s.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
-            s.category, b.starts_at, b.ends_at, b.service_address, b.notes, b.price_cents, b.status,
+            s.category, b.starts_at, b.ends_at, b.service_address, b.notes, b.booking_answers, b.price_cents, b.status,
             b.cancelled_by, b.cancellation_reason, b.late_cancellation, p.cancellation_window_hours,
             p.cancellation_policy, b.completed_at, b.reschedule_requested_by,
             b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.reschedule_requested_at,
@@ -64,7 +64,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     id: row.id, viewerRole: row.customer_id === session.user.id ? "customer" : "provider", customerName: row.customer_name,
     providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceSlug: row.service_slug,
     serviceTitle: row.service_title, category: row.category, startsAt: row.starts_at, endsAt: row.ends_at,
-    location: row.service_address, notes: row.notes, price: row.price_cents / 100, status: row.status,
+    location: row.service_address, notes: row.notes, bookingAnswers: row.booking_answers ?? {}, price: row.price_cents / 100, status: row.status,
     cancelledBy: row.cancelled_by, cancellationReason: row.cancellation_reason, completedAt: row.completed_at,
     lateCancellation: row.late_cancellation, cancellationWindowHours: row.cancellation_window_hours,
     cancellationPolicy: row.cancellation_policy,

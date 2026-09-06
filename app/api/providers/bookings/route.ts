@@ -9,10 +9,13 @@ export async function GET() {
 
   const result = await database.query<{
     id: string; customer: string; customer_image: string | null; service: string; starts_at: Date; location: string;
-    price_cents: number; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string;
+    price_cents: number; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string; previous_booking_count: number; plan: "starter" | "pro" | "business" | "owner";
   }>(
     `SELECT b.id::text, u.name AS customer, u.image AS customer_image, s.title AS service, b.starts_at,
-            b.service_address AS location, b.price_cents, b.status, COALESCE(member.name, 'Company owner') AS assignee_name
+            b.service_address AS location, b.price_cents, b.status, p.plan, COALESCE(member.name, 'Company owner') AS assignee_name,
+            (SELECT count(*)::int FROM bookings previous WHERE previous.provider_id = b.provider_id
+              AND previous.customer_id = b.customer_id AND previous.id <> b.id
+              AND previous.status IN ('confirmed', 'completed')) AS previous_booking_count
      FROM bookings b
      JOIN provider_profiles p ON p.id = b.provider_id
      JOIN services s ON s.id = b.service_id
@@ -35,5 +38,6 @@ export async function GET() {
     price: row.price_cents / 100,
     status: row.status === "requested" ? "new" : row.status === "confirmed" ? "accepted" : row.status === "completed" ? "completed" : "cancelled",
     assigneeName: row.assignee_name,
+    repeatBookings: row.plan === "starter" ? 0 : row.previous_booking_count,
   })) });
 }

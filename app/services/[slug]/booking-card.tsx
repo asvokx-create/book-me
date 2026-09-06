@@ -14,6 +14,7 @@ type BookingCardProps = {
   cancellationPolicy: string;
   cancellationWindowHours: number;
   noShowPolicy: string;
+  bookingQuestions: string[];
 };
 
 function formatTime(time: string) {
@@ -22,7 +23,7 @@ function formatTime(time: string) {
   return `${hours % 12 || 12}:${minutes} ${hours >= 12 ? "PM" : "AM"}`;
 }
 
-export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy }: BookingCardProps) {
+export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions }: BookingCardProps) {
   const [location, setLocation] = useState("Issaquah, WA");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -32,6 +33,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
   const [loading, setLoading] = useState(false);
   const [requiresLogin, setRequiresLogin] = useState(false);
   const [notes, setNotes] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
 
   async function checkAvailability(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,7 +70,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serviceId, date, time, location, notes }),
+      body: JSON.stringify({ serviceId, date, time, location, notes, answers }),
     }).catch(() => null);
     if (!response) {
       setLoading(false);
@@ -120,6 +122,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
       </div>
 
       <form onSubmit={checkAvailability} className="mt-7 space-y-3">
+        {bookingQuestions.map((question) => <label key={question} className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">{question}</span><textarea required value={answers[question] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [question]: event.target.value }))} maxLength={500} rows={2} className="w-full resize-none rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label>)}
         <label className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Location</span>
           <input value={location} onChange={(event) => setLocation(event.target.value)} className="w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" />

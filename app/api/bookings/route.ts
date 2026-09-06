@@ -46,23 +46,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many booking requests. Please wait a minute and try again." }, { status: 429 });
   }
 
-  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; location?: unknown; notes?: unknown };
+  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; location?: unknown; notes?: unknown; answers?: unknown };
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const date = typeof body.date === "string" ? body.date : "";
   const time = typeof body.time === "string" ? body.time : "";
   const location = typeof body.location === "string" ? body.location.trim() : "";
   const notes = typeof body.notes === "string" ? body.notes.trim() : "";
+  const submittedAnswers = body.answers && typeof body.answers === "object" && !Array.isArray(body.answers) ? body.answers as Record<string, unknown> : {};
   if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !location || location.length > 200 || notes.length > 1000) {
     return NextResponse.json({ error: "Complete the location, date, and time fields." }, { status: 400 });
   }
-  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "booking", fields: [location, notes] });
-  if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
-
   const serviceResult = await database.query<{
     id: string; provider_id: string; duration_minutes: number; price_cents: number;
-    timezone: string; provider_user_id: string; title: string;
+    timezone: string; provider_user_id: string; title: string; booking_questions: unknown;
   }>(
     `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title,
+            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions,
             COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id LIMIT 1),
                      (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id WHERE member.provider_id = p.id LIMIT 1),
                      'America/Los_Angeles') AS timezone,
@@ -75,6 +74,15 @@ export async function POST(request: Request) {
   );
   const service = serviceResult.rows[0];
   if (!service) return NextResponse.json({ error: "This provider is not available on that day." }, { status: 409 });
+  const questions = Array.isArray(service.booking_questions) ? service.booking_questions.filter((question): question is string => typeof question === "string") : [];
+  const answers: Record<string, string> = {};
+  for (const question of questions) {
+    const answer = typeof submittedAnswers[question] === "string" ? submittedAnswers[question].trim() : "";
+    if (!answer || answer.length > 500) return NextResponse.json({ error: "Answer every provider question before requesting this booking." }, { status: 400 });
+    answers[question] = answer;
+  }
+  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "booking", fields: [location, notes, ...Object.values(answers)] });
+  if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   if (Number(time.slice(3, 5)) % 30 !== 0) return NextResponse.json({ error: "Choose a listed 30-minute time." }, { status: 409 });
 
@@ -118,10 +126,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "That time is no longer available. Choose another listed time." }, { status: 409 });
     }
     const created = await client.query<{ id: string }>(
-      `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address, notes, price_cents, assigned_team_member_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid)
+      `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address, notes, price_cents, assigned_team_member_id, booking_answers)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid, $10::jsonb)
        RETURNING id::text`,
-      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, notes, service.price_cents, candidate.rows[0].member_id],
+      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, notes, service.price_cents, candidate.rows[0].member_id, JSON.stringify(answers)],
     );
     const bookingId = created.rows[0].id;
     await client.query(

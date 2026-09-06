@@ -9,6 +9,12 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: 5,
     teamSeatLimit: 1,
     advancedAnalytics: false,
+    customBookingQuestions: false,
+    reminderHours: [24],
+    repeatCustomerTools: false,
+    multipleLocations: false,
+    prioritySupport: false,
+    featuredPlacement: false,
   },
   pro: {
     name: "Pro",
@@ -18,6 +24,12 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: null,
     teamSeatLimit: 3,
     advancedAnalytics: true,
+    customBookingQuestions: true,
+    reminderHours: [24, 1],
+    repeatCustomerTools: true,
+    multipleLocations: false,
+    prioritySupport: false,
+    featuredPlacement: false,
   },
   business: {
     name: "Business",
@@ -27,6 +39,12 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: null,
     teamSeatLimit: null,
     advancedAnalytics: true,
+    customBookingQuestions: true,
+    reminderHours: [24, 1],
+    repeatCustomerTools: true,
+    multipleLocations: true,
+    prioritySupport: true,
+    featuredPlacement: true,
   },
   owner: {
     name: "Owner Plan",
@@ -36,6 +54,12 @@ export const PLAN_ENTITLEMENTS = {
     photoLimit: null,
     teamSeatLimit: null,
     advancedAnalytics: true,
+    customBookingQuestions: true,
+    reminderHours: [24, 1],
+    repeatCustomerTools: true,
+    multipleLocations: true,
+    prioritySupport: true,
+    featuredPlacement: true,
   },
 } as const satisfies Record<ProviderPlan, {
   name: string;
@@ -45,6 +69,12 @@ export const PLAN_ENTITLEMENTS = {
   photoLimit: number | null;
   teamSeatLimit: number | null;
   advancedAnalytics: boolean;
+  customBookingQuestions: boolean;
+  reminderHours: readonly number[];
+  repeatCustomerTools: boolean;
+  multipleLocations: boolean;
+  prioritySupport: boolean;
+  featuredPlacement: boolean;
 }>;
 
 export function isProviderPlan(value: unknown): value is ProviderPlan {

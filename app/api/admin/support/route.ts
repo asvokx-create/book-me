@@ -7,8 +7,11 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
   const [support, verifications, automatedChecks] = await Promise.all([
     database.query(`SELECT sr.id::text, sr.subject, sr.message, sr.status, sr.admin_reply, sr.created_at,
-      u.name AS user_name, u.email AS user_email FROM support_requests sr JOIN "user" u ON u.id = sr.user_id
-      ORDER BY CASE sr.status WHEN 'open' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END, sr.created_at DESC LIMIT 100`),
+      u.name AS user_name, u.email AS user_email, COALESCE(p.plan, 'starter') AS user_plan,
+      COALESCE(p.plan IN ('business', 'owner'), false) AS priority
+      FROM support_requests sr JOIN "user" u ON u.id = sr.user_id LEFT JOIN provider_profiles p ON p.user_id = sr.user_id
+      ORDER BY CASE sr.status WHEN 'open' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END,
+        COALESCE(p.plan IN ('business', 'owner'), false) DESC, sr.created_at DESC LIMIT 100`),
     database.query(`SELECT vr.id::text, vr.verification_type, vr.details, vr.status, vr.admin_note, vr.created_at,
       p.business_name, u.name AS user_name, u.email AS user_email
       FROM provider_verification_requests vr JOIN provider_profiles p ON p.id = vr.provider_id JOIN "user" u ON u.id = p.user_id

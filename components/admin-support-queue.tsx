@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-type Support = { id: string; subject: string; message: string; status: string; admin_reply: string; created_at: string; user_name: string; user_email: string };
+type Support = { id: string; subject: string; message: string; status: string; admin_reply: string; created_at: string; user_name: string; user_email: string; user_plan: string; priority: boolean };
 type Verification = { id: string; verification_type: string; status: string; business_name: string; user_name: string; user_email: string };
 type CheckResult = { key: string; label: string; passed: boolean; verifiedBy: string; detail: string };
 type AutomatedCheck = { id: string; overall_status: string; score: number; results: CheckResult[]; created_at: string; business_name: string; user_name: string; user_email: string };

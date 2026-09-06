@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ error: screening.summary, screening }, { status: 422 });
   }
-  const existingProfile = await database.query<{ plan: ProviderPlan }>("SELECT plan FROM provider_profiles WHERE user_id = $1", [session.user.id]);
+  const existingProfile = await database.query<{ plan: ProviderPlan; city: string; state: string }>("SELECT plan, city, state FROM provider_profiles WHERE user_id = $1", [session.user.id]);
   const plan: ProviderPlan = isOwnerEmail(session.user.email)
     ? "owner"
     : existingProfile.rows[0]?.plan ?? "starter";
@@ -101,6 +101,10 @@ export async function POST(request: Request) {
   const locationParts = serviceArea.split(",").map((part) => part.trim()).filter(Boolean);
   const state = locationParts.length > 1 ? locationParts.pop()! : "WA";
   const city = locationParts.join(", ") || serviceArea;
+  const existing = existingProfile.rows[0];
+  if (existing && !PLAN_ENTITLEMENTS[plan].multipleLocations && `${existing.city}, ${existing.state}`.toLowerCase() !== `${city}, ${state}`.toLowerCase()) {
+    return NextResponse.json({ error: "Starter and Pro use one shared service location. Use your existing location or upgrade to Business for multiple locations.", upgradeRequired: true }, { status: 403 });
+  }
   const client = await database.connect();
 
   try {
@@ -114,11 +118,7 @@ export async function POST(request: Request) {
        ON CONFLICT (user_id) DO UPDATE SET
          bio = EXCLUDED.bio,
          phone = EXCLUDED.phone,
-         city = EXCLUDED.city,
-         state = EXCLUDED.state,
          plan = EXCLUDED.plan,
-         latitude = EXCLUDED.latitude,
-         longitude = EXCLUDED.longitude,
          service_radius_miles = EXCLUDED.service_radius_miles,
          screening_status = EXCLUDED.screening_status,
          screening_score = EXCLUDED.screening_score,
@@ -143,10 +143,10 @@ export async function POST(request: Request) {
     }
 
     const serviceResult = await client.query<{ id: string }>(
-      `INSERT INTO services (provider_id, business_name, slug, category, title, description, price_cents, duration_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO services (provider_id, business_name, slug, category, title, description, price_cents, duration_minutes, city, state, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id::text`,
-      [providerId, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration]],
+      [providerId, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration], city, state, coordinates.latitude, coordinates.longitude],
     );
 
     await client.query("DELETE FROM availability WHERE provider_id = $1", [providerId]);

@@ -47,7 +47,6 @@ export async function POST(request: Request) {
     customer: customerId,
     client_reference_id: provider.id,
     line_items: [{ price: getStripePriceId(body.plan), quantity: 1 }],
-    allow_promotion_codes: true,
     success_url: `${origin}/provider/dashboard/billing?stripe=subscription-success`,
     cancel_url: `${origin}/provider/dashboard/billing?stripe=cancelled`,
     metadata: { kind: "provider_subscription", providerId: provider.id, plan: body.plan },
