@@ -5,6 +5,7 @@ import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
+import { recordAnalytics } from "@/lib/analytics";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -151,6 +152,7 @@ export async function POST(request: Request) {
     );
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: "booking_created", targetType: "booking", targetId: bookingId });
+    await recordAnalytics({ eventName: "booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId });
     await sendBookingUpdateEmails(bookingId, "requested");
     return NextResponse.json({ id: bookingId, status: "requested" }, { status: 201 });
   } catch (error) {

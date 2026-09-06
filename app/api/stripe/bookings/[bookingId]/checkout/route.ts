@@ -5,6 +5,7 @@ import { database } from "@/lib/database";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getStripe, getStripeMode, isStripeReady } from "@/lib/stripe";
 import { enforceRateLimit } from "@/lib/request-security";
+import { recordAnalytics } from "@/lib/analytics";
 
 export async function POST(request: Request, context: RouteContext<"/api/stripe/bookings/[bookingId]/checkout">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -57,5 +58,6 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     metadata: { kind: "booking_payment", bookingId: booking.id },
   });
   await database.query("UPDATE bookings SET stripe_checkout_session_id = $2, stripe_payment_intent_id = NULL, stripe_mode = $3, payment_status = 'pending', paid_at = NULL WHERE id::text = $1", [booking.id, checkout.id, mode]);
+  await recordAnalytics({ eventName: "checkout_started", userId: session.user.id, targetType: "booking", targetId: booking.id, metadata: { amountCents: booking.price_cents } });
   return NextResponse.json({ url: checkout.url });
 }

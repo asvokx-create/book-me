@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { database } from "@/lib/database";
 import { isPurchasableProviderPlan } from "@/lib/plans";
 import { getStripe, getStripeMode } from "@/lib/stripe";
+import { recordAnalytics } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 
@@ -34,6 +35,7 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
   if (!updated.rowCount) return;
   await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
     VALUES ($1::uuid, 'payment_received', 'Secure payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);
+  await recordAnalytics({ eventName: "payment_completed", targetType: "booking", targetId: checkout.metadata.bookingId, metadata: { amountTotal: checkout.amount_total } });
 }
 
 async function processEvent(event: Stripe.Event) {
@@ -76,7 +78,10 @@ async function processEvent(event: Stripe.Event) {
     }
     case "charge.refunded": {
       const charge = event.data.object;
-      if (charge.refunded) await database.query("UPDATE bookings SET payment_status = 'refunded', refunded_at = now() WHERE stripe_payment_intent_id = $1 AND stripe_mode = $2", [idOf(charge.payment_intent), getStripeMode()]);
+      await database.query(`UPDATE bookings SET
+        payment_status = CASE WHEN $3 THEN 'refunded' ELSE payment_status END,
+        refund_status = 'refunded', refunded_amount_cents = $4, refunded_at = now()
+        WHERE stripe_payment_intent_id = $1 AND stripe_mode = $2`, [idOf(charge.payment_intent), getStripeMode(), charge.refunded, charge.amount_refunded]);
       break;
     }
     case "payment_intent.payment_failed": {

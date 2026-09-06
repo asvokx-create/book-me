@@ -22,6 +22,7 @@ type Booking = {
   price: number;
   paymentStatus: "unpaid" | "pending" | "paid" | "refunded" | "failed";
   paidAt: string | null;
+  refund: { status: "none" | "requested" | "processing" | "refunded" | "rejected" | "failed"; reason: string | null; requestedAmount: number | null; refundedAmount: number; failureReason: string | null };
   status: BookingStatus;
   cancelledBy: string | null;
   cancellationReason: string | null;
@@ -87,10 +88,13 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       void loadBooking();
       if (new URLSearchParams(window.location.search).get("reschedule") === "1") setRescheduleOpen(true);
       if (new URLSearchParams(window.location.search).get("payment") === "success") setNotice("Payment submitted securely through Stripe. Your receipt and payment status will appear after confirmation.");
-      if (new URLSearchParams(window.location.search).get("payment") === "cancelled") setNotice("Payment checkout was cancelled. Nothing was charged.");
+      if (new URLSearchParams(window.location.search).get("payment") === "cancelled") {
+        setNotice("Payment checkout was cancelled. Nothing was charged.");
+        void fetch("/api/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventName: "checkout_abandoned", path: window.location.pathname, metadata: { bookingId } }) });
+      }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [loadBooking]);
+  }, [bookingId, loadBooking]);
 
   async function providerAction(action: "accepted" | "declined" | "completed" | "cancel" | "approve_reschedule" | "decline_reschedule", reason = "") {
     setWorking(true);
@@ -155,6 +159,33 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       return;
     }
     window.location.assign(result.url);
+  }
+
+  async function refundAction(action: "request" | "approve" | "reject") {
+    if (!booking) return;
+    let reason = "";
+    let amount: number | undefined;
+    if (action === "request") {
+      reason = window.prompt("Why are you requesting a refund?")?.trim() ?? "";
+      if (!reason) return;
+    }
+    if (action === "approve") {
+      const entered = window.prompt("Refund amount in dollars", String(booking.refund.requestedAmount ?? booking.price));
+      if (entered === null) return;
+      amount = Number(entered);
+      if (!Number.isFinite(amount)) { setError("Enter a valid refund amount."); return; }
+      if (!window.confirm(`Approve a $${amount.toFixed(2)} refund to the original payment method?`)) return;
+    }
+    if (action === "reject") {
+      reason = window.prompt("Why are you declining this refund request?")?.trim() ?? "";
+      if (!reason) return;
+    }
+    setWorking(true); setError(""); setNotice("");
+    const response = await fetch(`/api/bookings/${bookingId}/refund`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, reason, amount }) }).catch(() => null);
+    const result = response ? await response.json() as { error?: string; amount?: number } : null;
+    if (!response?.ok) setError(result?.error ?? "We could not update this refund.");
+    else { setNotice(action === "request" ? "Refund request sent to the provider." : action === "approve" ? `A $${result?.amount?.toFixed(2)} refund was sent to the original payment method.` : "Refund request declined."); await loadBooking(); }
+    setWorking(false);
   }
 
   async function cancelBooking(event: FormEvent) {
@@ -232,6 +263,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
 
         {booking.notes && <div className="border-t border-[#183126]/10 px-6 py-5 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Booking notes</p><p className="mt-2 text-sm leading-6 text-[#4f6559]">{booking.notes}</p></div>}
         {booking.status === "cancelled" && <div className="border-t border-[#183126]/10 bg-[#fff7f3] px-6 py-5 sm:px-8"><p className="font-bold text-[#854c3b]">Cancelled by {booking.cancelledBy ?? "a booking participant"}{booking.lateCancellation ? " · Late cancellation" : ""}</p><p className="mt-2 text-sm leading-6 text-[#765e55]">{booking.cancellationReason || "No reason was provided."}</p>{booking.lateCancellation && <p className="mt-2 text-xs font-semibold text-[#854c3b]">This was cancelled inside the provider&apos;s {booking.cancellationWindowHours}-hour notice window. Any future refund decision will follow the provider policy and payment terms.</p>}</div>}
+        {booking.refund.status !== "none" && <div className="border-t border-[#183126]/10 bg-[#f3f6f0] px-6 py-5 sm:px-8"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold capitalize">Refund {booking.refund.status}</p><p className="mt-1 text-sm text-[#61736a]">{booking.refund.reason || booking.refund.failureReason || `${booking.refund.refundedAmount.toFixed(2)} returned to the original payment method.`}</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-bold">{booking.refund.requestedAmount ? `$${booking.refund.requestedAmount.toFixed(2)}` : "Payment refund"}</span></div></div>}
       </section>
 
       {booking.quote.status !== "none" && booking.quote.price !== null && <section className={`rounded-[2rem] border p-6 sm:p-8 ${booking.quote.status === "pending" ? "border-[#d1c653] bg-[#fff9d8]" : booking.quote.status === "accepted" ? "border-[#7eaa86] bg-[#e8f3e8]" : "border-[#d8b2a2] bg-[#fff3ee]"}`}><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Custom service quote</p><div className="mt-2 flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-2xl font-bold">${booking.quote.price.toLocaleString()} quote</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#5f7168]">{booking.quote.message}</p></div><span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold capitalize">{booking.quote.status}</span></div>{booking.viewerRole === "customer" && booking.quote.status === "pending" && <div className="mt-5 flex flex-wrap gap-2"><button disabled={working} onClick={() => void respondToQuote("accept_quote")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white hover:bg-[#315846] disabled:opacity-50">Approve ${booking.quote.price.toLocaleString()}</button><button disabled={working} onClick={() => void respondToQuote("decline_quote")} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold hover:bg-[#f4d8cc] disabled:opacity-50">Decline quote</button></div>}{booking.viewerRole === "provider" && booking.quote.status === "declined" && <p className="mt-4 text-sm font-bold text-[#8a4f3d]">The customer declined this quote. You can send a revised one.</p>}</section>}
@@ -244,6 +276,8 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
             <Link href={contactHref} className="rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]">✉ Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>
             {booking.viewerRole === "customer" && booking.status === "confirmed" && booking.paymentStatus !== "paid" && booking.paymentStatus !== "refunded" && <button disabled={working} onClick={() => void payForBooking()} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Opening Stripe…" : `Pay $${booking.price.toLocaleString()} securely`}</button>}
             {booking.paymentStatus === "paid" && <div className="rounded-2xl bg-[#e6f2e6] px-4 py-3 text-center text-sm font-bold text-[#34704a]">✓ Payment complete</div>}
+            {booking.viewerRole === "customer" && booking.paymentStatus === "paid" && !["requested", "processing", "refunded"].includes(booking.refund.status) && <button disabled={working} onClick={() => void refundAction("request")} className="rounded-full border border-[#9b4e3a]/25 px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Request a refund</button>}
+            {booking.viewerRole === "provider" && booking.refund.status === "requested" && <><button disabled={working} onClick={() => void refundAction("approve")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">Approve refund</button><button disabled={working} onClick={() => void refundAction("reject")} className="rounded-full border border-[#9b4e3a]/25 px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Decline refund</button></>}
             {booking.viewerRole === "provider" && canCancel && <label className="text-sm font-bold">Assigned professional<select disabled={working} value={booking.assignedTeamMemberId ?? "owner"} onChange={(event) => void assignBooking(event.target.value)} className="mt-2 w-full rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3"><option value="owner">Company owner</option>{booking.teamMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>}
             {booking.viewerRole === "provider" && booking.status === "requested" && <button disabled={working} onClick={() => { setQuotePrice(String(booking.quote.price ?? booking.price)); setQuoteMessage(booking.quote.message); setQuoteOpen(true); }} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#eee25a] disabled:opacity-50">{booking.quote.status === "none" ? "Send a custom quote" : "Send revised quote"}</button>}
             {booking.viewerRole === "customer" && canCancel && !booking.reschedule && <button onClick={() => setRescheduleOpen(true)} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#eee25a]">Request a new time</button>}

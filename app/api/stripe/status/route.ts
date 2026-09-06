@@ -22,11 +22,17 @@ export async function GET() {
   const mode = getStripeMode();
   const hasCurrentConnect = provider.stripe_connect_mode === mode && Boolean(provider.stripe_account_id);
   const hasCurrentBilling = provider.stripe_billing_mode === mode && Boolean(provider.stripe_customer_id);
+  let payoutState: "not_started" | "in_review" | "action_needed" | "ready" = hasCurrentConnect ? "in_review" : "not_started";
+  let requirements: string[] = [];
+  let disabledReason: string | null = null;
   if (configuration.secretKey && hasCurrentConnect && provider.stripe_account_id) {
     try {
       const account = await getStripe().accounts.retrieve(provider.stripe_account_id);
       provider.stripe_charges_enabled = account.charges_enabled;
       provider.stripe_payouts_enabled = account.payouts_enabled;
+      requirements = [...new Set([...(account.requirements?.past_due ?? []), ...(account.requirements?.currently_due ?? [])])];
+      disabledReason = account.requirements?.disabled_reason ?? null;
+      payoutState = account.charges_enabled && account.payouts_enabled ? "ready" : requirements.length || disabledReason ? "action_needed" : "in_review";
       await database.query("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1 AND stripe_connect_mode = $4", [provider.stripe_account_id, account.charges_enabled, account.payouts_enabled, mode]);
     } catch (error) {
       console.error("Stripe Connect status refresh failed", error);
@@ -43,6 +49,9 @@ export async function GET() {
       started: hasCurrentConnect,
       chargesEnabled: hasCurrentConnect && provider.stripe_charges_enabled,
       payoutsEnabled: hasCurrentConnect && provider.stripe_payouts_enabled,
+      state: payoutState,
+      requirements,
+      disabledReason,
     },
   });
 }

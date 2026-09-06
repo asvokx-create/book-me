@@ -6,6 +6,7 @@ import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { getStripeMode } from "@/lib/stripe";
+import { recordAnalytics } from "@/lib/analytics";
 
 export async function GET(_request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -23,6 +24,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     quoted_price_cents: number | null; quote_message: string; quote_sent_at: Date | null; quote_responded_at: Date | null;
     payment_status: "unpaid" | "pending" | "paid" | "refunded" | "failed"; paid_at: Date | null;
     stripe_mode: "test" | "live" | null;
+    refund_status: "none" | "requested" | "processing" | "refunded" | "rejected" | "failed";
+    refund_reason: string | null; refund_amount_cents: number | null; refunded_amount_cents: number;
+    refund_failure_reason: string | null;
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text,
             p.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
@@ -31,7 +35,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             p.cancellation_policy, b.completed_at, b.reschedule_requested_by,
             b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.reschedule_requested_at,
             b.quote_status, b.quoted_price_cents, b.quote_message, b.quote_sent_at, b.quote_responded_at,
-            b.payment_status, b.paid_at, b.stripe_mode,
+            b.payment_status, b.paid_at, b.stripe_mode, b.refund_status, b.refund_reason,
+            b.refund_amount_cents, b.refunded_amount_cents, b.refund_failure_reason,
             b.assigned_team_member_id::text, COALESCE(member.name, 'Company owner') AS assignee_name,
             c.id::text AS conversation_id, r.id::text AS review_id, r.rating, r.body AS review_body
      FROM bookings b JOIN "user" customer ON customer.id = b.customer_id
@@ -59,6 +64,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     cancellationPolicy: row.cancellation_policy,
     paymentStatus: row.stripe_mode === getStripeMode() ? row.payment_status : "unpaid",
     paidAt: row.stripe_mode === getStripeMode() ? row.paid_at : null,
+    refund: { status: row.stripe_mode === getStripeMode() ? row.refund_status : "none",
+      reason: row.refund_reason, requestedAmount: row.refund_amount_cents === null ? null : row.refund_amount_cents / 100,
+      refundedAmount: row.refunded_amount_cents / 100, failureReason: row.refund_failure_reason },
     conversationId: row.conversation_id,
     assignedTeamMemberId: row.assigned_team_member_id,
     assigneeName: row.assignee_name,
@@ -156,6 +164,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: String(action), targetType: "booking", targetId: bookingId });
     if (action === "cancel") await sendBookingUpdateEmails(bookingId, "cancelled");
+    if (action === "cancel") await recordAnalytics({ eventName: "booking_cancelled", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { cancelledBy: "customer" } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     await client.query("ROLLBACK"); console.error("Customer booking update failed", error);

@@ -5,6 +5,7 @@ import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
+import { recordAnalytics } from "@/lib/analytics";
 
 type BookingAction = "accepted" | "declined" | "completed" | "cancel" | "approve_reschedule" | "decline_reschedule" | "assign" | "send_quote";
 
@@ -288,6 +289,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
     }
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action, targetType: "booking", targetId: bookingId });
+    if (action === "cancel" || action === "declined") await recordAnalytics({ eventName: "booking_cancelled", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { cancelledBy: "provider" } });
     if (!action.includes("reschedule") && action !== "assign" && action !== "send_quote") await sendBookingUpdateEmails(bookingId, action === "accepted" ? "accepted" : action === "completed" ? "completed" : action === "declined" ? "declined" : "cancelled");
     return NextResponse.json({ ok: true });
   } catch (error) {

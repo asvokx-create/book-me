@@ -13,6 +13,7 @@ export default function SiteFooter() {
         <nav aria-label="Legal and safety" className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
           <Link href="/terms" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Terms</Link>
           <Link href="/privacy" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Privacy</Link>
+          <Link href="/provider-agreement" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Providers</Link>
           <Link href="/ai-transparency" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">AI & safety</Link>
           <Link href="/disputes" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Disputes</Link>
         </nav>
