@@ -11,6 +11,7 @@ import { screenProviderProfile } from "@/lib/provider-screening";
 import { sendTransactionalEmail } from "@/lib/email";
 import { PROVIDER_AGREEMENT_VERSION } from "@/lib/policy-consent";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
+import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -72,6 +73,14 @@ export async function POST(request: Request) {
   }
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "provider_listing", fields: [business, service, description, serviceArea] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
+  const financialRisk = await checkAndRecordListingFinancialCrimeRisk({
+    userId: session.user.id,
+    surface: "provider_listing_financial_risk",
+    input: { businessName: business, title: service, category, description, priceCents: Math.round(price * 100) },
+  });
+  if (!financialRisk.allowed) {
+    return NextResponse.json({ error: financialRisk.message, financialRisk: { level: financialRisk.level, score: financialRisk.score } }, { status: 422 });
+  }
   const screening = screenProviderProfile({
     emailVerified: Boolean(session.user.emailVerified),
     phone: session.user.phone ?? "",

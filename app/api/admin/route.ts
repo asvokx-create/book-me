@@ -4,6 +4,7 @@ import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { releaseBookingPayout } from "@/lib/payment-release";
 import { scanContent } from "@/lib/content-safety";
+import { assessListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 
 const reportStatuses = new Set(["reviewing", "resolved", "dismissed"]);
 const accountStatuses = new Set(["active", "suspended", "banned"]);
@@ -142,10 +143,10 @@ export async function PATCH(request: Request) {
 
   if (action === "listing_safety_scan") {
     const listingResult = await database.query<{
-      id: string; title: string; category: string; description: string;
+      id: string; title: string; category: string; description: string; price_cents: number;
       business_name: string; city: string; state: string; owner_id: string;
     }>(
-      `SELECT s.id::text, s.title, s.category, s.description,
+      `SELECT s.id::text, s.title, s.category, s.description, s.price_cents,
               s.business_name, p.city, p.state, p.user_id AS owner_id
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
@@ -158,6 +159,13 @@ export async function PATCH(request: Request) {
 
     const content = [listing.title, listing.category, listing.description, listing.business_name, listing.city, listing.state].join("\n");
     const safety = scanContent(content);
+    const financialRisk = assessListingFinancialCrimeRisk({
+      businessName: listing.business_name,
+      title: listing.title,
+      category: listing.category,
+      description: listing.description,
+      priceCents: listing.price_cents,
+    });
     const client = await database.connect();
     try {
       await client.query("BEGIN");
@@ -168,10 +176,17 @@ export async function PATCH(request: Request) {
           [listing.owner_id, safety.category, safety.severity, createHash("sha256").update(content).digest("hex")],
         );
       }
+      if (financialRisk.reviewRequired) {
+        await client.query(
+          `INSERT INTO moderation_events (user_id, surface, category, severity, action, content_hash)
+           VALUES ($1, 'admin_listing_financial_review', $2, $3, 'flagged', $4)`,
+          [listing.owner_id, financialRisk.category, financialRisk.level === "high" ? "high" : "medium", createHash("sha256").update(`${content}\n${listing.price_cents}`).digest("hex")],
+        );
+      }
       await client.query(
         `INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
          VALUES ($1, 'listing_safety_scanned', 'listing', $2, $3::jsonb)`,
-        [session.user.id, targetId, JSON.stringify({ allowed: safety.allowed, category: safety.category, severity: safety.severity })],
+        [session.user.id, targetId, JSON.stringify({ allowed: safety.allowed && financialRisk.allowed, category: safety.category, severity: safety.severity, financialRisk: { level: financialRisk.level, score: financialRisk.score, reasons: financialRisk.reasons } })],
       );
       await client.query("COMMIT");
     } catch (error) {
@@ -185,9 +200,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({
       ok: true,
       safety,
-      message: safety.allowed
-        ? `Safety Bot passed “${listing.title}”. No blocked content was found.`
-        : `Safety Bot flagged “${listing.title}” for ${safety.category} (${safety.severity}). Review the listing before taking action.`,
+      financialRisk,
+      message: !safety.allowed
+        ? `Safety Bot flagged “${listing.title}” for ${safety.category} (${safety.severity}). Review the listing before taking action.`
+        : financialRisk.reviewRequired
+          ? `Safety Bot flagged “${listing.title}” for financial-safety review (${financialRisk.level} risk, score ${financialRisk.score}). Review the listing and provider before taking action.`
+          : `Safety Bot passed “${listing.title}”. No blocked content or suspicious payment patterns were found.`,
     });
   }
 

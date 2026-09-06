@@ -56,6 +56,9 @@ const rules: SafetyRule[] = [
     patterns: [
       /\b(?:buy|sell|selling|deal|dealing)\s+(?:cocaine|meth|heroin|fentanyl)\b/,
       /\b(?:stolen credit card|fake id|counterfeit money)\b/,
+      /\b(?:launder|laundering)\s+(?:money|cash|funds|proceeds)\b/,
+      /\b(?:fake|dummy|fabricated)\s+(?:invoice|receipt|booking)\b/,
+      /\boverpay(?:ment|ing|s|ed)?\b.{0,80}\b(?:refund|return|send back|difference)\b/,
     ],
   },
   {

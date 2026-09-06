@@ -6,6 +6,7 @@ import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getServiceAreaCoordinates } from "@/lib/service-areas";
+import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 
 const allowedDurations = new Set([60, 120, 180, 240, 480]);
 
@@ -81,6 +82,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   }
   const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [businessName, title, description, location] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
+  const financialRisk = await checkAndRecordListingFinancialCrimeRisk({
+    userId,
+    surface: "provider_listing_financial_risk",
+    input: { businessName, title, category, description, priceCents: Math.round(price * 100) },
+  });
+  if (!financialRisk.allowed) {
+    return NextResponse.json({ error: financialRisk.message, financialRisk: { level: financialRisk.level, score: financialRisk.score } }, { status: 422 });
+  }
 
   const locationParts = location.split(",").map((part) => part.trim()).filter(Boolean);
   const state = locationParts.length > 1 ? locationParts.pop()! : "WA";
