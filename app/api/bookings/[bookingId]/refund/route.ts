@@ -34,7 +34,7 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
     payment_flow: string | null; payment_release_status: string; provider_payout_cents: number;
     platform_fee_cents: number; stripe_transfer_id: string | null; stripe_transfer_reversed_cents: number; refunded_amount_cents: number;
     booking_status: string;
-  }>(`SELECT b.id::text, b.customer_id, p.user_id AS provider_user_id, p.business_name AS provider_name,
+  }>(`SELECT b.id::text, b.customer_id, p.user_id AS provider_user_id, s.business_name AS provider_name,
       s.title AS service_title, b.price_cents, b.payment_status, b.refund_status,
       b.stripe_payment_intent_id, b.stripe_mode, p.plan, b.payment_flow, b.payment_release_status,
       b.provider_payout_cents, b.platform_fee_cents, b.stripe_transfer_id, b.stripe_transfer_reversed_cents, b.refunded_amount_cents,

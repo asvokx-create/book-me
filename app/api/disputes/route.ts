@@ -13,7 +13,7 @@ export async function GET() {
   const [bookings, disputes] = await Promise.all([
     database.query(
       `SELECT b.id::text, b.status, b.starts_at, s.title AS service_title,
-              CASE WHEN b.customer_id = $1 THEN p.business_name ELSE customer.name END AS other_party
+              CASE WHEN b.customer_id = $1 THEN s.business_name ELSE customer.name END AS other_party
        FROM bookings b
        JOIN services s ON s.id = b.service_id
        JOIN provider_profiles p ON p.id = b.provider_id

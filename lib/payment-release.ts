@@ -28,7 +28,7 @@ export async function releaseBookingPayout(bookingId: string, trigger: "customer
           WHERE d.booking_id = b.id AND d.status IN ('open', 'reviewing')
         )
       RETURNING b.id::text, b.customer_id, p.user_id AS provider_user_id,
-        p.business_name AS provider_name, s.title AS service_title,
+        s.business_name AS provider_name, s.title AS service_title,
         b.provider_payout_cents, p.stripe_account_id, b.stripe_charge_id, b.stripe_mode`,
     [bookingId, getStripeMode()]);
   const booking = claimed.rows[0];
@@ -99,7 +99,7 @@ export async function refundUnreleasedBooking(bookingId: string, reason: string)
       AND b.payment_flow = 'held_transfer_v1' AND b.payment_status = 'paid'
       AND b.stripe_mode = $3 AND b.stripe_payment_intent_id IS NOT NULL AND b.stripe_transfer_id IS NULL
       AND b.refunded_amount_cents < b.price_cents AND b.refund_status <> 'processing'
-    RETURNING b.customer_id, p.business_name AS provider_name, s.title AS service_title,
+    RETURNING b.customer_id, s.business_name AS provider_name, s.title AS service_title,
       b.stripe_payment_intent_id, b.price_cents, b.refunded_amount_cents`, [bookingId, reason, getStripeMode()]);
   const booking = claimed.rows[0];
   if (!booking) return { ok: true, refunded: false } as const;

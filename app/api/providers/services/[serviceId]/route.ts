@@ -19,6 +19,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
   const { serviceId } = await params;
   const result = await database.query<{
     id: string;
+    business_name: string;
     slug: string;
     title: string;
     category: string;
@@ -28,7 +29,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
     city: string;
     state: string;
   }>(
-    `SELECT s.id::text, s.slug, s.title, s.category, s.description,
+    `SELECT s.id::text, s.business_name, s.slug, s.title, s.category, s.description,
             s.price_cents, s.duration_minutes, p.city, p.state
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
@@ -41,6 +42,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
   if (!service) return NextResponse.json({ error: "Listing not found." }, { status: 404 });
   return NextResponse.json({
     id: service.id,
+    businessName: service.business_name,
     slug: service.slug,
     title: service.title,
     category: service.category,
@@ -57,6 +59,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
 
   const { serviceId } = await params;
   const body = (await request.json()) as Record<string, unknown>;
+  const businessName = typeof body.businessName === "string" ? body.businessName.trim() : "";
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const category = typeof body.category === "string" ? body.category.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
@@ -64,10 +67,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   const price = Number(body.price);
   const durationMinutes = Number(body.durationMinutes);
 
-  if (!title || title.length > 120 || !SERVICE_CATEGORIES.includes(category as (typeof SERVICE_CATEGORIES)[number]) || description.length < 10 || description.length > 2000 || !location || location.length > 120 || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !allowedDurations.has(durationMinutes)) {
+  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !SERVICE_CATEGORIES.includes(category as (typeof SERVICE_CATEGORIES)[number]) || description.length < 10 || description.length > 2000 || !location || location.length > 120 || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !allowedDurations.has(durationMinutes)) {
     return NextResponse.json({ error: "Complete every field with valid listing details." }, { status: 400 });
   }
-  const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [title, description, location] });
+  const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [businessName, title, description, location] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   const locationParts = location.split(",").map((part) => part.trim()).filter(Boolean);
@@ -90,10 +93,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
 
     await client.query(
       `UPDATE services
-       SET title = $1, category = $2, description = $3,
-           price_cents = $4, duration_minutes = $5
-       WHERE id::text = $6`,
-      [title, category, description, Math.round(price * 100), durationMinutes, serviceId],
+       SET business_name = $1, title = $2, category = $3, description = $4,
+           price_cents = $5, duration_minutes = $6
+       WHERE id::text = $7`,
+      [businessName, title, category, description, Math.round(price * 100), durationMinutes, serviceId],
     );
     await client.query(
       `UPDATE provider_profiles SET city = $1, state = $2 WHERE id::text = $3`,

@@ -18,7 +18,7 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
   const { serviceId } = await params;
   const result = await database.query<ListingPreview>(
     `SELECT s.id::text, s.title, s.category, s.description, s.price_cents, s.duration_minutes,
-            s.is_active, p.business_name, p.city, p.state, p.service_radius_miles,
+            s.is_active, s.business_name, p.city, p.state, p.service_radius_miles,
             COALESCE((SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id), ARRAY[]::text[]) AS image_urls
      FROM services s

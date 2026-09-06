@@ -32,7 +32,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null;
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text,
-            p.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
+            s.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
             s.category, b.starts_at, b.ends_at, b.service_address, b.notes, b.price_cents, b.status,
             b.cancelled_by, b.cancellation_reason, b.late_cancellation, p.cancellation_window_hours,
             p.cancellation_policy, b.completed_at, b.reschedule_requested_by,

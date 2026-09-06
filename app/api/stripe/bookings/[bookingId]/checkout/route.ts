@@ -19,7 +19,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     payment_status: string; quote_status: string; plan: ProviderPlan; stripe_account_id: string | null;
     stripe_connect_mode: "test" | "live" | null; stripe_mode: "test" | "live" | null;
     stripe_checkout_session_id: string | null; payment_flow: string | null;
-  }>(`SELECT b.id::text, s.title, p.business_name AS provider_name, b.price_cents, b.status,
+  }>(`SELECT b.id::text, s.title, s.business_name AS provider_name, b.price_cents, b.status,
       b.payment_status, b.quote_status, p.plan, p.stripe_account_id, p.stripe_connect_mode, b.stripe_mode,
       b.stripe_checkout_session_id, b.payment_flow
     FROM bookings b JOIN services s ON s.id = b.service_id JOIN provider_profiles p ON p.id = b.provider_id

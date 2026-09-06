@@ -92,7 +92,7 @@ export async function getServices(options: { query?: string; category?: string; 
   }
   if (options.query) {
     values.push(`%${options.query}%`);
-    conditions.push(`(s.title ILIKE $${values.length} OR s.category ILIKE $${values.length} OR p.business_name ILIKE $${values.length})`);
+    conditions.push(`(s.title ILIKE $${values.length} OR s.category ILIKE $${values.length} OR s.business_name ILIKE $${values.length})`);
   }
   if (options.location && !searchOrigin) {
     const city = options.location.split(",")[0]?.trim();
@@ -115,7 +115,7 @@ export async function getServices(options: { query?: string; category?: string; 
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            s.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
@@ -147,7 +147,7 @@ export async function getServiceBySlug(slug: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            s.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
@@ -169,7 +169,7 @@ export async function getServiceById(id: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            s.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
@@ -234,7 +234,7 @@ export async function getProviderById(id: string) {
   return {
     id: provider.id,
     ownerName: provider.owner_name,
-    businessName: provider.business_name,
+    businessName: services[0]?.provider ?? provider.business_name,
     bio: provider.bio,
     city: provider.city,
     state: provider.state,
@@ -256,7 +256,7 @@ async function getServicesForProvider(providerId: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            s.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
@@ -278,7 +278,7 @@ export async function getFavoriteServices(customerId: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            p.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
+            s.business_name, p.city, p.state, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((

@@ -49,6 +49,7 @@ export async function GET() {
   const isAdmin = await hasAdminAccess(session.user.id, session.user.email);
   const serviceResult = await database.query<{
     id: string;
+    business_name: string;
     slug: string;
     title: string;
     category: string;
@@ -56,7 +57,7 @@ export async function GET() {
     duration_minutes: number;
     image_urls: string[] | null;
   }>(
-    `SELECT s.id::text, s.slug, s.title, s.category, s.price_cents, s.duration_minutes,
+    `SELECT s.id::text, s.business_name, s.slug, s.title, s.category, s.price_cents, s.duration_minutes,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
@@ -68,6 +69,7 @@ export async function GET() {
   );
   const services = serviceResult.rows.map((service) => ({
     id: service.id,
+    businessName: service.business_name,
     slug: service.slug,
     title: service.title,
     category: service.category,

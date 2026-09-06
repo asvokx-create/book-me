@@ -15,6 +15,7 @@ const durations = [
 
 type Listing = {
   id: string;
+  businessName: string;
   slug: string;
   title: string;
   category: string;
@@ -101,6 +102,7 @@ export default function ListingEditor({ serviceId }: { serviceId: string }) {
           {loading && <div className="mt-8 h-72 animate-pulse rounded-2xl bg-[#eef0ea]" />}
           {!loading && !listing && <div className="mt-8 rounded-2xl bg-[#fff1e8] p-5 text-sm font-semibold text-[#9a4e25]">{error || "Listing not found."}</div>}
           {listing && <form onSubmit={save} className="mt-8 space-y-5">
+            <label className="block"><span className="mb-2 block text-sm font-bold">Business name for this listing</span><input value={listing.businessName} onChange={(event) => change("businessName", event.target.value)} maxLength={120} className={inputClass} /><span className="mt-2 block text-xs text-[#849189]">Each listing can use a different business name.</span></label>
             <label className="block"><span className="mb-2 block text-sm font-bold">Service title</span><input value={listing.title} onChange={(event) => change("title", event.target.value)} className={inputClass} /></label>
             <label className="block"><span className="mb-2 block text-sm font-bold">Category</span><select value={listing.category} onChange={(event) => change("category", event.target.value)} className={inputClass}>{SERVICE_CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label>
             <div className="grid gap-4 sm:grid-cols-2">

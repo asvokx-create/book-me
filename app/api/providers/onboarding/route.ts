@@ -106,7 +106,6 @@ export async function POST(request: Request) {
           screening_status, screening_score, screening_summary, screening_checked_at, is_verified, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'passed', $11, $12, now(), true, true)
        ON CONFLICT (user_id) DO UPDATE SET
-         business_name = EXCLUDED.business_name,
          bio = EXCLUDED.bio,
          phone = EXCLUDED.phone,
          city = EXCLUDED.city,
@@ -136,10 +135,10 @@ export async function POST(request: Request) {
     }
 
     const serviceResult = await client.query<{ id: string }>(
-      `INSERT INTO services (provider_id, slug, category, title, description, price_cents, duration_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO services (provider_id, business_name, slug, category, title, description, price_cents, duration_minutes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id::text`,
-      [providerId, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration]],
+      [providerId, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration]],
     );
 
     await client.query("DELETE FROM availability WHERE provider_id = $1", [providerId]);

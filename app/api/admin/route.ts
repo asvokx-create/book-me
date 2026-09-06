@@ -59,7 +59,7 @@ async function loadDashboard() {
     ),
     database.query(
       `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.is_active, s.price_cents,
-              s.created_at, p.business_name, p.city, p.state, p.id::text AS provider_id
+              s.created_at, s.business_name, p.city, p.state, p.id::text AS provider_id
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
        ORDER BY s.created_at DESC
@@ -68,7 +68,7 @@ async function loadDashboard() {
     database.query(
       `SELECT r.id::text, r.rating, r.body, r.is_hidden, r.created_at,
               customer.name AS customer_name, customer.email AS customer_email,
-              s.title AS service_title, p.business_name
+              s.title AS service_title, s.business_name
        FROM reviews r
        JOIN "user" customer ON customer.id = r.customer_id
        JOIN services s ON s.id = r.service_id
@@ -80,7 +80,7 @@ async function loadDashboard() {
       `SELECT b.id::text, b.payment_release_status, b.payment_status, b.provider_payout_cents,
               b.completion_confirmation_due_at, b.payout_released_at, b.payout_freeze_reason,
               b.payout_failure_reason, b.status AS booking_status, b.created_at,
-              customer.name AS customer_name, p.business_name AS provider_name, s.title AS service_title
+              customer.name AS customer_name, s.business_name AS provider_name, s.title AS service_title
        FROM bookings b
        JOIN "user" customer ON customer.id = b.customer_id
        JOIN provider_profiles p ON p.id = b.provider_id
@@ -146,7 +146,7 @@ export async function PATCH(request: Request) {
       business_name: string; city: string; state: string; owner_id: string;
     }>(
       `SELECT s.id::text, s.title, s.category, s.description,
-              p.business_name, p.city, p.state, p.user_id AS owner_id
+              s.business_name, p.city, p.state, p.user_id AS owner_id
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
        WHERE s.id::text = $1

@@ -16,7 +16,7 @@ type ConversationRow = {
 async function getConversation(userId: string, conversationId: string) {
   const result = await database.query<ConversationRow>(
     `SELECT c.id::text, c.customer_id, c.provider_id::text, p.user_id AS provider_user_id,
-            p.business_name AS provider_name, u.name AS customer_name, s.title AS service_title,
+            COALESCE(s.business_name, p.business_name) AS provider_name, u.name AS customer_name, s.title AS service_title,
             provider_owner.image AS provider_image, u.image AS customer_image,
             latest.body AS last_message, latest.created_at AS last_message_at,
             (SELECT count(*)::int FROM messages unread
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
 
   const conversationsResult = await database.query<ConversationRow>(
     `SELECT c.id::text, c.customer_id, c.provider_id::text, p.user_id AS provider_user_id,
-            p.business_name AS provider_name, u.name AS customer_name, s.title AS service_title,
+            COALESCE(s.business_name, p.business_name) AS provider_name, u.name AS customer_name, s.title AS service_title,
             provider_owner.image AS provider_image, u.image AS customer_image,
             latest.body AS last_message, latest.created_at AS last_message_at,
             (SELECT count(*)::int FROM messages unread
@@ -132,11 +132,12 @@ export async function POST(request: Request) {
     if (conversationId) {
       const result = await client.query<ConversationRow>(
         `SELECT c.id::text, c.customer_id, c.provider_id::text, p.user_id AS provider_user_id,
-                p.business_name AS provider_name, u.name AS customer_name,
-                NULL::text AS service_title, NULL::text AS last_message, NULL::timestamptz AS last_message_at, 0::int AS unread_count
+                COALESCE(s.business_name, p.business_name) AS provider_name, u.name AS customer_name,
+                s.title AS service_title, NULL::text AS last_message, NULL::timestamptz AS last_message_at, 0::int AS unread_count
          FROM conversations c
          JOIN provider_profiles p ON p.id = c.provider_id
          JOIN "user" u ON u.id = c.customer_id
+         LEFT JOIN services s ON s.id = c.service_id
          WHERE c.id::text = $1 AND (c.customer_id = $2 OR p.user_id = $2)
          FOR UPDATE OF c`,
         [conversationId, session.user.id],
@@ -154,7 +155,7 @@ export async function POST(request: Request) {
              SET customer_deleted_at = NULL, provider_deleted_at = NULL, updated_at = now()
            RETURNING id::text, customer_id, provider_id::text,
              (SELECT user_id FROM provider_profiles WHERE id = provider_id) AS provider_user_id,
-             (SELECT business_name FROM provider_profiles WHERE id = provider_id) AS provider_name,
+             (SELECT business_name FROM services WHERE id = service_id) AS provider_name,
              (SELECT name FROM "user" WHERE id = customer_id) AS customer_name,
              NULL::text AS service_title, NULL::text AS last_message, NULL::timestamptz AS last_message_at, 0::int AS unread_count`,
           [session.user.id, providerId, serviceId],

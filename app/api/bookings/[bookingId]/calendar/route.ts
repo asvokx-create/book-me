@@ -11,7 +11,7 @@ export async function GET(_request: Request, context: { params: Promise<{ bookin
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const { bookingId } = await context.params;
   const result = await database.query<{ title: string; provider: string; starts_at: Date; ends_at: Date; location: string; notes: string }>(
-    `SELECT s.title, p.business_name AS provider, b.starts_at, b.ends_at, b.service_address AS location, b.notes
+    `SELECT s.title, s.business_name AS provider, b.starts_at, b.ends_at, b.service_address AS location, b.notes
      FROM bookings b JOIN services s ON s.id = b.service_id JOIN provider_profiles p ON p.id = b.provider_id
      WHERE b.id::text = $1 AND b.status IN ('confirmed', 'completed')
        AND (b.customer_id = $2 OR p.user_id = $2) LIMIT 1`, [bookingId, session.user.id]);

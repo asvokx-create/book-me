@@ -11,7 +11,7 @@ export async function runBookingReminders() {
     `SELECT b.id::text, s.title AS service_title, b.starts_at,
             b.customer_id, customer.name AS customer_name, customer.email AS customer_email,
             COALESCE(customer_settings.booking_notifications, true) AS customer_notifications,
-            p.user_id AS provider_user_id, p.business_name AS provider_name,
+            p.user_id AS provider_user_id, s.business_name AS provider_name,
             provider_user.email AS provider_email,
             COALESCE(provider_settings.booking_notifications, true) AS provider_notifications,
             CASE WHEN b.starts_at <= now() + interval '70 minutes' THEN 1 ELSE 24 END AS reminder_hours

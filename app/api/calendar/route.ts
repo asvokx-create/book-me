@@ -19,7 +19,7 @@ export async function GET(request: Request) {
      WHERE p.user_id = $1 AND b.provider_deleted_at IS NULL AND b.status <> 'cancelled'
        AND b.starts_at >= now() - interval '6 months' AND b.starts_at < now() + interval '18 months'
      ORDER BY b.starts_at` :
-    `SELECT b.id::text, s.title, p.business_name AS person, b.starts_at, b.ends_at, b.service_address AS location, b.status,
+    `SELECT b.id::text, s.title, s.business_name AS person, b.starts_at, b.ends_at, b.service_address AS location, b.status,
             b.assigned_team_member_id::text, COALESCE(member.name, 'Company owner') AS assignee_name
      FROM bookings b JOIN services s ON s.id = b.service_id JOIN provider_profiles p ON p.id = b.provider_id
      LEFT JOIN provider_team_members member ON member.id = b.assigned_team_member_id

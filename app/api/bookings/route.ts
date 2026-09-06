@@ -20,7 +20,7 @@ export async function GET() {
   }>(
     `SELECT b.id::text, s.id::text AS service_id, p.id::text AS provider_id,
             s.title AS service, s.slug AS service_slug, s.category,
-            p.business_name AS provider, b.starts_at, b.price_cents,
+            s.business_name AS provider, b.starts_at, b.price_cents,
             b.service_address AS location, b.status, COALESCE(member.name, 'Company owner') AS assignee_name
      FROM bookings b
      JOIN services s ON s.id = b.service_id
