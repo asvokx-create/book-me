@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 };
 
 const quickCategories = ["All services", ...FEATURED_SERVICE_CATEGORIES];
+const resultsAnchor = "#service-listings";
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -41,7 +42,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
     if (maxPrice) queryString.set("maxPrice", String(maxPrice));
     if (maxDuration) queryString.set("maxDuration", String(maxDuration));
     if (sort !== "nearest") queryString.set("sort", sort);
-    return `/services?${queryString.toString()}`;
+    return `/services?${queryString.toString()}${resultsAnchor}`;
   }
 
   function removeFilter(name: "location" | "radius" | "category" | "maxPrice" | "maxDuration") {
@@ -53,7 +54,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
     if (maxPrice && name !== "maxPrice") queryString.set("maxPrice", String(maxPrice));
     if (maxDuration && name !== "maxDuration") queryString.set("maxDuration", String(maxDuration));
     if (sort !== "nearest") queryString.set("sort", sort);
-    return `/services?${queryString.toString()}`;
+    return `/services?${queryString.toString()}${resultsAnchor}`;
   }
 
   return (
@@ -79,7 +80,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           <h1 className="mt-2 text-[clamp(2.25rem,7vw,3rem)] font-bold leading-tight tracking-[-.05em]">Find the right help for the job.</h1>
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">Compare trusted local providers, prices, and availability around {location}.</p>
 
-          <form action="/services" className="mt-8 flex max-w-4xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 shadow-[0_14px_40px_rgba(24,49,38,.1)] sm:flex-row sm:rounded-full">
+          <form action={`/services${resultsAnchor}`} className="mt-8 flex max-w-4xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 shadow-[0_14px_40px_rgba(24,49,38,.1)] sm:flex-row sm:rounded-full">
             <label className="flex flex-1 items-center gap-3 px-4 py-3">
               <span aria-hidden="true">🔎</span>
               <span className="sr-only">Search services</span>
@@ -108,7 +109,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             <div className="absolute left-5 right-5 z-20 mt-3 rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 shadow-[0_20px_55px_rgba(24,49,38,.15)] sm:left-auto sm:right-8 sm:w-[620px] sm:p-6">
               <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={serviceHref(category)} className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><span>{SERVICE_CATEGORY_ICONS[category] ?? "✨"}</span>{category}</Link>)}</div>
-              <form action="/services" className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <form action={`/services${resultsAnchor}`} className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                 {query && <input type="hidden" name="q" value={query} />}<input type="hidden" name="location" value={location} /><input type="hidden" name="radius" value={radius} />{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}{sort !== "nearest" && <input type="hidden" name="sort" value={sort} />}
                 <label><span className="mb-2 block text-xs font-bold">Maximum price</span><select name="maxPrice" defaultValue={maxPrice ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any price</option><option value="50">Up to $50</option><option value="100">Up to $100</option><option value="250">Up to $250</option><option value="500">Up to $500</option></select></label>
                 <label><span className="mb-2 block text-xs font-bold">Maximum duration</span><select name="maxDuration" defaultValue={maxDuration ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any duration</option><option value="60">Up to 1 hour</option><option value="120">Up to 2 hours</option><option value="240">Up to half day</option><option value="480">Up to full day</option></select></label>
@@ -127,12 +128,12 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           {maxDuration && <Link href={removeFilter("maxDuration")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Up to {maxDuration >= 240 ? maxDuration === 480 ? "full day" : "half day" : `${maxDuration / 60} hr`} ×</Link>}
         </div>
 
-        <div className="mt-8 flex items-end justify-between gap-5">
+        <div id="service-listings" className="mt-8 flex scroll-mt-6 items-end justify-between gap-5 sm:scroll-mt-8">
           <div>
             <p className="text-sm text-[#6c7d74]">{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} found</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">{query ? `Results for “${query}”` : selectedCategory}</h2>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} />{(query || selectedCategory !== "All services" || maxPrice || maxDuration || location !== "Issaquah, WA" || radius !== 10) && <Link href="/services" className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
+          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} />{(query || selectedCategory !== "All services" || maxPrice || maxDuration || location !== "Issaquah, WA" || radius !== 10) && <Link href={`/services${resultsAnchor}`} className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
         </div>
 
         {filteredServices.length > 0 ? (
@@ -161,7 +162,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             <span className="text-4xl">🔎</span>
             <h3 className="mt-4 text-xl font-bold">No exact matches yet</h3>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Try a broader search or explore all services. We&apos;re adding more local providers soon.</p>
-            <Link href="/services" className="mt-6 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">View all services</Link>
+            <Link href={`/services${resultsAnchor}`} className="mt-6 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">View all services</Link>
           </div>
         )}
       </section>

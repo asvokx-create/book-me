@@ -10,7 +10,7 @@ export default function SortSelect({ value }: { value: string }) {
     const params = new URLSearchParams(searchParams.toString());
     if (nextSort === "newest") params.delete("sort");
     else params.set("sort", nextSort);
-    router.push(`/services?${params.toString()}`, { scroll: false });
+    router.push(`/services?${params.toString()}#service-listings`);
   }
 
   return (
