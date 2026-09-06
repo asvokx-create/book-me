@@ -2,8 +2,9 @@ import Link from "next/link";
 import { getServices, getServiceVisual } from "@/lib/marketplace";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
-import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORY_ICONS } from "@/lib/service-categories";
+import { FEATURED_SERVICE_CATEGORIES } from "@/lib/service-categories";
 import LocationFilter from "@/components/location-filter";
+import ServiceCategoryIcon from "@/components/service-category-icon";
 
 export const dynamic = "force-dynamic";
 
@@ -75,11 +76,14 @@ export default async function Home() {
             <Link
               key={category}
               href={`/services?category=${encodeURIComponent(category)}`}
-              className="rounded-3xl border border-[#183126]/10 bg-white p-5 text-left shadow-[0_4px_20px_rgba(24,49,38,.04)] transition hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(24,49,38,.1)]"
+              className="group relative overflow-hidden rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 text-left shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:-translate-y-1.5 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60"
             >
-              <div className="mb-4 text-3xl">{SERVICE_CATEGORY_ICONS[category]}</div>
-
-              <p className="font-semibold">{category}</p>
+              <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[#e7efe3]/60 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
+              <ServiceCategoryIcon category={category} />
+              <div className="mt-5 flex items-center justify-between gap-3">
+                <p className="font-bold tracking-[-.01em]">{category}</p>
+                <span aria-hidden="true" className="grid h-8 w-8 translate-x-2 place-items-center rounded-full bg-[#183126] text-sm text-white opacity-0 transition duration-300 group-hover:translate-x-0 group-hover:opacity-100">→</span>
+              </div>
             </Link>
           ))}
         </div>
