@@ -4,13 +4,76 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 type Support = { id: string; subject: string; message: string; status: string; admin_reply: string; created_at: string; user_name: string; user_email: string };
-type Verification = { id: string; verification_type: string; details: Record<string, string>; status: string; admin_note: string; created_at: string; business_name: string; user_name: string; user_email: string };
+type Verification = { id: string; verification_type: string; status: string; business_name: string; user_name: string; user_email: string };
+type CheckResult = { key: string; label: string; passed: boolean; verifiedBy: string; detail: string };
+type AutomatedCheck = { id: string; overall_status: string; score: number; results: CheckResult[]; created_at: string; business_name: string; user_name: string; user_email: string };
 
 export default function AdminSupportQueue() {
-  const [support, setSupport] = useState<Support[]>([]); const [verifications, setVerifications] = useState<Verification[]>([]);
-  const [tab, setTab] = useState<"support" | "verification">("support"); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [busy, setBusy] = useState("");
-  const load = useCallback(async () => { setLoading(true); const response = await fetch("/api/admin/support", { cache: "no-store" }).catch(() => null); const data = response ? await response.json() as { support?: Support[]; verifications?: Verification[]; error?: string } : null; if (!response?.ok) setError(data?.error ?? "The admin inbox could not be loaded."); else { setSupport(data?.support ?? []); setVerifications(data?.verifications ?? []); setError(""); } setLoading(false); }, []);
-  useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
-  async function update(type: "support" | "verification", id: string, status: string) { const note = window.prompt(type === "support" ? "Reply or internal update:" : "Add a verification note:")?.trim(); if (note === undefined) return; setBusy(id); const response = await fetch("/api/admin/support", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, id, status, note }) }).catch(() => null); setBusy(""); if (!response?.ok) { const data = response ? await response.json() as { error?: string } : null; setError(data?.error ?? "That update could not be saved."); return; } await load(); }
-  return <main className="min-h-screen bg-[#f4f4ef] text-[#183126]"><header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4"><Link href="/admin" className="flex items-center gap-2 font-bold"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#183126] text-[#eee25a]">B</span>BubsBookings Admin</Link><Link href="/admin" className="rounded-full px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">← Admin overview</Link></div></header><div className="mx-auto max-w-6xl px-5 py-10"><p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">Admin inbox</p><h1 className="mt-2 text-4xl font-bold">Support & verification</h1><div className="mt-6 flex gap-2"><button onClick={() => setTab("support")} className={`rounded-full px-5 py-2.5 text-sm font-bold ${tab === "support" ? "bg-[#183126] text-white" : "bg-white hover:bg-[#eee25a]"}`}>Support ({support.filter((item) => item.status !== "resolved").length})</button><button onClick={() => setTab("verification")} className={`rounded-full px-5 py-2.5 text-sm font-bold ${tab === "verification" ? "bg-[#183126] text-white" : "bg-white hover:bg-[#eee25a]"}`}>Verifications ({verifications.filter((item) => item.status === "pending").length})</button></div>{error && <p className="mt-5 rounded-2xl bg-[#fff0e8] p-4 text-sm font-bold text-[#964f2c]">{error}</p>}<div className="mt-7 space-y-4">{tab === "support" ? support.map((item) => <article key={item.id} className="rounded-[1.7rem] bg-white p-6"><div className="flex flex-wrap justify-between gap-4"><div><span className="rounded-full bg-[#fff1bf] px-3 py-1 text-xs font-bold capitalize">{item.status}</span><h2 className="mt-3 text-xl font-bold">{item.subject}</h2><p className="mt-1 text-sm text-[#718078]">{item.user_name} · {item.user_email} · {new Date(item.created_at).toLocaleString()}</p></div><div className="flex gap-2"><button disabled={busy === item.id} onClick={() => void update("support", item.id, "reviewing")} className="rounded-full border px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">Reply / review</button><button disabled={busy === item.id} onClick={() => void update("support", item.id, "resolved")} className="rounded-full bg-[#183126] px-4 py-2 text-sm font-bold text-white">Resolve</button></div></div><p className="mt-5 whitespace-pre-wrap rounded-2xl bg-[#f7f7f2] p-5 text-sm leading-6">{item.message}</p>{item.admin_reply && <p className="mt-3 rounded-2xl bg-[#e7f1e3] p-4 text-sm"><strong>Admin reply:</strong> {item.admin_reply}</p>}</article>) : verifications.map((item) => <article key={item.id} className="rounded-[1.7rem] bg-white p-6"><div className="flex flex-wrap justify-between gap-4"><div><span className="rounded-full bg-[#fff1bf] px-3 py-1 text-xs font-bold capitalize">{item.status}</span><h2 className="mt-3 text-xl font-bold capitalize">{item.verification_type} verification · {item.business_name}</h2><p className="mt-1 text-sm text-[#718078]">{item.user_name} · {item.user_email} · {new Date(item.created_at).toLocaleString()}</p></div><div className="flex gap-2"><button disabled={busy === item.id} onClick={() => void update("verification", item.id, "needs_changes")} className="rounded-full border px-4 py-2 text-sm font-bold hover:bg-[#fff0e8]">Needs changes</button><button disabled={busy === item.id} onClick={() => void update("verification", item.id, "approved")} className="rounded-full bg-[#183126] px-4 py-2 text-sm font-bold text-white">Approve</button></div></div><div className="mt-5 grid gap-2 rounded-2xl bg-[#f7f7f2] p-5 text-sm">{Object.entries(item.details).map(([key, value]) => <p key={key}><strong className="capitalize">{key.replaceAll("_", " ")}:</strong> {value}</p>)}</div>{item.admin_note && <p className="mt-3 text-sm"><strong>Admin note:</strong> {item.admin_note}</p>}</article>)}{!loading && ((tab === "support" && !support.length) || (tab === "verification" && !verifications.length)) && <p className="rounded-[1.7rem] bg-white p-10 text-center text-[#718078]">Nothing in this inbox yet.</p>}{loading && <p className="rounded-[1.7rem] bg-white p-10 text-center text-[#718078]">Loading inbox…</p>}</div></div></main>;
+  const [support, setSupport] = useState<Support[]>([]);
+  const [verifications, setVerifications] = useState<Verification[]>([]);
+  const [automatedChecks, setAutomatedChecks] = useState<AutomatedCheck[]>([]);
+  const [tab, setTab] = useState<"support" | "verification">("support");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const response = await fetch("/api/admin/support", { cache: "no-store" }).catch(() => null);
+    const data = response ? await response.json() as { support?: Support[]; verifications?: Verification[]; automatedChecks?: AutomatedCheck[]; error?: string } : null;
+    if (!response?.ok) setError(data?.error ?? "The admin inbox could not be loaded.");
+    else {
+      setSupport(data?.support ?? []);
+      setVerifications(data?.verifications ?? []);
+      setAutomatedChecks(data?.automatedChecks ?? []);
+      setError("");
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function initialize() {
+      await fetch("/api/admin/support/automatic", { method: "POST" }).catch(() => null);
+      if (active) await load();
+    }
+    void initialize();
+    return () => { active = false; };
+  }, [load]);
+
+  async function update(type: "support" | "verification", id: string, status: string) {
+    const entered = window.prompt(type === "support" ? "Reply or internal update:" : "Add a fallback review note:", type === "verification" ? "Manual fallback review" : "");
+    if (entered === null) return;
+    setBusy(id);
+    setError("");
+    const response = await fetch("/api/admin/support", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, id, status, note: entered.trim() }) }).catch(() => null);
+    setBusy("");
+    if (!response?.ok) {
+      const data = response ? await response.json() as { error?: string } : null;
+      setError(data?.error ?? "That update could not be saved.");
+      return;
+    }
+    await load();
+  }
+
+  const pendingVerifications = verifications.filter((item) => item.status === "pending");
+
+  return <main className="min-h-screen bg-[#f4f4ef] text-[#183126]">
+    <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4"><Link href="/admin" className="flex items-center gap-2 font-bold"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#183126] text-[#eee25a]">B</span>BubsBookings Admin</Link><Link href="/admin" className="rounded-full px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">← Admin overview</Link></div></header>
+    <div className="mx-auto max-w-6xl px-5 py-10">
+      <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">Admin inbox</p><h1 className="mt-2 text-4xl font-bold">Support &amp; verification</h1>
+      <div className="mt-6 flex flex-wrap gap-2"><button onClick={() => setTab("support")} className={`rounded-full px-5 py-2.5 text-sm font-bold ${tab === "support" ? "bg-[#183126] text-white" : "bg-white hover:bg-[#eee25a]"}`}>Support ({support.filter((item) => item.status !== "resolved").length})</button><button onClick={() => setTab("verification")} className={`rounded-full px-5 py-2.5 text-sm font-bold ${tab === "verification" ? "bg-[#183126] text-white" : "bg-white hover:bg-[#eee25a]"}`}>Automatic verification ({automatedChecks.length})</button></div>
+      {error && <p className="mt-5 rounded-2xl bg-[#fff0e8] p-4 text-sm font-bold text-[#964f2c]">{error}</p>}
+      <div className="mt-7 space-y-4">
+        {tab === "support" ? support.map((item) => <article key={item.id} className="rounded-[1.7rem] bg-white p-6"><div className="flex flex-wrap justify-between gap-4"><div><span className="rounded-full bg-[#fff1bf] px-3 py-1 text-xs font-bold capitalize">{item.status}</span><h2 className="mt-3 text-xl font-bold">{item.subject}</h2><p className="mt-1 text-sm text-[#718078]">{item.user_name} · {item.user_email} · {new Date(item.created_at).toLocaleString()}</p></div><div className="flex gap-2"><button disabled={busy === item.id} onClick={() => void update("support", item.id, "reviewing")} className="rounded-full border px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">Reply / review</button><button disabled={busy === item.id} onClick={() => void update("support", item.id, "resolved")} className="rounded-full bg-[#183126] px-4 py-2 text-sm font-bold text-white">Resolve</button></div></div><p className="mt-5 whitespace-pre-wrap rounded-2xl bg-[#f7f7f2] p-5 text-sm leading-6">{item.message}</p>{item.admin_reply && <p className="mt-3 rounded-2xl bg-[#e7f1e3] p-4 text-sm"><strong>Admin reply:</strong> {item.admin_reply}</p>}</article>) : <>
+          <section className="rounded-[1.7rem] border border-[#9db7a2] bg-[#e9f3e7] p-6"><h2 className="text-xl font-bold">No routine approval needed</h2><p className="mt-2 text-sm leading-6 text-[#52685c]">Opening this inbox automatically processes pending requests. BubsBookings checks the account, matching phone details, Stripe onboarding, and every active business listing. An incomplete check stays flagged instead of granting an unverified badge.</p></section>
+          {automatedChecks.map((check) => <article key={check.id} className="rounded-[1.7rem] bg-white p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><span className={`rounded-full px-3 py-1 text-xs font-bold ${check.overall_status === "passed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#fff1bf] text-[#75651d]"}`}>{check.overall_status === "passed" ? "Passed" : "Needs attention"}</span><h2 className="mt-3 text-xl font-bold">{check.business_name}</h2><p className="mt-1 text-sm text-[#718078]">{check.user_name} · {check.user_email} · checked {new Date(check.created_at).toLocaleString()}</p></div><span className="rounded-full bg-[#f0f1eb] px-4 py-2 text-sm font-bold">{check.score}%</span></div><div className="mt-5 grid gap-3 sm:grid-cols-2">{check.results.map((result) => <div key={result.key} className={`rounded-2xl p-4 ${result.passed ? "bg-[#e9f3e7]" : "bg-[#fff4df]"}`}><p className="font-bold">{result.passed ? "✓" : "○"} {result.label}</p><p className="mt-1 text-xs leading-5 text-[#687970]">{result.detail}</p><p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-[#819087]">Checked by {result.verifiedBy === "stripe" ? "Stripe" : "BubsBookings"}</p></div>)}</div></article>)}
+          {pendingVerifications.map((item) => <article key={item.id} className="rounded-[1.7rem] border border-[#d8cb63] bg-white p-6"><span className="rounded-full bg-[#fff1bf] px-3 py-1 text-xs font-bold">Automatic check incomplete</span><h2 className="mt-3 text-xl font-bold capitalize">{item.verification_type} · {item.business_name}</h2><p className="mt-1 text-sm text-[#718078]">{item.user_name} · {item.user_email}</p><p className="mt-4 text-sm leading-6 text-[#75651d]">No badge was granted. The provider can correct their profile or Stripe onboarding and run the check again.</p></article>)}
+        </>}
+        {!loading && tab === "support" && !support.length && <p className="rounded-[1.7rem] bg-white p-10 text-center text-[#718078]">Nothing in this inbox yet.</p>}
+        {!loading && tab === "verification" && !automatedChecks.length && !pendingVerifications.length && <p className="rounded-[1.7rem] bg-white p-10 text-center text-[#718078]">No provider checks yet.</p>}
+        {loading && <p className="rounded-[1.7rem] bg-white p-10 text-center text-[#718078]">Running automatic checks…</p>}
+      </div>
+    </div>
+  </main>;
 }

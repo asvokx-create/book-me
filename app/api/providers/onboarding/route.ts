@@ -10,6 +10,7 @@ import { getServiceAreaCoordinates } from "@/lib/service-areas";
 import { screenProviderProfile } from "@/lib/provider-screening";
 import { sendTransactionalEmail } from "@/lib/email";
 import { PROVIDER_AGREEMENT_VERSION } from "@/lib/policy-consent";
+import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -158,6 +159,9 @@ export async function POST(request: Request) {
     }
 
     await client.query("COMMIT");
+    await runAutomatedProviderVerification(providerId).catch((error) => {
+      console.error("Initial automated provider verification failed", providerId, error);
+    });
     await sendTransactionalEmail({
       to: session.user.email,
       userId: session.user.id,

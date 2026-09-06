@@ -4,6 +4,7 @@ import { database } from "@/lib/database";
 import { isPurchasableProviderPlan } from "@/lib/plans";
 import { getStripe, getStripeMode } from "@/lib/stripe";
 import { recordAnalytics } from "@/lib/analytics";
+import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 
 export const runtime = "nodejs";
 
@@ -82,7 +83,8 @@ async function processEvent(event: Stripe.Event) {
     }
     case "account.updated": {
       const account = event.data.object;
-      await database.query("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1 AND stripe_connect_mode = $4", [account.id, account.charges_enabled, account.payouts_enabled, getStripeMode()]);
+      const provider = await database.query<{ id: string }>("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1 AND stripe_connect_mode = $4 RETURNING id::text", [account.id, account.charges_enabled, account.payouts_enabled, getStripeMode()]);
+      if (provider.rows[0]) await runAutomatedProviderVerification(provider.rows[0].id);
       break;
     }
     case "charge.refunded": {
