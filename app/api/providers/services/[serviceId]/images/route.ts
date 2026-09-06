@@ -6,10 +6,10 @@ import { database } from "@/lib/database";
 import { deleteImage, uploadPublicImage } from "@/lib/spaces";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
+import { LISTING_IMAGE_MAX_BYTES, LISTING_IMAGE_MAX_MB } from "@/lib/listing-images";
 
 export const runtime = "nodejs";
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const allowedTypes = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
@@ -55,7 +55,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ser
   const image = formData.get("image");
   if (!(image instanceof File)) return NextResponse.json({ error: "Choose a photo to upload." }, { status: 400 });
   if (!allowedTypes.has(image.type)) return NextResponse.json({ error: "Use a JPG, PNG, or WebP photo." }, { status: 400 });
-  if (image.size === 0 || image.size > MAX_IMAGE_BYTES) return NextResponse.json({ error: "Each photo must be under 5 MB." }, { status: 400 });
+  if (image.size === 0 || image.size > LISTING_IMAGE_MAX_BYTES) return NextResponse.json({ error: `Each photo must be under ${LISTING_IMAGE_MAX_MB} MB.` }, { status: 400 });
 
   const body = Buffer.from(await image.arrayBuffer());
   if (!hasValidSignature(body, image.type)) return NextResponse.json({ error: "That file does not appear to be a valid image." }, { status: 400 });

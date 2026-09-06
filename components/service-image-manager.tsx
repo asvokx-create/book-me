@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useState } from "react";
+import { LISTING_IMAGE_MAX_BYTES, LISTING_IMAGE_MAX_MB } from "@/lib/listing-images";
 
 type ServiceImageManagerProps = {
   serviceId: string;
@@ -9,7 +10,6 @@ type ServiceImageManagerProps = {
 };
 
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-const maxBytes = 5 * 1024 * 1024;
 
 export default function ServiceImageManager({ serviceId, initialImageUrls, compact = false }: ServiceImageManagerProps) {
   const [imageUrls, setImageUrls] = useState(initialImageUrls);
@@ -20,8 +20,8 @@ export default function ServiceImageManager({ serviceId, initialImageUrls, compa
     const selected = Array.from(event.target.files ?? []);
     event.target.value = "";
     if (selected.length === 0) return;
-    if (selected.some((file) => !allowedTypes.includes(file.type) || file.size > maxBytes)) {
-      setMessage("Use JPG, PNG, or WebP photos under 5 MB each.");
+    if (selected.some((file) => !allowedTypes.includes(file.type) || file.size > LISTING_IMAGE_MAX_BYTES)) {
+      setMessage(`Use JPG, PNG, or WebP photos under ${LISTING_IMAGE_MAX_MB} MB each.`);
       return;
     }
     if (imageUrls.length + selected.length > 5) {
