@@ -9,11 +9,12 @@ type LocationFilterProps = {
   initialLocation?: string;
   initialRadius?: number;
   restoreRemembered?: boolean;
+  autoSubmitRadius?: boolean;
 };
 
 const STORAGE_KEY = "bookme-service-area";
 
-export default function LocationFilter({ initialLocation = "Issaquah, WA", initialRadius = 25, restoreRemembered = false }: LocationFilterProps) {
+export default function LocationFilter({ initialLocation = "Issaquah, WA", initialRadius = 25, restoreRemembered = false, autoSubmitRadius = false }: LocationFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -22,6 +23,7 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
   const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState("");
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const radiusUpdateRef = useRef<number | null>(null);
   const nearby = useMemo(() => nearbyServiceAreas(location), [location]);
   const currentSearch = searchParams.toString();
 
@@ -47,8 +49,27 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
     return () => window.clearTimeout(timer);
   }, [currentSearch, initialRadius, pathname, restoreRemembered, router]);
 
+  useEffect(() => () => {
+    if (radiusUpdateRef.current) window.clearTimeout(radiusUpdateRef.current);
+  }, []);
+
   function remember(nextLocation: string, nextRadius: number) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ location: nextLocation, radius: nextRadius }));
+  }
+
+  function changeRadius(nextRadius: number) {
+    setRadius(nextRadius);
+    if (!Number.isInteger(nextRadius) || nextRadius < 1 || nextRadius > 250) return;
+    remember(location, nextRadius);
+    if (!autoSubmitRadius || pathname !== "/services") return;
+    if (radiusUpdateRef.current) window.clearTimeout(radiusUpdateRef.current);
+    radiusUpdateRef.current = window.setTimeout(() => {
+      const params = new URLSearchParams(currentSearch);
+      params.set("location", location);
+      params.set("radius", String(nextRadius));
+      params.delete("showFilters");
+      router.push(`/services?${params.toString()}#service-listings`);
+    }, 350);
   }
 
   function chooseLocation(nextLocation: string) {
@@ -102,7 +123,7 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
           <button type="button" onClick={() => chooseLocation(location.trim() || initialLocation)} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">Use this city</button>
         </div>
       </details>
-      <div className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={(nextRadius) => { setRadius(nextRadius); if (Number.isInteger(nextRadius) && nextRadius >= 1 && nextRadius <= 250) remember(location, nextRadius); }} compact /></div>
+      <div className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={changeRadius} compact /></div>
     </div>
   );
 }

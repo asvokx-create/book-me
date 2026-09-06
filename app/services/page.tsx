@@ -87,7 +87,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <span className="sr-only">Search services</span>
               <input name="q" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" className="w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" />
             </label>
-            <div className="border-t border-[#183126]/10 sm:min-w-[330px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} /></div>
+            <div className="border-t border-[#183126]/10 sm:min-w-[330px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitRadius /></div>
             {selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
             {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}
             {maxDuration && <input type="hidden" name="maxDuration" value={maxDuration} />}
