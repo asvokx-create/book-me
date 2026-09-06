@@ -9,6 +9,7 @@ import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getServiceAreaCoordinates } from "@/lib/service-areas";
 import { screenProviderProfile } from "@/lib/provider-screening";
 import { sendTransactionalEmail } from "@/lib/email";
+import { PROVIDER_AGREEMENT_VERSION } from "@/lib/policy-consent";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
   const duration = typeof body.duration === "string" ? body.duration : "";
   const price = Number(body.price);
   const serviceRadiusMiles = Number(body.serviceRadiusMiles ?? 25);
+  const acceptedProviderAgreement = body.acceptedProviderAgreement === true;
   const selectedDays = Array.isArray(body.selectedDays)
     ? body.selectedDays.filter((day): day is string => typeof day === "string" && day in weekdayNumbers)
     : [];
@@ -63,6 +65,9 @@ export async function POST(request: Request) {
 
   if (!business || !category || !serviceArea || !coordinates || !service || !description || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
+  }
+  if (!acceptedProviderAgreement) {
+    return NextResponse.json({ error: "Accept the Provider Agreement before creating a provider profile." }, { status: 400 });
   }
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "provider_listing", fields: [business, service, description, serviceArea] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
@@ -103,8 +108,8 @@ export async function POST(request: Request) {
 
     const profileResult = await client.query<{ id: string }>(
       `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state, plan, latitude, longitude, service_radius_miles,
-          screening_status, screening_score, screening_summary, screening_checked_at, is_verified, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'passed', $11, $12, now(), true, true)
+          screening_status, screening_score, screening_summary, screening_checked_at, provider_agreement_accepted_at, provider_agreement_version, is_verified, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'passed', $11, $12, now(), now(), $13, true, true)
        ON CONFLICT (user_id) DO UPDATE SET
          bio = EXCLUDED.bio,
          phone = EXCLUDED.phone,
@@ -118,10 +123,12 @@ export async function POST(request: Request) {
          screening_score = EXCLUDED.screening_score,
          screening_summary = EXCLUDED.screening_summary,
          screening_checked_at = EXCLUDED.screening_checked_at,
+         provider_agreement_accepted_at = EXCLUDED.provider_agreement_accepted_at,
+         provider_agreement_version = EXCLUDED.provider_agreement_version,
          is_verified = true,
          is_active = true
        RETURNING id`,
-      [session.user.id, business, description, session.user.phone ?? null, city, state, plan, coordinates.latitude, coordinates.longitude, serviceRadiusMiles, screening.score, screening.summary],
+      [session.user.id, business, description, session.user.phone ?? null, city, state, plan, coordinates.latitude, coordinates.longitude, serviceRadiusMiles, screening.score, screening.summary, PROVIDER_AGREEMENT_VERSION],
     );
     const providerId = profileResult.rows[0].id;
 

@@ -2,6 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 import { SERVICE_AREAS, serviceAreaLabel } from "@/lib/service-areas";
 import { LISTING_IMAGE_MAX_BYTES, LISTING_IMAGE_MAX_MB } from "@/lib/listing-images";
@@ -26,6 +27,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("17:00");
   const [open24Hours, setOpen24Hours] = useState(false);
+  const [acceptedProviderAgreement, setAcceptedProviderAgreement] = useState(false);
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<Array<{ file: File; preview: string }>>([]);
   const previewUrls = useRef<string[]>([]);
@@ -72,6 +74,10 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
       setError(selectedDays.length === 0 ? "Choose at least one available day." : "Your start time must be earlier than your end time.");
       return;
     }
+    if (step === 3 && !acceptedProviderAgreement) {
+      setError("Read and accept the Provider Agreement to finish setup.");
+      return;
+    }
     setError("");
     if (step < 3) {
       setStep(step + 1);
@@ -82,7 +88,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
     const response = await fetch("/api/providers/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ business, category, city, serviceRadiusMiles: Number(serviceRadiusMiles), service, price, duration, description, selectedDays, startTime: open24Hours ? ALL_DAY_START_TIME : startTime, endTime: open24Hours ? ALL_DAY_END_TIME : endTime, plan }),
+      body: JSON.stringify({ business, category, city, serviceRadiusMiles: Number(serviceRadiusMiles), service, price, duration, description, selectedDays, startTime: open24Hours ? ALL_DAY_START_TIME : startTime, endTime: open24Hours ? ALL_DAY_END_TIME : endTime, plan, acceptedProviderAgreement }),
     });
     const result = (await response.json()) as { error?: string; serviceId?: string };
 
@@ -151,6 +157,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
           <div className="mt-6 grid grid-cols-4 gap-2 sm:grid-cols-7">{days.map((day) => <button key={day} type="button" onClick={() => toggleDay(day)} className={`rounded-xl border px-2 py-3 text-sm font-bold transition ${selectedDays.includes(day) ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/15 bg-white hover:border-[#4d725d]"}`}>{day}</button>)}</div>
           <div className="mt-7 rounded-2xl bg-[#f5f5ef] p-5"><div><p className="text-sm font-bold">Typical hours</p><p className="mt-1 text-xs text-[#75837c]">These hours will apply to the selected days. You can customize each day later.</p></div><label className="mt-4 flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-bold"><input type="checkbox" checked={open24Hours} onChange={(event) => setOpen24Hours(event.target.checked)} className="h-5 w-5 accent-[#183126]" />Open 24 hours on selected days</label>{!open24Hours && <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3"><label><span className="mb-2 block text-xs font-bold text-[#65766d]">Start time</span><input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className={inputClass} /></label><span className="mt-6 text-sm text-[#718078]">to</span><label><span className="mb-2 block text-xs font-bold text-[#65766d]">End time</span><input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className={inputClass} /></label></div>}</div>
           <div className="mt-4 rounded-2xl border border-[#b9cdbb] bg-[#edf5e9] p-5"><p className="text-sm font-bold">⚡ Instant automated screening</p><p className="mt-2 text-xs leading-5 text-[#5f7067]">When you finish, BubsBookings checks your verified email, contact number, profile completeness, and listing language. Clean profiles publish immediately—there is no admin approval wait.</p></div>
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#183126]/15 bg-white p-5"><input type="checkbox" required checked={acceptedProviderAgreement} onChange={(event) => setAcceptedProviderAgreement(event.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#183126]" /><span className="text-sm leading-6 text-[#5f7067]">I have read and agree to the <Link href="/provider-agreement" target="_blank" className="font-bold text-[#183126] underline">Provider Agreement</Link>, including the Stripe payment, payout-delay, refund, and transfer-reversal terms.</span></label>
         </div>}
 
         {error && <p role="alert" className="mt-5 rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}</p>}
