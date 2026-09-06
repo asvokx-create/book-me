@@ -11,6 +11,8 @@ export default function SiteFooter() {
           <div className="mt-3 w-fit rounded-lg border border-[#183126]/10 bg-white px-1 py-0.5 shadow-sm"><BugReportButton /></div>
         </div>
         <nav aria-label="Legal and safety" className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+          <Link href="/locations" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Service areas</Link>
+          <Link href="/guides" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Guides</Link>
           <Link href="/terms" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Terms</Link>
           <Link href="/privacy" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Privacy</Link>
           <Link href="/provider-agreement" className="rounded-lg px-2 py-1 transition hover:bg-[#dfe7da]">Providers</Link>

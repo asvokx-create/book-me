@@ -6,7 +6,7 @@ import { auth, isAuthConfigured } from "@/lib/auth";
 import OnboardingForm from "./onboarding-form";
 
 export const metadata: Metadata = {
-  title: "Become a provider | BubsBookings",
+  title: "Become a provider",
   description: "Grow your local service business with BubsBookings.",
 };
 

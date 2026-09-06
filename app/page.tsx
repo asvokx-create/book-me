@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getServices, getServiceVisual, type ServiceListing } from "@/lib/marketplace";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
@@ -7,6 +8,7 @@ import LocationFilter from "@/components/location-filter";
 import ServiceCategoryIcon from "@/components/service-category-icon";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 export default async function Home() {
   const [services, allServices] = await Promise.all([

@@ -10,8 +10,9 @@ import SortSelect from "@/components/sort-select";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Explore local services | BubsBookings",
+  title: "Explore local services",
   description: "Search trusted local service providers near Issaquah.",
+  alternates: { canonical: "/services" },
 };
 
 const quickCategories = ["All services", ...FEATURED_SERVICE_CATEGORIES];

@@ -3,7 +3,7 @@ import Link from "next/link";
 import AuthForm from "../auth-form";
 import { getSocialProviderAvailability } from "@/lib/auth";
 
-export const metadata: Metadata = { title: "Log in | BubsBookings" };
+export const metadata: Metadata = { title: "Log in" };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ redirect?: string; oauthError?: string }> }) {
   const query = await searchParams;

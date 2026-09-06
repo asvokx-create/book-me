@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/app/terms/page";
 
-export const metadata: Metadata = { title: "AI & Safety Transparency | BubsBookings" };
+export const metadata: Metadata = { title: "AI & Safety Transparency" };
 
 const sections = [
   ["1. What is automated", <><p>BubsBookings currently uses in-house, rules-based systems that the product may call the Safety Bot. Content screening checks newly submitted messages, listing text, booking notes, cancellation reasons, and reviews for selected patterns associated with profanity, harassment, hate, explicit sexual or exploitative content, credible threats, and serious illegal transactions.</p><p className="mt-3">Provider verification separately checks verified-email and agreement status, matching phone-number format, required business details, location, pricing, every active listing, and selected placeholder or suspicious language. When payout onboarding is connected, Stripe—not the Safety Bot—supplies the identity and payout-readiness status.</p></>],

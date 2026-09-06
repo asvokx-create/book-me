@@ -27,6 +27,14 @@ export function serviceAreaLabel(area: ServiceArea) {
   return `${area.city}, ${area.state}`;
 }
 
+export function serviceAreaSlug(area: ServiceArea) {
+  return area.city.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+export function getServiceAreaBySlug(slug: string) {
+  return SERVICE_AREAS.find((area) => serviceAreaSlug(area) === slug.toLowerCase());
+}
+
 function normalizeLocation(location: string) {
   return location.trim().toLowerCase().replace(/\s+/g, " ");
 }

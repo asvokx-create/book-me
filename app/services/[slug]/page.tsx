@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { auth, isAuthConfigured } from "@/lib/auth";
@@ -10,6 +11,19 @@ import ContactProviderLink from "@/components/contact-provider-link";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: PageProps<"/services/[slug]">): Promise<Metadata> {
+  const { slug } = await params;
+  const service = await getServiceBySlug(slug);
+  if (!service) return {};
+  const description = `${service.title} in ${service.city}, ${service.state}. Starting at $${service.price}. ${service.description}`.slice(0, 160);
+  return {
+    title: `${service.title} in ${service.city}, ${service.state}`,
+    description,
+    alternates: { canonical: `/services/${service.slug}` },
+    openGraph: { title: service.title, description, url: `/services/${service.slug}`, images: service.imageUrls[0] ? [service.imageUrls[0]] : undefined },
+  };
+}
+
 export default async function ServicePage({ params }: PageProps<"/services/[slug]">) {
   const { slug } = await params;
   const service = await getServiceBySlug(slug);
@@ -18,9 +32,21 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
 
   const visual = getServiceVisual(service.category);
   const duration = formatDuration(service.durationMinutes);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: service.title,
+    description: service.description,
+    url: `https://bubsbookings.com/services/${service.slug}`,
+    image: service.imageUrls,
+    areaServed: { "@type": "City", name: `${service.city}, ${service.state}` },
+    provider: { "@type": "LocalBusiness", name: service.provider, url: `https://bubsbookings.com/providers/${service.providerId}`, address: { "@type": "PostalAddress", addressLocality: service.city, addressRegion: service.state, addressCountry: "US" } },
+    offers: { "@type": "Offer", priceCurrency: "USD", price: service.price, description: "Starting price; the provider may send a revised quote before confirmation." },
+  };
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span><span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span></Link>

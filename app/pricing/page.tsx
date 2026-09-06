@@ -8,8 +8,9 @@ import { database } from "@/lib/database";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 
 export const metadata: Metadata = {
-  title: "Provider pricing | BubsBookings",
+  title: "Provider pricing",
   description: "Choose the BubsBookings plan that fits your local service business.",
+  alternates: { canonical: "/pricing" },
 };
 
 const plans = [

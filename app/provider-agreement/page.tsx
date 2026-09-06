@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/app/terms/page";
 
-export const metadata: Metadata = { title: "Provider Agreement | BubsBookings" };
+export const metadata: Metadata = { title: "Provider Agreement" };
 
 const sections = [
   ["1. Acceptance and relationship", "This Provider Agreement supplements the Terms of Service. By creating a provider profile, listing a service, or accepting a booking, you accept both agreements for yourself and any business you represent. You provide services as an independent business—not as a BubsBookings employee, agent, franchisee, joint venturer, or representative. You decide how to perform work and are not promised any minimum bookings, territory, or earnings."],

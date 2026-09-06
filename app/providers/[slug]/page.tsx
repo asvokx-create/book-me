@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: PageProps<"/providers/[slug]"
   const provider = await getProviderById(slug);
   if (!provider) return {};
   const profileName = provider.services.length > 1 ? provider.ownerName : provider.businessName;
-  return { title: `${profileName} | BubsBookings`, description: provider.bio };
+  return { title: profileName, description: provider.bio, alternates: { canonical: `/providers/${provider.id}` } };
 }
 
 export default async function ProviderProfilePage({ params }: PageProps<"/providers/[slug]">) {
@@ -25,9 +25,12 @@ export default async function ProviderProfilePage({ params }: PageProps<"/provid
   const profileName = provider.services.length > 1 ? provider.ownerName : provider.businessName;
   const visual = getServiceVisual(featured?.category ?? "service");
   const categories = [...new Set(provider.services.map((service) => service.category))];
+  const averageRating = provider.reviews.length ? provider.reviews.reduce((sum, review) => sum + review.rating, 0) / provider.reviews.length : null;
+  const jsonLd = { "@context": "https://schema.org", "@type": "LocalBusiness", name: profileName, description: provider.bio, url: `https://bubsbookings.com/providers/${provider.id}`, image: provider.profileImageUrl || undefined, address: { "@type": "PostalAddress", addressLocality: provider.city, addressRegion: provider.state, addressCountry: "US" }, areaServed: `${provider.city}, ${provider.state}`, aggregateRating: averageRating ? { "@type": "AggregateRating", ratingValue: Number(averageRating.toFixed(1)), reviewCount: provider.reviews.length } : undefined, makesOffer: provider.services.map((service) => ({ "@type": "Offer", itemOffered: { "@type": "Service", name: service.title }, priceCurrency: "USD", price: service.price, url: `https://bubsbookings.com/services/${service.slug}` })) };
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <header className="relative z-50 border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BubsBookings</Link><AccountNav /></div></header>
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
         <Link href="/services" className="text-sm font-semibold text-[#63766b] hover:text-[#183126]">← Back to services</Link>
