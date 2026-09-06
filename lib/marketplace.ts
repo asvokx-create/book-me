@@ -114,7 +114,7 @@ export async function getServices(options: { query?: string; category?: string; 
   }
   values.push(searchOrigin ? Math.max(requestedLimit, 200) : requestedLimit);
 
-  const planPriority = "CASE WHEN p.plan IN ('business', 'owner') THEN 0 WHEN p.plan = 'pro' THEN 1 ELSE 2 END";
+  const planPriority = "CASE WHEN p.plan IN ('business', 'owner') THEN 0 ELSE 1 END";
   const orderBy = options.sort === "price-low" ? `s.price_cents ASC, ${planPriority}, s.created_at DESC` : options.sort === "price-high" ? `s.price_cents DESC, ${planPriority}, s.created_at DESC` : `${planPriority}, s.created_at DESC`;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
