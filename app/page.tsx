@@ -92,7 +92,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+      <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 sm:pb-10">
         <div className="mb-7 flex items-end justify-between">
           <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Local marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">New near Issaquah</h3></div>
 
@@ -107,7 +107,7 @@ export default async function Home() {
       </section>
 
       {allServices.length > 0 && <section className="border-t border-[#183126]/10 bg-[#f1f3ed]">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
           <div className="mb-8 flex items-end justify-between gap-4">
             <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Browse the marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">All listings</h3><p className="mt-2 text-sm text-[#687970]">Explore every active service currently available on BubsBookings.</p></div>
             <Link href="/services#service-listings" className="shrink-0 rounded-full bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">Explore all →</Link>
