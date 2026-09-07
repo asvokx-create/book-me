@@ -19,7 +19,7 @@ export const PLAN_ENTITLEMENTS = {
   pro: {
     name: "Pro",
     monthlyPrice: 9.99,
-    bookingFeePercent: 4,
+    bookingFeePercent: 6,
     serviceLimit: null,
     photoLimit: null,
     teamSeatLimit: 3,

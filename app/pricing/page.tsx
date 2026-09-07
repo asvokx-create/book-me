@@ -29,7 +29,7 @@ const plans = [
     name: "Pro",
     price: "$9.99",
     cadence: "per month",
-    fee: "4% booking fee",
+    fee: "6% booking fee",
     description: "Every growth tool in one affordable plan.",
     features: ["Unlimited services & photos", "Custom booking questions", "24-hour and 1-hour reminders", "Advanced analytics", "Repeat-customer insights", "3 total team seats included", "Extra employees for $0.50/month each", "Multiple service locations", "Priority support", "Priority placement in browse results"],
     featured: true,
