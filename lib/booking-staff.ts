@@ -26,6 +26,7 @@ export async function unavailableBookingProfessionals(client: PoolClient, input:
        FROM provider_team_members member
        JOIN team_member_availability hours ON hours.team_member_id = member.id
        WHERE member.provider_id::text = $2 AND member.status = 'active'
+         AND member.company_name = (SELECT business_name FROM services WHERE id::text = $3)
      )
      SELECT CASE WHEN assigned.is_owner THEN owner.name ELSE member.name END AS name
      FROM assigned

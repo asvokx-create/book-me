@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import StaffScheduler from "@/components/staff-scheduler";
 
-type Member = { id: string; name: string; email: string; role: string; status: "active" | "inactive"; createdAt: string };
+type Member = { id: string; name: string; email: string; role: string; companyName: string; status: "active" | "inactive"; createdAt: string };
 
 export default function TeamManager() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -14,21 +14,34 @@ export default function TeamManager() {
   const [extraTeamSeats, setExtraTeamSeats] = useState(0);
   const [isOwner, setIsOwner] = useState(true);
   const [companyName, setCompanyName] = useState("");
+  const [companies, setCompanies] = useState<string[]>([]);
+  const [activeWorkerCount, setActiveWorkerCount] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [role, setRole] = useState("Team member");
   const [busy, setBusy] = useState(""); const [error, setError] = useState(""); const [message, setMessage] = useState("");
 
-  useEffect(() => { fetch("/api/providers/team", { cache: "no-store" }).then(async (response) => { const data = await response.json() as { members?: Member[]; plan?: ProviderPlan; seatLimit?: number | null; extraTeamSeats?: number; isOwner?: boolean; companyName?: string; error?: string }; if (!response.ok) throw new Error(data.error); setMembers(data.members ?? []); setPlan(data.plan ?? "starter"); setSeatLimit(data.seatLimit === undefined ? 1 : data.seatLimit); setExtraTeamSeats(data.extraTeamSeats ?? 0); setIsOwner(data.isOwner !== false); setCompanyName(data.companyName ?? ""); }).catch((reason: Error) => setError(reason.message)).finally(() => setLoaded(true)); }, []);
-  const activeWorkers = members.filter((member) => member.status === "active").length;
+  async function loadTeam(company = "") {
+    const query = company ? `?company=${encodeURIComponent(company)}` : "";
+    await fetch(`/api/providers/team${query}`, { cache: "no-store" }).then(async (response) => {
+      const data = await response.json() as { members?: Member[]; plan?: ProviderPlan; seatLimit?: number | null; extraTeamSeats?: number; isOwner?: boolean; companyName?: string; companies?: string[]; activeWorkerCount?: number; error?: string };
+      if (!response.ok) throw new Error(data.error);
+      setMembers(data.members ?? []); setPlan(data.plan ?? "starter"); setSeatLimit(data.seatLimit === undefined ? 1 : data.seatLimit);
+      setExtraTeamSeats(data.extraTeamSeats ?? 0); setIsOwner(data.isOwner !== false); setCompanyName(data.companyName ?? "");
+      setCompanies(data.companies ?? []); setActiveWorkerCount(data.activeWorkerCount ?? 0);
+    }).catch((reason: Error) => setError(reason.message)).finally(() => setLoaded(true));
+  }
+  useEffect(() => { void loadTeam(); }, []);
+  const activeWorkers = activeWorkerCount;
+  const companyWorkers = members.filter((member) => member.status === "active").length;
   const workerLimit = seatLimit === null ? null : Math.max(seatLimit - 1, 0);
   const canAdd = workerLimit === null || activeWorkers < workerLimit;
 
   async function addMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy("new"); setError(""); setMessage("");
-    const response = await fetch("/api/providers/team", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, role }) });
-    const data = await response.json() as { member?: Member; error?: string };
+    const response = await fetch("/api/providers/team", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, role, companyName }) });
+    const data = await response.json() as { member?: Member; activeWorkerCount?: number; error?: string };
     setBusy(""); if (!response.ok || !data.member) { setError(data.error ?? "Worker could not be added."); return; }
-    setMembers((current) => [...current.filter((item) => item.id !== data.member!.id), data.member!]); setName(""); setEmail(""); setRole("Team member"); setMessage(`${data.member.name} was added to your team.`);
+    setMembers((current) => [...current.filter((item) => item.id !== data.member!.id), data.member!]); setActiveWorkerCount(data.activeWorkerCount ?? activeWorkerCount); setName(""); setEmail(""); setRole("Team member"); setMessage(`${data.member.name} was added to ${companyName}.`);
   }
   async function updateRole(memberId: string, nextRole: string) {
     setBusy(memberId); setError(""); const response = await fetch("/api/providers/team", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberId, role: nextRole }) }); setBusy("");
@@ -38,24 +51,25 @@ export default function TeamManager() {
   }
   async function removeMember(member: Member) {
     if (!window.confirm(`Remove ${member.name} from your company?`)) return;
-    setBusy(member.id); setError(""); const response = await fetch("/api/providers/team", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberId: member.id }) }); setBusy("");
-    if (!response.ok) { const data = await response.json() as { error?: string }; setError(data.error ?? "Worker could not be removed."); return; }
-    setMembers((current) => current.filter((item) => item.id !== member.id)); setMessage(`${member.name} was removed.`);
+    setBusy(member.id); setError(""); const response = await fetch("/api/providers/team", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberId: member.id }) }); const data = await response.json() as { activeWorkerCount?: number; error?: string }; setBusy("");
+    if (!response.ok) { setError(data.error ?? "Worker could not be removed."); return; }
+    setMembers((current) => current.filter((item) => item.id !== member.id)); setActiveWorkerCount(data.activeWorkerCount ?? activeWorkerCount); setMessage(`${member.name} was removed from ${companyName}.`);
   }
 
   if (!loaded) return <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-sm text-[#738179]">Loading your team…</section>;
-  return <div><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-sm font-semibold text-[#687a70]">Company access</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">{isOwner ? "Team" : companyName || "My company"}</h1><p className="mt-2 text-sm text-[#687a70]">{isOwner ? "Add workers and manage the company roster." : "View your company team and manage the hours you are available to work."}</p></div>{isOwner && <div className="flex flex-wrap items-center gap-2"><span className="w-fit rounded-full bg-[#eee25a] px-4 py-2 text-xs font-bold">{PLAN_ENTITLEMENTS[plan].name} · {seatLimit === null ? "Unlimited seats" : `${activeWorkers + 1}/${seatLimit} seats`}</span>{plan === "pro" && extraTeamSeats > 0 && <span className="rounded-full bg-[#e5f1e5] px-4 py-2 text-xs font-bold text-[#34704a]">{extraTeamSeats} paid extra</span>}</div>}</div>
+  return <div><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-sm font-semibold text-[#687a70]">Company access</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">{isOwner ? "Team" : companyName || "My company"}</h1><p className="mt-2 text-sm text-[#687a70]">{isOwner ? "Choose a company, then add workers and manage its roster." : "View your company team and manage the hours you are available to work."}</p></div>{isOwner && <div className="flex flex-wrap items-center gap-2"><span className="w-fit rounded-full bg-[#eee25a] px-4 py-2 text-xs font-bold">{PLAN_ENTITLEMENTS[plan].name} · {seatLimit === null ? "Unlimited seats" : `${activeWorkers + 1}/${seatLimit} seats`}</span>{plan === "pro" && extraTeamSeats > 0 && <span className="rounded-full bg-[#e5f1e5] px-4 py-2 text-xs font-bold text-[#34704a]">{extraTeamSeats} paid extra</span>}</div>}</div>
+    {isOwner && companies.length > 1 && <section className="mt-7 rounded-[2rem] border border-[#183126]/10 bg-[#e8f0e5] p-5 sm:p-6"><label className="block"><span className="text-xs font-bold uppercase tracking-[.13em] text-[#60736a]">Managing team for</span><select value={companyName} onChange={(event) => { setLoaded(false); setError(""); setMessage(""); void loadTeam(event.target.value); }} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-white px-4 py-3 text-base font-bold outline-none sm:max-w-md">{companies.map((company) => <option key={company} value={company}>{company}</option>)}</select></label><p className="mt-2 text-xs text-[#687a70]">Workers added below will only be available for listings under this company.</p></section>}
     {message && <p className="mt-6 rounded-2xl bg-[#e3f1e5] px-5 py-4 text-sm font-bold text-[#34704a]">✓ {message}</p>}{error && <p className="mt-6 rounded-2xl bg-[#fff1e8] px-5 py-4 text-sm font-bold text-[#9a4e25]">{error}</p>}
     {isOwner && <div className="mt-7 grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
       <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
-        <h2 className="text-xl font-bold">Add a worker</h2>
+        <h2 className="text-xl font-bold">Add a worker to {companyName}</h2>
         <p className="mt-1 text-sm text-[#738179]">Seats include you as the company owner.{plan === "pro" ? " Pro includes three total seats; additional employees cost $0.50/month each." : ""}</p>
         {canAdd ? <form onSubmit={addMember} className="mt-5 space-y-4"><label className="block text-sm font-bold">Full name<input required value={name} onChange={(event) => setName(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 outline-none" /></label><label className="block text-sm font-bold">Work email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 outline-none" /></label><label className="block text-sm font-bold">Role<input required minLength={2} maxLength={40} value={role} onChange={(event) => setRole(event.target.value)} placeholder="e.g. Lead detailer" className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 outline-none" /><span className="mt-2 block text-xs font-normal text-[#7a8881]">Type the person&apos;s real job title.</span></label><button disabled={busy === "new"} className="w-full rounded-full bg-[#183126] px-5 py-3 font-bold text-white transition hover:bg-[#315846] disabled:opacity-60">{busy === "new" ? "Adding…" : "Add worker"}</button></form> : <div className="mt-5 rounded-2xl bg-[#fff7cb] p-5"><p className="font-bold">Your team seats are full</p><p className="mt-2 text-sm leading-6 text-[#746b40]">{plan === "starter" ? "Starter includes the owner only. Upgrade to Pro to add workers." : "Add another employee seat for $0.50/month from Billing."}</p><Link href="/provider/dashboard/billing" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white">{plan === "pro" ? "Add employee seats" : "View plan options"}</Link></div>}
       </section>
-      <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-center justify-between"><div><h2 className="text-xl font-bold">Company roster</h2><p className="mt-1 text-sm text-[#738179]">You are the owner. Added workers appear below.</p></div><span className="rounded-full bg-[#edf2e8] px-3 py-1.5 text-xs font-bold">{activeWorkers} workers</span></div><div className="mt-5 space-y-3"><div className="flex items-center gap-4 rounded-2xl bg-[#183126] p-4 text-white"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/15 font-bold">You</span><div className="flex-1"><p className="font-bold">Company owner</p><p className="text-xs text-[#b8c7bf]">Full account access</p></div><span className="rounded-full bg-[#eee25a] px-3 py-1 text-xs font-bold text-[#183126]">Owner</span></div>{members.map((member) => <div key={member.id} className="flex flex-col gap-3 rounded-2xl bg-[#f5f5ef] p-4 sm:flex-row sm:items-center"><span className="grid h-11 w-11 place-items-center rounded-full bg-[#dfe9da] font-bold">{member.name.split(/\s+/).slice(0,2).map((part) => part[0]).join("").toUpperCase()}</span><div className="min-w-0 flex-1"><p className="font-bold">{member.name}</p><p className="truncate text-xs text-[#738179]">{member.email}</p></div><RoleEditor member={member} busy={busy === member.id} onSave={updateRole} /><button disabled={busy === member.id} onClick={() => void removeMember(member)} className="rounded-full px-3 py-2 text-xs font-bold text-[#914e3a] transition hover:bg-[#f4d8cc]">Remove</button></div>)}</div></section>
+      <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-center justify-between"><div><h2 className="text-xl font-bold">{companyName} roster</h2><p className="mt-1 text-sm text-[#738179]">You are the owner. Added workers appear below.</p></div><span className="rounded-full bg-[#edf2e8] px-3 py-1.5 text-xs font-bold">{companyWorkers} workers</span></div><div className="mt-5 space-y-3"><div className="flex items-center gap-4 rounded-2xl bg-[#183126] p-4 text-white"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/15 font-bold">You</span><div className="flex-1"><p className="font-bold">Company owner</p><p className="text-xs text-[#b8c7bf]">Full account access</p></div><span className="rounded-full bg-[#eee25a] px-3 py-1 text-xs font-bold text-[#183126]">Owner</span></div>{members.map((member) => <div key={member.id} className="flex flex-col gap-3 rounded-2xl bg-[#f5f5ef] p-4 sm:flex-row sm:items-center"><span className="grid h-11 w-11 place-items-center rounded-full bg-[#dfe9da] font-bold">{member.name.split(/\s+/).slice(0,2).map((part) => part[0]).join("").toUpperCase()}</span><div className="min-w-0 flex-1"><p className="font-bold">{member.name}</p><p className="truncate text-xs text-[#738179]">{member.email}</p></div><RoleEditor member={member} busy={busy === member.id} onSave={updateRole} /><button disabled={busy === member.id} onClick={() => void removeMember(member)} className="rounded-full px-3 py-2 text-xs font-bold text-[#914e3a] transition hover:bg-[#f4d8cc]">Remove</button></div>)}</div></section>
     </div>}
     {!isOwner && <section className="mt-7 rounded-[2rem] border border-[#183126]/10 bg-white p-6"><h2 className="text-xl font-bold">Company roster</h2><p className="mt-1 text-sm text-[#738179]">Only the owner can add, remove, or edit workers.</p><div className="mt-5 grid gap-3 sm:grid-cols-2">{members.map((member) => <div key={member.id} className="rounded-2xl bg-[#f5f5ef] p-4"><p className="font-bold">{member.name}</p><p className="mt-1 text-xs text-[#738179]">{member.role}</p></div>)}</div></section>}
-    <StaffScheduler members={members} />
+    <StaffScheduler key={companyName} members={members} companyName={companyName} />
   </div>;
 }
 

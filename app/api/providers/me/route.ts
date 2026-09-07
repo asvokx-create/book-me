@@ -64,8 +64,9 @@ export async function GET() {
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
      WHERE s.provider_id::text = $1 AND s.is_active = true
+       AND ($2::text IS NULL OR s.business_name = $2)
      ORDER BY s.created_at DESC`,
-    [provider.id],
+    [provider.id, access.memberCompanyName],
   );
   const services = serviceResult.rows.map((service) => ({
     id: service.id,
@@ -103,7 +104,7 @@ export async function GET() {
     accessRole: access.isOwner ? "owner" : "worker",
     teamMemberId: access.memberId,
     teamRole: access.memberRole,
-    businessName: provider.business_name,
+    businessName: access.memberCompanyName ?? provider.business_name,
     location: `${provider.city}, ${provider.state}`,
     plan: access.isOwner && isOwnerEmail(session.user.email) ? "owner" : provider.plan,
     isAdmin,

@@ -79,7 +79,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   );
   const viewerRole = row.customer_id === session.user.id ? "customer" : row.provider_user_id === session.user.id ? "provider" : "worker";
   const team = viewerRole !== "provider" ? [] : (await database.query<{ id: string; name: string }>(
-    `SELECT id::text, name FROM provider_team_members WHERE provider_id::text = $1 AND status = 'active' ORDER BY name`, [row.provider_id])).rows;
+    `SELECT id::text, name FROM provider_team_members
+     WHERE provider_id::text = $1 AND company_name = $2 AND status = 'active' ORDER BY name`, [row.provider_id, row.provider_name])).rows;
   return NextResponse.json({ booking: {
     id: row.id, viewerRole, customerName: row.customer_name,
     providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceSlug: row.service_slug,

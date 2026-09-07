@@ -10,7 +10,7 @@ type ScheduleRequest = { id: string; memberId: string; memberName: string; slots
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export default function StaffScheduler({ members }: { members: Member[] }) {
+export default function StaffScheduler({ members, companyName }: { members: Member[]; companyName: string }) {
   const activeMembers = members.filter((member) => member.status === "active");
   const [availability, setAvailability] = useState<Slot[]>([]);
   const [timeOff, setTimeOff] = useState<TimeOff[]>([]);
@@ -22,10 +22,10 @@ export default function StaffScheduler({ members }: { members: Member[] }) {
   const [startsAt, setStartsAt] = useState(""); const [endsAt, setEndsAt] = useState(""); const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(""); const [message, setMessage] = useState(""); const [error, setError] = useState("");
 
-  useEffect(() => { fetch("/api/providers/team/schedule", { cache: "no-store" }).then(async (response) => {
+  useEffect(() => { fetch(`/api/providers/team/schedule?company=${encodeURIComponent(companyName)}`, { cache: "no-store" }).then(async (response) => {
     const data = await response.json() as { availability?: Slot[]; timeOff?: TimeOff[]; isOwner?: boolean; currentMemberId?: string | null; scheduleRequests?: ScheduleRequest[]; error?: string };
     if (!response.ok) throw new Error(data.error); setAvailability(data.availability ?? []); setTimeOff(data.timeOff ?? []); setIsOwner(data.isOwner !== false); setCurrentMemberId(data.currentMemberId ?? ""); setScheduleRequests(data.scheduleRequests ?? []);
-  }).catch((cause: Error) => setError(cause.message)); }, []);
+  }).catch((cause: Error) => setError(cause.message)); }, [companyName]);
 
   const visibleMembers = isOwner ? activeMembers : activeMembers.filter((member) => member.id === currentMemberId);
   const effectiveSelectedMember = isOwner ? selectedMemberChoice || activeMembers[0]?.id || "" : currentMemberId;

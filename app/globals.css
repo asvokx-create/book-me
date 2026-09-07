@@ -195,8 +195,20 @@ html[data-theme="dark"] main {
   color: #eef5f0 !important;
 }
 
-html[data-theme="dark"] :where(header, footer, section, article, aside, div)[class~="bg-white"],
-html[data-theme="dark"] :where([class*="bg-[#faf"], [class*="bg-[#f8f"], [class*="bg-[#f7f"], [class*="bg-[#f6f"], [class*="bg-[#f5f"], [class*="bg-[#f4f"], [class*="bg-[#f3f"], [class*="bg-[#f1f"]) {
+html[data-theme="dark"] :where(
+  [class~="bg-white"],
+  [class~="bg-white/95"], [class~="bg-white/92"], [class~="bg-white/90"],
+  [class~="bg-white/88"], [class~="bg-white/85"], [class~="bg-white/80"],
+  [class~="bg-white/75"], [class~="bg-white/70"]
+),
+html[data-theme="dark"] :where(
+  [class*="bg-[#faf"], [class*="bg-[#f8f"], [class*="bg-[#f7f"],
+  [class*="bg-[#f6f"], [class*="bg-[#f5f"], [class*="bg-[#f4f"],
+  [class*="bg-[#f3f"], [class*="bg-[#f1f"], [class*="bg-[#eef"],
+  [class*="bg-[#edf"], [class*="bg-[#e8f"], [class*="bg-[#e8e"],
+  [class*="bg-[#e5f"], [class*="bg-[#e5e"],
+  [class*="bg-[#e4f"], [class*="bg-[#e3e"], [class*="bg-[#dfe"]
+) {
   background-color: #15251e !important;
 }
 
@@ -207,6 +219,14 @@ html[data-theme="dark"] :where(header)[class*="bg-[#f"] {
 
 html[data-theme="dark"] :where([class*="text-[#183126]"], [class*="text-[#132e23]"]) {
   color: #eef5f0 !important;
+}
+
+/* Accent actions stay intentionally bright, so their copy must stay dark. */
+html[data-theme="dark"] :where(
+  [class*="bg-[#eee25a]"], [class*="bg-[#f5ea6b]"],
+  [class*="bg-[#e1d43d]"], [class*="bg-[#d5c11f]"]
+) {
+  color: #183126 !important;
 }
 
 html[data-theme="dark"] :where(
@@ -224,6 +244,12 @@ html[data-theme="dark"] :where(input, select, textarea) {
   background-color: #101f18 !important;
   color: #eef5f0 !important;
   border-color: rgba(232, 243, 236, 0.16) !important;
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] :where(option) {
+  background-color: #101f18;
+  color: #eef5f0;
 }
 
 html[data-theme="dark"] :where(input, textarea)::placeholder { color: #819188; }

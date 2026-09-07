@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions,
             COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id AND (service_id = s.id OR service_id IS NULL) ORDER BY (service_id = s.id) DESC LIMIT 1),
-                     (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id WHERE member.provider_id = p.id LIMIT 1),
+                     (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id WHERE member.provider_id = p.id AND member.company_name = s.business_name LIMIT 1),
                      'America/Los_Angeles') AS timezone,
             p.user_id AS provider_user_id
      FROM services s
@@ -113,6 +113,7 @@ export async function POST(request: Request) {
          SELECT member.id, member.name, hours.weekday, hours.start_time, hours.end_time, hours.timezone, 1 AS priority
          FROM provider_team_members member JOIN team_member_availability hours ON hours.team_member_id = member.id
          WHERE member.provider_id::text = $1 AND member.status = 'active'
+           AND member.company_name = (SELECT business_name FROM services WHERE id::text = $5)
        )
        SELECT staff.member_id::text, staff.name FROM staff_hours staff
        WHERE staff.weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE staff.timezone)

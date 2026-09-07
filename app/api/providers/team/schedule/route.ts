@@ -15,24 +15,31 @@ async function currentProvider() {
   return result.rows[0] ? { ...access, provider: result.rows[0] } : null;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const current = await currentProvider();
   if (!current) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
+  const requestedCompany = new URL(request.url).searchParams.get("company")?.trim() ?? "";
+  const companyName = current.isOwner ? requestedCompany : current.memberCompanyName ?? "";
   const [availability, timeOff, requests] = await Promise.all([
     database.query<{ member_id: string; weekday: number; start_time: string; end_time: string }>(
       `SELECT a.team_member_id::text AS member_id, a.weekday, a.start_time::text, a.end_time::text
        FROM team_member_availability a JOIN provider_team_members m ON m.id = a.team_member_id
-       WHERE m.provider_id::text = $1 AND ($2::uuid IS NULL OR m.id = $2::uuid) ORDER BY a.team_member_id, a.weekday`, [current.provider.id, current.isOwner ? null : current.memberId]),
+       WHERE m.provider_id::text = $1 AND ($2::uuid IS NULL OR m.id = $2::uuid)
+         AND ($3::text = '' OR m.company_name = $3) ORDER BY a.team_member_id, a.weekday`, [current.provider.id, current.isOwner ? null : current.memberId, companyName]),
     database.query<{ id: string; member_id: string | null; starts_at: Date; ends_at: Date; reason: string }>(
       `SELECT id::text, team_member_id::text AS member_id, starts_at, ends_at, reason
-       FROM provider_time_off WHERE provider_id::text = $1 AND ($2::uuid IS NULL OR team_member_id = $2::uuid) AND ends_at >= now() - interval '30 days'
-       ORDER BY starts_at`, [current.provider.id, current.isOwner ? null : current.memberId]),
+       FROM provider_time_off blocked WHERE provider_id::text = $1 AND ($2::uuid IS NULL OR team_member_id = $2::uuid)
+         AND ($3::text = '' OR blocked.team_member_id IS NULL OR EXISTS (
+           SELECT 1 FROM provider_team_members member WHERE member.id = blocked.team_member_id AND member.company_name = $3
+         )) AND ends_at >= now() - interval '30 days'
+       ORDER BY starts_at`, [current.provider.id, current.isOwner ? null : current.memberId, companyName]),
     database.query<{ id: string; member_id: string; member_name: string; slots: Array<{ weekday: number; startTime: string; endTime: string }>; status: string; created_at: Date }>(
       `SELECT request.id::text, request.team_member_id::text AS member_id, member.name AS member_name,
               request.slots, request.status, request.created_at
        FROM team_schedule_requests request JOIN provider_team_members member ON member.id = request.team_member_id
        WHERE request.provider_id::text = $1 AND request.status = 'pending' AND ($2::uuid IS NULL OR request.team_member_id = $2::uuid)
-       ORDER BY request.created_at DESC`, [current.provider.id, current.isOwner ? null : current.memberId]),
+         AND ($3::text = '' OR member.company_name = $3)
+       ORDER BY request.created_at DESC`, [current.provider.id, current.isOwner ? null : current.memberId, companyName]),
   ]);
   return NextResponse.json({ timezone: current.provider.timezone, isOwner: current.isOwner, currentMemberId: current.memberId,
     availability: availability.rows.map((slot) => ({ memberId: slot.member_id, weekday: slot.weekday, startTime: slot.start_time.slice(0, 5), endTime: slot.end_time.slice(0, 5) })),

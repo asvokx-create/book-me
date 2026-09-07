@@ -10,7 +10,7 @@ export async function GET(request: Request, context: RouteContext<"/api/services
 
   const result = await database.query<{ time: string }>(
     `WITH service_info AS (
-       SELECT s.id, s.provider_id, s.duration_minutes
+       SELECT s.id, s.provider_id, s.duration_minutes, s.business_name
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
        WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true
@@ -24,7 +24,8 @@ export async function GET(request: Request, context: RouteContext<"/api/services
        UNION ALL
        SELECT si.provider_id, member.id AS member_id, si.duration_minutes,
               hours.weekday, hours.start_time, hours.end_time, hours.timezone
-       FROM service_info si JOIN provider_team_members member ON member.provider_id = si.provider_id AND member.status = 'active'
+       FROM service_info si JOIN provider_team_members member ON member.provider_id = si.provider_id
+         AND member.status = 'active' AND member.company_name = si.business_name
        JOIN team_member_availability hours ON hours.team_member_id = member.id
      ), generated_slots AS (
        SELECT sh.provider_id, sh.member_id, sh.duration_minutes, sh.timezone,

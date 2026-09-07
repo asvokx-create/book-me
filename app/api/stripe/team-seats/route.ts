@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     const workerCount = await database.query<{ count: number }>(
-      "SELECT count(*)::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",
+      "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",
       [provider.id],
     );
     const minimumExtraSeats = Math.max(workerCount.rows[0].count - 2, 0);

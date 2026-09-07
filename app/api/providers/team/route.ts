@@ -29,7 +29,7 @@ async function currentProvider() {
   return provider;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const access = await getProviderAccess();
   if (!access) return NextResponse.json({ error: "Provider or team access not found." }, { status: 404 });
   const providerResult = await database.query<{ plan: ProviderPlan; extra_team_seats: number; business_name: string }>(
@@ -37,21 +37,37 @@ export async function GET() {
     [access.providerId],
   );
   const provider = { id: access.providerId, ...providerResult.rows[0] };
-  const result = await database.query<{ id: string; name: string; email: string; role: string; status: "active" | "inactive"; created_at: Date }>(
-    `SELECT id::text, name, email, role, status, created_at
-     FROM provider_team_members WHERE provider_id = $1
+  const companyResult = await database.query<{ business_name: string }>(
+    `SELECT DISTINCT business_name FROM services WHERE provider_id::text = $1 AND is_active = true ORDER BY business_name`,
+    [provider.id],
+  );
+  const companies = companyResult.rows.map((row) => row.business_name);
+  if (!companies.length) companies.push(provider.business_name);
+  const requestedCompany = new URL(request.url).searchParams.get("company")?.trim() ?? "";
+  const companyName = access.isOwner
+    ? companies.includes(requestedCompany) ? requestedCompany : companies[0]
+    : access.memberCompanyName ?? provider.business_name;
+  const result = await database.query<{ id: string; name: string; email: string; role: string; company_name: string; status: "active" | "inactive"; created_at: Date }>(
+    `SELECT id::text, name, email, role, company_name, status, created_at
+     FROM provider_team_members WHERE provider_id = $1 AND company_name = $2
      ORDER BY status, created_at`,
+    [provider.id, companyName],
+  );
+  const totalActive = await database.query<{ count: number }>(
+    "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",
     [provider.id],
   );
   const baseSeatLimit = PLAN_ENTITLEMENTS[provider.plan].teamSeatLimit;
   return NextResponse.json({
-    members: result.rows.map((member) => ({ id: member.id, name: member.name, email: member.email, role: member.role, status: member.status, createdAt: member.created_at })),
+    members: result.rows.map((member) => ({ id: member.id, name: member.name, email: member.email, role: member.role, companyName: member.company_name, status: member.status, createdAt: member.created_at })),
+    companies: access.isOwner ? companies : [companyName],
+    activeWorkerCount: totalActive.rows[0].count,
     plan: provider.plan,
     seatLimit: baseSeatLimit === null ? null : baseSeatLimit + (provider.plan === "pro" ? provider.extra_team_seats : 0),
     extraTeamSeats: provider.plan === "pro" ? provider.extra_team_seats : 0,
     isOwner: access.isOwner,
     currentMemberId: access.memberId,
-    companyName: provider.business_name,
+    companyName,
   });
 }
 
@@ -66,6 +82,7 @@ export async function POST(request: Request) {
   const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const role = typeof body.role === "string" ? body.role.trim().replace(/\s+/g, " ") : "";
+  const companyName = typeof body.companyName === "string" ? body.companyName.trim() : "";
   if (name.length < 2 || name.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter the worker's name and a valid email." }, { status: 400 });
   if (email === session.user.email.toLowerCase()) return NextResponse.json({ error: "The company owner is already included. Add a worker using their own account email." }, { status: 400 });
   if (role.length < 2 || role.length > 40 || !/^[A-Za-z0-9 &'./-]+$/.test(role)) return NextResponse.json({ error: "Enter a professional role between 2 and 40 characters." }, { status: 400 });
@@ -83,24 +100,41 @@ export async function POST(request: Request) {
     if (isOwner && savedProvider.plan !== "owner") {
       await client.query("UPDATE provider_profiles SET plan = 'owner', updated_at = now() WHERE id::text = $1", [provider.id]);
     }
+    const validCompany = await client.query(
+      "SELECT 1 FROM services WHERE provider_id::text = $1 AND business_name = $2 AND is_active = true LIMIT 1",
+      [provider.id, companyName],
+    );
+    if (!companyName || !validCompany.rowCount) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "Choose one of your active listing companies." }, { status: 400 });
+    }
     const baseSeats = PLAN_ENTITLEMENTS[provider.plan].teamSeatLimit;
     const seats = baseSeats === null ? null : baseSeats + (provider.plan === "pro" ? provider.extra_team_seats : 0);
-    const countResult = await client.query<{ count: number }>("SELECT count(*)::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'", [provider.id]);
+    const countResult = await client.query<{ count: number; already_active: boolean }>(
+      `SELECT count(DISTINCT lower(email))::int AS count,
+              COALESCE(bool_or(lower(email) = lower($2) AND status = 'active'), false) AS already_active
+       FROM provider_team_members WHERE provider_id = $1`,
+      [provider.id, email],
+    );
     const workerLimit = seats === null ? null : Math.max(seats - 1, 0);
-    if (workerLimit !== null && countResult.rows[0].count >= workerLimit) {
+    if (workerLimit !== null && !countResult.rows[0].already_active && countResult.rows[0].count >= workerLimit) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: provider.plan === "starter" ? "Starter includes the owner only. Upgrade to Pro to add workers." : `Your ${PLAN_ENTITLEMENTS[provider.plan].name} plan currently allows ${workerLimit} workers. Add another employee seat from Billing for $0.50/month.`, upgradeRequired: true }, { status: 403 });
     }
     const result = await client.query<{ id: string; created_at: Date }>(
-      `INSERT INTO provider_team_members (provider_id, name, email, role, user_id)
-       VALUES ($1, $2, $3, $4, (SELECT id FROM "user" WHERE lower(email) = lower($3) LIMIT 1))
-       ON CONFLICT (provider_id, email) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role, status = 'active',
+      `INSERT INTO provider_team_members (provider_id, company_name, name, email, role, user_id)
+       VALUES ($1, $2, $3, $4, $5, (SELECT id FROM "user" WHERE lower(email) = lower($4) LIMIT 1))
+       ON CONFLICT (provider_id, company_name, email) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role, status = 'active',
          user_id = COALESCE(provider_team_members.user_id, EXCLUDED.user_id)
        RETURNING id::text, created_at`,
-      [provider.id, name, email, role],
+      [provider.id, companyName, name, email, role],
+    );
+    const activeCount = await client.query<{ count: number }>(
+      "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",
+      [provider.id],
     );
     await client.query("COMMIT");
-    return NextResponse.json({ member: { id: result.rows[0].id, name, email, role, status: "active", createdAt: result.rows[0].created_at } });
+    return NextResponse.json({ activeWorkerCount: activeCount.rows[0].count, member: { id: result.rows[0].id, name, email, role, companyName, status: "active", createdAt: result.rows[0].created_at } });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Team member add failed", error);
@@ -132,5 +166,9 @@ export async function DELETE(request: Request) {
   if (upcoming.rowCount) return NextResponse.json({ error: "Reassign this worker's upcoming bookings before removing them." }, { status: 409 });
   const result = await database.query("DELETE FROM provider_team_members WHERE id::text = $1 AND provider_id = $2", [memberId, provider.id]);
   if (!result.rowCount) return NextResponse.json({ error: "Team member not found." }, { status: 404 });
-  return NextResponse.json({ ok: true });
+  const activeCount = await database.query<{ count: number }>(
+    "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",
+    [provider.id],
+  );
+  return NextResponse.json({ ok: true, activeWorkerCount: activeCount.rows[0].count });
 }
