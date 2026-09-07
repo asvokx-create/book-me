@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8f7f3;
-  --foreground: #183126;
+  --background: #f7f6f1;
+  --foreground: #132e23;
+  --brand: #173d2e;
+  --brand-soft: #dfeade;
+  --accent: #f1e45c;
+  --surface: #fffefa;
+  --muted: #65766d;
+  --line: rgba(19, 46, 35, 0.11);
+  --shadow-sm: 0 4px 18px rgba(19, 46, 35, 0.055);
+  --shadow-md: 0 18px 55px rgba(19, 46, 35, 0.11);
 }
 
 html {
@@ -21,16 +29,79 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-image:
+    radial-gradient(circle at 92% 4%, rgba(198, 222, 191, 0.34), transparent 24rem),
+    radial-gradient(circle at 4% 56%, rgba(241, 228, 92, 0.08), transparent 22rem);
+  background-attachment: fixed;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   min-width: 0;
   overflow-x: clip;
+  line-height: 1.5;
 }
 
+main { isolation: isolate; }
+h1, h2, h3, h4 { text-wrap: balance; }
+p { text-wrap: pretty; }
+
 button, a, input, select, textarea { font: inherit; }
-button, a { cursor: pointer; }
+button, a {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button, a, summary {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(.2,.8,.2,1);
+}
+button:active, a:active { transform: translateY(1px) scale(.985); }
 input, select, textarea { min-width: 0; }
 img, picture, video, canvas, svg { max-width: 100%; }
 ::selection { background: #eee25a; color: #183126; }
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: rgba(23, 61, 46, .45) !important;
+  box-shadow: 0 0 0 4px rgba(105, 166, 126, .16), 0 8px 24px rgba(19, 46, 35, .06);
+  outline: none;
+}
+
+:where(button, a, summary, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(213, 193, 31, .75);
+  outline-offset: 3px;
+}
+
+:where(section, article, aside)[class*="bg-white"] {
+  box-shadow: var(--shadow-sm);
+}
+
+:where([role="dialog"] > div, [role="dialog"] > form) {
+  box-shadow: 0 30px 100px rgba(7, 27, 19, .26);
+}
+
+main > header {
+  box-shadow: 0 1px 0 rgba(19, 46, 35, .07), 0 10px 35px rgba(19, 46, 35, .035);
+}
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: #eeeee8; }
+::-webkit-scrollbar-thumb { background: #a9b9af; border: 3px solid #eeeee8; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #789083; }
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+main > section,
+main > div:not([class*="fixed"]) {
+  animation: page-enter 420ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+main > section:nth-of-type(2) { animation-delay: 55ms; }
+main > section:nth-of-type(3) { animation-delay: 100ms; }
 
 @media (max-width: 389px) {
   html { font-size: 14.5px; }
@@ -48,4 +119,13 @@ img, picture, video, canvas, svg { max-width: 100%; }
 
 @media (pointer: coarse) {
   button, summary, input, select { min-height: 2.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

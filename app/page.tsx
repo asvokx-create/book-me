@@ -17,10 +17,10 @@ export default async function Home() {
   ]);
   return (
     <main className="min-h-screen overflow-hidden bg-[#f8f7f3] text-[#183126]">
-      <header className="relative z-20 border-b border-[#183126]/10 bg-[#f8f7f3]">
+      <header className="sticky top-0 z-50 border-b border-white/70 bg-[#f8f7f3]/82 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
           <h1 className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>
+            <span className="grid h-10 w-10 place-items-center rounded-[.9rem] bg-[#173d2e] text-base text-[#f1e45c] shadow-[0_8px_20px_rgba(23,61,46,.2)]">B</span>
             <span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span>
           </h1>
 
@@ -37,6 +37,7 @@ export default async function Home() {
       <section className="relative z-10 isolate">
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"><div className="absolute -right-48 top-8 h-[620px] w-[620px] rounded-full bg-[#d8e7d3] blur-2xl sm:right-[-8rem] sm:top-4" /></div>
         <div className="relative z-10 mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20 lg:py-24">
+        <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_.65fr] lg:gap-14">
         <div className="max-w-3xl">
           <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#183126]/10 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#4d6b59] shadow-sm">
             <span className="h-2 w-2 rounded-full bg-[#69a67e]" /> Trusted help, right nearby
@@ -49,9 +50,31 @@ export default async function Home() {
           <p className="mt-6 max-w-2xl text-lg leading-8 text-[#5a6d63]">
             Discover trusted local pros, compare your options, and book the right help—all in one simple place.
           </p>
+          <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#4e675a]">
+            <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Local professionals</span>
+            <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Secure payments</span>
+            <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Real booking support</span>
+          </div>
         </div>
 
-        <form action="/services" className="mt-9 flex max-w-4xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 shadow-[0_18px_50px_rgba(24,49,38,.13)] md:flex-row md:rounded-full">
+        <div className="relative hidden lg:block">
+          <div className="absolute -inset-8 rounded-full bg-[#bcd6b8]/35 blur-3xl" />
+          <div className="relative rotate-[2deg] rounded-[2.25rem] border border-white/80 bg-white/88 p-5 shadow-[0_30px_80px_rgba(24,49,38,.18)] backdrop-blur-xl">
+            <div className="relative h-56 overflow-hidden rounded-[1.65rem] bg-gradient-to-br from-[#143d2c] via-[#2f7652] to-[#b8dc62]">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(255,255,255,.4),transparent_27%)]" />
+              <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold">Popular nearby</span>
+              <span className="absolute bottom-4 right-5 text-6xl drop-shadow-lg">🧰</span>
+            </div>
+            <div className="px-1 pb-1 pt-5">
+              <div className="flex items-start justify-between gap-4"><div><p className="text-lg font-bold">Help is closer than you think</p><p className="mt-1 text-sm text-[#65766d]">Compare, message, and book in one place.</p></div><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#f1e45c] text-lg">→</span></div>
+              <div className="mt-5 grid grid-cols-3 gap-2 text-center"><div className="rounded-2xl bg-[#f3f5f0] px-2 py-3"><p className="font-black">Local</p><p className="mt-0.5 text-[10px] text-[#6a7b72]">Search by area</p></div><div className="rounded-2xl bg-[#f3f5f0] px-2 py-3"><p className="font-black">Direct</p><p className="mt-0.5 text-[10px] text-[#6a7b72]">Chat with pros</p></div><div className="rounded-2xl bg-[#f3f5f0] px-2 py-3"><p className="font-black">Secure</p><p className="mt-0.5 text-[10px] text-[#6a7b72]">Pay with Stripe</p></div></div>
+            </div>
+          </div>
+          <div className="absolute -bottom-5 -left-8 rounded-2xl border border-white bg-[#173d2e] px-4 py-3 text-white shadow-xl"><p className="text-xs font-bold text-[#bdd0c4]">BUILT FOR YOUR NEIGHBORHOOD</p><p className="mt-1 text-sm font-bold">Trusted help, without the hassle.</p></div>
+        </div>
+        </div>
+
+        <form action="/services" className="mt-12 flex max-w-5xl flex-col gap-2 rounded-3xl border border-white bg-white/92 p-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl md:flex-row md:rounded-full">
           <div className="flex flex-1 items-center rounded-full px-4">
             <span className="mr-3 text-lg">🔎</span>
 
