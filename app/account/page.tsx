@@ -18,8 +18,16 @@ const serviceVisuals: Record<string, { art: string; gradient: string }> = {
   "Car detailing": { art: "🚙", gradient: "from-emerald-900 via-emerald-700 to-lime-300" },
   "Lawn & garden": { art: "🌱", gradient: "from-lime-700 via-lime-500 to-yellow-200" },
   "Home cleaning": { art: "🏡", gradient: "from-orange-800 via-orange-500 to-orange-200" },
+  "Pressure washing": { art: "💦", gradient: "from-blue-950 via-cyan-700 to-sky-200" },
   Handyman: { art: "🧰", gradient: "from-slate-800 via-slate-600 to-amber-200" },
+  "Furniture assembly": { art: "🪑", gradient: "from-stone-950 via-amber-800 to-orange-200" },
+  "House painting": { art: "🖌️", gradient: "from-indigo-950 via-teal-600 to-yellow-200" },
   Photography: { art: "📷", gradient: "from-violet-900 via-purple-600 to-pink-200" },
+  "Pet care": { art: "🐾", gradient: "from-orange-800 via-amber-500 to-yellow-100" },
+  "Moving help": { art: "📦", gradient: "from-sky-900 via-sky-600 to-cyan-200" },
+  "Junk removal": { art: "🗑️", gradient: "from-zinc-950 via-emerald-800 to-lime-200" },
+  Tutoring: { art: "📚", gradient: "from-blue-900 via-indigo-600 to-amber-100" },
+  "Tech help": { art: "💻", gradient: "from-slate-950 via-blue-700 to-cyan-200" },
 };
 
 export default function AccountPage() {
