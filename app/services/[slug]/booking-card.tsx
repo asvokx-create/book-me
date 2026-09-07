@@ -118,7 +118,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7">
       <div className="flex items-end justify-between">
         <div><p className="text-sm text-[#6f7f77]">Starting at</p><p className="mt-1 text-3xl font-bold tracking-tight">${price}</p></div>
-        <p className="rounded-full bg-[#f1f0eb] px-3 py-1.5 text-xs font-semibold text-[#5f7067]">{duration}</p>
+        <p className="rounded-full bg-[#f1f0eb] px-3 py-1.5 text-xs font-semibold text-[#5f7067]">Estimated time: {duration}</p>
       </div>
 
       <form onSubmit={checkAvailability} className="mt-7 space-y-3">

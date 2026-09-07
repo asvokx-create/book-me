@@ -198,9 +198,9 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Only accepted bookings can be completed." }, { status: 409 });
       }
-      if (booking.ends_at > new Date()) {
+      if (booking.starts_at > new Date()) {
         await client.query("ROLLBACK");
-        return NextResponse.json({ error: "This job can be completed after its scheduled end time." }, { status: 409 });
+        return NextResponse.json({ error: "This job can be completed after its scheduled start time." }, { status: 409 });
       }
       await client.query(`UPDATE bookings SET status = 'completed', completed_at = now(),
         payment_release_status = CASE

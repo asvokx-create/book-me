@@ -114,7 +114,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <form action={`/services${resultsAnchor}`} className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                 {query && <input type="hidden" name="q" value={query} />}<input type="hidden" name="location" value={location} /><input type="hidden" name="radius" value={radius} />{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}{sort !== "nearest" && <input type="hidden" name="sort" value={sort} />}
                 <label><span className="mb-2 block text-xs font-bold">Maximum price</span><select name="maxPrice" defaultValue={maxPrice ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any price</option><option value="50">Up to $50</option><option value="100">Up to $100</option><option value="250">Up to $250</option><option value="500">Up to $500</option></select></label>
-                <label><span className="mb-2 block text-xs font-bold">Maximum duration</span><select name="maxDuration" defaultValue={maxDuration ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any duration</option><option value="60">Up to 1 hour</option><option value="120">Up to 2 hours</option><option value="240">Up to half day</option><option value="480">Up to full day</option></select></label>
+                <label><span className="mb-2 block text-xs font-bold">Maximum estimated time</span><select name="maxDuration" defaultValue={maxDuration ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any estimated time</option><option value="60">Up to 1 hour</option><option value="120">Up to 2 hours</option><option value="240">Up to half day</option><option value="480">Up to full day</option></select></label>
                 <button type="submit" className="rounded-xl bg-[#eee25a] px-5 py-3 text-sm font-bold transition hover:bg-[#f5ea6b]">Apply filters</button>
               </form>
             </div>
@@ -127,7 +127,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           <Link href={removeFilter("radius")} title="Reset radius" className="rounded-full bg-[#edf3e7] px-3 py-2 transition hover:bg-[#dce9d8]">Within {radius} mi ×</Link>
           {selectedCategory !== "All services" && <Link href={removeFilter("category")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">{selectedCategory} ×</Link>}
           {maxPrice && <Link href={removeFilter("maxPrice")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Up to ${maxPrice} ×</Link>}
-          {maxDuration && <Link href={removeFilter("maxDuration")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Up to {maxDuration >= 240 ? maxDuration === 480 ? "full day" : "half day" : `${maxDuration / 60} hr`} ×</Link>}
+          {maxDuration && <Link href={removeFilter("maxDuration")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Est. up to {maxDuration >= 240 ? maxDuration === 480 ? "full day" : "half day" : `${maxDuration / 60} hr`} ×</Link>}
         </div>
 
         <div id="service-listings" className="mt-8 flex scroll-mt-6 items-end justify-between gap-5 sm:scroll-mt-8">

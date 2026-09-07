@@ -70,9 +70,9 @@ function formatCurrency(amount: number) {
 }
 
 function formatDuration(minutes: number) {
-  if (minutes >= 480) return "Full day";
-  if (minutes >= 240) return "Half day";
-  return `${minutes / 60} ${minutes === 60 ? "hour" : "hours"}`;
+  if (minutes >= 480) return "Est. full day";
+  if (minutes >= 240) return "Est. half day";
+  return `Est. ${minutes / 60} ${minutes === 60 ? "hour" : "hours"}`;
 }
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
