@@ -35,7 +35,7 @@ export async function GET() {
               SELECT 1
               FROM provider_team_members tm
               WHERE tm.status = 'active'
-                AND (tm.user_id = u.id OR lower(tm.email) = lower(u.email))
+                AND (tm.user_id = u.id OR (tm.user_id IS NULL AND lower(tm.email) = lower(u.email)))
             )) AS is_provider
      FROM "user" u
      LEFT JOIN user_settings us ON us.user_id = u.id

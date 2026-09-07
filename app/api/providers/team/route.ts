@@ -91,9 +91,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: provider.plan === "starter" ? "Starter includes the owner only. Upgrade to Pro to add workers." : `Your ${PLAN_ENTITLEMENTS[provider.plan].name} plan currently allows ${workerLimit} workers. Add another employee seat from Billing for $0.50/month.`, upgradeRequired: true }, { status: 403 });
     }
     const result = await client.query<{ id: string; created_at: Date }>(
-      `INSERT INTO provider_team_members (provider_id, name, email, role)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (provider_id, email) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role, status = 'active'
+      `INSERT INTO provider_team_members (provider_id, name, email, role, user_id)
+       VALUES ($1, $2, $3, $4, (SELECT id FROM "user" WHERE lower(email) = lower($3) LIMIT 1))
+       ON CONFLICT (provider_id, email) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role, status = 'active',
+         user_id = COALESCE(provider_team_members.user_id, EXCLUDED.user_id)
        RETURNING id::text, created_at`,
       [provider.id, name, email, role],
     );

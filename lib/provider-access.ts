@@ -14,12 +14,12 @@ export async function getProviderAccess() {
   );
   if (owned.rows[0]) return { session, providerId: owned.rows[0].id, isOwner: true as const, memberId: null, memberRole: "Owner" };
 
-  if (!session.user.emailVerified) return null;
   const membership = await database.query<{ provider_id: string; member_id: string; role: string }>(
     `SELECT member.provider_id::text, member.id::text AS member_id, member.role
      FROM provider_team_members member
      JOIN provider_profiles provider ON provider.id = member.provider_id AND provider.is_active = true
-     WHERE member.status = 'active' AND (member.user_id = $1 OR lower(member.email) = lower($2))
+     WHERE member.status = 'active'
+       AND (member.user_id = $1 OR (member.user_id IS NULL AND lower(member.email) = lower($2)))
      ORDER BY (member.user_id = $1) DESC, member.created_at LIMIT 1`,
     [session.user.id, session.user.email],
   );

@@ -53,12 +53,12 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
      LEFT JOIN conversations c ON c.customer_id = b.customer_id AND c.provider_id = b.provider_id AND c.service_id = b.service_id
      LEFT JOIN reviews r ON r.booking_id = b.id AND r.is_hidden = false
      WHERE b.id::text = $1 AND (b.customer_id = $2 OR (p.user_id = $2 AND b.provider_deleted_at IS NULL)
-       OR ($4::boolean = true AND EXISTS (
+       OR EXISTS (
          SELECT 1 FROM booking_assignees worker_assignment JOIN provider_team_members worker ON worker.id = worker_assignment.team_member_id
          WHERE worker_assignment.booking_id = b.id AND worker.status = 'active'
-           AND (worker.user_id = $2 OR lower(worker.email) = lower($3))
-       ))) LIMIT 1`,
-    [bookingId, session.user.id, session.user.email, session.user.emailVerified],
+           AND (worker.user_id = $2 OR (worker.user_id IS NULL AND lower(worker.email) = lower($3)))
+       )) LIMIT 1`,
+    [bookingId, session.user.id, session.user.email],
   );
   const row = result.rows[0];
   if (!row) return NextResponse.json({ error: "Booking not found." }, { status: 404 });
