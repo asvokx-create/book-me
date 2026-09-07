@@ -21,10 +21,14 @@ export async function GET() {
     `SELECT b.id::text, s.id::text AS service_id, p.id::text AS provider_id,
             s.title AS service, s.slug AS service_slug, s.category,
             s.business_name AS provider, b.starts_at, b.price_cents,
-            b.service_address AS location, b.status, COALESCE(member.name, 'Company owner') AS assignee_name
+            b.service_address AS location, b.status,
+            COALESCE((SELECT string_agg(CASE WHEN assigned.is_owner THEN owner_user.name ELSE assigned_member.name END, ', ' ORDER BY assigned.is_owner DESC, assigned_member.name)
+              FROM booking_assignees assigned LEFT JOIN provider_team_members assigned_member ON assigned_member.id = assigned.team_member_id
+              WHERE assigned.booking_id = b.id), COALESCE(member.name, owner_user.name)) AS assignee_name
      FROM bookings b
      JOIN services s ON s.id = b.service_id
      JOIN provider_profiles p ON p.id = b.provider_id
+     JOIN "user" owner_user ON owner_user.id = p.user_id
      LEFT JOIN provider_team_members member ON member.id = b.assigned_team_member_id
      WHERE b.customer_id = $1
      ORDER BY b.starts_at DESC`,
@@ -116,8 +120,11 @@ export async function POST(request: Request) {
          AND ($3::timestamptz AT TIME ZONE staff.timezone)::time <= staff.end_time
          AND NOT EXISTS (SELECT 1 FROM provider_time_off blocked WHERE blocked.provider_id::text = $1
            AND blocked.team_member_id IS NOT DISTINCT FROM staff.member_id AND blocked.starts_at < $3 AND blocked.ends_at > $2)
-         AND NOT EXISTS (SELECT 1 FROM bookings existing WHERE existing.provider_id::text = $1
-           AND existing.assigned_team_member_id IS NOT DISTINCT FROM staff.member_id AND existing.status = 'confirmed'
+         AND NOT EXISTS (SELECT 1 FROM bookings existing
+           JOIN booking_assignees assigned ON assigned.booking_id = existing.id
+           WHERE existing.provider_id::text = $1
+           AND ((staff.member_id IS NULL AND assigned.is_owner = true) OR assigned.team_member_id = staff.member_id)
+           AND existing.status = 'confirmed'
            AND existing.starts_at < $3 AND existing.ends_at > $2)
          AND NOT EXISTS (SELECT 1 FROM bookings own_request WHERE own_request.customer_id = $4 AND own_request.provider_id::text = $1
            AND own_request.status = 'requested' AND own_request.starts_at < $3 AND own_request.ends_at > $2)
@@ -135,6 +142,11 @@ export async function POST(request: Request) {
       [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, notes, service.price_cents, candidate.rows[0].member_id, JSON.stringify(answers)],
     );
     const bookingId = created.rows[0].id;
+    await client.query(
+      `INSERT INTO booking_assignees (booking_id, team_member_id, is_owner)
+       VALUES ($1::uuid, $2::uuid, $2::uuid IS NULL)`,
+      [bookingId, candidate.rows[0].member_id],
+    );
     await client.query(
       `INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
        VALUES ($1::uuid, $2, 'requested', $3)`,

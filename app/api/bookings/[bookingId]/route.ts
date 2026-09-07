@@ -8,13 +8,14 @@ import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { getStripeMode } from "@/lib/stripe";
 import { recordAnalytics } from "@/lib/analytics";
 import { refundUnreleasedBooking } from "@/lib/payment-release";
+import { unavailableBookingProfessionals } from "@/lib/booking-staff";
 
 export async function GET(_request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const { bookingId } = await context.params;
   const result = await database.query<{
-    id: string; customer_id: string; customer_name: string; provider_id: string; provider_name: string;
+    id: string; customer_id: string; customer_name: string; provider_id: string; provider_name: string; owner_name: string;
     service_id: string; service_slug: string; service_title: string; category: string; starts_at: Date; ends_at: Date;
     service_address: string; notes: string; booking_answers: Record<string, string>; price_cents: number; status: string; cancelled_by: string | null;
     cancellation_reason: string | null; late_cancellation: boolean; cancellation_window_hours: number;
@@ -43,10 +44,11 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             b.payment_release_status, b.platform_fee_cents, b.provider_payout_cents,
             b.completion_confirmation_due_at, b.customer_confirmed_at, b.payout_released_at,
             b.payout_failure_reason, b.payout_freeze_reason,
-            b.assigned_team_member_id::text, COALESCE(member.name, 'Company owner') AS assignee_name,
+            b.assigned_team_member_id::text, owner.name AS owner_name, COALESCE(member.name, owner.name) AS assignee_name,
             c.id::text AS conversation_id, r.id::text AS review_id, r.rating, r.body AS review_body
      FROM bookings b JOIN "user" customer ON customer.id = b.customer_id
-     JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
+     JOIN provider_profiles p ON p.id = b.provider_id JOIN "user" owner ON owner.id = p.user_id
+     JOIN services s ON s.id = b.service_id
      LEFT JOIN provider_team_members member ON member.id = b.assigned_team_member_id
      LEFT JOIN conversations c ON c.customer_id = b.customer_id AND c.provider_id = b.provider_id AND c.service_id = b.service_id
      LEFT JOIN reviews r ON r.booking_id = b.id AND r.is_hidden = false
@@ -55,6 +57,18 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   );
   const row = result.rows[0];
   if (!row) return NextResponse.json({ error: "Booking not found." }, { status: 404 });
+  const assignments = await database.query<{ member_id: string | null; name: string }>(
+    `SELECT assigned.team_member_id::text AS member_id,
+            CASE WHEN assigned.is_owner THEN $2 ELSE member.name END AS name
+     FROM booking_assignees assigned
+     LEFT JOIN provider_team_members member ON member.id = assigned.team_member_id
+     WHERE assigned.booking_id::text = $1
+     ORDER BY assigned.is_owner DESC, member.name`,
+    [bookingId, row.owner_name],
+  );
+  const assignedProfessionals = assignments.rows.length
+    ? assignments.rows.map((assignment) => ({ memberId: assignment.member_id, name: assignment.name }))
+    : [{ memberId: row.assigned_team_member_id, name: row.assignee_name }];
   const history = await database.query<{ id: string; event_type: string; message: string; created_at: Date }>(
     `SELECT id::text, event_type, message, created_at FROM booking_events WHERE booking_id::text = $1 ORDER BY created_at DESC`, [bookingId],
   );
@@ -86,7 +100,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
       refundedAmount: row.refunded_amount_cents / 100, failureReason: row.refund_failure_reason },
     conversationId: row.conversation_id,
     assignedTeamMemberId: row.assigned_team_member_id,
-    assigneeName: row.assignee_name,
+    ownerName: row.owner_name,
+    assigneeName: assignedProfessionals.map((professional) => professional.name).join(", "),
+    assignedProfessionals,
     quote: { status: row.quote_status, price: row.quoted_price_cents === null ? null : row.quoted_price_cents / 100,
       message: row.quote_message, sentAt: row.quote_sent_at, respondedAt: row.quote_responded_at },
     teamMembers: team,
@@ -155,22 +171,9 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
       if (Number.isNaN(start.getTime()) || start <= new Date()) { await client.query("ROLLBACK"); return NextResponse.json({ error: "Choose a future date and time." }, { status: 400 }); }
       const end = new Date(start.getTime() + booking.duration_minutes * 60_000);
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
-      const available = await client.query(`WITH hours AS (
-        SELECT a.weekday, a.start_time, a.end_time, a.timezone FROM availability a
-          WHERE a.provider_id::text = $1 AND $4::uuid IS NULL
-            AND (a.service_id::text = $5 OR (a.service_id IS NULL AND NOT EXISTS (SELECT 1 FROM availability configured WHERE configured.provider_id = a.provider_id AND configured.service_id::text = $5)))
-        UNION ALL
-        SELECT worker.weekday, worker.start_time, worker.end_time, worker.timezone FROM team_member_availability worker
-          JOIN provider_team_members member ON member.id = worker.team_member_id
-          WHERE member.provider_id::text = $1 AND member.id = $4::uuid AND member.status = 'active'
-      ) SELECT 1 FROM hours WHERE weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE timezone)
-        AND ($2::timestamptz AT TIME ZONE timezone)::time >= start_time
-        AND ($3::timestamptz AT TIME ZONE timezone)::time <= end_time LIMIT 1`, [booking.provider_id, start, end, booking.assigned_team_member_id, booking.service_id]);
-      const conflict = await client.query(`SELECT 1 FROM bookings WHERE provider_id::text = $1 AND id::text <> $2
-        AND assigned_team_member_id IS NOT DISTINCT FROM $3::uuid AND status = 'confirmed' AND starts_at < $5 AND ends_at > $4 LIMIT 1`, [booking.provider_id, bookingId, booking.assigned_team_member_id, start, end]);
-      const blocked = await client.query(`SELECT 1 FROM provider_time_off WHERE provider_id::text = $1
-        AND team_member_id IS NOT DISTINCT FROM $2::uuid AND starts_at < $4 AND ends_at > $3 LIMIT 1`, [booking.provider_id, booking.assigned_team_member_id, start, end]);
-      if (!available.rowCount || conflict.rowCount || blocked.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: "That time is outside the assigned professional's hours or already booked." }, { status: 409 }); }
+      const unavailable = await unavailableBookingProfessionals(client, { bookingId, providerId: booking.provider_id,
+        serviceId: booking.service_id, startsAt: start, endsAt: end });
+      if (unavailable.length) { await client.query("ROLLBACK"); return NextResponse.json({ error: `${unavailable.join(", ")} ${unavailable.length === 1 ? "is" : "are"} outside working hours or already booked.` }, { status: 409 }); }
       await client.query(`UPDATE bookings SET reschedule_requested_by = 'customer', reschedule_starts_at = $2,
         reschedule_ends_at = $3, reschedule_reason = $4, reschedule_requested_at = now() WHERE id::text = $1`, [bookingId, start, end, reason]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message, metadata)

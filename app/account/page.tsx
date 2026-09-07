@@ -7,6 +7,7 @@ import FavoriteButton from "@/components/favorite-button";
 import NotificationBell from "@/components/notification-bell";
 import ProfileAvatar from "@/components/profile-avatar";
 import ContactSupportButton from "@/components/contact-support-button";
+import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
@@ -31,6 +32,7 @@ const serviceVisuals: Record<string, { art: string; gradient: string }> = {
 };
 
 export default function AccountPage() {
+  const timeZone = useUserTimeZone();
   const { data: session } = authClient.useSession();
   const [activeTab, setActiveTab] = useState<"bookings" | "saved">("bookings");
   const [bookings, setBookings] = useState(initialBookings);
@@ -67,8 +69,8 @@ export default function AccountPage() {
     if (normalized.includes("photo")) return "📷";
     return "✨";
   };
-  const bookingDate = (startsAt: string) => new Date(startsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  const bookingTime = (startsAt: string) => new Date(startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const bookingDate = (startsAt: string) => formatInUserTimeZone(startsAt, { month: "short", day: "numeric", year: "numeric" }, timeZone);
+  const bookingTime = (startsAt: string) => formatInUserTimeZone(startsAt, { hour: "numeric", minute: "2-digit" }, timeZone);
 
   return (
     <main className="min-h-screen bg-[#f5f4ef] text-[#183126]">

@@ -12,12 +12,16 @@ export async function GET() {
     price_cents: number; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string; previous_booking_count: number; plan: "starter" | "pro" | "business" | "owner";
   }>(
     `SELECT b.id::text, u.name AS customer, u.image AS customer_image, s.title AS service, b.starts_at,
-            b.service_address AS location, b.price_cents, b.status, p.plan, COALESCE(member.name, 'Company owner') AS assignee_name,
+            b.service_address AS location, b.price_cents, b.status, p.plan,
+            COALESCE((SELECT string_agg(CASE WHEN assigned.is_owner THEN owner_user.name ELSE assigned_member.name END, ', ' ORDER BY assigned.is_owner DESC, assigned_member.name)
+              FROM booking_assignees assigned LEFT JOIN provider_team_members assigned_member ON assigned_member.id = assigned.team_member_id
+              WHERE assigned.booking_id = b.id), COALESCE(member.name, owner_user.name)) AS assignee_name,
             (SELECT count(*)::int FROM bookings previous WHERE previous.provider_id = b.provider_id
               AND previous.customer_id = b.customer_id AND previous.id <> b.id
               AND previous.status IN ('confirmed', 'completed')) AS previous_booking_count
      FROM bookings b
      JOIN provider_profiles p ON p.id = b.provider_id
+     JOIN "user" owner_user ON owner_user.id = p.user_id
      JOIN services s ON s.id = b.service_id
      JOIN "user" u ON u.id = b.customer_id
      LEFT JOIN provider_team_members member ON member.id = b.assigned_team_member_id

@@ -92,9 +92,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Worker not found." }, { status: 404 });
       }
     }
-    const bookingConflict = await client.query(`SELECT 1 FROM bookings WHERE provider_id::text = $1
-      AND assigned_team_member_id IS NOT DISTINCT FROM $2::uuid AND status = 'confirmed'
-      AND starts_at < $4 AND ends_at > $3 LIMIT 1`, [current.provider.id, memberId, startsAt, endsAt]);
+    const bookingConflict = await client.query(`SELECT 1 FROM bookings booking
+      JOIN booking_assignees assigned ON assigned.booking_id = booking.id
+      WHERE booking.provider_id::text = $1
+      AND (($2::uuid IS NULL AND assigned.is_owner = true) OR assigned.team_member_id = $2::uuid)
+      AND booking.status = 'confirmed' AND booking.starts_at < $4 AND booking.ends_at > $3 LIMIT 1`, [current.provider.id, memberId, startsAt, endsAt]);
     if (bookingConflict.rowCount) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "That staff member already has a confirmed booking during this time. Reassign or cancel it first." }, { status: 409 });

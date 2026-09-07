@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ReportUserButton from "@/components/report-user-button";
+import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 
 type BookingStatus = "requested" | "confirmed" | "completed" | "cancelled";
 type Booking = {
@@ -39,6 +40,8 @@ type Booking = {
   conversationId: string | null;
   assignedTeamMemberId: string | null;
   assigneeName: string;
+  ownerName: string;
+  assignedProfessionals: Array<{ memberId: string | null; name: string }>;
   teamMembers: Array<{ id: string; name: string }>;
   reschedule: { requestedBy: string | null; startsAt: string; endsAt: string; reason: string | null; requestedAt: string | null } | null;
   history: Array<{ id: string; type: string; message: string; createdAt: string }>;
@@ -61,6 +64,7 @@ const statusLabels: Record<BookingStatus, string> = {
 };
 
 export default function BookingDetails({ bookingId, expectedRole }: { bookingId: string; expectedRole: "customer" | "provider" }) {
+  const timeZone = useUserTimeZone();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -132,9 +136,10 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     setWorking(false);
   }
 
-  async function assignBooking(memberId: string) {
+  async function assignBooking(memberIds: string[]) {
+    if (!memberIds.length) { setError("Assign at least one professional to this booking."); return; }
     setWorking(true); setError("");
-    const response = await fetch(`/api/providers/bookings/${bookingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "assign", memberId }) }).catch(() => null);
+    const response = await fetch(`/api/providers/bookings/${bookingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "assign", memberIds }) }).catch(() => null);
     const result = response ? await response.json() as { error?: string; refundWarning?: string } : null;
     if (!response?.ok) setError(result?.error ?? "We could not assign this booking."); else await loadBooking();
     setWorking(false);
@@ -258,7 +263,14 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     : `/provider/dashboard/messages${booking.conversationId ? `?conversationId=${booking.conversationId}` : ""}`;
   const canCancel = booking.status === "requested" || booking.status === "confirmed";
   const canComplete = booking.viewerRole === "provider" && booking.status === "confirmed";
-  const releaseCopy = paymentReleaseCopy(booking);
+  const releaseCopy = paymentReleaseCopy(booking, timeZone);
+  const selectedProfessionalIds = booking.assignedProfessionals.map((professional) => professional.memberId ?? "owner");
+  const toggleProfessional = (memberId: string, checked: boolean) => {
+    const next = checked
+      ? Array.from(new Set([...selectedProfessionalIds, memberId]))
+      : selectedProfessionalIds.filter((selected) => selected !== memberId);
+    void assignBooking(next);
+  };
 
   return <>
     {notice && <p role="status" className="mb-5 rounded-2xl bg-[#e6f2e6] px-5 py-4 text-sm font-semibold text-[#34704a]">{notice}</p>}
@@ -274,7 +286,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
         </div>
 
         <div className="grid gap-6 p-6 sm:grid-cols-2 sm:p-8">
-          <Detail icon="◷" label="Date and time" value={start.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} note={`${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}–${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`} />
+          <Detail icon="◷" label="Date and time" value={formatInUserTimeZone(start, { weekday: "long", month: "long", day: "numeric", year: "numeric" }, timeZone)} note={`${formatInUserTimeZone(start, { hour: "numeric", minute: "2-digit" }, timeZone)}–${formatInUserTimeZone(end, { hour: "numeric", minute: "2-digit" }, timeZone)}`} />
           <Detail icon="$" label={booking.quote.status === "accepted" ? "Approved quote" : "Service price"} value={`$${booking.price.toLocaleString()}`} note={releaseCopy.detail} />
           <Detail icon="⌖" label="Service location" value={booking.location} note="Shared only with this booking" />
           <Detail icon="✉" label={booking.viewerRole === "customer" ? "Service professional" : "Customer"} value={booking.viewerRole === "customer" ? booking.assigneeName : booking.customerName} note={booking.viewerRole === "customer" ? `From ${booking.providerName}` : "Message through BubsBookings"} />
@@ -300,7 +312,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
             {booking.viewerRole === "customer" && (booking.paymentRelease.status === "awaiting_customer" || (booking.paymentRelease.status === "failed" && Boolean(booking.paymentRelease.customerConfirmedAt))) && <button disabled={working} onClick={() => void confirmCompletion()} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Releasing payout…" : booking.paymentRelease.status === "failed" ? "Retry payout release" : "Confirm service complete"}</button>}
             {booking.viewerRole === "customer" && booking.paymentStatus === "paid" && !["requested", "processing", "refunded"].includes(booking.refund.status) && <button disabled={working} onClick={() => void refundAction("request")} className="rounded-full border border-[#9b4e3a]/25 px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Request a refund</button>}
             {booking.viewerRole === "provider" && booking.refund.status === "requested" && <><button disabled={working} onClick={() => void refundAction("approve")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">Approve refund</button><button disabled={working} onClick={() => void refundAction("reject")} className="rounded-full border border-[#9b4e3a]/25 px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Decline refund</button></>}
-            {booking.viewerRole === "provider" && canCancel && <label className="text-sm font-bold">Assigned professional<select disabled={working} value={booking.assignedTeamMemberId ?? "owner"} onChange={(event) => void assignBooking(event.target.value)} className="mt-2 w-full rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3"><option value="owner">Company owner</option>{booking.teamMembers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>}
+            {booking.viewerRole === "provider" && canCancel && <fieldset disabled={working} className="rounded-2xl border border-[#183126]/15 bg-[#fafaf6] p-4"><legend className="px-1 text-sm font-bold">Assigned professionals</legend><p className="mb-3 text-xs font-normal text-[#718078]">Select everyone working on this job.</p><div className="grid gap-2"><label className="flex cursor-pointer items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-sm font-bold"><input type="checkbox" checked={selectedProfessionalIds.includes("owner")} onChange={(event) => toggleProfessional("owner", event.target.checked)} className="h-4 w-4 accent-[#183126]" />{booking.ownerName}</label>{booking.teamMembers.map((member) => <label key={member.id} className="flex cursor-pointer items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-sm font-bold"><input type="checkbox" checked={selectedProfessionalIds.includes(member.id)} onChange={(event) => toggleProfessional(member.id, event.target.checked)} className="h-4 w-4 accent-[#183126]" />{member.name}</label>)}</div></fieldset>}
             {booking.viewerRole === "provider" && booking.status === "requested" && <button disabled={working} onClick={() => { setQuotePrice(String(booking.quote.price ?? booking.price)); setQuoteMessage(booking.quote.message); setQuoteOpen(true); }} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#eee25a] disabled:opacity-50">{booking.quote.status === "none" ? "Send a custom quote" : "Send revised quote"}</button>}
             {booking.viewerRole === "customer" && canCancel && !booking.reschedule && <button onClick={() => setRescheduleOpen(true)} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#eee25a]">Request a new time</button>}
             {booking.status === "confirmed" && <a href={`/api/bookings/${booking.id}/calendar`} className="rounded-full border border-[#183126]/15 px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e5eddf]">Add to Google / Apple Calendar</a>}
@@ -316,9 +328,9 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       </aside>
     </div>
 
-    {booking.reschedule && <section className="mt-6 rounded-[2rem] border border-[#d1c653] bg-[#fff9d8] p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#756d3f]">Pending reschedule</p><h2 className="mt-2 text-2xl font-bold">New time requested</h2><p className="mt-3 font-bold">{new Date(booking.reschedule.startsAt).toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</p><p className="mt-2 text-sm text-[#6f6840]">{booking.reschedule.reason}</p>{booking.viewerRole === "provider" && <div className="mt-5 flex flex-wrap gap-2"><button disabled={working} onClick={() => providerAction("approve_reschedule")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white hover:bg-[#315846]">Approve new time</button><button disabled={working} onClick={() => { const reason = window.prompt("Why are you declining this new time?"); if (reason) void providerAction("decline_reschedule", reason); }} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold hover:bg-[#f4d8cc]">Decline</button></div>}</section>}
+    {booking.reschedule && <section className="mt-6 rounded-[2rem] border border-[#d1c653] bg-[#fff9d8] p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#756d3f]">Pending reschedule</p><h2 className="mt-2 text-2xl font-bold">New time requested</h2><p className="mt-3 font-bold">{formatInUserTimeZone(booking.reschedule.startsAt, { weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }, timeZone)}</p><p className="mt-2 text-sm text-[#6f6840]">{booking.reschedule.reason}</p>{booking.viewerRole === "provider" && <div className="mt-5 flex flex-wrap gap-2"><button disabled={working} onClick={() => providerAction("approve_reschedule")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white hover:bg-[#315846]">Approve new time</button><button disabled={working} onClick={() => { const reason = window.prompt("Why are you declining this new time?"); if (reason) void providerAction("decline_reschedule", reason); }} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold hover:bg-[#f4d8cc]">Decline</button></div>}</section>}
 
-    <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Activity</p><h2 className="mt-2 text-2xl font-bold">Booking history</h2><div className="mt-5 space-y-4">{booking.history.length ? booking.history.map((event) => <div key={event.id} className="flex gap-4"><span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-[#eee25a] ring-4 ring-[#f8f3bd]" /><div><p className="text-sm font-semibold">{event.message}</p><p className="mt-1 text-xs text-[#7a8881]">{new Date(event.createdAt).toLocaleString()}</p></div></div>) : <p className="text-sm text-[#718078]">Future booking changes will be recorded here.</p>}</div></section>
+    <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Activity</p><h2 className="mt-2 text-2xl font-bold">Booking history</h2><div className="mt-5 space-y-4">{booking.history.length ? booking.history.map((event) => <div key={event.id} className="flex gap-4"><span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-[#eee25a] ring-4 ring-[#f8f3bd]" /><div><p className="text-sm font-semibold">{event.message}</p><p className="mt-1 text-xs text-[#7a8881]">{formatInUserTimeZone(event.createdAt, { dateStyle: "medium", timeStyle: "short" }, timeZone)}</p></div></div>) : <p className="text-sm text-[#718078]">Future booking changes will be recorded here.</p>}</div></section>
 
     {booking.viewerRole === "customer" && booking.status === "completed" && <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8">
       <p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Verified booking</p>
@@ -336,12 +348,12 @@ function Detail({ icon, label, value, note }: { icon: string; label: string; val
   return <div className="flex gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#edf2e9] font-bold">{icon}</span><div><p className="text-xs font-bold uppercase tracking-[.1em] text-[#718078]">{label}</p><p className="mt-1 font-bold">{value}</p><p className="mt-1 text-xs text-[#7d8983]">{note}</p></div></div>;
 }
 
-function paymentReleaseCopy(booking: Booking) {
+function paymentReleaseCopy(booking: Booking, timeZone?: string) {
   if (booking.paymentStatus === "refunded") return { label: "Payment refunded", detail: "The payment was returned to the original payment method." };
   if (booking.paymentStatus !== "paid") return { label: "Payment not completed", detail: booking.quote.status === "accepted" ? "Customer approved this price" : "Payment is due after booking confirmation." };
   switch (booking.paymentRelease.status) {
     case "secured": return { label: "Payment secured · Awaiting completion", detail: "Stripe has collected the payment. The provider share stays held until the service is completed." };
-    case "awaiting_customer": return { label: "Awaiting completion confirmation", detail: `The provider marked the service complete. Confirm it or open a dispute${booking.paymentRelease.confirmationDueAt ? ` before ${new Date(booking.paymentRelease.confirmationDueAt).toLocaleString()}` : " within 48 hours"}.` };
+    case "awaiting_customer": return { label: "Awaiting completion confirmation", detail: `The provider marked the service complete. Confirm it or open a dispute${booking.paymentRelease.confirmationDueAt ? ` before ${formatInUserTimeZone(booking.paymentRelease.confirmationDueAt, { dateStyle: "medium", timeStyle: "short" }, timeZone)}` : " within 48 hours"}.` };
     case "processing": return { label: "Payout processing", detail: "The provider payout is being released through Stripe." };
     case "paid_out": return { label: "Paid out", detail: "The provider's full share has been released to their Stripe balance." };
     case "partially_released": return { label: "Partially released", detail: "Part of the provider payout was reversed because of a partial refund." };

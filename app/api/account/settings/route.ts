@@ -13,6 +13,8 @@ type SettingsRow = {
   search_radius_miles: number;
   booking_notifications: boolean;
   message_notifications: boolean;
+  theme: "light" | "dark" | "system";
+  time_zone: string;
   is_provider: boolean;
 };
 
@@ -27,6 +29,8 @@ export async function GET() {
             COALESCE(us.search_radius_miles, 25)::int AS search_radius_miles,
             COALESCE(us.booking_notifications, true) AS booking_notifications,
             COALESCE(us.message_notifications, true) AS message_notifications,
+            COALESCE(us.theme, 'system') AS theme,
+            COALESCE(us.time_zone, 'auto') AS time_zone,
             (p.id IS NOT NULL) AS is_provider
      FROM "user" u
      LEFT JOIN user_settings us ON us.user_id = u.id
@@ -47,6 +51,8 @@ export async function GET() {
     radius: row.search_radius_miles,
     bookingNotifications: row.booking_notifications,
     messageNotifications: row.message_notifications,
+    theme: row.theme,
+    timeZone: row.time_zone,
     isProvider: row.is_provider,
   });
 }
@@ -62,26 +68,33 @@ export async function PATCH(request: Request) {
   const radius = Number(body.radius);
   const bookingNotifications = body.bookingNotifications !== false;
   const messageNotifications = body.messageNotifications !== false;
+  const theme = body.theme === "light" || body.theme === "dark" ? body.theme : "system";
+  const timeZone = typeof body.timeZone === "string" ? body.timeZone.trim() : "auto";
 
   if (name.length < 2 || name.length > 80) return NextResponse.json({ error: "Enter your full name." }, { status: 400 });
   if (phone.length !== 10) return NextResponse.json({ error: "Enter a 10-digit phone number." }, { status: 400 });
   if (city.length < 2 || city.length > 80 || !/^[A-Za-z .'-]+$/.test(city)) return NextResponse.json({ error: "Enter a valid city." }, { status: 400 });
   if (!/^[A-Z]{2}$/.test(state)) return NextResponse.json({ error: "Enter a two-letter state code." }, { status: 400 });
   if (!Number.isInteger(radius) || radius < 1 || radius > 250) return NextResponse.json({ error: "Enter a search radius from 1 to 250 miles." }, { status: 400 });
+  if (timeZone !== "auto") {
+    try { new Intl.DateTimeFormat("en-US", { timeZone }).format(); }
+    catch { return NextResponse.json({ error: "Choose a valid time zone." }, { status: 400 }); }
+  }
 
   const client = await database.connect();
   try {
     await client.query("BEGIN");
     await client.query('UPDATE "user" SET name = $1, phone = $2, "updatedAt" = now() WHERE id = $3', [name, phone, session.user.id]);
     await client.query(
-      `INSERT INTO user_settings (user_id, city, state, search_radius_miles, booking_notifications, message_notifications)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO user_settings (user_id, city, state, search_radius_miles, booking_notifications, message_notifications, theme, time_zone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (user_id) DO UPDATE SET
          city = EXCLUDED.city, state = EXCLUDED.state,
          search_radius_miles = EXCLUDED.search_radius_miles,
          booking_notifications = EXCLUDED.booking_notifications,
-         message_notifications = EXCLUDED.message_notifications`,
-      [session.user.id, city, state, radius, bookingNotifications, messageNotifications],
+         message_notifications = EXCLUDED.message_notifications,
+         theme = EXCLUDED.theme, time_zone = EXCLUDED.time_zone`,
+      [session.user.id, city, state, radius, bookingNotifications, messageNotifications, theme, timeZone],
     );
     await client.query("COMMIT");
   } catch (error) {
@@ -92,5 +105,5 @@ export async function PATCH(request: Request) {
     client.release();
   }
 
-  return NextResponse.json({ ok: true, location: `${city}, ${state}`, radius });
+  return NextResponse.json({ ok: true, location: `${city}, ${state}`, radius, theme, timeZone });
 }

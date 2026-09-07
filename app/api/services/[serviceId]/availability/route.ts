@@ -49,9 +49,10 @@ export async function GET(request: Request, context: RouteContext<"/api/services
        )
        AND NOT EXISTS (
          SELECT 1 FROM bookings b
+         JOIN booking_assignees assigned ON assigned.booking_id = b.id
          WHERE b.provider_id = gs.provider_id
            AND b.status = 'confirmed'
-           AND b.assigned_team_member_id IS NOT DISTINCT FROM gs.member_id
+           AND ((gs.member_id IS NULL AND assigned.is_owner = true) OR assigned.team_member_id = gs.member_id)
            AND b.starts_at < gs.starts_at + make_interval(mins => gs.duration_minutes)
            AND b.ends_at > gs.starts_at
        )

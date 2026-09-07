@@ -14,6 +14,7 @@ import BookingCalendar from "@/components/booking-calendar";
 import ProfileAvatar from "@/components/profile-avatar";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { isAllDayAvailability } from "@/lib/availability-hours";
+import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
 export type DashboardSection = "overview" | "bookings" | "calendar" | "messages" | "revenue" | "services" | "availability" | "reviews" | "team" | "billing" | "settings";
@@ -79,12 +80,12 @@ function formatTime(time: string) {
   return `${hour % 12 || 12}:${minute} ${hour >= 12 ? "PM" : "AM"}`;
 }
 
-function formatBookingDate(startsAt: string) {
-  return new Date(startsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+function formatBookingDate(startsAt: string, timeZone?: string) {
+  return formatInUserTimeZone(startsAt, { month: "short", day: "numeric", year: "numeric" }, timeZone);
 }
 
-function formatBookingTime(startsAt: string) {
-  return new Date(startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+function formatBookingTime(startsAt: string, timeZone?: string) {
+  return formatInUserTimeZone(startsAt, { hour: "numeric", minute: "2-digit" }, timeZone);
 }
 
 const dashboardNav: Array<{ section: DashboardSection; href: string; icon: string; label: string }> = [
@@ -102,6 +103,7 @@ const dashboardNav: Array<{ section: DashboardSection; href: string; icon: strin
 ];
 
 export default function ProviderDashboard({ section = "overview", initialConversationId = "" }: { section?: DashboardSection; initialConversationId?: string }) {
+  const timeZone = useUserTimeZone();
   const { data: session } = authClient.useSession();
   const [requests, setRequests] = useState(initialRequests);
   const [notice, setNotice] = useState(true);
@@ -254,7 +256,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           <div className="mt-6 grid gap-5 xl:grid-cols-2">
             <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
               <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Bookings</p><h2 className="mt-2 text-xl font-bold">Latest requests</h2></div><Link href="/provider/dashboard/bookings" className="text-sm font-bold underline decoration-[#c5b940] decoration-2 underline-offset-4">View bookings</Link></div>
-              {requests.length ? <div className="mt-5 space-y-3">{requests.slice(0, 3).map((request) => <div key={request.id} className="flex items-center gap-3 rounded-2xl bg-[#f5f5ef] p-4"><ProfileAvatar name={request.customer} imageUrl={request.customerImage} className="h-10 w-10 text-xs" /><div className="min-w-0 flex-1"><p className="truncate font-bold">{request.customer}</p><p className="truncate text-xs text-[#738179]">{request.service} · {formatBookingDate(request.startsAt)}</p></div><span className="rounded-full bg-[#fff1bf] px-2.5 py-1 text-[10px] font-bold uppercase">{request.status}</span></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">📅</p><p className="mt-2 font-bold">No requests yet</p><p className="mt-1 text-sm text-[#738179]">New customer booking requests will appear here.</p></div>}
+              {requests.length ? <div className="mt-5 space-y-3">{requests.slice(0, 3).map((request) => <div key={request.id} className="flex items-center gap-3 rounded-2xl bg-[#f5f5ef] p-4"><ProfileAvatar name={request.customer} imageUrl={request.customerImage} className="h-10 w-10 text-xs" /><div className="min-w-0 flex-1"><p className="truncate font-bold">{request.customer}</p><p className="truncate text-xs text-[#738179]">{request.service} · {formatBookingDate(request.startsAt, timeZone)}</p></div><span className="rounded-full bg-[#fff1bf] px-2.5 py-1 text-[10px] font-bold uppercase">{request.status}</span></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">📅</p><p className="mt-2 font-bold">No requests yet</p><p className="mt-1 text-sm text-[#738179]">New customer booking requests will appear here.</p></div>}
             </section>
 
             <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
@@ -276,7 +278,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
               {requests.length === 0 && <div className="rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="font-bold">No booking requests yet</p><p className="mt-1 text-sm text-[#73827b]">New customer requests will appear here.</p></div>}
               {requests.map((request) => <div key={request.id} className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 xl:flex-row xl:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-4"><ProfileAvatar name={request.customer} imageUrl={request.customerImage} className="h-11 w-11 text-sm" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-bold">{request.customer}</p>{request.status === "new" && <span className="rounded-full bg-[#fff2c1] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#806817]">New</span>}{request.repeatBookings > 0 && <span className="rounded-full bg-[#e7f1e3] px-2 py-0.5 text-[10px] font-bold text-[#35704a]">Repeat · #{request.repeatBookings + 1}</span>}</div><p className="mt-1 truncate text-sm text-[#6f7e76]">{request.service} · {request.location}</p></div></div>
-                <div className="flex flex-wrap items-center justify-between gap-4 xl:w-[58%]"><div><p className="text-sm font-bold">{formatBookingDate(request.startsAt)}</p><p className="mt-1 text-xs text-[#74827b]">{formatBookingTime(request.startsAt)} · ${request.price}</p><p className="mt-1 text-xs font-semibold text-[#55705e]">Assigned: {request.assigneeName}</p></div><div className="flex flex-wrap items-center justify-end gap-2"><Link href={`/provider/dashboard/bookings/${request.id}`} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View details</Link>{request.status === "new" ? <button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{bookingActionId === request.id ? "Saving…" : "Accept"}</button> : request.status === "accepted" ? <><span className="rounded-full bg-[#e4f1e5] px-3 py-1.5 text-xs font-bold text-[#35704a]">Accepted ✓</span><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "completed")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#eee25a] disabled:opacity-50">Mark complete</button></> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "completed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "completed" ? "Completed ✓" : "Cancelled"}</span>}{request.status === "cancelled" && <button disabled={bookingActionId === request.id} onClick={() => deleteCancelledRequest(request.id)} className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Delete</button>}</div></div>
+                <div className="flex flex-wrap items-center justify-between gap-4 xl:w-[58%]"><div><p className="text-sm font-bold">{formatBookingDate(request.startsAt, timeZone)}</p><p className="mt-1 text-xs text-[#74827b]">{formatBookingTime(request.startsAt, timeZone)} · ${request.price}</p><p className="mt-1 text-xs font-semibold text-[#55705e]">Assigned: {request.assigneeName}</p></div><div className="flex flex-wrap items-center justify-end gap-2"><Link href={`/provider/dashboard/bookings/${request.id}`} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View details</Link>{request.status === "new" ? <button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{bookingActionId === request.id ? "Saving…" : "Accept"}</button> : request.status === "accepted" ? <><span className="rounded-full bg-[#e4f1e5] px-3 py-1.5 text-xs font-bold text-[#35704a]">Accepted ✓</span><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "completed")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#eee25a] disabled:opacity-50">Mark complete</button></> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "completed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "completed" ? "Completed ✓" : "Cancelled"}</span>}{request.status === "cancelled" && <button disabled={bookingActionId === request.id} onClick={() => deleteCancelledRequest(request.id)} className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Delete</button>}</div></div>
               </div>)}
             </div>
           </section>}

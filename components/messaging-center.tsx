@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ProfileAvatar from "@/components/profile-avatar";
+import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 
 type Conversation = {
   id: string; providerId: string; providerName: string; customerName: string;
@@ -28,6 +29,7 @@ export default function MessagingCenter({
   initialProviderName?: string;
   initialServiceTitle?: string;
 }) {
+  const timeZone = useUserTimeZone();
   const [data, setData] = useState<MessageData>({ conversations: [], selectedConversation: null, messages: [] });
   const [selectedId, setSelectedId] = useState(initialConversationId);
   const [message, setMessage] = useState("");
@@ -198,7 +200,7 @@ export default function MessagingCenter({
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#183126]/10 px-4 py-4 sm:px-5"><div className="flex min-w-0 flex-1 items-center gap-3"><ProfileAvatar name={contactName || "BubsBookings user"} imageUrl={contactImage} className="h-10 w-10 shrink-0 text-xs" /><div className="min-w-0"><p className="truncate font-bold">{contactName}</p>{serviceTitle && <p className="mt-1 truncate text-xs text-[#728179]">About {serviceTitle}</p>}</div></div>{selected && <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={() => { setReportNotice(""); setReportOpen(true); }} className="rounded-full px-3 py-2 text-xs font-bold text-[#7a681d] transition hover:bg-[#fff3b0]">Report</button><button type="button" onClick={deleteConversation} aria-label="Delete conversation" className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]"><span className="sm:hidden">Delete</span><span className="hidden sm:inline">Delete conversation</span></button></div>}</div>
             <div className="flex-1 space-y-4 overflow-y-auto bg-[#fcfcf8] p-5 sm:p-7">
               {!selected && <div className="mx-auto max-w-sm rounded-2xl bg-[#edf2e9] p-4 text-center text-sm leading-6 text-[#5e7067]">Ask about availability, pricing, or anything you want to know before booking.</div>}
-              {data.messages.map((item) => <div key={item.id} className={`flex ${item.isMine ? "justify-end" : "justify-start"}`}><div className={`group max-w-[82%] rounded-2xl px-4 py-3 ${item.isMine ? "rounded-br-md bg-[#183126] text-white" : "rounded-bl-md border border-[#183126]/10 bg-white"}`}><p className={`whitespace-pre-wrap break-words text-sm leading-6 ${item.deleted ? "italic opacity-60" : ""}`}>{item.body}</p><div className="mt-1.5 flex items-center justify-between gap-4"><p className={`text-[10px] ${item.isMine ? "text-white/55" : "text-[#8a9690]"}`}>{new Date(item.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>{item.isMine && !item.deleted && <button type="button" onClick={() => deleteMessage(item.id)} className="rounded px-1.5 py-0.5 text-[10px] font-bold text-white/55 opacity-0 transition hover:bg-white/15 hover:text-white group-hover:opacity-100 focus:opacity-100">Delete</button>}</div></div></div>)}
+              {data.messages.map((item) => <div key={item.id} className={`flex ${item.isMine ? "justify-end" : "justify-start"}`}><div className={`group max-w-[82%] rounded-2xl px-4 py-3 ${item.isMine ? "rounded-br-md bg-[#183126] text-white" : "rounded-bl-md border border-[#183126]/10 bg-white"}`}><p className={`whitespace-pre-wrap break-words text-sm leading-6 ${item.deleted ? "italic opacity-60" : ""}`}>{item.body}</p><div className="mt-1.5 flex items-center justify-between gap-4"><p className={`text-[10px] ${item.isMine ? "text-white/55" : "text-[#8a9690]"}`}>{formatInUserTimeZone(item.createdAt, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }, timeZone)}</p>{item.isMine && !item.deleted && <button type="button" onClick={() => deleteMessage(item.id)} className="rounded px-1.5 py-0.5 text-[10px] font-bold text-white/55 opacity-0 transition hover:bg-white/15 hover:text-white group-hover:opacity-100 focus:opacity-100">Delete</button>}</div></div></div>)}
               <div ref={messageEndRef} />
             </div>
             <form onSubmit={sendMessage} className="border-t border-[#183126]/10 bg-white p-4 sm:p-5">

@@ -6,14 +6,20 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import ProfilePhotoManager from "@/components/profile-photo-manager";
 import RadiusSelector from "@/components/radius-selector";
+import { applyThemePreference, applyTimeZonePreference, type ThemePreference } from "@/components/preferences-provider";
 
 type Settings = {
   name: string; email: string; imageUrl: string; phone: string; city: string; state: string; radius: number;
   bookingNotifications: boolean; messageNotifications: boolean; isProvider: boolean;
+  theme: ThemePreference; timeZone: string;
 };
 
-const emptySettings: Settings = { name: "", email: "", imageUrl: "", phone: "", city: "", state: "WA", radius: 25, bookingNotifications: true, messageNotifications: true, isProvider: false };
+const emptySettings: Settings = { name: "", email: "", imageUrl: "", phone: "", city: "", state: "WA", radius: 25, bookingNotifications: true, messageNotifications: true, isProvider: false, theme: "system", timeZone: "auto" };
 const inputClass = "mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
+const timeZones = [
+  "America/Los_Angeles", "America/Denver", "America/Chicago", "America/New_York",
+  "America/Anchorage", "Pacific/Honolulu", "America/Phoenix", "UTC",
+];
 
 export default function AccountSettings() {
   const router = useRouter();
@@ -39,7 +45,11 @@ export default function AccountSettings() {
       .then(async (response) => {
         const data = await response.json() as Settings & { error?: string };
         if (!response.ok) throw new Error(data.error ?? "Settings could not be loaded.");
-        if (active) setSettings(data);
+        if (active) {
+          setSettings(data);
+          applyThemePreference(data.theme);
+          applyTimeZonePreference(data.timeZone);
+        }
       })
       .catch((reason: Error) => { if (active) setError(reason.message); })
       .finally(() => { if (active) setLoaded(true); });
@@ -50,10 +60,12 @@ export default function AccountSettings() {
     event.preventDefault();
     setSaving(true); setError(""); setMessage("");
     const response = await fetch("/api/account/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) }).catch(() => null);
-    const data = response ? await response.json() as { error?: string; location?: string; radius?: number } : null;
+    const data = response ? await response.json() as { error?: string; location?: string; radius?: number; theme?: ThemePreference; timeZone?: string } : null;
     setSaving(false);
     if (!response?.ok || !data) { setError(data?.error ?? "We could not save your settings."); return; }
     localStorage.setItem("bookme-service-area", JSON.stringify({ location: data.location, radius: data.radius }));
+    if (data.theme) applyThemePreference(data.theme);
+    if (data.timeZone) applyTimeZonePreference(data.timeZone);
     setMessage("Your account settings have been saved.");
     await refetch();
     router.refresh();
@@ -92,6 +104,7 @@ export default function AccountSettings() {
         <form onSubmit={saveProfile} className="space-y-6">
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Personal information</h2><p className="mt-1 text-sm text-[#738179]">This information stays connected to your bookings and messages.</p><ProfilePhotoManager name={settings.name} initialUrl={settings.imageUrl} onChange={(imageUrl) => { setSettings((current) => ({ ...current, imageUrl })); void refetch(); router.refresh(); }} /><div className="mt-6 grid gap-5 sm:grid-cols-2"><label className="text-sm font-bold">Full name<input required value={settings.name} onChange={(event) => setSettings({ ...settings, name: event.target.value })} autoComplete="name" className={inputClass} /></label><label className="text-sm font-bold">Phone number<input required value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} inputMode="tel" autoComplete="tel" placeholder="4255550123" className={inputClass} /></label><label className="text-sm font-bold sm:col-span-2">Email address<input readOnly value={settings.email} className={`${inputClass} cursor-not-allowed text-[#718078]`} /><span className="mt-2 block text-xs font-normal text-[#819087]">Contact support if you need to change the email that owns your account.</span></label></div></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Your default area</h2><p className="mt-1 text-sm text-[#738179]">BubsBookings will remember this area when you search for nearby services.</p><div className="mt-6 grid gap-5 sm:grid-cols-[1fr_120px_190px]"><label className="text-sm font-bold">City<input required value={settings.city} onChange={(event) => setSettings({ ...settings, city: event.target.value })} placeholder="Issaquah" className={inputClass} /></label><label className="text-sm font-bold">State<input required maxLength={2} value={settings.state} onChange={(event) => setSettings({ ...settings, state: event.target.value.toUpperCase() })} className={inputClass} /></label><div className="text-sm font-bold"><p>Search radius</p><span className="mt-2 block"><RadiusSelector value={settings.radius} onChange={(radius) => setSettings({ ...settings, radius })} /></span></div></div><p className="mt-3 text-xs text-[#718078]">Choose a common distance or select Custom to enter any whole number from 1 to 250 miles.</p></section>
+          <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Display and time</h2><p className="mt-1 text-sm text-[#738179]">Choose how BubsBookings looks and how booking times are displayed.</p><fieldset className="mt-6"><legend className="text-sm font-bold">Appearance</legend><div className="mt-2 grid grid-cols-3 gap-2">{(["light", "dark", "system"] as const).map((theme) => <button key={theme} type="button" aria-pressed={settings.theme === theme} onClick={() => { setSettings({ ...settings, theme }); applyThemePreference(theme); }} className={`rounded-2xl border px-3 py-3 text-sm font-bold capitalize transition ${settings.theme === theme ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-[#faf9f5] hover:bg-[#e5eddf]"}`}>{theme === "light" ? "☀ Light" : theme === "dark" ? "◐ Dark" : "◑ System"}</button>)}</div></fieldset><label className="mt-6 block text-sm font-bold">Time zone<select value={settings.timeZone} onChange={(event) => { const timeZone = event.target.value; setSettings({ ...settings, timeZone }); applyTimeZonePreference(timeZone); }} className={inputClass}><option value="auto">Automatic (device time zone)</option>{timeZones.map((timeZone) => <option key={timeZone} value={timeZone}>{timeZone.replaceAll("_", " ")}</option>)}</select><span className="mt-2 block text-xs font-normal leading-5 text-[#718078]">Automatic is recommended when you travel. A selected zone keeps booking times fixed to that location.</span></label></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Notification preferences</h2><p className="mt-1 text-sm text-[#738179]">Choose what appears in your BubsBookings notification center.</p><div className="mt-5 divide-y divide-[#183126]/10"><SettingToggle title="Booking updates" description="Requests, confirmations, changes, reminders, and cancellations." checked={settings.bookingNotifications} onChange={(checked) => setSettings({ ...settings, bookingNotifications: checked })} /><SettingToggle title="New messages" description="Messages sent between you and a customer or provider." checked={settings.messageNotifications} onChange={(checked) => setSettings({ ...settings, messageNotifications: checked })} /></div></section>
           <button disabled={saving} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:opacity-60">{saving ? "Saving…" : "Save account settings"}</button>
         </form>

@@ -170,6 +170,67 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
   }
 }
 
+html[data-theme="dark"] {
+  --background: #0d1813;
+  --foreground: #eef5f0;
+  --brand: #d9eadf;
+  --brand-soft: #203b2f;
+  --surface: #15251e;
+  --muted: #adbbb3;
+  --line: rgba(232, 243, 236, 0.13);
+  --shadow-sm: 0 4px 18px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 18px 55px rgba(0, 0, 0, 0.34);
+}
+
+html[data-theme="dark"] body {
+  background-color: #0d1813;
+  color: #eef5f0;
+  background-image:
+    radial-gradient(circle at 92% 4%, rgba(59, 102, 78, 0.28), transparent 24rem),
+    radial-gradient(circle at 4% 56%, rgba(211, 193, 42, 0.06), transparent 22rem);
+}
+
+html[data-theme="dark"] main {
+  background-color: #0d1813 !important;
+  color: #eef5f0 !important;
+}
+
+html[data-theme="dark"] :where(header, footer, section, article, aside, div)[class~="bg-white"],
+html[data-theme="dark"] :where([class*="bg-[#faf"], [class*="bg-[#f8f"], [class*="bg-[#f7f"], [class*="bg-[#f6f"], [class*="bg-[#f5f"], [class*="bg-[#f4f"], [class*="bg-[#f3f"], [class*="bg-[#f1f"]) {
+  background-color: #15251e !important;
+}
+
+html[data-theme="dark"] :where(header)[class~="bg-white"],
+html[data-theme="dark"] :where(header)[class*="bg-[#f"] {
+  background-color: rgba(13, 24, 19, 0.9) !important;
+}
+
+html[data-theme="dark"] :where([class*="text-[#183126]"], [class*="text-[#132e23]"]) {
+  color: #eef5f0 !important;
+}
+
+html[data-theme="dark"] :where(
+  [class*="text-[#5"], [class*="text-[#6"], [class*="text-[#7"],
+  [class*="text-[#8"], [class*="text-zinc-500"]
+) {
+  color: #adbbb3 !important;
+}
+
+html[data-theme="dark"] :where([class*="border-[#183126]"]) {
+  border-color: rgba(232, 243, 236, 0.14) !important;
+}
+
+html[data-theme="dark"] :where(input, select, textarea) {
+  background-color: #101f18 !important;
+  color: #eef5f0 !important;
+  border-color: rgba(232, 243, 236, 0.16) !important;
+}
+
+html[data-theme="dark"] :where(input, textarea)::placeholder { color: #819188; }
+html[data-theme="dark"] ::selection { background: #eee25a; color: #183126; }
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: #101b16; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #4f685b; border-color: #101b16; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;

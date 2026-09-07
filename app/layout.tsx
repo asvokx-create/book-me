@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import SiteFooter from "@/components/site-footer";
 import AnalyticsTracker from "@/components/analytics-tracker";
 import { Suspense } from "react";
+import Script from "next/script";
+import { PreferencesProvider } from "@/components/preferences-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -35,9 +37,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} /><Suspense fallback={null}><AnalyticsTracker /></Suspense>{children}<SiteFooter /></body>
+      <body className="min-h-full flex flex-col"><Script id="bubsbookings-theme" strategy="beforeInteractive">{`try{const p=localStorage.getItem("bubsbookings-theme")||"system";const t=p==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch{}`}</Script><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} /><PreferencesProvider><Suspense fallback={null}><AnalyticsTracker /></Suspense>{children}<SiteFooter /></PreferencesProvider></body>
     </html>
   );
 }
