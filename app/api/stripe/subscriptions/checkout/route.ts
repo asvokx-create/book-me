@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { isPurchasableProviderPlan } from "@/lib/plans";
-import { getStripe, getStripeMode, getStripePriceId, isStripeReady } from "@/lib/stripe";
+import { getStripe, getStripeMode, isStripeReady } from "@/lib/stripe";
 import { enforceRateLimit } from "@/lib/request-security";
 
 export async function POST(request: Request) {
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many checkout attempts. Please wait and try again." }, { status: 429 });
   if (!isStripeReady()) return NextResponse.json({ error: "Stripe billing still needs to be connected by the BubsBookings administrator." }, { status: 503 });
   const body = await request.json() as { plan?: unknown };
-  if (!isPurchasableProviderPlan(body.plan)) return NextResponse.json({ error: "Choose Pro or Business." }, { status: 400 });
+  if (!isPurchasableProviderPlan(body.plan)) return NextResponse.json({ error: "Choose Pro." }, { status: 400 });
   if (isOwnerEmail(session.user.email)) return NextResponse.json({ error: "Your private Owner Plan already includes every feature at no charge." }, { status: 409 });
 
   const providerResult = await database.query<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_billing_mode: "test" | "live" | null }>(
@@ -46,7 +46,18 @@ export async function POST(request: Request) {
     mode: "subscription",
     customer: customerId,
     client_reference_id: provider.id,
-    line_items: [{ price: getStripePriceId(body.plan), quantity: 1 }],
+    line_items: [{
+      price_data: {
+        currency: "usd",
+        unit_amount: 999,
+        recurring: { interval: "month" },
+        product_data: {
+          name: "BubsBookings Pro",
+          description: "Unlimited listings and photos, growth tools, priority placement, and priority support.",
+        },
+      },
+      quantity: 1,
+    }],
     success_url: `${origin}/provider/dashboard/billing?stripe=subscription-success`,
     cancel_url: `${origin}/provider/dashboard/billing?stripe=cancelled`,
     metadata: { kind: "provider_subscription", providerId: provider.id, plan: body.plan },

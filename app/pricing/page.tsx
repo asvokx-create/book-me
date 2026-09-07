@@ -27,22 +27,12 @@ const plans = [
   {
     id: "pro",
     name: "Pro",
-    price: "$19.99",
+    price: "$9.99",
     cadence: "per month",
     fee: "4% booking fee",
-    description: "More tools for a growing service business.",
-    features: ["Unlimited services & photos", "Custom booking questions", "24-hour and 1-hour reminders", "Advanced analytics", "Repeat-customer insights", "3 total team seats"],
+    description: "Every growth tool in one affordable plan.",
+    features: ["Unlimited services & photos", "Custom booking questions", "24-hour and 1-hour reminders", "Advanced analytics", "Repeat-customer insights", "3 total team seats", "Multiple service locations", "Priority support", "Priority placement in browse results"],
     featured: true,
-  },
-  {
-    id: "business",
-    name: "Business",
-    price: "$49.99",
-    cadence: "per month",
-    fee: "2% booking fee",
-    description: "Powerful controls for established teams.",
-    features: ["Everything in Pro", "Unlimited team members", "Multiple service locations", "Priority support", "Priority placement in browse results", "Advanced analytics", "Unlimited services & photos"],
-    featured: false,
   },
 ] as const;
 
@@ -94,7 +84,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
         {currentPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#183126] px-5 py-4 text-center text-white sm:flex-row sm:text-left"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b8c8c0]">Your current plan</p><p className="mt-1 text-xl font-bold">{PLAN_ENTITLEMENTS[currentPlan].name}</p>{currentPlan === "owner" && <p className="mt-1 text-xs text-[#b8c8c0]">Private account access · $0/month · 0% booking fee · all features unlocked</p>}</div><Link href="/provider/dashboard/billing" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Manage billing</Link></div>}
         {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : "Create your provider profile first, then finish secure Stripe checkout from Billing."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : "/provider/dashboard/billing"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : "Continue to billing"}</Link></div>}
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.id;
             return <article key={plan.id} className={`relative flex flex-col rounded-[2rem] border bg-white p-7 shadow-[0_10px_35px_rgba(24,49,38,.06)] sm:p-8 ${plan.featured || isCurrent ? "border-[#183126] ring-4 ring-[#eee25a]/60" : "border-[#183126]/10"}`}>

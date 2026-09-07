@@ -101,7 +101,7 @@ export async function getServices(options: { query?: string; category?: string; 
     const city = options.location.split(",")[0]?.trim();
     if (city) {
       values.push(city);
-      conditions.push(`LOWER(CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END) = LOWER($${values.length})`);
+      conditions.push(`LOWER(CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END) = LOWER($${values.length})`);
     }
   }
   if (options.maxPrice && Number.isFinite(options.maxPrice)) {
@@ -114,13 +114,13 @@ export async function getServices(options: { query?: string; category?: string; 
   }
   values.push(searchOrigin ? Math.max(requestedLimit, 200) : requestedLimit);
 
-  const planPriority = "CASE WHEN p.plan IN ('business', 'owner') THEN 0 ELSE 1 END";
+  const planPriority = "CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN 0 ELSE 1 END";
   const orderBy = options.sort === "price-low" ? `s.price_cents ASC, ${planPriority}, s.created_at DESC` : options.sort === "price-high" ? `s.price_cents DESC, ${planPriority}, s.created_at DESC` : `${planPriority}, s.created_at DESC`;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            s.business_name, CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
-            CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
+            s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
+            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
@@ -153,8 +153,8 @@ export async function getServiceBySlug(slug: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            s.business_name, CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
-            CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
+            s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
+            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
@@ -177,8 +177,8 @@ export async function getServiceById(id: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            s.business_name, CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
-            CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
+            s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
+            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
@@ -266,8 +266,8 @@ async function getServicesForProvider(providerId: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            s.business_name, CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
-            CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
+            s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
+            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
@@ -290,8 +290,8 @@ export async function getFavoriteServices(customerId: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            s.business_name, CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
-            CASE WHEN p.plan IN ('business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
+            s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
+            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,

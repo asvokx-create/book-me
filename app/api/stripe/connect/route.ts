@@ -28,7 +28,11 @@ export async function POST(request: Request) {
         country: "US",
         email: session.user.email,
         business_profile: { name: provider.business_name, url: origin },
-        capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+          tax_reporting_us_1099_k: { requested: true },
+        },
         metadata: { providerId: provider.id, userId: session.user.id },
       // v1 can contain Stripe's cached response from before the platform's
       // live Connect profile was approved. Keep retries idempotent while

@@ -18,7 +18,7 @@ export const PLAN_ENTITLEMENTS = {
   },
   pro: {
     name: "Pro",
-    monthlyPrice: 19.99,
+    monthlyPrice: 9.99,
     bookingFeePercent: 4,
     serviceLimit: null,
     photoLimit: null,
@@ -27,9 +27,9 @@ export const PLAN_ENTITLEMENTS = {
     customBookingQuestions: true,
     reminderHours: [24, 1],
     repeatCustomerTools: true,
-    multipleLocations: false,
-    prioritySupport: false,
-    featuredPlacement: false,
+    multipleLocations: true,
+    prioritySupport: true,
+    featuredPlacement: true,
   },
   business: {
     name: "Business",
@@ -81,6 +81,6 @@ export function isProviderPlan(value: unknown): value is ProviderPlan {
   return value === "starter" || value === "pro" || value === "business" || value === "owner";
 }
 
-export function isPurchasableProviderPlan(value: unknown): value is "pro" | "business" {
-  return value === "pro" || value === "business";
+export function isPurchasableProviderPlan(value: unknown): value is "pro" {
+  return value === "pro";
 }

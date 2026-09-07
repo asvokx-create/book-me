@@ -25,6 +25,7 @@ export async function GET() {
   let payoutState: "not_started" | "in_review" | "action_needed" | "ready" = hasCurrentConnect ? "in_review" : "not_started";
   let requirements: string[] = [];
   let disabledReason: string | null = null;
+  let taxReportingStatus: string | null = null;
   if (configuration.secretKey && hasCurrentConnect && provider.stripe_account_id) {
     try {
       const account = await getStripe().accounts.retrieve(provider.stripe_account_id);
@@ -32,6 +33,7 @@ export async function GET() {
       provider.stripe_payouts_enabled = account.payouts_enabled;
       requirements = [...new Set([...(account.requirements?.past_due ?? []), ...(account.requirements?.currently_due ?? [])])];
       disabledReason = account.requirements?.disabled_reason ?? null;
+      taxReportingStatus = account.capabilities?.tax_reporting_us_1099_k ?? null;
       payoutState = account.charges_enabled && account.payouts_enabled ? "ready" : requirements.length || disabledReason ? "action_needed" : "in_review";
       await database.query("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1 AND stripe_connect_mode = $4", [provider.stripe_account_id, account.charges_enabled, account.payouts_enabled, mode]);
     } catch (error) {
@@ -52,6 +54,7 @@ export async function GET() {
       state: payoutState,
       requirements,
       disabledReason,
+      taxReportingStatus,
     },
   });
 }

@@ -16,7 +16,7 @@ function getParam(value: string | string[] | undefined) {
 
 export default async function ProviderJoinPage({ searchParams }: PageProps<"/providers/join">) {
   const requestedPlan = getParam((await searchParams).plan).toLowerCase();
-  const planName = requestedPlan === "pro" ? "Pro" : requestedPlan === "business" ? "Business" : requestedPlan === "starter" ? "Starter" : "";
+  const planName = requestedPlan === "pro" ? "Pro" : requestedPlan === "starter" ? "Starter" : "";
   if (isAuthConfigured()) {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) {
@@ -46,7 +46,7 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
             {["Keep control of your pricing", "Choose when and where you work", "Build trust with verified reviews"].map((benefit) => <div key={benefit} className="flex items-center gap-3 text-sm font-semibold"><span className="grid h-7 w-7 place-items-center rounded-full bg-[#dfeee2] text-[#37724c]">✓</span>{benefit}</div>)}
           </div>
         </div>
-        <OnboardingForm plan={requestedPlan === "pro" || requestedPlan === "business" ? requestedPlan : "starter"} />
+        <OnboardingForm plan={requestedPlan === "pro" ? "pro" : "starter"} />
       </section>
     </main>
   );

@@ -112,7 +112,7 @@ export async function POST(request: Request) {
   const city = locationParts.join(", ") || serviceArea;
   const existing = existingProfile.rows[0];
   if (existing && !PLAN_ENTITLEMENTS[plan].multipleLocations && `${existing.city}, ${existing.state}`.toLowerCase() !== `${city}, ${state}`.toLowerCase()) {
-    return NextResponse.json({ error: "Starter and Pro use one shared service location. Use your existing location or upgrade to Business for multiple locations.", upgradeRequired: true }, { status: 403 });
+    return NextResponse.json({ error: "Starter uses one shared service location. Use your existing location or upgrade to Pro for multiple locations.", upgradeRequired: true }, { status: 403 });
   }
   const client = await database.connect();
 

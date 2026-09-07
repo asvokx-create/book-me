@@ -113,7 +113,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
     const entitlements = PLAN_ENTITLEMENTS[ownership.rows[0].plan];
     if (bookingQuestions.length && !entitlements.customBookingQuestions) {
       await client.query("ROLLBACK");
-      return NextResponse.json({ error: "Custom booking questions require Pro or Business.", upgradeRequired: true }, { status: 403 });
+      return NextResponse.json({ error: "Custom booking questions require Pro.", upgradeRequired: true }, { status: 403 });
     }
 
     await client.query(

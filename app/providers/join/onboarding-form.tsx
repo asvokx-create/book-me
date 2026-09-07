@@ -11,7 +11,7 @@ import RadiusSelector from "@/components/radius-selector";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" | "pro" | "business" }) {
+export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" | "pro" }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
