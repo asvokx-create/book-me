@@ -67,6 +67,7 @@ export async function POST(request: Request) {
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const role = typeof body.role === "string" ? body.role.trim().replace(/\s+/g, " ") : "";
   if (name.length < 2 || name.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter the worker's name and a valid email." }, { status: 400 });
+  if (email === session.user.email.toLowerCase()) return NextResponse.json({ error: "The company owner is already included. Add a worker using their own account email." }, { status: 400 });
   if (role.length < 2 || role.length > 40 || !/^[A-Za-z0-9 &'./-]+$/.test(role)) return NextResponse.json({ error: "Enter a professional role between 2 and 40 characters." }, { status: 400 });
 
   const client = await database.connect();

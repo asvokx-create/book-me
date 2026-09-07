@@ -231,6 +231,10 @@ export default function ProviderDashboard({ section = "overview", initialConvers
         </div>
       </header>
 
+      {isWorker && provider && <div className="border-b border-[#183126]/10 bg-[#e8f0e5]">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm sm:px-8"><span className="font-bold">Company: {provider.businessName}</span><span className="text-[#687a70]">Your role: {provider.teamRole || "Team member"}</span><Link href="/provider/dashboard/team" className="ml-auto font-bold underline decoration-[#c5b940] decoration-2 underline-offset-4">View my team & hours</Link></div>
+      </div>}
+
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-8 sm:py-8 lg:grid-cols-[210px_1fr] lg:gap-8">
         <aside className="hidden lg:block">
           <nav className="sticky top-8 space-y-1 text-sm font-semibold">
