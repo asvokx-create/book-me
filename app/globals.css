@@ -103,11 +103,47 @@ main > div:not([class*="fixed"]) {
 main > section:nth-of-type(2) { animation-delay: 55ms; }
 main > section:nth-of-type(3) { animation-delay: 100ms; }
 
-@media (max-width: 389px) {
-  html { font-size: 14.5px; }
-}
-
 @media (max-width: 640px) {
+  html {
+    font-size: 15px;
+    scroll-padding-top: 5rem;
+  }
+
+  body { background-attachment: scroll; }
+  main { min-height: 100dvh; }
+
+  main > header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    font-size: 16px !important;
+  }
+
+  :where(main section, main article, main aside)[class*="rounded-[2rem]"],
+  :where(main section, main article, main aside)[class*="rounded-[2.5rem]"] {
+    border-radius: 1.5rem;
+  }
+
+  :where(main section, main article, main aside)[class~="p-7"],
+  :where(main section, main article, main aside)[class~="p-8"] {
+    padding: 1.25rem;
+  }
+
+  .mobile-scroll-row {
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 1rem;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2rem), transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2rem), transparent 100%);
+  }
+
+  .mobile-scroll-row::-webkit-scrollbar { display: none; }
+
   [role="dialog"] { padding: 0.75rem; }
   [role="dialog"] > form,
   [role="dialog"] > div {
@@ -115,10 +151,23 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
     overflow-y: auto;
     border-radius: 1.5rem;
   }
+
+  [role="dialog"] :where(input, select, textarea) { scroll-margin-top: 1rem; }
 }
 
 @media (pointer: coarse) {
   button, summary, input, select { min-height: 2.75rem; }
+  button[class*="group-hover:opacity-100"] { opacity: 1; }
+}
+
+@supports (padding: max(0px)) {
+  @media (max-width: 640px) {
+    [role="dialog"] {
+      padding-right: max(0.75rem, env(safe-area-inset-right));
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+      padding-left: max(0.75rem, env(safe-area-inset-left));
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

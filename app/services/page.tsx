@@ -99,7 +99,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
       </section>
 
       <section id="all-filters" className="mx-auto max-w-7xl scroll-mt-6 px-4 py-9 sm:px-8 sm:py-14">
-        <div className="flex gap-2 overflow-x-auto pb-3">
+        <div className="mobile-scroll-row -mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0">
           {quickCategories.map((category) => {
             const active = category === selectedCategory;
             return (
