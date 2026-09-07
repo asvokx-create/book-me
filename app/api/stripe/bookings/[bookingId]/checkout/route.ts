@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getOrCreateConsumerStripeCustomer } from "@/lib/customer-stripe";
 import { database } from "@/lib/database";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getStripe, getStripeMode, isStripeReady } from "@/lib/stripe";
@@ -46,9 +47,15 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
   const fee = Math.round(booking.price_cents * PLAN_ENTITLEMENTS[booking.plan].bookingFeePercent / 100);
   const providerPayout = booking.price_cents - fee;
   const origin = new URL(request.url).origin;
+  const customerId = await getOrCreateConsumerStripeCustomer({
+    userId: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+  });
   const checkout = await stripe.checkout.sessions.create({
     mode: "payment",
-    customer_email: session.user.email,
+    customer: customerId,
+    saved_payment_method_options: { payment_method_save: "enabled" },
     line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: booking.price_cents, product_data: { name: booking.title, description: `Service from ${booking.provider_name}` } } }],
     payment_intent_data: {
       transfer_group: `booking_${booking.id}`,
