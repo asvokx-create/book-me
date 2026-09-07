@@ -5,6 +5,7 @@ import { isPurchasableProviderPlan } from "@/lib/plans";
 import { getStripe, getStripeMode } from "@/lib/stripe";
 import { recordAnalytics } from "@/lib/analytics";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
+import { extraSeatQuantity } from "@/lib/stripe-team-seats";
 
 export const runtime = "nodejs";
 
@@ -18,13 +19,16 @@ async function updateSubscription(subscription: Stripe.Subscription) {
   if (!providerId || !isPurchasableProviderPlan(plan)) return;
   const active = subscription.status === "active" || subscription.status === "trialing";
   const periodEnd = subscription.items.data[0]?.current_period_end;
+  const teamSeats = extraSeatQuantity(subscription);
   await database.query(`UPDATE provider_profiles SET
       plan = CASE WHEN $4 THEN $3 ELSE 'starter' END,
       stripe_subscription_id = $2,
       stripe_subscription_status = $5,
       stripe_current_period_end = CASE WHEN $6::bigint IS NULL THEN NULL ELSE to_timestamp($6) END,
-      stripe_billing_mode = $7
-    WHERE id::text = $1 AND plan <> 'owner'`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null, getStripeMode()]);
+      stripe_billing_mode = $7,
+      extra_team_seats = CASE WHEN $4 THEN $8 ELSE 0 END,
+      stripe_team_seat_item_id = CASE WHEN $4 THEN $9 ELSE NULL END
+    WHERE id::text = $1 AND plan <> 'owner'`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null, getStripeMode(), teamSeats.quantity, teamSeats.itemId]);
 }
 
 async function markBookingPaid(checkout: Stripe.Checkout.Session) {
@@ -78,7 +82,8 @@ async function processEvent(event: Stripe.Event) {
     case "customer.subscription.deleted": {
       const subscription = event.data.object;
       await database.query(`UPDATE provider_profiles SET plan = 'starter', stripe_subscription_status = $2,
-        stripe_current_period_end = NULL WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $3 AND plan <> 'owner'`, [subscription.id, subscription.status, getStripeMode()]);
+        stripe_current_period_end = NULL, extra_team_seats = 0, stripe_team_seat_item_id = NULL
+        WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $3 AND plan <> 'owner'`, [subscription.id, subscription.status, getStripeMode()]);
       break;
     }
     case "account.updated": {

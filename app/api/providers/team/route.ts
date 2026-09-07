@@ -8,8 +8,8 @@ import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 async function currentProvider() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
-  const result = await database.query<{ id: string; plan: ProviderPlan }>(
-    "SELECT id::text, plan FROM provider_profiles WHERE user_id = $1 AND is_active = true",
+  const result = await database.query<{ id: string; plan: ProviderPlan; extra_team_seats: number }>(
+    "SELECT id::text, plan, extra_team_seats FROM provider_profiles WHERE user_id = $1 AND is_active = true",
     [session.user.id],
   );
   const provider = result.rows[0];
@@ -37,10 +37,12 @@ export async function GET() {
      ORDER BY status, created_at`,
     [provider.id],
   );
+  const baseSeatLimit = PLAN_ENTITLEMENTS[provider.plan].teamSeatLimit;
   return NextResponse.json({
     members: result.rows.map((member) => ({ id: member.id, name: member.name, email: member.email, role: member.role, status: member.status, createdAt: member.created_at })),
     plan: provider.plan,
-    seatLimit: PLAN_ENTITLEMENTS[provider.plan].teamSeatLimit,
+    seatLimit: baseSeatLimit === null ? null : baseSeatLimit + (provider.plan === "pro" ? provider.extra_team_seats : 0),
+    extraTeamSeats: provider.plan === "pro" ? provider.extra_team_seats : 0,
   });
 }
 
@@ -59,8 +61,8 @@ export async function POST(request: Request) {
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const providerResult = await client.query<{ id: string; plan: ProviderPlan }>(
-      "SELECT id::text, plan FROM provider_profiles WHERE user_id = $1 AND is_active = true FOR UPDATE",
+    const providerResult = await client.query<{ id: string; plan: ProviderPlan; extra_team_seats: number }>(
+      "SELECT id::text, plan, extra_team_seats FROM provider_profiles WHERE user_id = $1 AND is_active = true FOR UPDATE",
       [session.user.id],
     );
     const savedProvider = providerResult.rows[0];
@@ -69,12 +71,13 @@ export async function POST(request: Request) {
     if (isOwner && savedProvider.plan !== "owner") {
       await client.query("UPDATE provider_profiles SET plan = 'owner', updated_at = now() WHERE id::text = $1", [provider.id]);
     }
-    const seats = PLAN_ENTITLEMENTS[provider.plan].teamSeatLimit;
+    const baseSeats = PLAN_ENTITLEMENTS[provider.plan].teamSeatLimit;
+    const seats = baseSeats === null ? null : baseSeats + (provider.plan === "pro" ? provider.extra_team_seats : 0);
     const countResult = await client.query<{ count: number }>("SELECT count(*)::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'", [provider.id]);
     const workerLimit = seats === null ? null : Math.max(seats - 1, 0);
     if (workerLimit !== null && countResult.rows[0].count >= workerLimit) {
       await client.query("ROLLBACK");
-      return NextResponse.json({ error: provider.plan === "starter" ? "Starter includes the owner only. Upgrade to Pro to add workers." : `Your ${PLAN_ENTITLEMENTS[provider.plan].name} plan allows ${workerLimit} workers.`, upgradeRequired: true }, { status: 403 });
+      return NextResponse.json({ error: provider.plan === "starter" ? "Starter includes the owner only. Upgrade to Pro to add workers." : `Your ${PLAN_ENTITLEMENTS[provider.plan].name} plan currently allows ${workerLimit} workers. Add another employee seat from Billing for $0.50/month.`, upgradeRequired: true }, { status: 403 });
     }
     const result = await client.query<{ id: string; created_at: Date }>(
       `INSERT INTO provider_team_members (provider_id, name, email, role)
