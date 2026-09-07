@@ -1,15 +1,15 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { hasAdminAccess, isOwnerEmail } from "@/lib/admin";
 import type { ProviderPlan } from "@/lib/plans";
+import { getProviderAccess } from "@/lib/provider-access";
 
 export async function GET() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
+  const access = await getProviderAccess();
+  if (!access) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const { session } = access;
 
   const providerResult = await database.query<{
     id: string;
@@ -37,8 +37,8 @@ export async function GET() {
             p.service_radius_miles
      FROM provider_profiles p
      JOIN "user" u ON u.id = p.user_id
-     WHERE p.user_id = $1`,
-    [session.user.id],
+     WHERE p.id::text = $1`,
+    [access.providerId],
   );
 
   if (!providerResult.rows[0]) {
@@ -46,7 +46,7 @@ export async function GET() {
   }
 
   const provider = providerResult.rows[0];
-  const isAdmin = await hasAdminAccess(session.user.id, session.user.email);
+  const isAdmin = access.isOwner && await hasAdminAccess(session.user.id, session.user.email);
   const serviceResult = await database.query<{
     id: string;
     business_name: string;
@@ -100,9 +100,12 @@ export async function GET() {
 
   return NextResponse.json({
     name: session.user.name,
+    accessRole: access.isOwner ? "owner" : "worker",
+    teamMemberId: access.memberId,
+    teamRole: access.memberRole,
     businessName: provider.business_name,
     location: `${provider.city}, ${provider.state}`,
-    plan: isOwnerEmail(session.user.email) ? "owner" : provider.plan,
+    plan: access.isOwner && isOwnerEmail(session.user.email) ? "owner" : provider.plan,
     isAdmin,
     emailVerified: provider.email_verified,
     phoneVerified: provider.phone_verified,

@@ -8,7 +8,7 @@ import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-
 type BookingStatus = "requested" | "confirmed" | "completed" | "cancelled";
 type Booking = {
   id: string;
-  viewerRole: "customer" | "provider";
+  viewerRole: "customer" | "provider" | "worker";
   customerName: string;
   providerId: string;
   providerName: string;
@@ -84,7 +84,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
   const loadBooking = useCallback(async () => {
     const response = await fetch(`/api/bookings/${bookingId}`, { cache: "no-store" }).catch(() => null);
     const result = response ? await response.json() as { booking?: Booking; error?: string } : null;
-    if (!response?.ok || !result?.booking || result.booking.viewerRole !== expectedRole) {
+    if (!response?.ok || !result?.booking || (expectedRole === "customer" ? result.booking.viewerRole !== "customer" : result.booking.viewerRole === "customer")) {
       setError(result?.error ?? "We could not load this booking.");
       setLoading(false);
       return;
@@ -287,7 +287,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
 
         <div className="grid gap-6 p-6 sm:grid-cols-2 sm:p-8">
           <Detail icon="◷" label="Date and time" value={formatInUserTimeZone(start, { weekday: "long", month: "long", day: "numeric", year: "numeric" }, timeZone)} note={`${formatInUserTimeZone(start, { hour: "numeric", minute: "2-digit" }, timeZone)}–${formatInUserTimeZone(end, { hour: "numeric", minute: "2-digit" }, timeZone)}`} />
-          <Detail icon="$" label={booking.quote.status === "accepted" ? "Approved quote" : "Service price"} value={`$${booking.price.toLocaleString()}`} note={releaseCopy.detail} />
+          {booking.viewerRole !== "worker" && <Detail icon="$" label={booking.quote.status === "accepted" ? "Approved quote" : "Service price"} value={`$${booking.price.toLocaleString()}`} note={releaseCopy.detail} />}
           <Detail icon="⌖" label="Service location" value={booking.location} note="Shared only with this booking" />
           <Detail icon="✉" label={booking.viewerRole === "customer" ? "Service professional" : "Customer"} value={booking.viewerRole === "customer" ? booking.assigneeName : booking.customerName} note={booking.viewerRole === "customer" ? `From ${booking.providerName}` : "Message through BubsBookings"} />
         </div>
@@ -306,7 +306,8 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
         <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
           <h2 className="text-lg font-bold">Manage this booking</h2>
           <div className="mt-5 grid gap-3">
-            <Link href={contactHref} className="rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]">✉ Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>
+            {booking.viewerRole === "worker" && <p className="rounded-2xl bg-[#edf2e8] p-4 text-sm leading-6 text-[#52665b]">This is an assigned company job. The company owner manages customer messages, booking changes, and payments.</p>}
+            {booking.viewerRole !== "worker" && <Link href={contactHref} className="rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]">✉ Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>}
             {booking.viewerRole === "customer" && booking.status === "confirmed" && booking.paymentStatus !== "paid" && booking.paymentStatus !== "refunded" && <button disabled={working} onClick={() => void payForBooking()} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Opening Stripe…" : `Pay $${booking.price.toLocaleString()} securely`}</button>}
             {booking.paymentStatus === "paid" && <div className="rounded-2xl bg-[#e6f2e6] px-4 py-3 text-center text-sm font-bold text-[#34704a]">✓ {releaseCopy.label}</div>}
             {booking.viewerRole === "customer" && (booking.paymentRelease.status === "awaiting_customer" || (booking.paymentRelease.status === "failed" && Boolean(booking.paymentRelease.customerConfirmedAt))) && <button disabled={working} onClick={() => void confirmCompletion()} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Releasing payout…" : booking.paymentRelease.status === "failed" ? "Retry payout release" : "Confirm service complete"}</button>}
@@ -318,9 +319,9 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
             {booking.status === "confirmed" && <a href={`/api/bookings/${booking.id}/calendar`} className="rounded-full border border-[#183126]/15 px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e5eddf]">Add to Google / Apple Calendar</a>}
             {booking.viewerRole === "provider" && booking.status === "requested" && <button disabled={working || booking.quote.status === "pending" || booking.quote.status === "declined"} onClick={() => providerAction("accepted")} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:cursor-not-allowed disabled:opacity-50">{booking.quote.status === "pending" ? "Waiting for quote approval" : booking.quote.status === "declined" ? "Send a revised quote" : "Accept booking"}</button>}
             {canComplete && <button disabled={working} onClick={() => providerAction("completed")} className="rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf] disabled:opacity-50">Mark job complete</button>}
-            {canCancel && <button onClick={() => { setError(""); setCancelOpen(true); }} className="rounded-full px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">{booking.viewerRole === "provider" && booking.status === "requested" ? "Decline request" : "Cancel booking"}</button>}
-            <ReportUserButton bookingId={booking.id} targetLabel={booking.viewerRole === "customer" ? "provider" : "customer"} />
-            {booking.status !== "requested" && <Link href={`/disputes?bookingId=${booking.id}`} className="rounded-full border border-[#183126]/15 px-5 py-3 text-center text-sm font-bold transition hover:bg-[#fff3b0]">Open a dispute</Link>}
+            {booking.viewerRole !== "worker" && canCancel && <button onClick={() => { setError(""); setCancelOpen(true); }} className="rounded-full px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">{booking.viewerRole === "provider" && booking.status === "requested" ? "Decline request" : "Cancel booking"}</button>}
+            {booking.viewerRole !== "worker" && <ReportUserButton bookingId={booking.id} targetLabel={booking.viewerRole === "customer" ? "provider" : "customer"} />}
+            {booking.viewerRole !== "worker" && booking.status !== "requested" && <Link href={`/disputes?bookingId=${booking.id}`} className="rounded-full border border-[#183126]/15 px-5 py-3 text-center text-sm font-bold transition hover:bg-[#fff3b0]">Open a dispute</Link>}
           </div>
           <p className="mt-5 text-center text-xs leading-5 text-[#7b8982]">Both sides are notified whenever the booking status changes.</p>
         </div>

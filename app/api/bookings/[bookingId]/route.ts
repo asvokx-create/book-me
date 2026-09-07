@@ -15,7 +15,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const { bookingId } = await context.params;
   const result = await database.query<{
-    id: string; customer_id: string; customer_name: string; provider_id: string; provider_name: string; owner_name: string;
+    id: string; customer_id: string; customer_name: string; provider_id: string; provider_user_id: string; provider_name: string; owner_name: string;
     service_id: string; service_slug: string; service_title: string; category: string; starts_at: Date; ends_at: Date;
     service_address: string; notes: string; booking_answers: Record<string, string>; price_cents: number; status: string; cancelled_by: string | null;
     cancellation_reason: string | null; late_cancellation: boolean; cancellation_window_hours: number;
@@ -32,7 +32,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     provider_payout_cents: number; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
     payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null;
   }>(
-    `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text,
+    `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text, p.user_id AS provider_user_id,
             s.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
             s.category, b.starts_at, b.ends_at, b.service_address, b.notes, b.booking_answers, b.price_cents, b.status,
             b.cancelled_by, b.cancellation_reason, b.late_cancellation, p.cancellation_window_hours,
@@ -52,8 +52,13 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
      LEFT JOIN provider_team_members member ON member.id = b.assigned_team_member_id
      LEFT JOIN conversations c ON c.customer_id = b.customer_id AND c.provider_id = b.provider_id AND c.service_id = b.service_id
      LEFT JOIN reviews r ON r.booking_id = b.id AND r.is_hidden = false
-     WHERE b.id::text = $1 AND (b.customer_id = $2 OR (p.user_id = $2 AND b.provider_deleted_at IS NULL)) LIMIT 1`,
-    [bookingId, session.user.id],
+     WHERE b.id::text = $1 AND (b.customer_id = $2 OR (p.user_id = $2 AND b.provider_deleted_at IS NULL)
+       OR ($4::boolean = true AND EXISTS (
+         SELECT 1 FROM booking_assignees worker_assignment JOIN provider_team_members worker ON worker.id = worker_assignment.team_member_id
+         WHERE worker_assignment.booking_id = b.id AND worker.status = 'active'
+           AND (worker.user_id = $2 OR lower(worker.email) = lower($3))
+       ))) LIMIT 1`,
+    [bookingId, session.user.id, session.user.email, session.user.emailVerified],
   );
   const row = result.rows[0];
   if (!row) return NextResponse.json({ error: "Booking not found." }, { status: 404 });
@@ -72,19 +77,20 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   const history = await database.query<{ id: string; event_type: string; message: string; created_at: Date }>(
     `SELECT id::text, event_type, message, created_at FROM booking_events WHERE booking_id::text = $1 ORDER BY created_at DESC`, [bookingId],
   );
-  const team = row.customer_id === session.user.id ? [] : (await database.query<{ id: string; name: string }>(
+  const viewerRole = row.customer_id === session.user.id ? "customer" : row.provider_user_id === session.user.id ? "provider" : "worker";
+  const team = viewerRole !== "provider" ? [] : (await database.query<{ id: string; name: string }>(
     `SELECT id::text, name FROM provider_team_members WHERE provider_id::text = $1 AND status = 'active' ORDER BY name`, [row.provider_id])).rows;
   return NextResponse.json({ booking: {
-    id: row.id, viewerRole: row.customer_id === session.user.id ? "customer" : "provider", customerName: row.customer_name,
+    id: row.id, viewerRole, customerName: row.customer_name,
     providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceSlug: row.service_slug,
     serviceTitle: row.service_title, category: row.category, startsAt: row.starts_at, endsAt: row.ends_at,
     location: row.service_address, notes: row.notes, bookingAnswers: row.booking_answers ?? {}, price: row.price_cents / 100, status: row.status,
     cancelledBy: row.cancelled_by, cancellationReason: row.cancellation_reason, completedAt: row.completed_at,
     lateCancellation: row.late_cancellation, cancellationWindowHours: row.cancellation_window_hours,
     cancellationPolicy: row.cancellation_policy,
-    paymentStatus: row.stripe_mode === getStripeMode() ? row.payment_status : "unpaid",
-    paidAt: row.stripe_mode === getStripeMode() ? row.paid_at : null,
-    paymentRelease: row.stripe_mode === getStripeMode() ? {
+    paymentStatus: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? row.payment_status : "unpaid",
+    paidAt: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? row.paid_at : null,
+    paymentRelease: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? {
       status: row.payment_release_status,
       platformFee: row.platform_fee_cents / 100,
       providerPayout: row.provider_payout_cents / 100,
@@ -95,7 +101,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
       freezeReason: row.payout_freeze_reason,
     } : { status: "not_applicable", platformFee: 0, providerPayout: 0, confirmationDueAt: null,
       customerConfirmedAt: null, releasedAt: null, failureReason: null, freezeReason: null },
-    refund: { status: row.stripe_mode === getStripeMode() ? row.refund_status : "none",
+    refund: { status: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? row.refund_status : "none",
       reason: row.refund_reason, requestedAmount: row.refund_amount_cents === null ? null : row.refund_amount_cents / 100,
       refundedAmount: row.refunded_amount_cents / 100, failureReason: row.refund_failure_reason },
     conversationId: row.conversation_id,

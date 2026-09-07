@@ -1,11 +1,10 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { getProviderAccess } from "@/lib/provider-access";
 
 export async function GET() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const access = await getProviderAccess();
+  if (!access) return NextResponse.json({ error: "Provider or team access not found." }, { status: 404 });
 
   const result = await database.query<{
     id: string; customer: string; customer_image: string | null; service: string; starts_at: Date; location: string;
@@ -25,10 +24,11 @@ export async function GET() {
      JOIN services s ON s.id = b.service_id
      JOIN "user" u ON u.id = b.customer_id
      LEFT JOIN provider_team_members member ON member.id = b.assigned_team_member_id
-     WHERE p.user_id = $1 AND b.provider_deleted_at IS NULL
+     WHERE p.id::text = $1 AND b.provider_deleted_at IS NULL
+       AND ($2::uuid IS NULL OR EXISTS (SELECT 1 FROM booking_assignees mine WHERE mine.booking_id = b.id AND mine.team_member_id = $2::uuid))
      ORDER BY CASE b.status WHEN 'requested' THEN 0 WHEN 'confirmed' THEN 1 ELSE 2 END,
               b.starts_at ASC`,
-    [session.user.id],
+    [access.providerId, access.isOwner ? null : access.memberId],
   );
 
   return NextResponse.json({ bookings: result.rows.map((row) => ({

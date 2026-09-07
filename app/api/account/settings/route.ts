@@ -31,7 +31,12 @@ export async function GET() {
             COALESCE(us.message_notifications, true) AS message_notifications,
             COALESCE(us.theme, 'system') AS theme,
             COALESCE(us.time_zone, 'auto') AS time_zone,
-            (p.id IS NOT NULL) AS is_provider
+            (p.id IS NOT NULL OR EXISTS (
+              SELECT 1
+              FROM provider_team_members tm
+              WHERE tm.status = 'active'
+                AND (tm.user_id = u.id OR lower(tm.email) = lower(u.email))
+            )) AS is_provider
      FROM "user" u
      LEFT JOIN user_settings us ON us.user_id = u.id
      LEFT JOIN provider_profiles p ON p.user_id = u.id

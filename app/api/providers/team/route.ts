@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { hasAdminAccess, isOwnerEmail } from "@/lib/admin";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
+import { getProviderAccess } from "@/lib/provider-access";
 
 async function currentProvider() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -29,8 +30,13 @@ async function currentProvider() {
 }
 
 export async function GET() {
-  const provider = await currentProvider();
-  if (!provider) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
+  const access = await getProviderAccess();
+  if (!access) return NextResponse.json({ error: "Provider or team access not found." }, { status: 404 });
+  const providerResult = await database.query<{ plan: ProviderPlan; extra_team_seats: number; business_name: string }>(
+    "SELECT plan, extra_team_seats, business_name FROM provider_profiles WHERE id::text = $1",
+    [access.providerId],
+  );
+  const provider = { id: access.providerId, ...providerResult.rows[0] };
   const result = await database.query<{ id: string; name: string; email: string; role: string; status: "active" | "inactive"; created_at: Date }>(
     `SELECT id::text, name, email, role, status, created_at
      FROM provider_team_members WHERE provider_id = $1
@@ -43,12 +49,17 @@ export async function GET() {
     plan: provider.plan,
     seatLimit: baseSeatLimit === null ? null : baseSeatLimit + (provider.plan === "pro" ? provider.extra_team_seats : 0),
     extraTeamSeats: provider.plan === "pro" ? provider.extra_team_seats : 0,
+    isOwner: access.isOwner,
+    currentMemberId: access.memberId,
+    companyName: provider.business_name,
   });
 }
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const ownerProfile = await database.query("SELECT 1 FROM provider_profiles WHERE user_id = $1 AND is_active = true", [session.user.id]);
+  if (!ownerProfile.rowCount) return NextResponse.json({ error: "Only the company owner can add workers." }, { status: 403 });
   const isOwner = isOwnerEmail(session.user.email);
   const isAdmin = await hasAdminAccess(session.user.id, session.user.email);
   const body = (await request.json()) as Record<string, unknown>;

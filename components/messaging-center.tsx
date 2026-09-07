@@ -43,6 +43,7 @@ export default function MessagingCenter({
   const [reportNotice, setReportNotice] = useState("");
   const messageEndRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef(initialConversationId);
+  const lastScrolledMessageIdRef = useRef("");
 
   const loadMessages = useCallback(async (conversationId = selectedIdRef.current) => {
     const query = conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : "";
@@ -79,9 +80,15 @@ export default function MessagingCenter({
     return () => { window.clearTimeout(initialTimer); window.clearInterval(refreshTimer); };
   }, [initialConversationId, loadMessages]);
 
-  useEffect(() => { messageEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [data.messages]);
+  useEffect(() => {
+    const latestMessageId = data.messages[data.messages.length - 1]?.id ?? "";
+    if (!latestMessageId || latestMessageId === lastScrolledMessageIdRef.current) return;
+    lastScrolledMessageIdRef.current = latestMessageId;
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [data.messages]);
 
   async function chooseConversation(conversationId: string) {
+    lastScrolledMessageIdRef.current = "";
     selectedIdRef.current = conversationId;
     setSelectedId(conversationId);
     setLoading(true);
