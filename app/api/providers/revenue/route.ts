@@ -21,20 +21,48 @@ export async function GET() {
       total_cents: string;
       this_month_cents: string;
       last_month_cents: string;
-      completed_jobs: string;
+      paid_out_jobs: string;
+      secured_cents: string;
+      secured_jobs: string;
+      pending_cents: string;
+      pending_jobs: string;
+      refunded_cents: string;
+      refunded_jobs: string;
     }>(
       `SELECT
-         COALESCE(SUM(price_cents) FILTER (WHERE payment_status = 'paid' AND stripe_mode = $2), 0)::bigint AS total_cents,
-         COALESCE(SUM(price_cents) FILTER (
-           WHERE payment_status = 'paid' AND stripe_mode = $2
-             AND paid_at >= date_trunc('month', CURRENT_TIMESTAMP)
+         COALESCE(SUM(GREATEST(provider_payout_cents - stripe_transfer_reversed_cents, 0)) FILTER (
+           WHERE stripe_mode = $2 AND payment_release_status IN ('paid_out', 'partially_released')
+         ), 0)::bigint AS total_cents,
+         COALESCE(SUM(GREATEST(provider_payout_cents - stripe_transfer_reversed_cents, 0)) FILTER (
+           WHERE stripe_mode = $2 AND payment_release_status IN ('paid_out', 'partially_released')
+             AND payout_released_at >= date_trunc('month', CURRENT_TIMESTAMP)
          ), 0)::bigint AS this_month_cents,
-         COALESCE(SUM(price_cents) FILTER (
-           WHERE payment_status = 'paid' AND stripe_mode = $2
-             AND paid_at >= date_trunc('month', CURRENT_TIMESTAMP) - interval '1 month'
-             AND paid_at < date_trunc('month', CURRENT_TIMESTAMP)
+         COALESCE(SUM(GREATEST(provider_payout_cents - stripe_transfer_reversed_cents, 0)) FILTER (
+           WHERE stripe_mode = $2 AND payment_release_status IN ('paid_out', 'partially_released')
+             AND payout_released_at >= date_trunc('month', CURRENT_TIMESTAMP) - interval '1 month'
+             AND payout_released_at < date_trunc('month', CURRENT_TIMESTAMP)
          ), 0)::bigint AS last_month_cents,
-         COUNT(*) FILTER (WHERE payment_status = 'paid' AND stripe_mode = $2)::bigint AS completed_jobs
+         COUNT(*) FILTER (
+           WHERE stripe_mode = $2 AND payment_release_status IN ('paid_out', 'partially_released')
+         )::bigint AS paid_out_jobs,
+         COALESCE(SUM(provider_payout_cents) FILTER (
+           WHERE stripe_mode = $2 AND payment_status = 'paid' AND status = 'confirmed'
+             AND payment_release_status IN ('secured', 'frozen', 'failed')
+         ), 0)::bigint AS secured_cents,
+         COUNT(*) FILTER (
+           WHERE stripe_mode = $2 AND payment_status = 'paid' AND status = 'confirmed'
+             AND payment_release_status IN ('secured', 'frozen', 'failed')
+         )::bigint AS secured_jobs,
+         COALESCE(SUM(provider_payout_cents) FILTER (
+           WHERE stripe_mode = $2 AND payment_status = 'paid' AND status = 'completed'
+             AND payment_release_status IN ('secured', 'awaiting_customer', 'processing', 'frozen', 'failed')
+         ), 0)::bigint AS pending_cents,
+         COUNT(*) FILTER (
+           WHERE stripe_mode = $2 AND payment_status = 'paid' AND status = 'completed'
+             AND payment_release_status IN ('secured', 'awaiting_customer', 'processing', 'frozen', 'failed')
+         )::bigint AS pending_jobs,
+         COALESCE(SUM(refunded_amount_cents) FILTER (WHERE stripe_mode = $2), 0)::bigint AS refunded_cents,
+         COUNT(*) FILTER (WHERE stripe_mode = $2 AND refunded_amount_cents > 0)::bigint AS refunded_jobs
        FROM bookings
        WHERE provider_id::text = $1`,
       [providerId, stripeMode],
@@ -50,14 +78,14 @@ export async function GET() {
        SELECT
          to_char(months.month, 'YYYY-MM') AS month,
          to_char(months.month, 'Mon') AS label,
-         COALESCE(SUM(bookings.price_cents), 0)::bigint AS revenue_cents
+         COALESCE(SUM(GREATEST(bookings.provider_payout_cents - bookings.stripe_transfer_reversed_cents, 0)), 0)::bigint AS revenue_cents
        FROM months
        LEFT JOIN bookings
          ON bookings.provider_id::text = $1
-        AND bookings.payment_status = 'paid'
         AND bookings.stripe_mode = $2
-        AND bookings.paid_at >= months.month
-        AND bookings.paid_at < months.month + interval '1 month'
+        AND bookings.payment_release_status IN ('paid_out', 'partially_released')
+        AND bookings.payout_released_at >= months.month
+        AND bookings.payout_released_at < months.month + interval '1 month'
        GROUP BY months.month
        ORDER BY months.month`,
       [providerId, stripeMode],
@@ -66,15 +94,18 @@ export async function GET() {
       id: string;
       service: string;
       customer: string;
-      starts_at: Date;
-      price_cents: number;
+      payout_released_at: Date;
+      provider_earnings_cents: number;
     }>(
-      `SELECT b.id::text, s.title AS service, u.name AS customer, b.starts_at, b.price_cents
+      `SELECT b.id::text, s.title AS service, u.name AS customer, b.payout_released_at,
+              GREATEST(b.provider_payout_cents - b.stripe_transfer_reversed_cents, 0)::integer AS provider_earnings_cents
        FROM bookings b
        JOIN services s ON s.id = b.service_id
        JOIN "user" u ON u.id = b.customer_id
-       WHERE b.provider_id::text = $1 AND b.payment_status = 'paid' AND b.stripe_mode = $2
-       ORDER BY b.paid_at DESC
+       WHERE b.provider_id::text = $1 AND b.stripe_mode = $2
+         AND b.payment_release_status IN ('paid_out', 'partially_released')
+         AND b.payout_released_at IS NOT NULL
+       ORDER BY b.payout_released_at DESC
        LIMIT 5`,
       [providerId, stripeMode],
     ),
@@ -85,7 +116,13 @@ export async function GET() {
     totalRevenue: Number(totals.total_cents) / 100,
     thisMonthRevenue: Number(totals.this_month_cents) / 100,
     lastMonthRevenue: Number(totals.last_month_cents) / 100,
-    completedJobs: Number(totals.completed_jobs),
+    paidOutJobs: Number(totals.paid_out_jobs),
+    securedEarnings: Number(totals.secured_cents) / 100,
+    securedJobs: Number(totals.secured_jobs),
+    pendingEarnings: Number(totals.pending_cents) / 100,
+    pendingJobs: Number(totals.pending_jobs),
+    refundedAmount: Number(totals.refunded_cents) / 100,
+    refundedJobs: Number(totals.refunded_jobs),
     monthlyRevenue: monthlyResult.rows.map((row) => ({
       month: row.month,
       label: row.label,
@@ -95,8 +132,8 @@ export async function GET() {
       id: row.id,
       service: row.service,
       customer: row.customer,
-      completedAt: row.starts_at,
-      amount: row.price_cents / 100,
+      paidOutAt: row.payout_released_at,
+      amount: row.provider_earnings_cents / 100,
     })),
   });
 }

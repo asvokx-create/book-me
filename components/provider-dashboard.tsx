@@ -55,9 +55,15 @@ type RevenueSummary = {
   totalRevenue: number;
   thisMonthRevenue: number;
   lastMonthRevenue: number;
-  completedJobs: number;
+  paidOutJobs: number;
+  securedEarnings: number;
+  securedJobs: number;
+  pendingEarnings: number;
+  pendingJobs: number;
+  refundedAmount: number;
+  refundedJobs: number;
   monthlyRevenue: Array<{ month: string; label: string; revenue: number }>;
-  recentEarnings: Array<{ id: string; service: string; customer: string; completedAt: string; amount: number }>;
+  recentEarnings: Array<{ id: string; service: string; customer: string; paidOutAt: string; amount: number }>;
 };
 
 type ProviderReview = {
@@ -66,7 +72,7 @@ type ProviderReview = {
 };
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
 }
 
 function formatDuration(minutes: number) {
@@ -148,7 +154,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   useEffect(() => {
     if (section !== "revenue" && section !== "overview") return;
     let active = true;
-    fetch("/api/providers/revenue")
+    fetch("/api/providers/revenue", { cache: "no-store" })
       .then(async (response) => response.ok ? response.json() as Promise<RevenueSummary> : null)
       .catch(() => null)
       .then((data) => { if (active) setRevenue(data); })
@@ -257,7 +263,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {([...(!isWorker ? [{ label: "This month", value: revenue ? formatCurrency(revenue.thisMonthRevenue) : "$0", note: revenue?.thisMonthRevenue ? "From completed jobs" : "No completed jobs yet", icon: "$" }] : []), { label: "Upcoming jobs", value: String(acceptedRequests), note: acceptedRequests ? "Accepted bookings" : "Your schedule is clear", icon: "◷" }, { label: "New requests", value: String(activeRequests), note: activeRequests ? "Waiting for a response" : "No requests yet", icon: "↗" }, { label: isWorker ? "My role" : "Average rating", value: isWorker ? provider?.teamRole ?? "Worker" : "—", note: isWorker ? provider?.businessName ?? "Company team" : "No reviews yet", icon: isWorker ? "♙" : "★" }]).map((stat) => <div key={stat.label} className="rounded-2xl border border-[#183126]/10 bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><div className="flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">{stat.label}</p><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#edf2e8] text-sm font-bold">{stat.icon}</span></div><p className="mt-4 text-3xl font-bold tracking-tight">{stat.value}</p><p className="mt-1 text-xs text-[#77857e]">{stat.note}</p></div>)}
+            {([...(!isWorker ? [{ label: "Paid out this month", value: revenue ? formatCurrency(revenue.thisMonthRevenue) : "$0", note: revenue?.thisMonthRevenue ? "Net earnings sent to Stripe" : "No payouts received yet", icon: "$" }] : []), { label: "Upcoming jobs", value: String(acceptedRequests), note: acceptedRequests ? "Accepted bookings" : "Your schedule is clear", icon: "◷" }, { label: "New requests", value: String(activeRequests), note: activeRequests ? "Waiting for a response" : "No requests yet", icon: "↗" }, { label: isWorker ? "My role" : "Average rating", value: isWorker ? provider?.teamRole ?? "Worker" : "—", note: isWorker ? provider?.businessName ?? "Company team" : "No reviews yet", icon: isWorker ? "♙" : "★" }]).map((stat) => <div key={stat.label} className="rounded-2xl border border-[#183126]/10 bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><div className="flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">{stat.label}</p><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#edf2e8] text-sm font-bold">{stat.icon}</span></div><p className="mt-4 text-3xl font-bold tracking-tight">{stat.value}</p><p className="mt-1 text-xs text-[#77857e]">{stat.note}</p></div>)}
           </div>
 
           {!isWorker && <section className="mt-8 rounded-[2rem] bg-[#183126] p-6 text-white sm:p-7">
@@ -344,12 +350,18 @@ function RevenuePanel({ revenue, loaded, plan }: { revenue: RevenueSummary | nul
     : null;
 
   return <div>
-    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-sm font-semibold text-[#687a70]">Business performance</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Revenue</h1><p className="mt-2 text-sm text-[#687a70]">Revenue is counted when a BubsBookings job is marked completed.</p></div><span className="w-fit rounded-full bg-[#e7eee2] px-4 py-2 text-xs font-bold">{revenue.completedJobs} completed {revenue.completedJobs === 1 ? "job" : "jobs"}</span></div>
+    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-sm font-semibold text-[#687a70]">Business performance</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Revenue</h1><p className="mt-2 text-sm text-[#687a70]">Track secured payments, pending earnings, and the net amount released to your Stripe balance.</p></div><span className="w-fit rounded-full bg-[#e7eee2] px-4 py-2 text-xs font-bold">{revenue.paidOutJobs} paid out {revenue.paidOutJobs === 1 ? "job" : "jobs"}</span></div>
 
-    <div className="mt-8 grid gap-4 md:grid-cols-3">
-      <RevenueCard label="Total revenue" value={formatCurrency(revenue.totalRevenue)} note="All completed jobs" featured />
-      <RevenueCard label="This month" value={formatCurrency(revenue.thisMonthRevenue)} note={change === null ? "No prior-month comparison yet" : `${change >= 0 ? "+" : ""}${change.toFixed(0)}% from last month`} />
-      <RevenueCard label="Last month" value={formatCurrency(revenue.lastMonthRevenue)} note="Completed jobs last month" />
+    <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <RevenueCard label="Paid out" value={formatCurrency(revenue.totalRevenue)} note="Lifetime net earnings sent to Stripe" featured />
+      <RevenueCard label="Payment secured" value={formatCurrency(revenue.securedEarnings)} note={`${revenue.securedJobs} ${revenue.securedJobs === 1 ? "job" : "jobs"} awaiting service`} />
+      <RevenueCard label="Pending release" value={formatCurrency(revenue.pendingEarnings)} note={`${revenue.pendingJobs} completed ${revenue.pendingJobs === 1 ? "job" : "jobs"} in review`} />
+      <RevenueCard label="Customer refunds" value={formatCurrency(revenue.refundedAmount)} note={`${revenue.refundedJobs} ${revenue.refundedJobs === 1 ? "booking" : "bookings"} refunded`} />
+    </div>
+
+    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <RevenueCard label="Paid out this month" value={formatCurrency(revenue.thisMonthRevenue)} note={change === null ? "No prior-month comparison yet" : `${change >= 0 ? "+" : ""}${change.toFixed(0)}% from last month`} />
+      <RevenueCard label="Paid out last month" value={formatCurrency(revenue.lastMonthRevenue)} note="Net earnings released last month" />
     </div>
 
     {PLAN_ENTITLEMENTS[plan].advancedAnalytics ? <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-[0_5px_22px_rgba(24,49,38,.04)] sm:p-7">
@@ -363,10 +375,10 @@ function RevenuePanel({ revenue, loaded, plan }: { revenue: RevenueSummary | nul
           </svg>
         </div>
       </div>
-      {revenue.completedJobs === 0 && <div className="mt-3 rounded-2xl bg-[#f5f5ef] p-4 text-center text-sm text-[#738179]">Your graph will grow as you complete BubsBookings jobs.</div>}
+      {revenue.paidOutJobs === 0 && <div className="mt-3 rounded-2xl bg-[#f5f5ef] p-4 text-center text-sm text-[#738179]">Your graph will grow as payouts are released to your Stripe balance.</div>}
     </section> : <section className="mt-6 rounded-[2rem] border border-[#d8cb63] bg-[#fff9d9] p-7"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#756d3f]">Pro feature</p><h2 className="mt-2 text-xl font-bold">Unlock advanced revenue analytics</h2><p className="mt-2 text-sm leading-6 text-[#706942]">Starter includes your revenue totals. Pro adds the six-month graph and detailed trends.</p><Link href="/provider/dashboard/billing" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Compare plans</Link></section>}
 
-    <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-5 sm:p-7"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Activity</p><h2 className="mt-2 text-xl font-bold">Recent earnings</h2></div>{revenue.recentEarnings.length ? <div className="mt-5 divide-y divide-[#183126]/10">{revenue.recentEarnings.map((earning) => <div key={earning.id} className="flex items-center gap-4 py-4"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e7eee2] font-bold text-[#476452]">$</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{earning.service}</p><p className="mt-1 text-xs text-[#74827b]">{earning.customer} · {new Date(earning.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p></div><p className="font-bold text-[#35704a]">+{formatCurrency(earning.amount)}</p></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">↗</p><p className="mt-2 font-bold">No earnings yet</p><p className="mt-1 text-sm text-[#738179]">Completed jobs will appear here automatically.</p></div>}</section>
+    <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-5 sm:p-7"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Activity</p><h2 className="mt-2 text-xl font-bold">Recent payouts</h2></div>{revenue.recentEarnings.length ? <div className="mt-5 divide-y divide-[#183126]/10">{revenue.recentEarnings.map((earning) => <div key={earning.id} className="flex items-center gap-4 py-4"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e7eee2] font-bold text-[#476452]">$</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{earning.service}</p><p className="mt-1 text-xs text-[#74827b]">{earning.customer} · Paid out {new Date(earning.paidOutAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p></div><p className="font-bold text-[#35704a]">+{formatCurrency(earning.amount)}</p></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">↗</p><p className="mt-2 font-bold">No payouts yet</p><p className="mt-1 text-sm text-[#738179]">Released provider earnings will appear here automatically.</p></div>}</section>
   </div>;
 }
 
