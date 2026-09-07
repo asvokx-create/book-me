@@ -38,13 +38,22 @@ export default function AccountPage() {
   const [bookings, setBookings] = useState(initialBookings);
   const [toast, setToast] = useState("");
   const [hasProviderProfile, setHasProviderProfile] = useState(false);
+  const [workerCompany, setWorkerCompany] = useState<{ businessName: string; teamRole: string } | null>(null);
   const [savedServices, setSavedServices] = useState<SavedService[]>([]);
 
   useEffect(() => {
     let active = true;
-    fetch("/api/providers/me").then((response) => {
-      if (active && response.ok) setHasProviderProfile(true);
-    });
+    async function loadCompany() {
+      try {
+        const response = await fetch("/api/providers/me", { cache: "no-store" });
+        const data = response.ok ? await response.json() : null;
+        if (!active) return;
+        setHasProviderProfile(Boolean(data));
+        setWorkerCompany(data?.accessRole === "worker" ? { businessName: data.businessName, teamRole: data.teamRole } : null);
+      } catch { /* Keep the customer's account usable if the company lookup fails. */ }
+    }
+    void loadCompany();
+    window.addEventListener("focus", loadCompany);
     fetch("/api/favorites")
       .then(async (response) => response.ok ? response.json() as Promise<{ services: SavedService[] }> : null)
       .then((data) => { if (active && data) setSavedServices(data.services); });
@@ -52,8 +61,8 @@ export default function AccountPage() {
       .then(async (response) => response.ok ? response.json() as Promise<{ bookings: Booking[] }> : null)
       .catch(() => null)
       .then((data) => { if (active && data) setBookings(data.bookings); });
-    return () => { active = false; };
-  }, []);
+    return () => { active = false; window.removeEventListener("focus", loadCompany); };
+  }, [session?.user.id]);
 
   const upcoming = bookings.filter((booking) => booking.state !== "completed" && booking.state !== "cancelled");
   const history = bookings.filter((booking) => booking.state === "completed" || booking.state === "cancelled");
@@ -85,6 +94,10 @@ export default function AccountPage() {
       {toast && <div role="status" className="fixed right-5 top-20 z-50 flex max-w-sm items-start gap-3 rounded-2xl bg-[#183126] p-4 text-sm text-white shadow-2xl"><span className="text-[#eee25a]">✓</span><p className="font-semibold">{toast}</p><button onClick={() => setToast("")} aria-label="Dismiss" className="ml-2 rounded-full px-2 text-white/60 transition hover:bg-white/15 hover:text-white">×</button></div>}
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-14">
+        {workerCompany && <section aria-label="Your company membership" className="mb-8 flex flex-col gap-5 rounded-3xl bg-[#183126] p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-widest text-[#eee25a]">You’re part of a company</p><h2 className="mt-2 break-words text-2xl font-bold">{workerCompany.businessName}</h2><p className="mt-2 text-sm text-[#c3d0c9]">Your role: {workerCompany.teamRole || "Team member"}</p><p className="mt-2 text-sm leading-6 text-[#c3d0c9]">View your assigned jobs and submit your working hours for your owner to approve.</p></div>
+          <div className="flex shrink-0 flex-wrap gap-3"><Link href="/provider/dashboard" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126]">Open my work dashboard</Link><Link href="/provider/dashboard/team" className="rounded-full border border-white/30 px-5 py-3 text-sm font-bold">My team & hours</Link></div>
+        </section>}
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div><p className="text-sm font-semibold text-[#687a70]">Customer account</p><h1 className="mt-1 text-4xl font-bold tracking-[-.045em]">Hi, {firstName}.</h1><p className="mt-2 text-[#687a70]">Keep track of your bookings and favorite local pros.</p></div>
           <div className="mobile-scroll-row -mx-4 flex w-[calc(100%+2rem)] flex-nowrap gap-2 self-start overflow-x-auto px-4 pb-2 sm:mx-0 sm:w-auto sm:flex-wrap sm:px-0 sm:pb-0 sm:self-auto"><Link href="/account/calendar" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">▣ Calendar</Link><Link href="/account/payments" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">💳 Payments</Link><Link href="/account/settings" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">⚙ Settings</Link><Link href="/account/messages" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">✉ Messages</Link><Link href="/services" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Book a service</Link></div>
