@@ -89,7 +89,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
 
       <section className="border-b border-[#d6c552]/35 bg-[#fff8cf]">
         <div className="mx-auto max-w-7xl px-4 py-3 text-sm leading-6 text-[#5f5418] sm:px-8">
-          <strong>Marketplace preview:</strong> Listings marked “Demo listing” are sample services used to test BubsBookings and cannot be booked.
+          <strong>Marketplace preview:</strong> Some listings are sample services used to test BubsBookings and cannot be booked.
         </div>
       </section>
 
@@ -163,7 +163,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                 <Link href={`/services/${service.slug}`} className="block">
                 <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${getServiceVisual(service.category).gradient}`}`}>
                   {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-                  {service.id.startsWith("stress-test-") ? <span className="absolute left-4 top-4 rounded-full bg-[#fff3a8]/95 px-3 py-1.5 text-xs font-bold text-[#5f5310] shadow-sm backdrop-blur">Demo listing</span> : <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>}
+                  {!service.id.startsWith("stress-test-") && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>}
                   {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{getServiceVisual(service.category).art}</span>}
                 </div>
                 <div className="p-6">

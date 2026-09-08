@@ -40,7 +40,7 @@ export default async function Home() {
 
       <section className="border-b border-[#d6c552]/35 bg-[#fff8cf]">
         <div className="mx-auto max-w-6xl px-4 py-3 text-sm leading-6 text-[#5f5418] sm:px-6">
-          <strong>Marketplace preview:</strong> Listings marked “Demo listing” are sample services used to test BubsBookings and cannot be booked.
+          <strong>Marketplace preview:</strong> Some listings are sample services used to test BubsBookings and cannot be booked.
         </div>
       </section>
 
@@ -163,7 +163,7 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
     <Link href={`/services/${service.slug}`} className="block">
       <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
         {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-        {stressTestService ? <span className="absolute left-4 top-4 rounded-full bg-[#fff3a6]/95 px-3 py-1.5 text-xs font-bold text-[#5f5310] shadow-sm backdrop-blur">Demo listing</span> : badge && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{badge}</span>}
+        {!stressTestService && badge && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{badge}</span>}
         {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80 transition duration-300 group-hover:scale-105">{visual.art}</span>}
       </div>
       <div className="p-5">
