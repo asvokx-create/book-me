@@ -99,9 +99,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const ownership = await client.query<{ provider_id: string; plan: ProviderPlan }>(
-      `SELECT s.provider_id::text, p.plan
+    const ownership = await client.query<{ provider_id: string; plan: ProviderPlan; business_name: string }>(
+      `SELECT s.provider_id::text, p.plan, company.name AS business_name
        FROM services s JOIN provider_profiles p ON p.id = s.provider_id
+       JOIN provider_companies company ON company.id = s.company_id
        WHERE s.id::text = $1 AND p.user_id = $2 AND s.is_active = true
        FOR UPDATE`,
       [serviceId, userId],
@@ -109,6 +110,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
     if (!ownership.rows[0]) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "Listing not found." }, { status: 404 });
+    }
+    if (ownership.rows[0].business_name !== businessName) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "A listing cannot be moved between company pages. Create a new listing under the correct company." }, { status: 400 });
     }
     const entitlements = PLAN_ENTITLEMENTS[ownership.rows[0].plan];
     if (bookingQuestions.length && !entitlements.customBookingQuestions) {
@@ -144,14 +149,41 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!userId) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const { serviceId } = await params;
-  const result = await database.query(
-    `UPDATE services s
-     SET is_active = false
-     FROM provider_profiles p
-     WHERE s.provider_id = p.id AND s.id::text = $1 AND p.user_id = $2 AND s.is_active = true
-     RETURNING s.id`,
-    [serviceId, userId],
-  );
-  if (result.rowCount === 0) return NextResponse.json({ error: "Listing not found." }, { status: 404 });
-  return NextResponse.json({ ok: true });
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query<{ provider_id: string; company_id: string; business_name: string }>(
+      `SELECT s.provider_id::text, s.company_id::text, s.business_name
+       FROM services s JOIN provider_profiles p ON p.id = s.provider_id
+       WHERE s.id::text = $1 AND p.user_id = $2 AND s.is_active = true
+       FOR UPDATE OF s, p`,
+      [serviceId, userId],
+    );
+    const removed = result.rows[0];
+    if (!removed) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "Listing not found." }, { status: 404 });
+    }
+    await client.query("UPDATE services SET is_active = false, updated_at = now() WHERE id::text = $1", [serviceId]);
+    await client.query(
+      `UPDATE provider_team_members member
+       SET status = 'inactive', updated_at = now()
+       WHERE member.provider_id::text = $1 AND member.company_id::text = $2 AND member.status = 'active'
+         AND NOT EXISTS (
+           SELECT 1 FROM services remaining
+             WHERE remaining.provider_id = member.provider_id
+               AND remaining.company_id = member.company_id
+             AND remaining.is_active = true
+         )`,
+      [removed.provider_id, removed.company_id],
+    );
+    await client.query("COMMIT");
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Listing removal failed", error);
+    return NextResponse.json({ error: "We could not remove this listing. Please try again." }, { status: 500 });
+  } finally {
+    client.release();
+  }
 }

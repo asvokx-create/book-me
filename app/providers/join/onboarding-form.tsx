@@ -16,6 +16,8 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [business, setBusiness] = useState("");
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string; slug: string; location: string; serviceRadiusMiles: number; listingCount: number }>>([]);
+  const [useNewCompany, setUseNewCompany] = useState(true);
   const [category, setCategory] = useState("");
   const [city, setCity] = useState("Issaquah, WA");
   const [serviceRadiusMiles, setServiceRadiusMiles] = useState("25");
@@ -33,6 +35,21 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   const previewUrls = useRef<string[]>([]);
 
   useEffect(() => () => previewUrls.current.forEach((url) => URL.revokeObjectURL(url)), []);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/providers/companies", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() as Promise<{ companies: Array<{ id: string; name: string; slug: string; location: string; serviceRadiusMiles: number; listingCount: number }> }> : null)
+      .then((data) => {
+        if (!active || !data?.companies.length) return;
+        setCompanies(data.companies);
+        setBusiness(data.companies[0].name);
+        setCity(data.companies[0].location);
+        setServiceRadiusMiles(String(data.companies[0].serviceRadiusMiles));
+        setUseNewCompany(false);
+      })
+      .catch(() => null);
+    return () => { active = false; };
+  }, []);
 
   function choosePhotos(event: ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(event.target.files ?? []);
@@ -62,11 +79,11 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
 
   async function next(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (step === 1 && (!business.trim() || !category || !city.trim())) {
+    if (step === 1 && (!business.trim() || !city.trim())) {
       setError("Complete each field to continue.");
       return;
     }
-    if (step === 2 && (!service.trim() || !price || description.trim().length < 30)) {
+    if (step === 2 && (!category || !service.trim() || !price || description.trim().length < 30)) {
       setError("Add a service title, price, and a clear description of at least 30 characters.");
       return;
     }
@@ -128,20 +145,22 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   return (
     <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_24px_60px_rgba(24,49,38,.12)] sm:p-9">
       <div className="flex items-center justify-between">
-        <div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Step {step} of 3</p><h2 className="mt-1 text-2xl font-bold tracking-tight">{step === 1 ? "Tell us about your business" : step === 2 ? "Create your first service" : "Set your availability"}</h2></div>
+        <div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Step {step} of 3</p><h2 className="mt-1 text-2xl font-bold tracking-tight">{step === 1 ? "Choose or create a company page" : step === 2 ? "Create a service under that company" : "Set your availability"}</h2></div>
         <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#edf3e7] text-xl">{step === 1 ? "👋" : step === 2 ? "🧰" : "📅"}</span>
       </div>
       <div className="mt-6 grid grid-cols-3 gap-2">{[1, 2, 3].map((number) => <span key={number} className={`h-1.5 rounded-full ${number <= step ? "bg-[#183126]" : "bg-[#dfe3df]"}`} />)}</div>
 
       <form onSubmit={next} className="mt-8">
         {step === 1 && <div className="space-y-5">
-          <label className="block"><span className="mb-2 block text-sm font-bold">Business name</span><input value={business} onChange={(event) => setBusiness(event.target.value)} placeholder="Your business name" className={inputClass} /></label>
-          <label className="block"><span className="mb-2 block text-sm font-bold">Main category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass}><option value="">Choose a category</option>{SERVICE_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label>
+          {companies.length > 0 && <label className="block"><span className="mb-2 block text-sm font-bold">Company page</span><select value={useNewCompany ? "__new__" : business} onChange={(event) => { if (event.target.value === "__new__") { setUseNewCompany(true); setBusiness(""); } else { const company = companies.find((item) => item.name === event.target.value); setUseNewCompany(false); setBusiness(event.target.value); if (company) { setCity(company.location); setServiceRadiusMiles(String(company.serviceRadiusMiles)); } } }} className={inputClass}>{companies.map((company) => <option key={company.id} value={company.name}>{company.name} · {company.listingCount} {company.listingCount === 1 ? "listing" : "listings"}</option>)}<option value="__new__">+ Create another company page</option></select></label>}
+          {(useNewCompany || companies.length === 0) && <label className="block"><span className="mb-2 block text-sm font-bold">Company name</span><input value={business} onChange={(event) => setBusiness(event.target.value)} placeholder="e.g. Canela" className={inputClass} /><span className="mt-2 block text-xs text-[#74827b]">This creates the main public page that holds the company&apos;s listings, team, and identity.</span></label>}
           <label className="block"><span className="mb-2 block text-sm font-bold">Service area</span><select value={city} onChange={(event) => setCity(event.target.value)} className={inputClass}>{SERVICE_AREAS.map((area) => { const label = serviceAreaLabel(area); return <option key={label} value={label}>{label}</option>; })}</select><span className="mt-2 block text-xs text-[#74827b]">BubsBookings uses this verified city coordinate to calculate customer distance and radius results.</span></label>
           <div className="block"><p className="mb-2 text-sm font-bold">Working radius</p><RadiusSelector value={Number(serviceRadiusMiles)} onChange={(value) => setServiceRadiusMiles(String(value))} /><span className="mt-2 block text-xs text-[#74827b]">Choose a common distance or enter a custom whole number from 1 to 250 miles. Your listings appear only to customers searching within this distance.</span></div>
         </div>}
 
         {step === 2 && <div className="space-y-5">
+          <div className="rounded-2xl bg-[#edf3e7] p-4 text-sm"><span className="font-bold">Company:</span> {business}</div>
+          <label className="block"><span className="mb-2 block text-sm font-bold">Service category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass}><option value="">Choose a category</option>{SERVICE_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label className="block"><span className="mb-2 block text-sm font-bold">Service title</span><input value={service} onChange={(event) => setService(event.target.value)} placeholder="e.g. Weekly lawn care" className={inputClass} /></label>
           <div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-2 block text-sm font-bold">Starting price</span><div className="relative"><span className="absolute left-4 top-3.5 text-sm text-[#65766d]">$</span><input type="number" min="1" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="75" className={`${inputClass} pl-8`} /></div></label><label className="block"><span className="mb-2 block text-sm font-bold">Estimated job duration</span><select value={duration} onChange={(event) => setDuration(event.target.value)} className={inputClass}>{["1 hour", "2 hours", "3 hours", "Half day", "Full day"].map((item) => <option key={item}>{item}</option>)}</select><span className="mt-2 block text-xs font-normal leading-5 text-[#75837c]">This reserves enough calendar time. The actual job may finish sooner or later.</span></label></div>
           <label className="block"><span className="mb-2 block text-sm font-bold">What&apos;s included?</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe what customers can expect..." rows={4} minLength={30} maxLength={2000} className={`${inputClass} resize-none`} /><span className="mt-2 block text-xs text-[#74827b]">Use at least 30 characters so customers and the automated safety check can understand the service.</span></label>

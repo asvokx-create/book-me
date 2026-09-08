@@ -13,6 +13,7 @@ export type ServiceListing = {
   durationMinutes: number;
   providerId: string;
   provider: string;
+  companySlug?: string;
   city: string;
   state: string;
   imageUrls: string[];
@@ -39,6 +40,7 @@ type ServiceRow = {
   duration_minutes: number;
   provider_id: string;
   business_name: string;
+  company_slug?: string;
   city: string;
   state: string;
   email_verified: boolean;
@@ -65,6 +67,7 @@ function mapService(row: ServiceRow): ServiceListing {
     durationMinutes: row.duration_minutes,
     providerId: row.provider_id,
     provider: row.business_name,
+    companySlug: row.company_slug,
     city: row.city,
     state: row.state,
     emailVerified: row.email_verified,
@@ -119,7 +122,8 @@ export async function getServices(options: { query?: string; category?: string; 
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
+            s.business_name, company.slug AS company_slug,
+            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
@@ -129,6 +133,7 @@ export async function getServices(options: { query?: string; category?: string; 
               FROM service_images si WHERE si.service_id = s.id
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
+     JOIN provider_companies company ON company.id = s.company_id AND company.is_active = true
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
      WHERE ${conditions.join(" AND ")}
@@ -153,7 +158,8 @@ export async function getServiceBySlug(slug: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id,
-            s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
+            s.business_name, company.slug AS company_slug,
+            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
@@ -163,6 +169,7 @@ export async function getServiceBySlug(slug: string) {
               FROM service_images si WHERE si.service_id = s.id
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
+     JOIN provider_companies company ON company.id = s.company_id AND company.is_active = true
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
      WHERE s.slug = $1 AND s.is_active = true AND p.is_active = true

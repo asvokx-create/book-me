@@ -142,6 +142,17 @@ export async function POST(request: Request) {
     );
     const providerId = profileResult.rows[0].id;
 
+    const companyResult = await client.query<{ id: string }>(
+      `INSERT INTO provider_companies (provider_id, name, slug, bio, city, state, service_radius_miles, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+       ON CONFLICT (provider_id, (lower(name))) DO UPDATE SET
+         bio = EXCLUDED.bio, city = EXCLUDED.city, state = EXCLUDED.state,
+         service_radius_miles = EXCLUDED.service_radius_miles, is_active = true, updated_at = now()
+       RETURNING id::text`,
+      [providerId, business, slugify(business), description, city, state, serviceRadiusMiles],
+    );
+    const companyId = companyResult.rows[0].id;
+
     const serviceLimit = PLAN_ENTITLEMENTS[plan].serviceLimit;
     if (serviceLimit !== null) {
       const serviceCount = await client.query<{ count: number }>("SELECT count(*)::int AS count FROM services WHERE provider_id = $1 AND is_active = true", [providerId]);
@@ -152,10 +163,10 @@ export async function POST(request: Request) {
     }
 
     const serviceResult = await client.query<{ id: string }>(
-      `INSERT INTO services (provider_id, business_name, slug, category, title, description, price_cents, duration_minutes, city, state, latitude, longitude)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO services (provider_id, company_id, business_name, slug, category, title, description, price_cents, duration_minutes, city, state, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id::text`,
-      [providerId, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration], city, state, coordinates.latitude, coordinates.longitude],
+      [providerId, companyId, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration], city, state, coordinates.latitude, coordinates.longitude],
     );
 
     await client.query("DELETE FROM availability WHERE provider_id = $1 AND service_id = $2", [providerId, serviceResult.rows[0].id]);

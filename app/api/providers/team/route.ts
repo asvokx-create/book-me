@@ -49,8 +49,8 @@ export async function GET(request: Request) {
     : access.memberCompanyName ?? provider.business_name;
   const result = await database.query<{ id: string; name: string; email: string; role: string; company_name: string; status: "active" | "inactive"; created_at: Date }>(
     `SELECT id::text, name, email, role, company_name, status, created_at
-     FROM provider_team_members WHERE provider_id = $1 AND company_name = $2
-     ORDER BY status, created_at`,
+     FROM provider_team_members WHERE provider_id = $1 AND company_name = $2 AND status = 'active'
+     ORDER BY created_at`,
     [provider.id, companyName],
   );
   const totalActive = await database.query<{ count: number }>(
@@ -100,8 +100,8 @@ export async function POST(request: Request) {
     if (isOwner && savedProvider.plan !== "owner") {
       await client.query("UPDATE provider_profiles SET plan = 'owner', updated_at = now() WHERE id::text = $1", [provider.id]);
     }
-    const validCompany = await client.query(
-      "SELECT 1 FROM services WHERE provider_id::text = $1 AND business_name = $2 AND is_active = true LIMIT 1",
+    const validCompany = await client.query<{ id: string }>(
+      "SELECT id::text FROM provider_companies WHERE provider_id::text = $1 AND name = $2 AND is_active = true LIMIT 1",
       [provider.id, companyName],
     );
     if (!companyName || !validCompany.rowCount) {
@@ -122,12 +122,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: provider.plan === "starter" ? "Starter includes the owner only. Upgrade to Pro to add workers." : `Your ${PLAN_ENTITLEMENTS[provider.plan].name} plan currently allows ${workerLimit} workers. Add another employee seat from Billing for $0.50/month.`, upgradeRequired: true }, { status: 403 });
     }
     const result = await client.query<{ id: string; created_at: Date }>(
-      `INSERT INTO provider_team_members (provider_id, company_name, name, email, role, user_id)
-       VALUES ($1, $2, $3, $4, $5, (SELECT id FROM "user" WHERE lower(email) = lower($4) LIMIT 1))
+      `INSERT INTO provider_team_members (provider_id, company_id, company_name, name, email, role, user_id)
+       VALUES ($1, $2::uuid, $3, $4, $5, $6, (SELECT id FROM "user" WHERE lower(email) = lower($5) LIMIT 1))
        ON CONFLICT (provider_id, company_name, email) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role, status = 'active',
-         user_id = COALESCE(provider_team_members.user_id, EXCLUDED.user_id)
+         company_id = EXCLUDED.company_id, user_id = COALESCE(provider_team_members.user_id, EXCLUDED.user_id)
        RETURNING id::text, created_at`,
-      [provider.id, companyName, name, email, role],
+      [provider.id, validCompany.rows[0].id, companyName, name, email, role],
     );
     const activeCount = await client.query<{ count: number }>(
       "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",

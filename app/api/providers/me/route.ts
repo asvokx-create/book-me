@@ -49,6 +49,8 @@ export async function GET() {
   const isAdmin = access.isOwner && await hasAdminAccess(session.user.id, session.user.email);
   const serviceResult = await database.query<{
     id: string;
+    company_id: string;
+    company_slug: string;
     business_name: string;
     slug: string;
     title: string;
@@ -57,19 +59,23 @@ export async function GET() {
     duration_minutes: number;
     image_urls: string[] | null;
   }>(
-    `SELECT s.id::text, s.business_name, s.slug, s.title, s.category, s.price_cents, s.duration_minutes,
+    `SELECT s.id::text, s.company_id::text, company.slug AS company_slug, company.name AS business_name,
+            s.slug, s.title, s.category, s.price_cents, s.duration_minutes,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
+     JOIN provider_companies company ON company.id = s.company_id AND company.is_active = true
      WHERE s.provider_id::text = $1 AND s.is_active = true
-       AND ($2::text IS NULL OR s.business_name = $2)
+       AND ($2::text IS NULL OR company.name = $2)
      ORDER BY s.created_at DESC`,
     [provider.id, access.memberCompanyName],
   );
   const services = serviceResult.rows.map((service) => ({
     id: service.id,
+    companyId: service.company_id,
+    companySlug: service.company_slug,
     businessName: service.business_name,
     slug: service.slug,
     title: service.title,

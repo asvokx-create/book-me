@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Notification = {
   id: string;
@@ -40,6 +41,7 @@ export default function NotificationBell() {
   const [loaded, setLoaded] = useState(false);
   const [actionError, setActionError] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   async function loadNotifications() {
     const response = await fetch("/api/notifications", { cache: "no-store" }).catch(() => null);
@@ -58,7 +60,8 @@ export default function NotificationBell() {
 
   useEffect(() => {
     function closeWhenClickedAway(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!containerRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpen(false);
     }
     document.addEventListener("mousedown", closeWhenClickedAway);
     return () => document.removeEventListener("mousedown", closeWhenClickedAway);
@@ -117,7 +120,8 @@ export default function NotificationBell() {
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
+      <div ref={containerRef} className="relative">
       <button
         type="button"
         aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"}
@@ -128,8 +132,9 @@ export default function NotificationBell() {
         🔔
         {unreadCount > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#d45f40] px-1 text-[10px] font-bold leading-none text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}
       </button>
+      </div>
 
-      {open && <div className="absolute right-0 top-12 z-[70] w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-[#183126]/10 bg-white text-left shadow-[0_24px_70px_rgba(24,49,38,.2)]">
+      {open && typeof document !== "undefined" && createPortal(<div ref={popoverRef} className="fixed right-4 top-20 z-[500] w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-[#183126]/10 bg-white text-left shadow-[0_24px_70px_rgba(24,49,38,.2)] sm:right-6">
         <div className="flex items-center justify-between border-b border-[#183126]/10 px-5 py-4">
           <div><p className="font-bold text-[#183126]">Notifications</p><p className="mt-0.5 text-xs text-[#728179]">{unreadCount ? `${unreadCount} unread` : "You’re all caught up"}</p></div>
           <div className="flex items-center gap-1">{notifications.some((item) => item.read) && <button type="button" onClick={clearReadNotifications} className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]">Clear read</button>}{unreadCount > 0 && <button type="button" onClick={markAllRead} className="rounded-full px-3 py-2 text-xs font-bold text-[#50695b] transition hover:bg-[#e5eddf]">Mark all read</button>}</div>
@@ -145,7 +150,7 @@ export default function NotificationBell() {
             <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-3"><span className="text-sm font-bold text-[#183126]">{notification.title}</span>{!notification.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#d45f40]" />}</span><span className="mt-1 block text-xs leading-5 text-[#66776e]">{notification.message}</span><span className="mt-1.5 block text-[10px] font-bold uppercase tracking-wider text-[#89958f]">{relativeTime(notification.createdAt)}</span></span>
           </Link><button type="button" aria-label={`Delete ${notification.title} notification`} onClick={() => deleteNotification(notification.id)} className="mt-3 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8a4c3a] opacity-70 transition hover:bg-[#f4d8cc] hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100">×</button></div>)}
         </div>
-      </div>}
-    </div>
+      </div>, document.body)}
+    </>
   );
 }

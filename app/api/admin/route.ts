@@ -265,11 +265,26 @@ export async function PATCH(request: Request) {
       auditAction = "account_warned";
       details = { reason };
     } else if (action === "listing_status" && (status === "active" || status === "inactive")) {
-      const result = await client.query<{ id: string; is_active: boolean }>(
-        "UPDATE services SET is_active = $2, updated_at = now() WHERE id = $1::uuid RETURNING id::text, is_active",
+      const result = await client.query<{ id: string; is_active: boolean; provider_id: string; company_id: string }>(
+        "UPDATE services SET is_active = $2, updated_at = now() WHERE id = $1::uuid RETURNING id::text, is_active, provider_id::text, company_id::text",
         [targetId, status === "active"],
       );
       if (!result.rowCount) throw new Error("NOT_FOUND");
+      const listing = result.rows[0];
+      if (status === "inactive") {
+        await client.query(
+          `UPDATE provider_team_members member
+           SET status = 'inactive', updated_at = now()
+           WHERE member.provider_id::text = $1 AND member.company_id::text = $2 AND member.status = 'active'
+             AND NOT EXISTS (
+               SELECT 1 FROM services remaining
+               WHERE remaining.provider_id = member.provider_id
+                 AND remaining.company_id = member.company_id
+                 AND remaining.is_active = true
+             )`,
+          [listing.provider_id, listing.company_id],
+        );
+      }
       targetType = "listing";
       auditAction = status === "active" ? "listing_restored" : "listing_removed";
     } else if (action === "provider_status" && (status === "active" || status === "inactive")) {

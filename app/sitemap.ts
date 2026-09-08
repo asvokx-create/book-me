@@ -9,6 +9,7 @@ const baseUrl = "https://bubsbookings.com";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const services = await getServices({ limit: 1000 }).catch(() => []);
   const providerIds = [...new Set(services.map((service) => service.providerId))];
+  const companySlugs = [...new Set(services.map((service) => service.companySlug).filter((slug): slug is string => Boolean(slug)))];
   const localCategoryPages = [...new Map(services.flatMap((service) => {
     const area = SERVICE_AREAS.find((candidate) => candidate.city.toLowerCase() === service.city.toLowerCase() && candidate.state.toLowerCase() === service.state.toLowerCase());
     if (!area) return [];
@@ -23,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...localCategoryPages,
     ...GUIDES.map((guide) => ({ url: `${baseUrl}/guides/${guide.slug}`, lastModified: guide.updatedAt, changeFrequency: "monthly" as const, priority: 0.6 })),
     ...services.map((service) => ({ url: `${baseUrl}/services/${service.slug}`, changeFrequency: "weekly" as const, priority: 0.8 })),
+    ...companySlugs.map((slug) => ({ url: `${baseUrl}/companies/${slug}`, changeFrequency: "weekly" as const, priority: 0.75 })),
     ...providerIds.map((providerId) => ({ url: `${baseUrl}/providers/${providerId}`, changeFrequency: "weekly" as const, priority: 0.7 })),
   ];
 }
