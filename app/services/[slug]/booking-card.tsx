@@ -15,6 +15,7 @@ type BookingCardProps = {
   cancellationWindowHours: number;
   noShowPolicy: string;
   bookingQuestions: string[];
+  bookingDisabled?: boolean;
 };
 
 function formatTime(time: string) {
@@ -23,7 +24,7 @@ function formatTime(time: string) {
   return `${hours % 12 || 12}:${minutes} ${hours >= 12 ? "PM" : "AM"}`;
 }
 
-export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions }: BookingCardProps) {
+export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false }: BookingCardProps) {
   const [location, setLocation] = useState("Issaquah, WA");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -107,6 +108,10 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         <button onClick={() => { setStep("details"); setTime(""); setTimeSlots([]); }} className="mt-6 rounded-full px-4 py-2 text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Make another request</button>
       </div>
     );
+  }
+
+  if (bookingDisabled) {
+    return <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7"><div className="flex items-end justify-between gap-3"><div><p className="text-sm text-[#6f7f77]">Starting at</p><p className="mt-1 text-3xl font-bold tracking-tight">${price}</p></div><p className="rounded-full bg-[#f1f0eb] px-3 py-1.5 text-xs font-semibold text-[#5f7067]">Estimated time: {duration}</p></div><div className="mt-7 rounded-2xl bg-[#fff5cf] p-5"><p className="font-bold">No appointments available</p><p className="mt-2 text-sm leading-6 text-[#75651d]">This service is currently fully booked. Please check back soon for new availability.</p></div><div className="mt-5"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Customer intake questions</p><div className="mt-3 space-y-2">{bookingQuestions.map((question) => <p key={question} className="rounded-xl bg-[#f5f5ef] p-3 text-xs font-semibold leading-5">{question}</p>)}</div></div><div className="mt-5 rounded-2xl bg-[#f5f5ef] p-4"><p className="text-xs font-bold">Cancellation policy · {cancellationWindowHours}h notice</p><p className="mt-1 text-xs leading-5 text-[#718078]">{cancellationPolicy}</p><p className="mt-3 text-xs font-bold">No-show policy</p><p className="mt-1 text-xs leading-5 text-[#718078]">{noShowPolicy}</p></div></div>;
   }
 
   if (!isSignedIn) {
