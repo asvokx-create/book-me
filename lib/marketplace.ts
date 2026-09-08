@@ -155,7 +155,7 @@ export async function getServices(options: { query?: string; category?: string; 
 }
 
 export async function getServiceBySlug(slug: string) {
-  if (process.env.NODE_ENV !== "production" && slug.startsWith("stress-test-")) return getStressTestServiceBySlug(slug);
+  if (slug.startsWith("stress-test-")) return getStressTestServiceBySlug(slug);
   if (!isDatabaseConfigured()) return null;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,

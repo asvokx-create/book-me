@@ -34,21 +34,18 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const maxPrice = Number(getParam(params.maxPrice)) || undefined;
   const maxDuration = Number(getParam(params.maxDuration)) || undefined;
   const sort = getParam(params.sort) || "nearest";
-  const stressTest = process.env.NODE_ENV !== "production" && getParam(params.stressTest) === "1";
   const realServices = await getServices({ query, category: selectedCategory, location, radiusMiles: radius, maxPrice, maxDuration, sort });
-  const stressServices = stressTest ? getStressTestServices().filter((service) => {
+  const demoServices = getStressTestServices().filter((service) => {
     const searchText = `${service.title} ${service.category} ${service.provider} ${service.description}`.toLowerCase();
     return (!query || searchText.includes(query.toLowerCase()))
       && (selectedCategory === "All services" || service.category.toLowerCase() === selectedCategory.toLowerCase())
       && (!maxPrice || service.price <= maxPrice)
       && (!maxDuration || service.durationMinutes <= maxDuration);
-  }) : [];
-  const filteredServices = [...realServices, ...stressServices];
-  if (stressTest) {
-    if (sort === "price-low") filteredServices.sort((left, right) => left.price - right.price);
-    else if (sort === "price-high") filteredServices.sort((left, right) => right.price - left.price);
-    else if (sort === "nearest") filteredServices.sort((left, right) => (left.distanceMiles ?? 0) - (right.distanceMiles ?? 0));
-  }
+  });
+  const filteredServices = [...realServices, ...demoServices];
+  if (sort === "price-low") filteredServices.sort((left, right) => left.price - right.price);
+  else if (sort === "price-high") filteredServices.sort((left, right) => right.price - left.price);
+  else if (sort === "nearest") filteredServices.sort((left, right) => (left.distanceMiles ?? 0) - (right.distanceMiles ?? 0));
 
   function serviceHref(category: string) {
     const queryString = new URLSearchParams();
@@ -59,7 +56,6 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
     if (maxPrice) queryString.set("maxPrice", String(maxPrice));
     if (maxDuration) queryString.set("maxDuration", String(maxDuration));
     if (sort !== "nearest") queryString.set("sort", sort);
-    if (stressTest) queryString.set("stressTest", "1");
     return `/services?${queryString.toString()}${resultsAnchor}`;
   }
 
@@ -72,7 +68,6 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
     if (maxPrice && name !== "maxPrice") queryString.set("maxPrice", String(maxPrice));
     if (maxDuration && name !== "maxDuration") queryString.set("maxDuration", String(maxDuration));
     if (sort !== "nearest") queryString.set("sort", sort);
-    if (stressTest) queryString.set("stressTest", "1");
     return `/services?${queryString.toString()}${resultsAnchor}`;
   }
 
@@ -92,6 +87,12 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         </div>
       </header>
 
+      <section className="border-b border-[#d6c552]/35 bg-[#fff8cf]">
+        <div className="mx-auto max-w-7xl px-4 py-3 text-sm leading-6 text-[#5f5418] sm:px-8">
+          <strong>Marketplace preview:</strong> Listings marked “Demo listing” are sample services used to test BubsBookings and cannot be booked.
+        </div>
+      </section>
+
       <section className="border-b border-[#183126]/10 bg-[radial-gradient(circle_at_85%_15%,rgba(206,225,198,.8),transparent_25%)]">
         <div className="mx-auto max-w-7xl px-4 py-9 sm:px-8 sm:py-16">
           <Link href="/" className="text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
@@ -110,7 +111,6 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}
             {maxDuration && <input type="hidden" name="maxDuration" value={maxDuration} />}
             {sort !== "nearest" && <input type="hidden" name="sort" value={sort} />}
-            {stressTest && <input type="hidden" name="stressTest" value="1" />}
             <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Search</button>
           </form>
         </div>
@@ -130,7 +130,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={serviceHref(category)} className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><span>{SERVICE_CATEGORY_ICONS[category] ?? "✨"}</span>{category}</Link>)}</div>
               <form action={`/services${resultsAnchor}`} className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                {query && <input type="hidden" name="q" value={query} />}<input type="hidden" name="location" value={location} /><input type="hidden" name="radius" value={radius} />{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}{sort !== "nearest" && <input type="hidden" name="sort" value={sort} />}{stressTest && <input type="hidden" name="stressTest" value="1" />}
+                {query && <input type="hidden" name="q" value={query} />}<input type="hidden" name="location" value={location} /><input type="hidden" name="radius" value={radius} />{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}{sort !== "nearest" && <input type="hidden" name="sort" value={sort} />}
                 <label><span className="mb-2 block text-xs font-bold">Maximum price</span><select name="maxPrice" defaultValue={maxPrice ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any price</option><option value="50">Up to $50</option><option value="100">Up to $100</option><option value="250">Up to $250</option><option value="500">Up to $500</option></select></label>
                 <label><span className="mb-2 block text-xs font-bold">Maximum estimated time</span><select name="maxDuration" defaultValue={maxDuration ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any estimated time</option><option value="60">Up to 1 hour</option><option value="120">Up to 2 hours</option><option value="240">Up to half day</option><option value="480">Up to full day</option></select></label>
                 <button type="submit" className="rounded-xl bg-[#eee25a] px-5 py-3 text-sm font-bold transition hover:bg-[#f5ea6b]">Apply filters</button>
@@ -153,7 +153,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             <p className="text-sm text-[#6c7d74]">{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} found</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">{query ? `Results for “${query}”` : selectedCategory}</h2>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} />{(query || selectedCategory !== "All services" || maxPrice || maxDuration || location !== "Issaquah, WA" || radius !== 25) && <Link href={`/services${stressTest ? "?stressTest=1" : ""}${resultsAnchor}`} className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
+          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} />{(query || selectedCategory !== "All services" || maxPrice || maxDuration || location !== "Issaquah, WA" || radius !== 25) && <Link href={`/services${resultsAnchor}`} className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
         </div>
 
         {filteredServices.length > 0 ? (
@@ -163,7 +163,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                 <Link href={`/services/${service.slug}`} className="block">
                 <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${getServiceVisual(service.category).gradient}`}`}>
                   {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-                  {!service.id.startsWith("stress-test-") && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>}
+                  {service.id.startsWith("stress-test-") ? <span className="absolute left-4 top-4 rounded-full bg-[#fff3a8]/95 px-3 py-1.5 text-xs font-bold text-[#5f5310] shadow-sm backdrop-blur">Demo listing</span> : <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>}
                   {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{getServiceVisual(service.category).art}</span>}
                 </div>
                 <div className="p-6">
@@ -173,7 +173,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                   <p className="mt-2 text-sm text-[#6a7a72]">by {service.provider}</p>
                 </div>
                 </Link>
-                <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />
+                {!service.id.startsWith("stress-test-") && <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />}
               </article>
             ))}
           </div>
