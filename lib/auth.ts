@@ -6,6 +6,17 @@ import { createPolicyConsentFields, POLICY_VERSION } from "./policy-consent";
 
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+const authBaseUrl = process.env.NODE_ENV === "production"
+  ? "https://bubsbookings.com"
+  : process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const trustedOrigins = Array.from(new Set([
+  authBaseUrl,
+  process.env.BETTER_AUTH_URL,
+  process.env.NEXT_PUBLIC_APP_URL,
+  "https://bubsbookings.com",
+  "https://www.bubsbookings.com",
+  ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:3000", "http://localhost:3001"]),
+].filter((origin): origin is string => Boolean(origin))));
 
 export const auth = betterAuth({
   appName: "BubsBookings",
@@ -13,7 +24,8 @@ export const auth = betterAuth({
   secret:
     process.env.BETTER_AUTH_SECRET ??
     "bookme-local-development-secret-change-before-deploy",
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  baseURL: authBaseUrl,
+  trustedOrigins,
   socialProviders: {
     ...(googleEnabled
       ? {
