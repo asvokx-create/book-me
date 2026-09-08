@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import ProfilePhotoManager from "@/components/profile-photo-manager";
 import RadiusSelector from "@/components/radius-selector";
-import { applyThemePreference, applyTimeZonePreference, type ThemePreference } from "@/components/preferences-provider";
+import { applyThemePreference, applyTimeZonePreference, getStoredThemePreference, type ThemePreference } from "@/components/preferences-provider";
 
 type Settings = {
   name: string; email: string; imageUrl: string; phone: string; city: string; state: string; radius: number;
@@ -46,8 +46,9 @@ export default function AccountSettings() {
         const data = await response.json() as Settings & { error?: string };
         if (!response.ok) throw new Error(data.error ?? "Settings could not be loaded.");
         if (active) {
-          setSettings(data);
-          applyThemePreference(data.theme);
+          const theme = getStoredThemePreference() ?? data.theme;
+          setSettings({ ...data, theme });
+          applyThemePreference(theme);
           applyTimeZonePreference(data.timeZone);
         }
       })

@@ -13,10 +13,20 @@ function resolvedTheme(preference: ThemePreference) {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+export function getStoredThemePreference(): ThemePreference | null {
+  const preference = localStorage.getItem(THEME_KEY);
+  return preference === "light" || preference === "dark" || preference === "system" ? preference : null;
+}
+
+function renderThemePreference(preference: ThemePreference) {
+  const theme = resolvedTheme(preference);
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+}
+
 export function applyThemePreference(preference: ThemePreference) {
   localStorage.setItem(THEME_KEY, preference);
-  document.documentElement.dataset.theme = resolvedTheme(preference);
-  document.documentElement.style.colorScheme = resolvedTheme(preference);
+  renderThemePreference(preference);
 }
 
 export function applyTimeZonePreference(preference: string) {
@@ -28,7 +38,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const [timeZone, setTimeZone] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    const savedTheme = (localStorage.getItem(THEME_KEY) ?? "system") as ThemePreference;
+    const storedTheme = getStoredThemePreference();
+    const savedTheme = storedTheme ?? "system";
     const savedTimeZone = localStorage.getItem(TIME_ZONE_KEY) ?? "auto";
     const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
     const syncSystemTheme = () => {
@@ -40,13 +51,14 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     };
     systemTheme.addEventListener("change", syncSystemTheme);
     window.addEventListener("bubsbookings-preferences", syncPreferences);
-    applyThemePreference(savedTheme);
+    if (storedTheme) applyThemePreference(storedTheme);
+    else renderThemePreference(savedTheme);
     applyTimeZonePreference(savedTimeZone);
 
     fetch("/api/account/settings", { cache: "no-store" }).then(async (response) => {
       if (!response.ok) return;
       const preferences = await response.json() as { theme?: ThemePreference; timeZone?: string };
-      if (preferences.theme) applyThemePreference(preferences.theme);
+      if (preferences.theme && !storedTheme) applyThemePreference(preferences.theme);
       if (preferences.timeZone) applyTimeZonePreference(preferences.timeZone);
     }).catch(() => undefined);
 
