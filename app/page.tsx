@@ -38,12 +38,6 @@ export default async function Home() {
         </div>
       </header>
 
-      <section className="border-b border-[#d6c552]/35 bg-[#fff8cf]">
-        <div className="mx-auto max-w-6xl px-4 py-3 text-sm leading-6 text-[#5f5418] sm:px-6">
-          <strong>Marketplace preview:</strong> Some listings are sample services used to test BubsBookings and cannot be booked.
-        </div>
-      </section>
-
       <section className="relative z-10 isolate">
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"><div className="absolute -right-48 top-8 h-[620px] w-[620px] rounded-full bg-[#d8e7d3] blur-2xl sm:right-[-8rem] sm:top-4" /></div>
         <div className="relative z-10 mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20 lg:py-24">
@@ -158,7 +152,7 @@ export default async function Home() {
 
 function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: string }) {
   const visual = getServiceVisual(service.category);
-  const stressTestService = service.id.startsWith("stress-test-");
+  const stressTestService = service.isDemo;
   return <article className="group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
     <Link href={`/services/${service.slug}`} className="block">
       <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>

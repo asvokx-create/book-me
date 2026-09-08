@@ -1,5 +1,7 @@
 import type { ServiceListing } from "./marketplace";
 
+export const DEMO_SERVICE_BATCH = "marketplace-demo-2026-09-07";
+
 const samples = [
   ["Fresh Start Deep Cleaning", "Home cleaning", "Fresh Start Home Care", 165, 180, "A detailed top-to-bottom home cleaning covering kitchens, bathrooms, bedrooms, floors, fixtures, and high-touch surfaces."],
   ["Weekly Home Cleaning", "Home cleaning", "Cedar & Sage Cleaning", 110, 120, "Recurring maintenance cleaning designed to keep busy households comfortable, tidy, and ready for the week ahead."],
@@ -28,6 +30,8 @@ const cities = ["Issaquah", "Sammamish", "Bellevue", "Renton", "Redmond"] as con
 export function getStressTestServices(): ServiceListing[] {
   return samples.map(([title, category, provider, price, durationMinutes, description], index) => ({
     id: `stress-test-${index + 1}`,
+    isDemo: true,
+    internalDemoBatch: DEMO_SERVICE_BATCH,
     slug: `stress-test-${index + 1}`,
     title,
     category,

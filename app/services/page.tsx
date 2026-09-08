@@ -87,12 +87,6 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         </div>
       </header>
 
-      <section className="border-b border-[#d6c552]/35 bg-[#fff8cf]">
-        <div className="mx-auto max-w-7xl px-4 py-3 text-sm leading-6 text-[#5f5418] sm:px-8">
-          <strong>Marketplace preview:</strong> Some listings are sample services used to test BubsBookings and cannot be booked.
-        </div>
-      </section>
-
       <section className="border-b border-[#183126]/10 bg-[radial-gradient(circle_at_85%_15%,rgba(206,225,198,.8),transparent_25%)]">
         <div className="mx-auto max-w-7xl px-4 py-9 sm:px-8 sm:py-16">
           <Link href="/" className="text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
@@ -163,7 +157,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                 <Link href={`/services/${service.slug}`} className="block">
                 <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${getServiceVisual(service.category).gradient}`}`}>
                   {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-                  {!service.id.startsWith("stress-test-") && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>}
+                  {!service.isDemo && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>}
                   {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{getServiceVisual(service.category).art}</span>}
                 </div>
                 <div className="p-6">
@@ -173,7 +167,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                   <p className="mt-2 text-sm text-[#6a7a72]">by {service.provider}</p>
                 </div>
                 </Link>
-                {!service.id.startsWith("stress-test-") && <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />}
+                {!service.isDemo && <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />}
               </article>
             ))}
           </div>

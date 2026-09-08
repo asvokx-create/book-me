@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: PageProps<"/services/[slug]">
   const { slug } = await params;
   const service = await getServiceBySlug(slug);
   if (!service) return {};
-  const stressTestService = service.id.startsWith("stress-test-");
+  const stressTestService = service.isDemo;
   const description = `${service.title} in ${service.city}, ${service.state}. Starting at $${service.price}. ${service.description}`.slice(0, 160);
   return {
     title: `${service.title} in ${service.city}, ${service.state}`,
@@ -31,7 +31,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
   const { slug } = await params;
   const service = await getServiceBySlug(slug);
   if (!service) notFound();
-  const stressTestService = service.id.startsWith("stress-test-");
+  const stressTestService = service.isDemo;
   const session = isAuthConfigured() ? await auth.api.getSession({ headers: await headers() }) : null;
 
   const visual = getServiceVisual(service.category);
@@ -62,7 +62,6 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
 
       <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-12">
         <Link href={stressTestService ? "/services#service-listings" : "/services"} className="inline-flex items-center gap-2 text-sm font-semibold text-[#5f7268] transition hover:text-[#183126]">← Back to services</Link>
-        {stressTestService && <div className="mt-5 rounded-2xl border border-[#d6c552]/45 bg-[#fff8cf] px-5 py-4 text-sm leading-6 text-[#5f5418]"><strong>Demo listing:</strong> This is a sample service used to test BubsBookings. It is not a real provider and cannot be booked.</div>}
         <div className="mt-7 grid gap-7 lg:grid-cols-[1.25fr_.75fr] lg:gap-10">
           <div>
             <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-cover bg-center sm:h-[420px] ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!service.imageUrls[0] && <><div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" /><div className="absolute bottom-[-40%] left-[18%] h-[90%] w-[80%] rounded-[50%] border-[36px] border-white/20" /><span className="absolute bottom-8 right-10 text-8xl opacity-80 sm:text-9xl">{visual.art}</span></>}{!stressTestService && <><span className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-sm backdrop-blur">New listing</span><FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-6 top-6 z-10 grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-sm backdrop-blur" /></>}</div>

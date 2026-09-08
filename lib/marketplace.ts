@@ -6,6 +6,8 @@ import { getStressTestServiceBySlug } from "./stress-test-services";
 
 export type ServiceListing = {
   id: string;
+  isDemo: boolean;
+  internalDemoBatch?: string;
   slug: string;
   title: string;
   category: string;
@@ -60,6 +62,7 @@ type ServiceRow = {
 function mapService(row: ServiceRow): ServiceListing {
   return {
     id: row.id,
+    isDemo: false,
     slug: row.slug,
     title: row.title,
     category: row.category,

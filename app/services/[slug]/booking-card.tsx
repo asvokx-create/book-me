@@ -33,11 +33,17 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [requiresLogin, setRequiresLogin] = useState(false);
+  const [showFullyBooked, setShowFullyBooked] = useState(false);
   const [notes, setNotes] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   async function checkAvailability(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (bookingDisabled) {
+      setError("");
+      setShowFullyBooked(true);
+      return;
+    }
     if (!location.trim() || !date) {
       setError("Add a location and date to see available times.");
       return;
@@ -110,10 +116,6 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     );
   }
 
-  if (bookingDisabled) {
-    return <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7"><div className="flex items-end justify-between gap-3"><div><p className="text-sm text-[#6f7f77]">Starting at</p><p className="mt-1 text-3xl font-bold tracking-tight">${price}</p></div><p className="rounded-full bg-[#f1f0eb] px-3 py-1.5 text-xs font-semibold text-[#5f7067]">Estimated time: {duration}</p></div><div className="mt-7 rounded-2xl bg-[#fff5cf] p-5"><p className="font-bold">No appointments available</p><p className="mt-2 text-sm leading-6 text-[#75651d]">This service is currently fully booked. Please check back soon for new availability.</p></div><div className="mt-5"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Customer intake questions</p><div className="mt-3 space-y-2">{bookingQuestions.map((question) => <p key={question} className="rounded-xl bg-[#f5f5ef] p-3 text-xs font-semibold leading-5">{question}</p>)}</div></div><div className="mt-5 rounded-2xl bg-[#f5f5ef] p-4"><p className="text-xs font-bold">Cancellation policy · {cancellationWindowHours}h notice</p><p className="mt-1 text-xs leading-5 text-[#718078]">{cancellationPolicy}</p><p className="mt-3 text-xs font-bold">No-show policy</p><p className="mt-1 text-xs leading-5 text-[#718078]">{noShowPolicy}</p></div></div>;
-  }
-
   if (!isSignedIn) {
     const redirect = encodeURIComponent(returnPath);
     return <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)]"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7eee2] text-2xl">🔒</span><p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-[#6a7c72]">Account required</p><h2 className="mt-2 text-2xl font-bold">Log in to book this service</h2><p className="mt-3 text-sm leading-6 text-[#6c7b74]">Every customer needs their own BubsBookings account so bookings, messages, and safety records stay with the right person.</p><div className="mt-6 grid gap-3"><Link href={`/login?redirect=${redirect}`} className="rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#315846]">Log in</Link><Link href={`/signup?redirect=${redirect}`} className="rounded-full bg-[#eee25a] px-6 py-3.5 text-sm font-bold transition hover:bg-[#e1d43d]">Create an account</Link></div></div>;
@@ -127,7 +129,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
       </div>
 
       <form onSubmit={checkAvailability} className="mt-7 space-y-3">
-        {bookingQuestions.map((question) => <label key={question} className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">{question}</span><textarea required value={answers[question] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [question]: event.target.value }))} maxLength={500} rows={2} className="w-full resize-none rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label>)}
+        {bookingQuestions.map((question) => <label key={question} className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">{question}</span><textarea required={!bookingDisabled} value={answers[question] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [question]: event.target.value }))} maxLength={500} rows={2} className="w-full resize-none rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label>)}
         <label className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Location</span>
           <input value={location} onChange={(event) => setLocation(event.target.value)} className="w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" />
@@ -160,6 +162,8 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         ) : (
           <button type="button" onClick={confirmRequest} disabled={loading || !time} className="mt-3 w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-55">{loading ? "Sending request…" : "Request this time"}</button>
         )}
+
+        {showFullyBooked && <div role="alert" className="rounded-2xl border border-[#e5d45a] bg-[#fff5cf] p-4 text-sm text-[#6d5d16]"><p className="font-bold text-[#183126]">This service is fully booked</p><p className="mt-1 leading-6">There are no appointments available right now. Please come back later to check for new availability.</p></div>}
       </form>
 
       <p className="mt-4 text-center text-xs leading-5 text-[#7c8a83]">No charge yet. The provider will confirm your request before the time is reserved. Text is checked by the BubsBookings Safety Bot.</p>
