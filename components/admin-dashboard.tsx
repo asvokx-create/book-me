@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import ProfileAvatar from "@/components/profile-avatar";
+import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 
 type AdminSection = "overview" | "reports" | "moderation" | "accounts" | "listings" | "reviews" | "payouts" | "audit";
 type Stats = {
@@ -23,7 +24,7 @@ type ModerationEvent = {
 type Account = {
   id: string; name: string; email: string; image: string | null; role: string; created_at: string;
   restriction_status: string | null; restriction_reason: string | null;
-  provider_id: string | null; business_name: string | null; provider_active: boolean | null;
+  provider_id: string | null; business_name: string | null; provider_plan: ProviderPlan | null; provider_active: boolean | null;
   phone_verified: boolean | null; identity_verified: boolean | null; business_verified: boolean | null;
 };
 type Listing = {
@@ -300,7 +301,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                   <div className="grid gap-4 2xl:grid-cols-[minmax(20rem,1fr)_minmax(0,2fr)] 2xl:items-center">
                     <div className="flex min-w-0 items-start gap-4 sm:items-center">
                       <ProfileAvatar name={account.name} imageUrl={account.image} className="h-12 w-12 shrink-0 text-sm" />
-                      <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{account.name}</h2><StatusPill value={account.restriction_status ?? "active"} /><span className="rounded-full bg-[#f0f1eb] px-2.5 py-1 text-[10px] font-bold uppercase">{account.role}</span></div><p className="mt-1 break-words text-sm text-[#718078] [overflow-wrap:anywhere]">{account.email}</p><p className="mt-1 text-xs text-[#8a9690]">Joined {formatDate(account.created_at)}{account.business_name ? " · " + account.business_name : ""}</p>{account.restriction_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Reason: {account.restriction_reason}</p>}</div>
+                      <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{account.name}</h2><StatusPill value={account.restriction_status ?? "active"} /><span className="rounded-full bg-[#f0f1eb] px-2.5 py-1 text-[10px] font-bold uppercase">{account.role}</span>{account.provider_plan && <span className="rounded-full bg-[#fff3c4] px-2.5 py-1 text-[10px] font-extrabold uppercase text-[#775f00]">{PLAN_ENTITLEMENTS[account.provider_plan].name}</span>}</div><p className="mt-1 break-words text-sm text-[#718078] [overflow-wrap:anywhere]">{account.email}</p><p className="mt-1 text-xs text-[#8a9690]">Joined {formatDate(account.created_at)}{account.business_name ? " · " + account.business_name : ""}</p>{account.restriction_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Reason: {account.restriction_reason}</p>}</div>
                     </div>
                     <div className="flex flex-wrap gap-2 2xl:justify-end">
                       <button disabled={busyId === account.id} onClick={() => void runAction({ action: "warn_account", targetId: account.id, needsReason: true, successText: "Warning sent to the account." })} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Warn</button>

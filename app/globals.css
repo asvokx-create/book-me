@@ -204,9 +204,11 @@ html[data-theme="dark"] :where(
 html[data-theme="dark"] :where(
   [class*="bg-[#faf"], [class*="bg-[#f8f"], [class*="bg-[#f7f"],
   [class*="bg-[#f6f"], [class*="bg-[#f5f"], [class*="bg-[#f4f"],
-  [class*="bg-[#f3f"], [class*="bg-[#f1f"], [class*="bg-[#eef"],
+  [class*="bg-[#f3f"], [class*="bg-[#f2f"], [class*="bg-[#f1f"],
+  [class*="bg-[#f0f"], [class*="bg-[#fff"], [class*="bg-[#eef"],
   [class*="bg-[#edf"], [class*="bg-[#e8f"], [class*="bg-[#e8e"],
-  [class*="bg-[#e5f"], [class*="bg-[#e5e"],
+  [class*="bg-[#e9f"], [class*="bg-[#e7f"], [class*="bg-[#e7e"],
+  [class*="bg-[#e6f"], [class*="bg-[#e6e"], [class*="bg-[#e5f"], [class*="bg-[#e5e"],
   [class*="bg-[#e4f"], [class*="bg-[#e3e"], [class*="bg-[#dfe"]
 ) {
   background-color: #15251e !important;
@@ -234,6 +236,32 @@ html[data-theme="dark"] :where(
   [class*="text-[#8"], [class*="text-zinc-500"]
 ) {
   color: #adbbb3 !important;
+}
+
+/* Preserve status meaning and contrast after pale light-mode badges become dark. */
+html[data-theme="dark"] :where(
+  [class*="text-[#34704a]"], [class*="text-[#35704a]"],
+  [class*="text-[#37724c]"], [class*="text-[#476452]"]
+) {
+  color: #8fd3a6 !important;
+}
+
+html[data-theme="dark"] :where(
+  [class*="bg-[#fff1"], [class*="bg-[#fff2"], [class*="bg-[#fff3"],
+  [class*="bg-[#fff4"], [class*="bg-[#fff5"], [class*="bg-[#fff6"],
+  [class*="bg-[#fff8"], [class*="bg-[#fff9"]
+) {
+  background-color: #3a3217 !important;
+  color: #f4df83 !important;
+  border-color: rgba(244, 223, 131, 0.28) !important;
+}
+
+html[data-theme="dark"] :where(
+  [class*="bg-[#fff0"], [class*="bg-[#f2e"], [class*="bg-[#f4d"]
+) {
+  background-color: #3a2420 !important;
+  color: #f0b8a6 !important;
+  border-color: rgba(240, 184, 166, 0.24) !important;
 }
 
 html[data-theme="dark"] :where([class*="border-[#183126]"]) {

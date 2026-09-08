@@ -49,7 +49,7 @@ async function loadDashboard() {
     database.query(
       `SELECT u.id, u.name, u.email, u.image, u.role, u."createdAt" AS created_at,
               ar.status AS restriction_status, ar.reason AS restriction_reason,
-              p.id::text AS provider_id, p.business_name, p.is_active AS provider_active,
+              p.id::text AS provider_id, p.business_name, p.plan AS provider_plan, p.is_active AS provider_active,
               p.phone_verified, p.identity_verified, p.business_verified
        FROM "user" u
        LEFT JOIN account_restrictions ar ON ar.user_id = u.id
