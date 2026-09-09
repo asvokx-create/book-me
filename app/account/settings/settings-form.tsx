@@ -33,6 +33,8 @@ export default function AccountSettings() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [securityBusy, setSecurityBusy] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
 
   useEffect(() => {
     if (!isPending && !session) router.replace("/login?redirect=/account/settings");
@@ -84,6 +86,27 @@ export default function AccountSettings() {
     setMessage("Password changed. Your other devices have been signed out.");
   }
 
+  async function requestEmailChange() {
+    setError(""); setMessage("");
+    const normalizedEmail = newEmail.trim().toLowerCase();
+    if (!normalizedEmail || normalizedEmail === settings.email.toLowerCase()) {
+      setError("Enter a different email address.");
+      return;
+    }
+    setEmailBusy(true);
+    const { error: authError } = await authClient.changeEmail({
+      newEmail: normalizedEmail,
+      callbackURL: "/account/settings?emailChanged=1",
+    });
+    setEmailBusy(false);
+    if (authError) {
+      setError(authError.message ?? "We could not start the email change.");
+      return;
+    }
+    setNewEmail("");
+    setMessage(`We sent a verification link to ${normalizedEmail}. Your current email stays active until you verify the new one.`);
+  }
+
   async function signOutOtherDevices() {
     setSecurityBusy(true); setError(""); setMessage("");
     const { error: authError } = await authClient.revokeOtherSessions();
@@ -103,7 +126,7 @@ export default function AccountSettings() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
         <form onSubmit={saveProfile} className="space-y-6">
-          <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Personal information</h2><p className="mt-1 text-sm text-[#738179]">This information stays connected to your bookings and messages.</p><ProfilePhotoManager name={settings.name} initialUrl={settings.imageUrl} onChange={(imageUrl) => { setSettings((current) => ({ ...current, imageUrl })); void refetch(); router.refresh(); }} /><div className="mt-6 grid gap-5 sm:grid-cols-2"><label className="text-sm font-bold">Full name<input required value={settings.name} onChange={(event) => setSettings({ ...settings, name: event.target.value })} autoComplete="name" className={inputClass} /></label><label className="text-sm font-bold">Phone number<input required value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} inputMode="tel" autoComplete="tel" placeholder="4255550123" className={inputClass} /></label><label className="text-sm font-bold sm:col-span-2">Email address<input readOnly value={settings.email} className={`${inputClass} cursor-not-allowed text-[#718078]`} /><span className="mt-2 block text-xs font-normal text-[#819087]">Contact support if you need to change the email that owns your account.</span></label></div></section>
+          <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Personal information</h2><p className="mt-1 text-sm text-[#738179]">This information stays connected to your bookings and messages.</p><ProfilePhotoManager name={settings.name} initialUrl={settings.imageUrl} onChange={(imageUrl) => { setSettings((current) => ({ ...current, imageUrl })); void refetch(); router.refresh(); }} /><div className="mt-6 grid gap-5 sm:grid-cols-2"><label className="text-sm font-bold">Full name<input required value={settings.name} onChange={(event) => setSettings({ ...settings, name: event.target.value })} autoComplete="name" className={inputClass} /></label><label className="text-sm font-bold">Phone number<input required value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} inputMode="tel" autoComplete="tel" placeholder="4255550123" className={inputClass} /></label><label className="text-sm font-bold sm:col-span-2">Current email address<input readOnly value={settings.email} className={`${inputClass} cursor-not-allowed text-[#718078]`} /></label></div><div className="mt-5 rounded-2xl bg-[#f5f5ef] p-4"><label className="text-sm font-bold">Change email address<input required type="email" autoComplete="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="you@yourbusiness.com" className={inputClass} /></label><p className="mt-2 text-xs leading-5 text-[#718078]">We will send a verification link to the new address. Your current email remains active until the link is confirmed.</p><button type="button" onClick={() => void requestEmailChange()} disabled={emailBusy || !newEmail.trim()} className="mt-3 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{emailBusy ? "Sending…" : "Send verification link"}</button></div></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Your default area</h2><p className="mt-1 text-sm text-[#738179]">BubsBookings will remember this area when you search for nearby services.</p><div className="mt-6 grid gap-5 sm:grid-cols-[1fr_120px_190px]"><label className="text-sm font-bold">City<input required value={settings.city} onChange={(event) => setSettings({ ...settings, city: event.target.value })} placeholder="Issaquah" className={inputClass} /></label><label className="text-sm font-bold">State<input required maxLength={2} value={settings.state} onChange={(event) => setSettings({ ...settings, state: event.target.value.toUpperCase() })} className={inputClass} /></label><div className="text-sm font-bold"><p>Search radius</p><span className="mt-2 block"><RadiusSelector value={settings.radius} onChange={(radius) => setSettings({ ...settings, radius })} /></span></div></div><p className="mt-3 text-xs text-[#718078]">Choose a common distance or select Custom to enter any whole number from 1 to 250 miles.</p></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Display and time</h2><p className="mt-1 text-sm text-[#738179]">Choose how BubsBookings looks and how booking times are displayed.</p><fieldset className="mt-6"><legend className="text-sm font-bold">Appearance</legend><div className="mt-2 grid grid-cols-3 gap-2">{(["light", "dark", "system"] as const).map((theme) => <button key={theme} type="button" aria-pressed={settings.theme === theme} onClick={() => { setSettings({ ...settings, theme }); applyThemePreference(theme); }} className={`rounded-2xl border px-3 py-3 text-sm font-bold capitalize transition ${settings.theme === theme ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-[#faf9f5] hover:bg-[#e5eddf]"}`}>{theme === "light" ? "☀ Light" : theme === "dark" ? "◐ Dark" : "◑ System"}</button>)}</div></fieldset><label className="mt-6 block text-sm font-bold">Time zone<select value={settings.timeZone} onChange={(event) => { const timeZone = event.target.value; setSettings({ ...settings, timeZone }); applyTimeZonePreference(timeZone); }} className={inputClass}><option value="auto">Automatic (device time zone)</option>{timeZones.map((timeZone) => <option key={timeZone} value={timeZone}>{timeZone.replaceAll("_", " ")}</option>)}</select><span className="mt-2 block text-xs font-normal leading-5 text-[#718078]">Automatic is recommended when you travel. A selected zone keeps booking times fixed to that location.</span></label></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Notification preferences</h2><p className="mt-1 text-sm text-[#738179]">Choose what appears in your BubsBookings notification center.</p><div className="mt-5 divide-y divide-[#183126]/10"><SettingToggle title="Booking updates" description="Requests, confirmations, changes, reminders, and cancellations." checked={settings.bookingNotifications} onChange={(checked) => setSettings({ ...settings, bookingNotifications: checked })} /><SettingToggle title="New messages" description="Messages sent between you and a customer or provider." checked={settings.messageNotifications} onChange={(checked) => setSettings({ ...settings, messageNotifications: checked })} /></div></section>

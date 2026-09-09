@@ -4,10 +4,13 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 
-const PRIMARY_ADMIN_EMAIL = "asvokx@gmail.com";
+const PRIMARY_ADMIN_EMAILS = new Set([
+  "asvokx@gmail.com",
+  "christian@bubsbookings.com",
+]);
 
 export function isOwnerEmail(email: string | null | undefined) {
-  return email?.trim().toLowerCase() === PRIMARY_ADMIN_EMAIL;
+  return Boolean(email && PRIMARY_ADMIN_EMAILS.has(email.trim().toLowerCase()));
 }
 
 function configuredAdminEmails() {
