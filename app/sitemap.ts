@@ -16,7 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const url = `${baseUrl}/locations/${serviceAreaSlug(area)}/${serviceCategorySlug(service.category)}`;
     return [[url, { url, changeFrequency: "daily" as const, priority: 0.85 }]] as const;
   })).values()];
-  const staticPages = ["", "/services", "/pricing", "/providers/join", "/locations", "/guides", "/terms", "/privacy", "/provider-agreement", "/ai-transparency"];
+  const staticPages = ["", "/services", "/pricing", "/providers/join", "/locations", "/guides", "/promise", "/terms", "/privacy", "/provider-agreement", "/ai-transparency"];
 
   return [
     ...staticPages.map((path) => ({ url: `${baseUrl}${path}`, changeFrequency: path === "" || path === "/services" ? "daily" as const : "monthly" as const, priority: path === "" ? 1 : path === "/services" ? 0.9 : 0.5 })),
