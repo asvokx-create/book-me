@@ -17,12 +17,11 @@ export async function generateMetadata({ params }: PageProps<"/services/[slug]">
   const { slug } = await params;
   const service = await getServiceBySlug(slug);
   if (!service) return {};
-  const stressTestService = service.isDemo;
   const description = `${service.title} in ${service.city}, ${service.state}. Starting at $${service.price}. ${service.description}`.slice(0, 160);
   return {
     title: `${service.title} in ${service.city}, ${service.state}`,
     description,
-    ...(stressTestService ? { robots: { index: false, follow: false } } : { alternates: { canonical: `/services/${service.slug}` } }),
+    alternates: { canonical: `/services/${service.slug}` },
     openGraph: { title: service.title, description, url: `/services/${service.slug}`, images: service.imageUrls[0] ? [service.imageUrls[0]] : undefined },
   };
 }
@@ -31,7 +30,6 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
   const { slug } = await params;
   const service = await getServiceBySlug(slug);
   if (!service) notFound();
-  const stressTestService = service.isDemo;
   const session = isAuthConfigured() ? await auth.api.getSession({ headers: await headers() }) : null;
 
   const visual = getServiceVisual(service.category);
@@ -52,7 +50,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
-      {!stressTestService && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span><span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span></Link>
@@ -61,20 +59,20 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
       </header>
 
       <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-12">
-        <Link href={stressTestService ? "/services#service-listings" : "/services"} className="inline-flex items-center gap-2 text-sm font-semibold text-[#5f7268] transition hover:text-[#183126]">← Back to services</Link>
+        <Link href="/services" className="inline-flex items-center gap-2 text-sm font-semibold text-[#5f7268] transition hover:text-[#183126]">← Back to services</Link>
         <div className="mt-7 grid gap-7 lg:grid-cols-[1.25fr_.75fr] lg:gap-10">
           <div>
-            <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-cover bg-center sm:h-[420px] ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!service.imageUrls[0] && <><div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" /><div className="absolute bottom-[-40%] left-[18%] h-[90%] w-[80%] rounded-[50%] border-[36px] border-white/20" /><span className="absolute bottom-8 right-10 text-8xl opacity-80 sm:text-9xl">{visual.art}</span></>}{!stressTestService && <><span className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-sm backdrop-blur">New listing</span><FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-6 top-6 z-10 grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-sm backdrop-blur" /></>}</div>
+            <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-cover bg-center sm:h-[420px] ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!service.imageUrls[0] && <><div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" /><div className="absolute bottom-[-40%] left-[18%] h-[90%] w-[80%] rounded-[50%] border-[36px] border-white/20" /><span className="absolute bottom-8 right-10 text-8xl opacity-80 sm:text-9xl">{visual.art}</span></>}<span className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-sm backdrop-blur">New listing</span><FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-6 top-6 z-10 grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-sm backdrop-blur" /></div>
             {service.imageUrls.length > 1 && <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{service.imageUrls.slice(1).map((url, index) => <div key={url} role="img" aria-label={`${service.title} photo ${index + 2}`} style={{ backgroundImage: `url("${url}")` }} className="aspect-[4/3] rounded-2xl bg-[#e5e8e2] bg-cover bg-center" />)}</div>}
             <div className="py-8">
               <p className="text-sm font-bold uppercase tracking-[.15em] text-[#6c7d74]">{localCategoryHref ? <Link href={localCategoryHref} className="hover:underline">{service.category} in {service.city}</Link> : service.category}</p>
               <h1 className="mt-3 text-4xl font-bold tracking-[-.045em] sm:text-5xl">{service.title}</h1>
-              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm"><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${service.city}, ${service.state}`)}`} target="_blank" rel="noreferrer" className="rounded-full px-2 py-1 text-[#718078] transition hover:bg-[#e5eddf] hover:text-[#183126]">📍 {service.city}, {service.state} · View map</a><span className="text-[#718078]">Offered by {stressTestService ? <strong className="text-[#183126]">{service.provider}</strong> : <Link href={service.companySlug ? `/companies/${service.companySlug}` : `/providers/${service.providerId}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{service.provider}</Link>}</span>{!stressTestService && service.profileScreened && <span className="rounded-full bg-[#edf2e9] px-3 py-1 text-xs font-bold text-[#4f6d5a]">✓ Profile screened</span>}{!stressTestService && service.emailVerified && <span className="rounded-full bg-[#e5f1e5] px-3 py-1 text-xs font-bold text-[#376447]">✓ Email verified</span>}{!stressTestService && service.businessVerified && <span className="rounded-full bg-[#fff3b0] px-3 py-1 text-xs font-bold text-[#735f16]">✓ Business profile checked</span>}{!stressTestService && <ContactProviderLink providerId={service.providerId} serviceId={service.id} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 font-bold text-[#183126] transition hover:border-[#597563] hover:bg-[#e5eddf]" />}</div>
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm"><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${service.city}, ${service.state}`)}`} target="_blank" rel="noreferrer" className="rounded-full px-2 py-1 text-[#718078] transition hover:bg-[#e5eddf] hover:text-[#183126]">📍 {service.city}, {service.state} · View map</a><span className="text-[#718078]">Offered by <Link href={service.companySlug ? `/companies/${service.companySlug}` : `/providers/${service.providerId}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{service.provider}</Link></span>{service.profileScreened && <span className="rounded-full bg-[#edf2e9] px-3 py-1 text-xs font-bold text-[#4f6d5a]">✓ Profile screened</span>}{service.emailVerified && <span className="rounded-full bg-[#e5f1e5] px-3 py-1 text-xs font-bold text-[#376447]">✓ Email verified</span>}{service.businessVerified && <span className="rounded-full bg-[#fff3b0] px-3 py-1 text-xs font-bold text-[#735f16]">✓ Business profile checked</span>}<ContactProviderLink providerId={service.providerId} serviceId={service.id} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 font-bold text-[#183126] transition hover:border-[#597563] hover:bg-[#e5eddf]" /></div>
               <p className="mt-7 max-w-2xl text-lg leading-8 text-[#5b6d64]">{service.description}</p>
               <div className="mt-10 border-t border-[#183126]/10 pt-9"><h2 className="text-2xl font-bold tracking-tight">Service details</h2><div className="mt-6 grid gap-4 sm:grid-cols-2"><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Estimated duration</p><p className="mt-2 font-bold">About {duration}</p><p className="mt-1 text-xs leading-5 text-[#718078]">Actual time may vary depending on the job.</p></div><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Starting price</p><p className="mt-2 font-bold">${service.price}</p></div></div><div className="mt-4 rounded-2xl border border-[#183126]/10 bg-white p-5"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Cancellation policy</p><p className="mt-2 text-sm leading-6 text-[#5f7067]">{service.cancellationPolicy}</p><p className="mt-2 text-xs font-semibold text-[#718078]">Standard notice window: {service.cancellationWindowHours} hours</p></div></div>
             </div>
           </div>
-          <aside><BookingCard serviceId={service.id} price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} bookingQuestions={service.bookingQuestions} isSignedIn={Boolean(session)} returnPath={`/services/${service.slug}`} cancellationPolicy={service.cancellationPolicy} cancellationWindowHours={service.cancellationWindowHours} noShowPolicy={service.noShowPolicy} bookingDisabled={stressTestService} /></aside>
+          <aside><BookingCard serviceId={service.id} price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} bookingQuestions={service.bookingQuestions} isSignedIn={Boolean(session)} returnPath={`/services/${service.slug}`} cancellationPolicy={service.cancellationPolicy} cancellationWindowHours={service.cancellationWindowHours} noShowPolicy={service.noShowPolicy} /></aside>
         </div>
       </div>
     </main>

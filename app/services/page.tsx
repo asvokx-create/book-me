@@ -6,7 +6,6 @@ import FavoriteButton from "@/components/favorite-button";
 import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORIES, SERVICE_CATEGORY_ICONS } from "@/lib/service-categories";
 import LocationFilter from "@/components/location-filter";
 import SortSelect from "@/components/sort-select";
-import { getStressTestServices } from "@/lib/stress-test-services";
 
 export const dynamic = "force-dynamic";
 
@@ -34,15 +33,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const maxPrice = Number(getParam(params.maxPrice)) || undefined;
   const maxDuration = Number(getParam(params.maxDuration)) || undefined;
   const sort = getParam(params.sort) || "nearest";
-  const realServices = await getServices({ query, category: selectedCategory, location, radiusMiles: radius, maxPrice, maxDuration, sort });
-  const demoServices = getStressTestServices().filter((service) => {
-    const searchText = `${service.title} ${service.category} ${service.provider} ${service.description}`.toLowerCase();
-    return (!query || searchText.includes(query.toLowerCase()))
-      && (selectedCategory === "All services" || service.category.toLowerCase() === selectedCategory.toLowerCase())
-      && (!maxPrice || service.price <= maxPrice)
-      && (!maxDuration || service.durationMinutes <= maxDuration);
-  });
-  const filteredServices = [...realServices, ...demoServices];
+  const filteredServices = await getServices({ query, category: selectedCategory, location, radiusMiles: radius, maxPrice, maxDuration, sort });
   if (sort === "price-low") filteredServices.sort((left, right) => left.price - right.price);
   else if (sort === "price-high") filteredServices.sort((left, right) => right.price - left.price);
   else if (sort === "nearest") filteredServices.sort((left, right) => (left.distanceMiles ?? 0) - (right.distanceMiles ?? 0));
@@ -157,7 +148,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                 <Link href={`/services/${service.slug}`} className="block">
                 <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${getServiceVisual(service.category).gradient}`}`}>
                   {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-                  {!service.isDemo && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>}
+                  <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>
                   {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{getServiceVisual(service.category).art}</span>}
                 </div>
                 <div className="p-6">
@@ -167,7 +158,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                   <p className="mt-2 text-sm text-[#6a7a72]">by {service.provider}</p>
                 </div>
                 </Link>
-                {!service.isDemo && <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />}
+                <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />
               </article>
             ))}
           </div>

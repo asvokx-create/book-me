@@ -6,19 +6,15 @@ import FavoriteButton from "@/components/favorite-button";
 import { FEATURED_SERVICE_CATEGORIES } from "@/lib/service-categories";
 import LocationFilter from "@/components/location-filter";
 import ServiceCategoryIcon from "@/components/service-category-icon";
-import { getStressTestServices } from "@/lib/stress-test-services";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 export default async function Home() {
-  const [realServices, realAllServices] = await Promise.all([
+  const [services, allServices] = await Promise.all([
     getServices({ location: "Issaquah, WA", limit: 3 }),
     getServices({ limit: 50 }),
   ]);
-  const demoServices = getStressTestServices();
-  const services = realServices.length ? realServices : demoServices.slice(0, 3);
-  const allServices = [...realAllServices, ...demoServices];
   return (
     <main className="min-h-screen overflow-hidden bg-[#f8f7f3] text-[#183126]">
       <header className="sticky top-0 z-50 border-b border-white/70 bg-[#f8f7f3]/82 backdrop-blur-xl">
@@ -152,12 +148,11 @@ export default async function Home() {
 
 function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: string }) {
   const visual = getServiceVisual(service.category);
-  const stressTestService = service.isDemo;
   return <article className="group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
     <Link href={`/services/${service.slug}`} className="block">
       <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
         {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-        {!stressTestService && badge && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{badge}</span>}
+        {badge && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{badge}</span>}
         {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80 transition duration-300 group-hover:scale-105">{visual.art}</span>}
       </div>
       <div className="p-5">
@@ -168,6 +163,6 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
         <div className="mt-5 flex items-center gap-2 text-sm text-zinc-500"><span>📍</span><span>{service.city}, {service.state}</span></div>
       </div>
     </Link>
-    {!stressTestService && <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />}
+    <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />
   </article>;
 }
