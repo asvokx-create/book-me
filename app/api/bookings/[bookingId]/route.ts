@@ -17,7 +17,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   const { bookingId } = await context.params;
   const result = await database.query<{
     id: string; customer_id: string; customer_name: string; provider_id: string; provider_user_id: string; provider_name: string; owner_name: string;
-    service_id: string; service_slug: string; service_title: string; category: string; starts_at: Date; ends_at: Date;
+    service_id: string; service_slug: string; service_title: string; service_location_id: string; category: string; starts_at: Date; ends_at: Date;
     service_address: string; notes: string; booking_answers: Record<string, string>; price_cents: number; status: string; cancelled_by: string | null;
     cancellation_reason: string | null; late_cancellation: boolean; cancellation_window_hours: number;
     cancellation_policy: string; completed_at: Date | null; conversation_id: string | null;
@@ -35,7 +35,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null;
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text, p.user_id AS provider_user_id,
-            s.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title,
+            s.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title, s.location_id::text AS service_location_id,
             s.category, b.starts_at, b.ends_at, b.service_address, b.notes, b.booking_answers, b.price_cents, b.status,
             b.cancelled_by, b.cancellation_reason, b.late_cancellation, p.cancellation_window_hours,
             p.cancellation_policy, b.completed_at, b.reschedule_requested_by,
@@ -82,8 +82,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   );
   const viewerRole = row.customer_id === session.user.id ? "customer" : row.provider_user_id === session.user.id ? "provider" : "worker";
   const team = viewerRole !== "provider" ? [] : (await database.query<{ id: string; name: string }>(
-    `SELECT id::text, name FROM provider_team_members
-     WHERE provider_id::text = $1 AND company_name = $2 AND status = 'active' ORDER BY name`, [row.provider_id, row.provider_name])).rows;
+    `SELECT member.id::text, member.name FROM provider_team_members member
+     JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id
+     WHERE member.provider_id::text = $1 AND assigned_location.location_id::text = $2 AND member.status = 'active' ORDER BY member.name`, [row.provider_id, row.service_location_id])).rows;
   return NextResponse.json({ booking: {
     id: row.id, viewerRole, customerName: row.customer_name,
     providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceSlug: row.service_slug,

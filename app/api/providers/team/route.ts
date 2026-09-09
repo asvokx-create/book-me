@@ -129,6 +129,13 @@ export async function POST(request: Request) {
        RETURNING id::text, created_at`,
       [provider.id, validCompany.rows[0].id, companyName, name, email, role],
     );
+    await client.query(
+      `INSERT INTO provider_team_member_locations (team_member_id, location_id)
+       SELECT $1::uuid, location.id FROM provider_locations location
+       WHERE location.company_id::text = $2 AND location.is_active = true
+       ON CONFLICT DO NOTHING`,
+      [result.rows[0].id, validCompany.rows[0].id],
+    );
     const activeCount = await client.query<{ count: number }>(
       "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",
       [provider.id],

@@ -49,6 +49,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as Record<string, unknown>;
   const business = typeof body.business === "string" ? body.business.trim() : "";
+  const requestedLocationId = typeof body.locationId === "string" ? body.locationId.trim() : "";
   const category = typeof body.category === "string" ? body.category.trim() : "";
   const serviceArea = typeof body.city === "string" ? body.city.trim() : "";
   const coordinates = getServiceAreaCoordinates(serviceArea);
@@ -146,12 +147,33 @@ export async function POST(request: Request) {
       `INSERT INTO provider_companies (provider_id, name, slug, bio, city, state, service_radius_miles, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, true)
        ON CONFLICT (provider_id, (lower(name))) DO UPDATE SET
-         bio = EXCLUDED.bio, city = EXCLUDED.city, state = EXCLUDED.state,
-         service_radius_miles = EXCLUDED.service_radius_miles, is_active = true, updated_at = now()
+         is_active = true, updated_at = now()
        RETURNING id::text`,
       [providerId, business, slugify(business), description, city, state, serviceRadiusMiles],
     );
     const companyId = companyResult.rows[0].id;
+
+    const savedLocation = requestedLocationId ? await client.query<{ id: string; city: string; state: string; latitude: number; longitude: number; service_radius_miles: number }>(
+      `SELECT location.id::text, location.city, location.state, location.latitude, location.longitude, location.service_radius_miles
+       FROM provider_locations location
+       WHERE location.id::text = $1 AND location.company_id::text = $2 AND location.is_active = true`,
+      [requestedLocationId, companyId],
+    ) : null;
+    if (requestedLocationId && !savedLocation?.rows[0]) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "Choose an active service location for this company." }, { status: 400 });
+    }
+    let serviceLocation = savedLocation?.rows[0];
+    if (!serviceLocation) {
+      const locationResult = await client.query<{ id: string; city: string; state: string; latitude: number; longitude: number; service_radius_miles: number }>(
+        `INSERT INTO provider_locations (company_id, name, city, state, latitude, longitude, service_radius_miles, is_primary)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOT EXISTS (SELECT 1 FROM provider_locations WHERE company_id = $1 AND is_active = true))
+         ON CONFLICT (company_id, (lower(name))) DO UPDATE SET is_active = true
+         RETURNING id::text, city, state, latitude, longitude, service_radius_miles`,
+        [companyId, `${city}, ${state}`, city, state, coordinates.latitude, coordinates.longitude, serviceRadiusMiles],
+      );
+      serviceLocation = locationResult.rows[0];
+    }
 
     const serviceLimit = PLAN_ENTITLEMENTS[plan].serviceLimit;
     if (serviceLimit !== null) {
@@ -163,10 +185,10 @@ export async function POST(request: Request) {
     }
 
     const serviceResult = await client.query<{ id: string }>(
-      `INSERT INTO services (provider_id, company_id, business_name, slug, category, title, description, price_cents, duration_minutes, city, state, latitude, longitude)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO services (provider_id, company_id, location_id, business_name, slug, category, title, description, price_cents, duration_minutes, city, state, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING id::text`,
-      [providerId, companyId, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration], city, state, coordinates.latitude, coordinates.longitude],
+      [providerId, companyId, serviceLocation.id, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration], serviceLocation.city, serviceLocation.state, serviceLocation.latitude, serviceLocation.longitude],
     );
 
     await client.query("DELETE FROM availability WHERE provider_id = $1 AND service_id = $2", [providerId, serviceResult.rows[0].id]);

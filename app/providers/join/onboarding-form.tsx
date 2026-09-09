@@ -16,8 +16,10 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [business, setBusiness] = useState("");
-  const [companies, setCompanies] = useState<Array<{ id: string; name: string; slug: string; location: string; serviceRadiusMiles: number; listingCount: number }>>([]);
+  type CompanyChoice = { id: string; name: string; slug: string; location: string; serviceRadiusMiles: number; listingCount: number; locations: Array<{ id: string; name: string; location: string; serviceRadiusMiles: number; primary?: boolean }> };
+  const [companies, setCompanies] = useState<CompanyChoice[]>([]);
   const [useNewCompany, setUseNewCompany] = useState(true);
+  const [locationId, setLocationId] = useState("");
   const [category, setCategory] = useState("");
   const [city, setCity] = useState("Issaquah, WA");
   const [serviceRadiusMiles, setServiceRadiusMiles] = useState("25");
@@ -38,13 +40,15 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   useEffect(() => {
     let active = true;
     fetch("/api/providers/companies", { cache: "no-store" })
-      .then(async (response) => response.ok ? response.json() as Promise<{ companies: Array<{ id: string; name: string; slug: string; location: string; serviceRadiusMiles: number; listingCount: number }> }> : null)
+      .then(async (response) => response.ok ? response.json() as Promise<{ companies: CompanyChoice[] }> : null)
       .then((data) => {
         if (!active || !data?.companies.length) return;
         setCompanies(data.companies);
         setBusiness(data.companies[0].name);
-        setCity(data.companies[0].location);
-        setServiceRadiusMiles(String(data.companies[0].serviceRadiusMiles));
+        const firstLocation = data.companies[0].locations?.find((item) => item.primary) ?? data.companies[0].locations?.[0];
+        setLocationId(firstLocation?.id ?? "");
+        setCity(firstLocation?.location ?? data.companies[0].location);
+        setServiceRadiusMiles(String(firstLocation?.serviceRadiusMiles ?? data.companies[0].serviceRadiusMiles));
         setUseNewCompany(false);
       })
       .catch(() => null);
@@ -105,7 +109,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
     const response = await fetch("/api/providers/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ business, category, city, serviceRadiusMiles: Number(serviceRadiusMiles), service, price, duration, description, selectedDays, startTime: open24Hours ? ALL_DAY_START_TIME : startTime, endTime: open24Hours ? ALL_DAY_END_TIME : endTime, plan, acceptedProviderAgreement }),
+      body: JSON.stringify({ business, locationId, category, city, serviceRadiusMiles: Number(serviceRadiusMiles), service, price, duration, description, selectedDays, startTime: open24Hours ? ALL_DAY_START_TIME : startTime, endTime: open24Hours ? ALL_DAY_END_TIME : endTime, plan, acceptedProviderAgreement }),
     });
     const result = (await response.json()) as { error?: string; serviceId?: string };
 
@@ -152,9 +156,9 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
 
       <form onSubmit={next} className="mt-8">
         {step === 1 && <div className="space-y-5">
-          {companies.length > 0 && <label className="block"><span className="mb-2 block text-sm font-bold">Company page</span><select value={useNewCompany ? "__new__" : business} onChange={(event) => { if (event.target.value === "__new__") { setUseNewCompany(true); setBusiness(""); } else { const company = companies.find((item) => item.name === event.target.value); setUseNewCompany(false); setBusiness(event.target.value); if (company) { setCity(company.location); setServiceRadiusMiles(String(company.serviceRadiusMiles)); } } }} className={inputClass}>{companies.map((company) => <option key={company.id} value={company.name}>{company.name} · {company.listingCount} {company.listingCount === 1 ? "listing" : "listings"}</option>)}<option value="__new__">+ Create another company page</option></select></label>}
+          {companies.length > 0 && <label className="block"><span className="mb-2 block text-sm font-bold">Company page</span><select value={useNewCompany ? "__new__" : business} onChange={(event) => { if (event.target.value === "__new__") { setUseNewCompany(true); setBusiness(""); setLocationId(""); } else { const company = companies.find((item) => item.name === event.target.value); const firstLocation = company?.locations?.find((item) => item.primary) ?? company?.locations?.[0]; setUseNewCompany(false); setBusiness(event.target.value); setLocationId(firstLocation?.id ?? ""); if (company) { setCity(firstLocation?.location ?? company.location); setServiceRadiusMiles(String(firstLocation?.serviceRadiusMiles ?? company.serviceRadiusMiles)); } } }} className={inputClass}>{companies.map((company) => <option key={company.id} value={company.name}>{company.name} · {company.listingCount} {company.listingCount === 1 ? "listing" : "listings"}</option>)}<option value="__new__">+ Create another company page</option></select></label>}
           {(useNewCompany || companies.length === 0) && <label className="block"><span className="mb-2 block text-sm font-bold">Company name</span><input value={business} onChange={(event) => setBusiness(event.target.value)} placeholder="e.g. Canela" className={inputClass} /><span className="mt-2 block text-xs text-[#74827b]">This creates the main public page that holds the company&apos;s listings, team, and identity.</span></label>}
-          <label className="block"><span className="mb-2 block text-sm font-bold">Service area</span><select value={city} onChange={(event) => setCity(event.target.value)} className={inputClass}>{SERVICE_AREAS.map((area) => { const label = serviceAreaLabel(area); return <option key={label} value={label}>{label}</option>; })}</select><span className="mt-2 block text-xs text-[#74827b]">BubsBookings uses this verified city coordinate to calculate customer distance and radius results.</span></label>
+          {!useNewCompany && (companies.find((item) => item.name === business)?.locations.length ?? 0) > 0 ? <label className="block"><span className="mb-2 block text-sm font-bold">Service location</span><select value={locationId} onChange={(event) => { const company = companies.find((item) => item.name === business); const selected = company?.locations.find((item) => item.id === event.target.value); setLocationId(event.target.value); if (selected) { setCity(selected.location); setServiceRadiusMiles(String(selected.serviceRadiusMiles)); } }} className={inputClass}>{companies.find((item) => item.name === business)?.locations.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.location}</option>)}</select><span className="mt-2 block text-xs text-[#74827b]">Add or edit branches from Service locations in your dashboard.</span></label> : <label className="block"><span className="mb-2 block text-sm font-bold">Primary service area</span><select value={city} onChange={(event) => setCity(event.target.value)} className={inputClass}>{SERVICE_AREAS.map((area) => { const label = serviceAreaLabel(area); return <option key={label} value={label}>{label}</option>; })}</select><span className="mt-2 block text-xs text-[#74827b]">This becomes the company&apos;s first service location.</span></label>}
           <div className="block"><p className="mb-2 text-sm font-bold">Working radius</p><RadiusSelector value={Number(serviceRadiusMiles)} onChange={(value) => setServiceRadiusMiles(String(value))} /><span className="mt-2 block text-xs text-[#74827b]">Choose a common distance or enter a custom whole number from 1 to 250 miles. Your listings appear only to customers searching within this distance.</span></div>
         </div>}
 

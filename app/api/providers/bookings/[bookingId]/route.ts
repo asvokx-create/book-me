@@ -56,12 +56,12 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       id: string; provider_id: string; service_id: string; starts_at: Date; ends_at: Date; status: string;
       customer_id: string; customer_name: string; service_title: string; service_business_name: string;
       reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null;
-      assigned_team_member_id: string | null; quote_status: string; payment_status: string; payment_flow: string | null;
+      assigned_team_member_id: string | null; quote_status: string; payment_status: string; payment_flow: string | null; service_location_id: string;
     }>(
       `SELECT b.id::text, b.provider_id::text, b.service_id::text, b.starts_at, b.ends_at, b.status,
               b.customer_id, u.name AS customer_name, s.title AS service_title, s.business_name AS service_business_name,
               b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.assigned_team_member_id::text,
-              b.quote_status, b.payment_status, b.payment_flow
+              b.quote_status, b.payment_status, b.payment_flow, s.location_id::text AS service_location_id
        FROM bookings b
        JOIN provider_profiles p ON p.id = b.provider_id
        JOIN services s ON s.id = b.service_id
@@ -100,7 +100,9 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         const memberId = selectedId === "owner" ? null : selectedId;
         let assigneeName = session.user.name || "Company owner";
         if (memberId) {
-          const member = await client.query<{ name: string }>("SELECT name FROM provider_team_members WHERE id::text = $1 AND provider_id::text = $2 AND company_name = $3 AND status = 'active'", [memberId, booking.provider_id, booking.service_business_name]);
+          const member = await client.query<{ name: string }>(`SELECT member.name FROM provider_team_members member
+            JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id
+            WHERE member.id::text = $1 AND member.provider_id::text = $2 AND assigned_location.location_id::text = $3 AND member.status = 'active'`, [memberId, booking.provider_id, booking.service_location_id]);
           if (!member.rows[0]) { await client.query("ROLLBACK"); return NextResponse.json({ error: "Worker not found." }, { status: 404 }); }
           assigneeName = member.rows[0].name;
         }
@@ -109,11 +111,12 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
             AND (a.service_id::text = $5 OR (a.service_id IS NULL AND NOT EXISTS (SELECT 1 FROM availability configured WHERE configured.provider_id = a.provider_id AND configured.service_id::text = $5)))
           UNION ALL SELECT worker.weekday, worker.start_time, worker.end_time, worker.timezone FROM team_member_availability worker
             JOIN provider_team_members member ON member.id = worker.team_member_id
+            JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id
             WHERE member.provider_id::text = $1 AND member.id = $4::uuid AND member.status = 'active'
-              AND member.company_name = $6
+              AND assigned_location.location_id = (SELECT location_id FROM services WHERE id::text = $5)
         ) SELECT 1 FROM hours WHERE weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE timezone)
           AND ($2::timestamptz AT TIME ZONE timezone)::time >= start_time AND ($3::timestamptz AT TIME ZONE timezone)::time <= end_time LIMIT 1`,
-          [booking.provider_id, booking.starts_at, booking.ends_at, memberId, booking.service_id, booking.service_business_name]);
+          [booking.provider_id, booking.starts_at, booking.ends_at, memberId, booking.service_id]);
         const conflict = await client.query(`SELECT 1 FROM bookings existing
           JOIN booking_assignees assigned ON assigned.booking_id = existing.id
           WHERE existing.provider_id::text = $1 AND existing.id::text <> $2 AND existing.status = 'confirmed'

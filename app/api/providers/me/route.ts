@@ -58,15 +58,21 @@ export async function GET() {
     price_cents: number;
     duration_minutes: number;
     image_urls: string[] | null;
+    location_id: string;
+    location_name: string;
+    city: string;
+    state: string;
   }>(
     `SELECT s.id::text, s.company_id::text, company.slug AS company_slug, company.name AS business_name,
             s.slug, s.title, s.category, s.price_cents, s.duration_minutes,
+            location.id::text AS location_id, location.name AS location_name, location.city, location.state,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_companies company ON company.id = s.company_id AND company.is_active = true
+     JOIN provider_locations location ON location.id = s.location_id AND location.is_active = true
      WHERE s.provider_id::text = $1 AND s.is_active = true
        AND ($2::text IS NULL OR company.name = $2)
      ORDER BY s.created_at DESC`,
@@ -83,6 +89,9 @@ export async function GET() {
     price: service.price_cents / 100,
     durationMinutes: service.duration_minutes,
     imageUrls: service.image_urls ?? [],
+    locationId: service.location_id,
+    locationName: service.location_name,
+    location: `${service.city}, ${service.state}`,
   }));
   const availabilityResult = await database.query<{
     service_id: string | null;
