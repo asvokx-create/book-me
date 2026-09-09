@@ -9,6 +9,7 @@ import { getStripeMode } from "@/lib/stripe";
 import { recordAnalytics } from "@/lib/analytics";
 import { refundUnreleasedBooking } from "@/lib/payment-release";
 import { unavailableBookingProfessionals } from "@/lib/booking-staff";
+import { CUSTOMER_SERVICE_FEE_CENTS } from "@/lib/booking-fees";
 
 export async function GET(_request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -29,6 +30,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     refund_status: "none" | "requested" | "processing" | "refunded" | "rejected" | "failed";
     refund_reason: string | null; refund_amount_cents: number | null; refunded_amount_cents: number;
     refund_failure_reason: string | null; payment_release_status: string; platform_fee_cents: number;
+    customer_service_fee_cents: number; customer_service_fee_refunded_cents: number;
     provider_payout_cents: number; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
     payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null;
   }>(
@@ -42,6 +44,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             b.payment_status, b.paid_at, b.stripe_mode, b.refund_status, b.refund_reason,
             b.refund_amount_cents, b.refunded_amount_cents, b.refund_failure_reason,
             b.payment_release_status, b.platform_fee_cents, b.provider_payout_cents,
+            b.customer_service_fee_cents, b.customer_service_fee_refunded_cents,
             b.completion_confirmation_due_at, b.customer_confirmed_at, b.payout_released_at,
             b.payout_failure_reason, b.payout_freeze_reason,
             b.assigned_team_member_id::text, owner.name AS owner_name, COALESCE(member.name, owner.name) AS assignee_name,
@@ -85,7 +88,12 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     id: row.id, viewerRole, customerName: row.customer_name,
     providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceSlug: row.service_slug,
     serviceTitle: row.service_title, category: row.category, startsAt: row.starts_at, endsAt: row.ends_at,
-    location: row.service_address, notes: row.notes, bookingAnswers: row.booking_answers ?? {}, price: row.price_cents / 100, status: row.status,
+    location: row.service_address, notes: row.notes, bookingAnswers: row.booking_answers ?? {}, price: row.price_cents / 100,
+    customerServiceFee: (["paid", "refunded"] as string[]).includes(row.payment_status)
+      ? row.customer_service_fee_cents / 100
+      : CUSTOMER_SERVICE_FEE_CENTS / 100,
+    customerServiceFeeRefunded: row.customer_service_fee_refunded_cents / 100,
+    status: row.status,
     cancelledBy: row.cancelled_by, cancellationReason: row.cancellation_reason, completedAt: row.completed_at,
     lateCancellation: row.late_cancellation, cancellationWindowHours: row.cancellation_window_hours,
     cancellationPolicy: row.cancellation_policy,

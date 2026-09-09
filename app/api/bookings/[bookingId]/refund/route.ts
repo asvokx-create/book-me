@@ -33,11 +33,13 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
     stripe_mode: "test" | "live" | null; plan: ProviderPlan;
     payment_flow: string | null; payment_release_status: string; provider_payout_cents: number;
     platform_fee_cents: number; stripe_transfer_id: string | null; stripe_transfer_reversed_cents: number; refunded_amount_cents: number;
+    customer_service_fee_cents: number; customer_service_fee_refunded_cents: number;
     booking_status: string;
   }>(`SELECT b.id::text, b.customer_id, p.user_id AS provider_user_id, s.business_name AS provider_name,
       s.title AS service_title, b.price_cents, b.payment_status, b.refund_status,
       b.stripe_payment_intent_id, b.stripe_mode, p.plan, b.payment_flow, b.payment_release_status,
       b.provider_payout_cents, b.platform_fee_cents, b.stripe_transfer_id, b.stripe_transfer_reversed_cents, b.refunded_amount_cents,
+      b.customer_service_fee_cents, b.customer_service_fee_refunded_cents,
       b.status AS booking_status
     FROM bookings b JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
     WHERE b.id::text = $1`, [bookingId]);
@@ -99,15 +101,19 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
   try {
     const legacyDestinationCharge = booking.payment_flow !== "held_transfer_v1";
     const hasApplicationFee = legacyDestinationCharge && PLAN_ENTITLEMENTS[booking.plan].bookingFeePercent > 0;
+    const totalRefunded = booking.refunded_amount_cents + amountCents;
+    const fullyRefunded = totalRefunded >= booking.price_cents;
+    const serviceFeeRefund = fullyRefunded
+      ? Math.max(0, booking.customer_service_fee_cents - booking.customer_service_fee_refunded_cents)
+      : 0;
+    const stripeRefundAmount = amountCents + serviceFeeRefund;
     const refund = await getStripe().refunds.create({
       payment_intent: booking.stripe_payment_intent_id,
-      amount: amountCents,
+      amount: stripeRefundAmount,
       ...(legacyDestinationCharge ? { reverse_transfer: true } : {}),
       ...(hasApplicationFee ? { refund_application_fee: true } : {}),
       metadata: { bookingId, approvedBy: session.user.id },
-    }, { idempotencyKey: `booking-refund-${bookingId}-total-${booking.refunded_amount_cents + amountCents}` });
-    const totalRefunded = booking.refunded_amount_cents + amountCents;
-    const fullyRefunded = totalRefunded >= booking.price_cents;
+    }, { idempotencyKey: `booking-refund-${bookingId}-total-${booking.refunded_amount_cents + booking.customer_service_fee_refunded_cents + stripeRefundAmount}` });
     let reversalFailure = "";
     let reversedCents = booking.stripe_transfer_reversed_cents;
     const originalProviderShare = booking.price_cents - booking.platform_fee_cents;
@@ -133,7 +139,9 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
       ? Math.max(0, Math.round(originalProviderShare * (booking.price_cents - totalRefunded) / booking.price_cents))
       : booking.provider_payout_cents;
     await database.query(`UPDATE bookings SET refund_status = 'refunded', stripe_refund_id = $2,
-      refunded_amount_cents = $3, refunded_at = now(), payment_status = CASE WHEN $4 THEN 'refunded' ELSE payment_status END,
+      refunded_amount_cents = $3,
+      customer_service_fee_refunded_cents = customer_service_fee_refunded_cents + $8,
+      refunded_at = now(), payment_status = CASE WHEN $4 THEN 'refunded' ELSE payment_status END,
       provider_payout_cents = $5, stripe_transfer_reversed_cents = $6,
       payment_release_status = CASE
         WHEN $4 THEN 'reversed'
@@ -142,15 +150,15 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
         ELSE 'secured' END,
       payout_frozen_at = NULL, payout_frozen_by = NULL, payout_freeze_reason = NULL,
       payout_failure_reason = NULLIF($7, '')
-      WHERE id::text = $1`, [bookingId, refund.id, totalRefunded, fullyRefunded, adjustedHeldPayout, reversedCents, reversalFailure]);
+      WHERE id::text = $1`, [bookingId, refund.id, totalRefunded, fullyRefunded, adjustedHeldPayout, reversedCents, reversalFailure, serviceFeeRefund]);
     await database.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message, metadata)
-      VALUES ($1::uuid, $2, 'refunded', $3, jsonb_build_object('amountCents', $4, 'stripeRefundId', $5))`, [bookingId, session.user.id, `$${(amountCents / 100).toFixed(2)} refund approved through Stripe.`, amountCents, refund.id]);
+      VALUES ($1::uuid, $2, 'refunded', $3, jsonb_build_object('amountCents', $4, 'serviceFeeRefundCents', $5, 'stripeRefundId', $6))`, [bookingId, session.user.id, `$${(stripeRefundAmount / 100).toFixed(2)} refund approved through Stripe.`, stripeRefundAmount, serviceFeeRefund, refund.id]);
     await database.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
       VALUES ($1, $2::uuid, 'refund_approved', 'Refund approved', $3, '/account/bookings/' || $2::uuid::text,
-      'refund-approved-' || $2::uuid::text || '-' || extract(epoch from now())::bigint)`, [booking.customer_id, bookingId, `${booking.provider_name} approved a $${(amountCents / 100).toFixed(2)} refund. Stripe will return it to the original payment method.`]);
-    await recordActivity({ userId: session.user.id, action: "refund_approved", targetType: "booking", targetId: bookingId, metadata: { amountCents } });
-    await recordAnalytics({ eventName: "refund_completed", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { amountCents } });
-    return NextResponse.json({ ok: true, amount: amountCents / 100, reversalNeedsReview: Boolean(reversalFailure) });
+      'refund-approved-' || $2::uuid::text || '-' || extract(epoch from now())::bigint)`, [booking.customer_id, bookingId, `${booking.provider_name} approved a $${(stripeRefundAmount / 100).toFixed(2)} refund. Stripe will return it to the original payment method.`]);
+    await recordActivity({ userId: session.user.id, action: "refund_approved", targetType: "booking", targetId: bookingId, metadata: { amountCents: stripeRefundAmount, serviceFeeRefundCents: serviceFeeRefund } });
+    await recordAnalytics({ eventName: "refund_completed", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { amountCents: stripeRefundAmount, serviceFeeRefundCents: serviceFeeRefund } });
+    return NextResponse.json({ ok: true, amount: stripeRefundAmount / 100, reversalNeedsReview: Boolean(reversalFailure) });
   } catch (error) {
     console.error("Stripe refund failed", error);
     await database.query("UPDATE bookings SET refund_status = 'failed', refund_failure_reason = 'Stripe could not complete this refund. Try again or contact support.' WHERE id::text = $1", [bookingId]);

@@ -40,12 +40,14 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
     chargeId = idOf(paymentIntent.latest_charge);
   }
   const heldTransfer = checkout.metadata.paymentFlow === "held_transfer_v1";
+  const customerServiceFeeCents = Math.max(0, Number.parseInt(checkout.metadata.customerServiceFeeCents ?? "0", 10) || 0);
   const updated = await database.query(`UPDATE bookings SET payment_status = 'paid', stripe_payment_intent_id = $2,
       stripe_charge_id = $5, stripe_mode = $4, paid_at = now(),
+      customer_service_fee_cents = $7,
       payment_release_status = CASE WHEN $6 THEN 'secured' ELSE 'paid_out' END,
       payout_released_at = CASE WHEN $6 THEN NULL ELSE now() END
     WHERE id::text = $1 AND stripe_checkout_session_id = $3 AND stripe_mode = $4 AND payment_status <> 'paid'
-    RETURNING id`, [checkout.metadata.bookingId, paymentIntentId, checkout.id, getStripeMode(), chargeId, heldTransfer]);
+    RETURNING id`, [checkout.metadata.bookingId, paymentIntentId, checkout.id, getStripeMode(), chargeId, heldTransfer, customerServiceFeeCents]);
   if (!updated.rowCount) return;
   await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
     VALUES ($1::uuid, 'payment_received', 'Secure payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);
@@ -96,7 +98,10 @@ async function processEvent(event: Stripe.Event) {
       const charge = event.data.object;
       await database.query(`UPDATE bookings SET
         payment_status = CASE WHEN $3 THEN 'refunded' ELSE payment_status END,
-        refund_status = 'refunded', refunded_amount_cents = $4, refunded_at = now()
+        refund_status = 'refunded',
+        refunded_amount_cents = LEAST(price_cents, $4),
+        customer_service_fee_refunded_cents = LEAST(customer_service_fee_cents, GREATEST($4 - price_cents, 0)),
+        refunded_at = now()
         WHERE stripe_payment_intent_id = $1 AND stripe_mode = $2`, [idOf(charge.payment_intent), getStripeMode(), charge.refunded, charge.amount_refunded]);
       break;
     }

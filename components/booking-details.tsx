@@ -22,6 +22,8 @@ type Booking = {
   notes: string;
   bookingAnswers: Record<string, string>;
   price: number;
+  customerServiceFee: number;
+  customerServiceFeeRefunded: number;
   paymentStatus: "unpaid" | "pending" | "paid" | "refunded" | "failed";
   paidAt: string | null;
   paymentRelease: {
@@ -186,7 +188,8 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       if (entered === null) return;
       amount = Number(entered);
       if (!Number.isFinite(amount)) { setError("Enter a valid refund amount."); return; }
-      if (!window.confirm(`Approve a $${amount.toFixed(2)} refund to the original payment method?`)) return;
+      const returnsServiceFee = amount >= booking.price - booking.refund.refundedAmount && booking.customerServiceFee > booking.customerServiceFeeRefunded;
+      if (!window.confirm(`Approve a $${amount.toFixed(2)} service refund to the original payment method?${returnsServiceFee ? ` The $${(booking.customerServiceFee - booking.customerServiceFeeRefunded).toFixed(2)} service fee will also be returned.` : ""}`)) return;
     }
     if (action === "reject") {
       reason = window.prompt("Why are you declining this refund request?")?.trim() ?? "";
@@ -264,6 +267,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
   const canCancel = booking.status === "requested" || booking.status === "confirmed";
   const canComplete = booking.viewerRole === "provider" && booking.status === "confirmed";
   const releaseCopy = paymentReleaseCopy(booking, timeZone);
+  const customerPaymentTotal = booking.price + booking.customerServiceFee;
   const selectedProfessionalIds = booking.assignedProfessionals.map((professional) => professional.memberId ?? "owner");
   const toggleProfessional = (memberId: string, checked: boolean) => {
     const next = checked
@@ -308,7 +312,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           <div className="mt-5 grid gap-3">
             {booking.viewerRole === "worker" && <p className="rounded-2xl bg-[#edf2e8] p-4 text-sm leading-6 text-[#52665b]">This is an assigned company job. The company owner manages customer messages, booking changes, and payments.</p>}
             {booking.viewerRole !== "worker" && <Link href={contactHref} className="rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]">✉ Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>}
-            {booking.viewerRole === "customer" && booking.status === "confirmed" && booking.paymentStatus !== "paid" && booking.paymentStatus !== "refunded" && <button disabled={working} onClick={() => void payForBooking()} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Opening Stripe…" : `Pay $${booking.price.toLocaleString()} securely`}</button>}
+            {booking.viewerRole === "customer" && booking.status === "confirmed" && booking.paymentStatus !== "paid" && booking.paymentStatus !== "refunded" && <div className="rounded-2xl border border-[#183126]/10 bg-[#f7f8f3] p-4"><div className="space-y-2 text-sm"><div className="flex justify-between gap-4 text-[#61736a]"><span>Service</span><span>${booking.price.toFixed(2)}</span></div><div className="flex justify-between gap-4 text-[#61736a]"><span>BubsBookings service fee</span><span>${booking.customerServiceFee.toFixed(2)}</span></div><div className="flex justify-between gap-4 border-t border-[#183126]/10 pt-2 font-bold"><span>Total due at checkout</span><span>${customerPaymentTotal.toFixed(2)}</span></div></div><button disabled={working} onClick={() => void payForBooking()} className="mt-4 w-full rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Opening Stripe…" : `Pay $${customerPaymentTotal.toFixed(2)} securely`}</button><p className="mt-2 text-center text-xs leading-5 text-[#7b8982]">You are charged only when you complete payment in Stripe.</p></div>}
             {booking.paymentStatus === "paid" && <div className="rounded-2xl bg-[#e6f2e6] px-4 py-3 text-center text-sm font-bold text-[#34704a]">✓ {releaseCopy.label}</div>}
             {booking.viewerRole === "customer" && (booking.paymentRelease.status === "awaiting_customer" || (booking.paymentRelease.status === "failed" && Boolean(booking.paymentRelease.customerConfirmedAt))) && <button disabled={working} onClick={() => void confirmCompletion()} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Releasing payout…" : booking.paymentRelease.status === "failed" ? "Retry payout release" : "Confirm service complete"}</button>}
             {booking.viewerRole === "customer" && booking.paymentStatus === "paid" && !["requested", "processing", "refunded"].includes(booking.refund.status) && <button disabled={working} onClick={() => void refundAction("request")} className="rounded-full border border-[#9b4e3a]/25 px-5 py-3 text-sm font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Request a refund</button>}

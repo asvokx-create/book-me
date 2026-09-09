@@ -7,6 +7,7 @@ import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getStripe, getStripeMode, isStripeReady } from "@/lib/stripe";
 import { enforceRateLimit } from "@/lib/request-security";
 import { recordAnalytics } from "@/lib/analytics";
+import { BOOKING_CHECKOUT_VERSION, CUSTOMER_SERVICE_FEE_CENTS } from "@/lib/booking-fees";
 
 export async function POST(request: Request, context: RouteContext<"/api/stripe/bookings/[bookingId]/checkout">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -37,7 +38,12 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
   const stripe = getStripe();
   if (booking.stripe_mode === mode && booking.payment_status === "pending" && booking.stripe_checkout_session_id) {
     const existing = await stripe.checkout.sessions.retrieve(booking.stripe_checkout_session_id);
-    if (existing.status === "open" && existing.url && existing.metadata?.paymentFlow === "held_transfer_v1") return NextResponse.json({ url: existing.url });
+    if (existing.status === "open" && existing.url
+      && existing.metadata?.paymentFlow === "held_transfer_v1"
+      && existing.metadata?.checkoutVersion === BOOKING_CHECKOUT_VERSION
+      && existing.metadata?.customerServiceFeeCents === String(CUSTOMER_SERVICE_FEE_CENTS)) {
+      return NextResponse.json({ url: existing.url });
+    }
     if (existing.status === "open") await stripe.checkout.sessions.expire(existing.id).catch(() => undefined);
   }
   const account = await stripe.accounts.retrieve(booking.stripe_account_id);
@@ -56,22 +62,26 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     mode: "payment",
     customer: customerId,
     saved_payment_method_options: { payment_method_save: "enabled" },
-    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: booking.price_cents, product_data: { name: booking.title, description: `Service from ${booking.provider_name}` } } }],
+    line_items: [
+      { quantity: 1, price_data: { currency: "usd", unit_amount: booking.price_cents, product_data: { name: booking.title, description: `Service from ${booking.provider_name}` } } },
+      { quantity: 1, price_data: { currency: "usd", unit_amount: CUSTOMER_SERVICE_FEE_CENTS, product_data: { name: "BubsBookings service fee", description: "Secure marketplace checkout and booking support" } } },
+    ],
     payment_intent_data: {
       transfer_group: `booking_${booking.id}`,
-      metadata: { kind: "booking_payment", bookingId: booking.id, paymentFlow: "held_transfer_v1" },
+      metadata: { kind: "booking_payment", bookingId: booking.id, paymentFlow: "held_transfer_v1", checkoutVersion: BOOKING_CHECKOUT_VERSION, customerServiceFeeCents: String(CUSTOMER_SERVICE_FEE_CENTS) },
     },
     success_url: `${origin}/account/bookings/${booking.id}?payment=success`,
     cancel_url: `${origin}/account/bookings/${booking.id}?payment=cancelled`,
-    metadata: { kind: "booking_payment", bookingId: booking.id, paymentFlow: "held_transfer_v1" },
+    metadata: { kind: "booking_payment", bookingId: booking.id, paymentFlow: "held_transfer_v1", checkoutVersion: BOOKING_CHECKOUT_VERSION, customerServiceFeeCents: String(CUSTOMER_SERVICE_FEE_CENTS) },
   });
   await database.query(`UPDATE bookings SET stripe_checkout_session_id = $2, stripe_payment_intent_id = NULL,
     stripe_charge_id = NULL, stripe_transfer_id = NULL, stripe_mode = $3, payment_status = 'pending',
     payment_flow = 'held_transfer_v1', payment_release_status = 'awaiting_payment',
-    platform_fee_cents = $4, provider_payout_cents = $5, paid_at = NULL,
+    platform_fee_cents = $4, provider_payout_cents = $5, customer_service_fee_cents = $6,
+    customer_service_fee_refunded_cents = 0, paid_at = NULL,
     completion_confirmation_due_at = NULL, customer_confirmed_at = NULL, payout_released_at = NULL,
     payout_failure_reason = NULL, payout_frozen_at = NULL, payout_frozen_by = NULL, payout_freeze_reason = NULL
-    WHERE id::text = $1`, [booking.id, checkout.id, mode, fee, providerPayout]);
-  await recordAnalytics({ eventName: "checkout_started", userId: session.user.id, targetType: "booking", targetId: booking.id, metadata: { amountCents: booking.price_cents } });
+    WHERE id::text = $1`, [booking.id, checkout.id, mode, fee, providerPayout, CUSTOMER_SERVICE_FEE_CENTS]);
+  await recordAnalytics({ eventName: "checkout_started", userId: session.user.id, targetType: "booking", targetId: booking.id, metadata: { serviceAmountCents: booking.price_cents, customerServiceFeeCents: CUSTOMER_SERVICE_FEE_CENTS, amountCents: booking.price_cents + CUSTOMER_SERVICE_FEE_CENTS } });
   return NextResponse.json({ url: checkout.url });
 }

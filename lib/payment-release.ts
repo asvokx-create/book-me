@@ -90,6 +90,7 @@ export async function refundUnreleasedBooking(bookingId: string, reason: string)
   const claimed = await database.query<{
     customer_id: string; provider_name: string; service_title: string; stripe_payment_intent_id: string;
     price_cents: number; refunded_amount_cents: number;
+    customer_service_fee_cents: number; customer_service_fee_refunded_cents: number;
   }>(`UPDATE bookings b SET refund_status = 'processing', refund_reason = $2,
       refund_requested_at = COALESCE(b.refund_requested_at, now()),
       refund_amount_cents = b.price_cents - b.refunded_amount_cents,
@@ -98,12 +99,16 @@ export async function refundUnreleasedBooking(bookingId: string, reason: string)
     WHERE b.id::text = $1 AND p.id = b.provider_id AND s.id = b.service_id
       AND b.payment_flow = 'held_transfer_v1' AND b.payment_status = 'paid'
       AND b.stripe_mode = $3 AND b.stripe_payment_intent_id IS NOT NULL AND b.stripe_transfer_id IS NULL
-      AND b.refunded_amount_cents < b.price_cents AND b.refund_status <> 'processing'
+      AND (b.refunded_amount_cents < b.price_cents
+        OR b.customer_service_fee_refunded_cents < b.customer_service_fee_cents)
+      AND b.refund_status <> 'processing'
     RETURNING b.customer_id, s.business_name AS provider_name, s.title AS service_title,
-      b.stripe_payment_intent_id, b.price_cents, b.refunded_amount_cents`, [bookingId, reason, getStripeMode()]);
+      b.stripe_payment_intent_id, b.price_cents, b.refunded_amount_cents,
+      b.customer_service_fee_cents, b.customer_service_fee_refunded_cents`, [bookingId, reason, getStripeMode()]);
   const booking = claimed.rows[0];
   if (!booking) return { ok: true, refunded: false } as const;
-  const amount = booking.price_cents - booking.refunded_amount_cents;
+  const amount = booking.price_cents - booking.refunded_amount_cents
+    + booking.customer_service_fee_cents - booking.customer_service_fee_refunded_cents;
   try {
     const refund = await getStripe().refunds.create({
       payment_intent: booking.stripe_payment_intent_id,
@@ -111,7 +116,9 @@ export async function refundUnreleasedBooking(bookingId: string, reason: string)
       metadata: { bookingId, kind: "automatic_cancellation_refund" },
     }, { idempotencyKey: `booking-auto-refund-${getStripeMode()}-${bookingId}` });
     await database.query(`UPDATE bookings SET refund_status = 'refunded', stripe_refund_id = $2,
-      refunded_amount_cents = price_cents, refunded_at = now(), payment_status = 'refunded',
+      refunded_amount_cents = price_cents,
+      customer_service_fee_refunded_cents = customer_service_fee_cents,
+      refunded_at = now(), payment_status = 'refunded',
       payment_release_status = 'reversed', provider_payout_cents = 0 WHERE id::text = $1`, [bookingId, refund.id]);
     await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
       VALUES ($1::uuid, 'refunded', 'Payment automatically refunded before provider payout.',
