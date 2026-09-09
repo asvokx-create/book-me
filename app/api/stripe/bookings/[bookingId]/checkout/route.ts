@@ -28,7 +28,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     WHERE b.id::text = $1 AND b.customer_id = $2`, [bookingId, session.user.id]);
   const booking = result.rows[0];
   if (!booking) return NextResponse.json({ error: "Booking not found." }, { status: 404 });
-  if (booking.status !== "confirmed") return NextResponse.json({ error: "The provider must confirm this booking before payment." }, { status: 409 });
+  if (booking.status !== "confirmed" && booking.status !== "completed") return NextResponse.json({ error: "The provider must confirm this booking before payment." }, { status: 409 });
   if (booking.quote_status === "pending" || booking.quote_status === "declined") return NextResponse.json({ error: "Resolve the custom quote before payment." }, { status: 409 });
   const mode = getStripeMode();
   if (booking.stripe_mode === mode && booking.payment_status === "paid") return NextResponse.json({ error: "This booking is already paid." }, { status: 409 });

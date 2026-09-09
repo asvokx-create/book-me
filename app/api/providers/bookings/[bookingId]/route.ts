@@ -219,7 +219,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
          ON CONFLICT (dedupe_key) DO NOTHING`,
         [booking.customer_id, bookingId, booking.payment_status === "paid" && booking.payment_flow === "held_transfer_v1"
           ? `${booking.service_title} was marked complete. Confirm the work or open a dispute within 48 hours; otherwise the provider payout releases automatically.`
-          : `${booking.service_title} was marked complete. You can now review your experience.`],
+          : `${booking.service_title} was marked complete. Payment is now due—open this booking to pay securely.`],
       );
     } else if (action === "declined" || action === "cancel") {
       const allowedStatus = action === "declined" ? "requested" : "confirmed";
@@ -268,7 +268,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
          VALUES ($1, $2::uuid, 'booking_accepted', 'Booking confirmed', $3, '/account/bookings/' || $2::uuid::text, 'booking-accepted-' || $2::uuid::text || '-customer')
          ON CONFLICT (dedupe_key) DO NOTHING`,
-        [booking.customer_id, bookingId, `Your ${booking.service_title} booking was accepted.`],
+        [booking.customer_id, bookingId, `Your ${booking.service_title} booking was accepted. Open the booking to pay securely before your appointment.`],
       );
       await client.query(
         `WITH cancelled AS (

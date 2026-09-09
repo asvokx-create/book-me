@@ -44,13 +44,26 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
   const updated = await database.query(`UPDATE bookings SET payment_status = 'paid', stripe_payment_intent_id = $2,
       stripe_charge_id = $5, stripe_mode = $4, paid_at = now(),
       customer_service_fee_cents = $7,
-      payment_release_status = CASE WHEN $6 THEN 'secured' ELSE 'paid_out' END,
+      payment_release_status = CASE
+        WHEN $6 AND payout_frozen_at IS NOT NULL THEN 'frozen'
+        WHEN $6 AND status = 'completed' THEN 'awaiting_customer'
+        WHEN $6 THEN 'secured'
+        ELSE 'paid_out' END,
+      completion_confirmation_due_at = CASE
+        WHEN $6 AND status = 'completed' THEN now() + interval '48 hours'
+        ELSE completion_confirmation_due_at END,
       payout_released_at = CASE WHEN $6 THEN NULL ELSE now() END
     WHERE id::text = $1 AND stripe_checkout_session_id = $3 AND stripe_mode = $4 AND payment_status <> 'paid'
     RETURNING id`, [checkout.metadata.bookingId, paymentIntentId, checkout.id, getStripeMode(), chargeId, heldTransfer, customerServiceFeeCents]);
   if (!updated.rowCount) return;
   await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
     VALUES ($1::uuid, 'payment_received', 'Secure payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);
+  await database.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+    SELECT p.user_id, b.id, 'booking_payment', 'Customer payment received',
+      '$' || to_char((b.price_cents - b.platform_fee_cents)::numeric / 100, 'FM999999990.00') || ' is secured for ' || s.title || '.',
+      '/provider/dashboard/bookings/' || b.id::text, 'payment-received-' || b.id::text || '-provider'
+    FROM bookings b JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
+    WHERE b.id::text = $1 ON CONFLICT (dedupe_key) DO NOTHING`, [checkout.metadata.bookingId]);
   await recordAnalytics({ eventName: "payment_completed", targetType: "booking", targetId: checkout.metadata.bookingId, metadata: { amountTotal: checkout.amount_total } });
 }
 

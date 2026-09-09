@@ -15,11 +15,12 @@ type BookingEmailRow = {
   provider_name: string;
   provider_email: string;
   provider_notifications: boolean;
+  payment_status: string;
 };
 
 async function bookingForEmail(bookingId: string) {
   const result = await database.query<BookingEmailRow>(
-    `SELECT b.id::text, s.title AS service_title, b.starts_at,
+    `SELECT b.id::text, s.title AS service_title, b.starts_at, b.payment_status,
             b.customer_id, customer.name AS customer_name, customer.email AS customer_email,
             COALESCE(customer_settings.booking_notifications, true) AS customer_notifications,
             p.user_id AS provider_user_id, s.business_name AS provider_name,
@@ -54,10 +55,12 @@ export async function sendBookingUpdateEmails(bookingId: string, event: "request
   }
 
   const content = {
-    accepted: { subject: "Your BubsBookings booking is confirmed", heading: "Booking confirmed", message: `${booking.provider_name} accepted ${booking.service_title} for ${when}.` },
+    accepted: { subject: "Your BubsBookings booking is confirmed", heading: "Booking confirmed", message: `${booking.provider_name} accepted ${booking.service_title} for ${when}. Open your booking to pay securely before the appointment.` },
     declined: { subject: "Your BubsBookings request was declined", heading: "Booking request declined", message: `${booking.provider_name} could not accept ${booking.service_title} for ${when}.` },
     cancelled: { subject: "A BubsBookings booking was cancelled", heading: "Booking cancelled", message: `${booking.service_title}, scheduled for ${when}, was cancelled.` },
-    completed: { subject: "Please confirm your completed BubsBookings service", heading: "Was the job completed?", message: `${booking.service_title} was marked complete. Confirm the work or open a dispute within 48 hours. If you do not respond, the provider payout releases automatically.` },
+    completed: booking.payment_status === "paid"
+      ? { subject: "Please confirm your completed BubsBookings service", heading: "Was the job completed?", message: `${booking.service_title} was marked complete. Confirm the work or open a dispute within 48 hours. If you do not respond, the provider payout releases automatically.` }
+      : { subject: `Payment due for ${booking.service_title}`, heading: "Your service was marked complete", message: `${booking.service_title} was marked complete. Open your booking to pay securely through Stripe.` },
   }[event];
   if (booking.customer_notifications) await sendTransactionalEmail({ to: booking.customer_email, userId: booking.customer_id, bookingId, emailType: `booking_${event}_customer`, ...content, actionLabel: "View booking", actionUrl: `/account/bookings/${bookingId}` });
   if (event === "cancelled" && booking.provider_notifications) await sendTransactionalEmail({ to: booking.provider_email, userId: booking.provider_user_id, bookingId, emailType: "booking_cancelled_provider", subject: content.subject, heading: content.heading, message: `${booking.customer_name}'s ${booking.service_title} booking for ${when} was cancelled.`, actionLabel: "View bookings", actionUrl: "/provider/dashboard/bookings" });
@@ -65,10 +68,13 @@ export async function sendBookingUpdateEmails(bookingId: string, event: "request
 
 export async function sendBookingReminder(booking: BookingEmailRow, hours: 24 | 1) {
   const when = appointmentLabel(booking.starts_at);
-  const message = `${booking.service_title} is scheduled for ${when}. Open BubsBookings for the latest details or to message the other person.`;
+  const providerMessage = `${booking.service_title} is scheduled for ${when}. Open BubsBookings for the latest details or to message the other person.`;
+  const customerMessage = booking.payment_status === "paid"
+    ? providerMessage
+    : `${booking.service_title} is scheduled for ${when}, and payment is still due. Open your booking to pay securely before the provider arrives.`;
   const results = await Promise.all([
-    booking.customer_notifications ? sendTransactionalEmail({ to: booking.customer_email, userId: booking.customer_id, bookingId: booking.id, emailType: `reminder_${hours}h_customer`, subject: `Reminder: ${booking.service_title} is coming up`, heading: hours === 24 ? "Your booking is tomorrow" : "Your booking starts soon", message, actionLabel: "View booking", actionUrl: `/account/bookings/${booking.id}` }) : null,
-    booking.provider_notifications ? sendTransactionalEmail({ to: booking.provider_email, userId: booking.provider_user_id, bookingId: booking.id, emailType: `reminder_${hours}h_provider`, subject: `Reminder: ${booking.service_title} is coming up`, heading: hours === 24 ? "You have a booking tomorrow" : "Your booking starts soon", message, actionLabel: "View bookings", actionUrl: "/provider/dashboard/bookings" }) : null,
+    booking.customer_notifications ? sendTransactionalEmail({ to: booking.customer_email, userId: booking.customer_id, bookingId: booking.id, emailType: `reminder_${hours}h_customer`, subject: `Reminder: ${booking.service_title} is coming up`, heading: hours === 24 ? "Your booking is tomorrow" : "Your booking starts soon", message: customerMessage, actionLabel: booking.payment_status === "paid" ? "View booking" : "Pay securely", actionUrl: `/account/bookings/${booking.id}` }) : null,
+    booking.provider_notifications ? sendTransactionalEmail({ to: booking.provider_email, userId: booking.provider_user_id, bookingId: booking.id, emailType: `reminder_${hours}h_provider`, subject: `Reminder: ${booking.service_title} is coming up`, heading: hours === 24 ? "You have a booking tomorrow" : "Your booking starts soon", message: providerMessage, actionLabel: "View bookings", actionUrl: "/provider/dashboard/bookings" }) : null,
   ]);
   return results.every((result) => result === null || result.sent);
 }
