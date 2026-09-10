@@ -2,6 +2,7 @@ import "server-only";
 
 import { database, isDatabaseConfigured } from "./database";
 import { distanceMiles, getServiceAreaCoordinates } from "./service-areas";
+import { getServiceCategorySearchMatches } from "./service-categories";
 
 export type ServiceListing = {
   id: string;
@@ -87,7 +88,7 @@ function mapService(row: ServiceRow): ServiceListing {
 export async function getServices(options: { query?: string; category?: string; location?: string; radiusMiles?: number; maxPrice?: number; maxDuration?: number; sort?: string; limit?: number } = {}) {
   if (!isDatabaseConfigured()) return [];
 
-  const values: Array<string | number> = [];
+  const values: Array<string | number | string[]> = [];
   const conditions = ["s.is_active = true", "p.is_active = true"];
   const requestedLimit = options.limit ?? 50;
   const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), 250) : undefined;
@@ -98,7 +99,14 @@ export async function getServices(options: { query?: string; category?: string; 
   }
   if (options.query) {
     values.push(`%${options.query}%`);
-    conditions.push(`(s.title ILIKE $${values.length} OR s.category ILIKE $${values.length} OR s.business_name ILIKE $${values.length})`);
+    const textSearchParameter = values.length;
+    const categoryMatches = getServiceCategorySearchMatches(options.query);
+    if (categoryMatches.length > 0) {
+      values.push(categoryMatches);
+      conditions.push(`(s.title ILIKE $${textSearchParameter} OR s.category ILIKE $${textSearchParameter} OR s.description ILIKE $${textSearchParameter} OR s.business_name ILIKE $${textSearchParameter} OR s.category = ANY($${values.length}::text[]))`);
+    } else {
+      conditions.push(`(s.title ILIKE $${textSearchParameter} OR s.category ILIKE $${textSearchParameter} OR s.description ILIKE $${textSearchParameter} OR s.business_name ILIKE $${textSearchParameter})`);
+    }
   }
   if (options.location && !searchOrigin) {
     const city = options.location.split(",")[0]?.trim();
