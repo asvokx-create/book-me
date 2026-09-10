@@ -53,6 +53,27 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
     if (radiusUpdateRef.current) window.clearTimeout(radiusUpdateRef.current);
   }, []);
 
+  useEffect(() => {
+    function closeWhenClickingOutside(event: PointerEvent) {
+      const details = detailsRef.current;
+      if (!details?.open || details.contains(event.target as Node)) return;
+      details.open = false;
+    }
+
+    function closeWithEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape" || !detailsRef.current?.open) return;
+      detailsRef.current.open = false;
+      detailsRef.current.querySelector("summary")?.focus();
+    }
+
+    document.addEventListener("pointerdown", closeWhenClickingOutside);
+    document.addEventListener("keydown", closeWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeWhenClickingOutside);
+      document.removeEventListener("keydown", closeWithEscape);
+    };
+  }, []);
+
   function remember(nextLocation: string, nextRadius: number) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ location: nextLocation, radius: nextRadius }));
   }

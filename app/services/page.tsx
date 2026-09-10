@@ -79,14 +79,14 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         </div>
       </header>
 
-      <section className="border-b border-[#183126]/10 bg-[radial-gradient(circle_at_85%_15%,rgba(206,225,198,.8),transparent_25%)]">
+      <section style={{ animation: "none" }} className="relative z-40 border-b border-[#183126]/10 bg-[radial-gradient(circle_at_85%_15%,rgba(206,225,198,.8),transparent_25%)]">
         <div className="mx-auto max-w-7xl px-4 py-9 sm:px-8 sm:py-16">
           <Link href="/" className="text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
           <p className="mt-8 text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">Explore nearby</p>
           <h1 className="mt-2 text-[clamp(2.25rem,7vw,3rem)] font-bold leading-tight tracking-[-.05em]">Find the right help for the job.</h1>
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">Compare trusted local providers, prices, and availability around {location}.</p>
 
-          <form action={`/services${resultsAnchor}`} className="mt-8 flex max-w-4xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 shadow-[0_14px_40px_rgba(24,49,38,.1)] sm:flex-row sm:rounded-full">
+          <form action={`/services${resultsAnchor}`} className="relative z-30 mt-8 flex max-w-4xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 shadow-[0_14px_40px_rgba(24,49,38,.1)] sm:flex-row sm:rounded-full">
             <label className="flex flex-1 items-center gap-3 px-4 py-3">
               <span aria-hidden="true">🔎</span>
               <span className="sr-only">Search services</span>
@@ -102,7 +102,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         </div>
       </section>
 
-      <section id="all-filters" className="mx-auto max-w-7xl scroll-mt-6 px-4 py-9 sm:px-8 sm:py-14">
+      <section id="all-filters" style={{ animation: "none" }} className="relative z-0 mx-auto max-w-7xl scroll-mt-6 px-4 py-9 sm:px-8 sm:py-14">
         <div className="mobile-scroll-row -mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0">
           {quickCategories.map((category) => {
             const active = category === selectedCategory;
