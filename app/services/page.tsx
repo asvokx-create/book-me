@@ -6,6 +6,7 @@ import FavoriteButton from "@/components/favorite-button";
 import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORIES, SERVICE_CATEGORY_ICONS } from "@/lib/service-categories";
 import LocationFilter from "@/components/location-filter";
 import SortSelect from "@/components/sort-select";
+import ServiceFiltersMenu from "@/components/service-filters-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +110,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <Link key={category} href={serviceHref(category)} className={`shrink-0 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${active ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white hover:border-[#496958] hover:bg-[#edf3e7]"}`}>{category}</Link>
             );
           })}
-          <details open={showFilters} className="group shrink-0">
+          <ServiceFiltersMenu initiallyOpen={showFilters}>
             <summary className="list-none rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-sm font-semibold transition hover:border-[#496958] hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">More filters <span className="inline-block transition group-open:rotate-180">⌄</span></summary>
             <div className="absolute left-5 right-5 z-20 mt-3 rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 shadow-[0_20px_55px_rgba(24,49,38,.15)] sm:left-auto sm:right-8 sm:w-[620px] sm:p-6">
               <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>
@@ -121,7 +122,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                 <button type="submit" className="rounded-xl bg-[#eee25a] px-5 py-3 text-sm font-bold transition hover:bg-[#f5ea6b]">Apply filters</button>
               </form>
             </div>
-          </details>
+          </ServiceFiltersMenu>
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-bold">
