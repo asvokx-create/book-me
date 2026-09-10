@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import SiteFooter from "@/components/site-footer";
 import AnalyticsTracker from "@/components/analytics-tracker";
+import GoogleAnalytics from "@/components/google-analytics";
 import { Suspense } from "react";
 import Script from "next/script";
 import { PreferencesProvider } from "@/components/preferences-provider";
@@ -17,6 +18,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const googleSiteVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://bubsbookings.com"),
   title: { default: "BubsBookings | Trusted local services", template: "%s | BubsBookings" },
@@ -30,6 +33,7 @@ export const metadata: Metadata = {
     description: "Find and book trusted local professionals for the jobs on your list.",
   },
   twitter: { card: "summary", title: "BubsBookings", description: "Find and book trusted local professionals near you." },
+  ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -40,7 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><Script id="bubsbookings-theme" strategy="beforeInteractive">{`try{const p=localStorage.getItem("bubsbookings-theme")||"system";const t=p==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch{}`}</Script><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} /><PreferencesProvider><Suspense fallback={null}><AnalyticsTracker /></Suspense>{children}<SiteFooter /></PreferencesProvider></body>
+      <body className="min-h-full flex flex-col"><Script id="bubsbookings-theme" strategy="beforeInteractive">{`try{const p=localStorage.getItem("bubsbookings-theme")||"system";const t=p==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch{}`}</Script><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} /><PreferencesProvider><Suspense fallback={null}><AnalyticsTracker /></Suspense>{children}<SiteFooter /></PreferencesProvider><GoogleAnalytics /></body>
     </html>
   );
 }
