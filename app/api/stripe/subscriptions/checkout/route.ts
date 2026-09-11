@@ -17,14 +17,17 @@ export async function POST(request: Request) {
   if (!isPurchasableProviderPlan(body.plan)) return NextResponse.json({ error: "Choose Pro." }, { status: 400 });
   if (isOwnerEmail(session.user.email)) return NextResponse.json({ error: "Your private Owner Plan already includes every feature at no charge." }, { status: 409 });
 
-  const providerResult = await database.query<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_billing_mode: "test" | "live" | null }>(
-    "SELECT id::text, stripe_customer_id, stripe_subscription_id, stripe_billing_mode FROM provider_profiles WHERE user_id = $1 AND is_active = true",
+  const providerResult = await database.query<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_billing_mode: "test" | "live" | null; pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null }>(
+    `SELECT id::text, stripe_customer_id, stripe_subscription_id, stripe_billing_mode,
+      pro_trial_used_at_test, pro_trial_used_at_live
+     FROM provider_profiles WHERE user_id = $1 AND is_active = true`,
     [session.user.id],
   );
   const provider = providerResult.rows[0];
   if (!provider) return NextResponse.json({ error: "Create your provider profile before choosing a paid plan." }, { status: 404 });
   const mode = getStripeMode();
   const hasCurrentBilling = provider.stripe_billing_mode === mode;
+  const trialEligible = mode === "live" ? !provider.pro_trial_used_at_live : !provider.pro_trial_used_at_test;
   if (hasCurrentBilling && provider.stripe_subscription_id) return NextResponse.json({ error: "Manage your existing plan from the billing portal." }, { status: 409 });
 
   const stripe = getStripe();
@@ -45,6 +48,7 @@ export async function POST(request: Request) {
   const checkout = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
+    payment_method_collection: "always",
     client_reference_id: provider.id,
     line_items: [{
       price_data: {
@@ -60,8 +64,14 @@ export async function POST(request: Request) {
     }],
     success_url: `${origin}/provider/dashboard/billing?stripe=subscription-success`,
     cancel_url: `${origin}/provider/dashboard/billing?stripe=cancelled`,
-    metadata: { kind: "provider_subscription", providerId: provider.id, plan: body.plan },
-    subscription_data: { metadata: { kind: "provider_subscription", providerId: provider.id, plan: body.plan } },
+    metadata: { kind: "provider_subscription", providerId: provider.id, plan: body.plan, trialOffered: String(trialEligible) },
+    subscription_data: {
+      metadata: { kind: "provider_subscription", providerId: provider.id, plan: body.plan, trialOffered: String(trialEligible) },
+      ...(trialEligible ? {
+        trial_period_days: 30,
+        trial_settings: { end_behavior: { missing_payment_method: "cancel" as const } },
+      } : {}),
+    },
   });
   return NextResponse.json({ url: checkout.url });
 }

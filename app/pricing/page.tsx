@@ -6,6 +6,7 @@ import { auth, isAuthConfigured } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
+import { getStripeMode } from "@/lib/stripe";
 
 export const metadata: Metadata = {
   title: "Provider pricing",
@@ -40,18 +41,24 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
-async function getCurrentProviderPlan(): Promise<ProviderPlan | null> {
+type CurrentProviderPlan = { plan: ProviderPlan; trialEligible: boolean };
+
+async function getCurrentProviderPlan(): Promise<CurrentProviderPlan | null> {
   if (!isAuthConfigured()) return null;
 
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) return null;
-    if (isOwnerEmail(session.user.email)) return "owner";
-    const result = await database.query<{ plan: ProviderPlan }>(
-      "SELECT plan FROM provider_profiles WHERE user_id = $1 AND is_active = true LIMIT 1",
+    if (isOwnerEmail(session.user.email)) return { plan: "owner", trialEligible: false };
+    const result = await database.query<{ plan: ProviderPlan; pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null }>(
+      `SELECT plan, pro_trial_used_at_test, pro_trial_used_at_live
+       FROM provider_profiles WHERE user_id = $1 AND is_active = true LIMIT 1`,
       [session.user.id],
     );
-    return result.rows[0]?.plan ?? null;
+    const provider = result.rows[0];
+    if (!provider) return null;
+    const mode = getStripeMode();
+    return { plan: provider.plan, trialEligible: mode === "live" ? !provider.pro_trial_used_at_live : !provider.pro_trial_used_at_test };
   } catch {
     return null;
   }
@@ -60,7 +67,9 @@ async function getCurrentProviderPlan(): Promise<ProviderPlan | null> {
 export default async function PricingPage({ searchParams }: PageProps<"/pricing">) {
   const selected = getParam((await searchParams).plan).toLowerCase();
   const selectedPlan = plans.find((plan) => plan.id === selected);
-  const currentPlan = await getCurrentProviderPlan();
+  const currentProvider = await getCurrentProviderPlan();
+  const currentPlan = currentProvider?.plan ?? null;
+  const proTrialEligible = currentProvider?.trialEligible ?? true;
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
@@ -76,13 +85,13 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
         <div className="relative mx-auto max-w-7xl px-4 py-12 text-center sm:px-8 sm:py-20">
           <p className="text-xs font-bold uppercase tracking-[.18em] text-[#65796d]">Simple provider pricing</p>
           <h1 className="mx-auto mt-3 max-w-3xl text-[clamp(2.4rem,8vw,3.75rem)] font-bold leading-tight tracking-[-.05em]">Start free. Grow when <span className="underline decoration-[#eee25a] decoration-[10px] underline-offset-[-4px]">you&apos;re ready.</span></h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-[#607269]">Every plan includes a business profile, services, scheduling, customer messaging, reviews, and secure online payments.</p>
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-[#607269]">Every plan includes a business profile, services, scheduling, customer messaging, reviews, and secure online payments. Eligible providers can try Pro free for 30 days.</p>
         </div>
       </section>
 
       <section id="plans" className="mx-auto max-w-7xl px-4 py-12 sm:px-8 sm:py-20">
         {currentPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#183126] px-5 py-4 text-center text-white sm:flex-row sm:text-left"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b8c8c0]">Your current plan</p><p className="mt-1 text-xl font-bold">{PLAN_ENTITLEMENTS[currentPlan].name}</p>{currentPlan === "owner" && <p className="mt-1 text-xs text-[#b8c8c0]">Private account access · $0/month · 0% booking fee · all features unlocked</p>}</div><Link href="/provider/dashboard/billing" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Manage billing</Link></div>}
-        {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : "Create your provider profile first, then finish secure Stripe checkout from Billing."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : "/provider/dashboard/billing"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : "Continue to billing"}</Link></div>}
+        {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : proTrialEligible ? "Create your provider profile first, then start the 30-day trial securely from Billing." : "Continue to Billing to subscribe securely through Stripe."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : "/provider/dashboard/billing"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : "Continue to billing"}</Link></div>}
 
         <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
           {plans.map((plan) => {
@@ -92,14 +101,15 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
             {isCurrent && <span className="absolute -top-3 right-7 rounded-full bg-[#183126] px-3 py-1 text-xs font-bold text-white">Current plan</span>}
             <h2 className="text-2xl font-bold">{plan.name}</h2><p className="mt-2 min-h-12 text-sm leading-6 text-[#687970]">{plan.description}</p>
             <div className="mt-7 flex items-end gap-2"><span className="text-4xl font-bold tracking-[-.04em]">{plan.price}</span><span className="pb-1 text-sm text-[#6f7f77]">{plan.cadence}</span></div>
+            {plan.id === "pro" && proTrialEligible && <p className="mt-3 rounded-2xl bg-[#fff9d9] px-4 py-3 text-sm font-bold text-[#66580b]">30 days free, then $9.99/month</p>}
             <p className="mt-2 inline-flex w-fit rounded-full bg-[#edf3e7] px-3 py-1.5 text-xs font-bold text-[#496756]">{plan.fee}</p>
             <ul className="mt-7 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex gap-3 text-sm"><span className="font-bold text-[#4c8a60]">✓</span><span>{feature}</span></li>)}</ul>
             {isCurrent
               ? <span className="mt-8 rounded-full bg-[#edf3e7] px-5 py-3.5 text-center text-sm font-bold text-[#496756]">Your current plan</span>
-              : <Link href={`/pricing?plan=${plan.id}#plans`} className={`mt-8 rounded-full px-5 py-3.5 text-center text-sm font-bold transition hover:-translate-y-0.5 ${plan.featured ? "bg-[#eee25a] hover:bg-[#f5ea6b]" : "bg-[#183126] text-white hover:bg-[#294b3c]"}`}>{selected === plan.id ? "Selected" : `Choose ${plan.name}`}</Link>}
+              : <Link href={`/pricing?plan=${plan.id}#plans`} className={`mt-8 rounded-full px-5 py-3.5 text-center text-sm font-bold transition hover:-translate-y-0.5 ${plan.featured ? "bg-[#eee25a] hover:bg-[#f5ea6b]" : "bg-[#183126] text-white hover:bg-[#294b3c]"}`}>{selected === plan.id ? "Selected" : plan.id === "pro" && proTrialEligible ? "Start 30-day free trial" : `Choose ${plan.name}`}</Link>}
           </article>})}
         </div>
-        <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">Paid subscriptions only begin after you review and confirm the purchase in Stripe Checkout. Booking fees are deducted when a customer pays for a confirmed service.</p>
+        <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">The Pro trial is available once per provider company and requires a card. It automatically renews at $9.99 per month after 30 days unless canceled before the trial ends. The 6% booking fee applies during the trial. All subscription details are shown again in Stripe Checkout.</p>
       </section>
     </main>
   );

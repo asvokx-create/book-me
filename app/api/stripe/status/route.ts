@@ -13,9 +13,11 @@ export async function GET() {
     stripe_payouts_enabled: boolean; stripe_current_period_end: Date | null;
     stripe_connect_mode: "test" | "live" | null; stripe_billing_mode: "test" | "live" | null;
     extra_team_seats: number;
+    pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null;
   }>(`SELECT stripe_customer_id, stripe_account_id, stripe_subscription_status,
       stripe_charges_enabled, stripe_payouts_enabled, stripe_current_period_end,
-      stripe_connect_mode, stripe_billing_mode, extra_team_seats
+      stripe_connect_mode, stripe_billing_mode, extra_team_seats,
+      pro_trial_used_at_test, pro_trial_used_at_live
     FROM provider_profiles WHERE user_id = $1 AND is_active = true`, [session.user.id]);
   const provider = result.rows[0];
   if (!provider) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
@@ -49,6 +51,7 @@ export async function GET() {
     subscriptionStatus: hasCurrentBilling ? provider.stripe_subscription_status : "inactive",
     currentPeriodEnd: hasCurrentBilling ? provider.stripe_current_period_end : null,
     extraTeamSeats: hasCurrentBilling ? provider.extra_team_seats : 0,
+    trialEligible: mode === "live" ? !provider.pro_trial_used_at_live : !provider.pro_trial_used_at_test,
     connect: {
       started: hasCurrentConnect,
       chargesEnabled: hasCurrentConnect && provider.stripe_charges_enabled,

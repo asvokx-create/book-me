@@ -6,6 +6,7 @@ import { getStripe, getStripeMode } from "@/lib/stripe";
 import { recordAnalytics } from "@/lib/analytics";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { extraSeatQuantity } from "@/lib/stripe-team-seats";
+import { sendTransactionalEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,7 @@ async function updateSubscription(subscription: Stripe.Subscription) {
   const active = subscription.status === "active" || subscription.status === "trialing";
   const periodEnd = subscription.items.data[0]?.current_period_end;
   const teamSeats = extraSeatQuantity(subscription);
+  const mode = getStripeMode();
   await database.query(`UPDATE provider_profiles SET
       plan = CASE WHEN $4 THEN $3 ELSE 'starter' END,
       stripe_subscription_id = $2,
@@ -27,8 +29,42 @@ async function updateSubscription(subscription: Stripe.Subscription) {
       stripe_current_period_end = CASE WHEN $6::bigint IS NULL THEN NULL ELSE to_timestamp($6) END,
       stripe_billing_mode = $7,
       extra_team_seats = CASE WHEN $4 THEN $8 ELSE 0 END,
-      stripe_team_seat_item_id = CASE WHEN $4 THEN $9 ELSE NULL END
-    WHERE id::text = $1 AND plan <> 'owner'`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null, getStripeMode(), teamSeats.quantity, teamSeats.itemId]);
+      stripe_team_seat_item_id = CASE WHEN $4 THEN $9 ELSE NULL END,
+      pro_trial_used_at_test = CASE WHEN $5 = 'trialing' AND $7 = 'test' THEN COALESCE(pro_trial_used_at_test, now()) ELSE pro_trial_used_at_test END,
+      pro_trial_used_at_live = CASE WHEN $5 = 'trialing' AND $7 = 'live' THEN COALESCE(pro_trial_used_at_live, now()) ELSE pro_trial_used_at_live END
+    WHERE id::text = $1 AND plan <> 'owner'`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null, mode, teamSeats.quantity, teamSeats.itemId]);
+}
+
+async function notifyTrialWillEnd(subscription: Stripe.Subscription) {
+  const providerId = subscription.metadata.providerId;
+  const trialEnd = subscription.trial_end;
+  if (!providerId || !trialEnd) return;
+  const mode = getStripeMode();
+  const trialEndLabel = new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "America/Los_Angeles" }).format(new Date(trialEnd * 1000));
+  const provider = await database.query<{ user_id: string; email: string }>(
+    `SELECT p.user_id, u.email
+     FROM provider_profiles p JOIN "user" u ON u.id = p.user_id
+     WHERE p.id::text = $1 AND p.stripe_subscription_id = $2 AND p.stripe_billing_mode = $3`,
+    [providerId, subscription.id, mode],
+  );
+  const recipient = provider.rows[0];
+  if (!recipient) return;
+  await database.query(
+    `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+     VALUES ($1, 'subscription_trial', 'Your Pro trial ends soon', $2, '/provider/dashboard/billing', $3)
+     ON CONFLICT (dedupe_key) DO NOTHING`,
+    [recipient.user_id, `Your Pro trial ends on ${trialEndLabel}. It will renew at $9.99 per month unless you cancel before then.`, `pro-trial-ending-${mode}-${subscription.id}`],
+  );
+  await sendTransactionalEmail({
+    to: recipient.email,
+    userId: recipient.user_id,
+    emailType: `pro_trial_ending_${mode}_${subscription.id}`,
+    subject: "Your BubsBookings Pro trial ends soon",
+    heading: "Your Pro trial ends soon",
+    message: `Your 30-day Pro trial ends on ${trialEndLabel}. Your saved card will be charged $9.99 per month after the trial unless you cancel before then.`,
+    actionLabel: "Manage subscription",
+    actionUrl: "/provider/dashboard/billing",
+  });
 }
 
 async function markBookingPaid(checkout: Stripe.Checkout.Session) {
@@ -93,6 +129,9 @@ async function processEvent(event: Stripe.Event) {
     case "customer.subscription.created":
     case "customer.subscription.updated":
       await updateSubscription(event.data.object);
+      break;
+    case "customer.subscription.trial_will_end":
+      await notifyTrialWillEnd(event.data.object);
       break;
     case "customer.subscription.deleted": {
       const subscription = event.data.object;

@@ -27,6 +27,11 @@
 3. Approve refunds from the booking page. Refunds go to the original payment method and reverse the provider transfer.
 4. For a chargeback, preserve the booking history, messages, quote, cancellation details, and service evidence for the dispute response.
 
+## Stripe webhook events
+
+- Keep the production webhook subscribed to Checkout payment events, subscription created/updated/deleted events, `customer.subscription.trial_will_end`, account updates, refunds, and failed PaymentIntents.
+- Stripe sends `customer.subscription.trial_will_end` shortly before a Pro trial expires. Confirm the event is delivered so BubsBookings can send the provider an in-app and email renewal reminder.
+
 ## Release check
 
 - Run lint, TypeScript checking, and the production build.
