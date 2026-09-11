@@ -69,10 +69,10 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>
-            <span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span>
+            <span className="hidden min-[390px]:inline">BubsBookings</span><span className="hidden min-[360px]:inline min-[390px]:hidden">Bubs</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/pricing" className="hidden rounded-full px-4 py-2 text-sm font-semibold transition hover:bg-[#183126]/5 md:block">Pricing</Link>
+            <Link href="/pricing" className="rounded-full px-2 py-2 text-xs font-semibold transition hover:bg-[#183126]/5 sm:px-4 sm:text-sm">Pricing</Link>
             <Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link>
             <AccountNav />
           </div>

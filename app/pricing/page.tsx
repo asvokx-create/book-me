@@ -70,6 +70,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
   const currentProvider = await getCurrentProviderPlan();
   const currentPlan = currentProvider?.plan ?? null;
   const proTrialEligible = currentProvider?.trialEligible ?? true;
+  const showTrialPromotion = proTrialEligible || currentPlan === "owner";
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
@@ -86,6 +87,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
           <p className="text-xs font-bold uppercase tracking-[.18em] text-[#65796d]">Simple provider pricing</p>
           <h1 className="mx-auto mt-3 max-w-3xl text-[clamp(2.4rem,8vw,3.75rem)] font-bold leading-tight tracking-[-.05em]">Start free. Grow when <span className="underline decoration-[#eee25a] decoration-[10px] underline-offset-[-4px]">you&apos;re ready.</span></h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-[#607269]">Every plan includes a business profile, services, scheduling, customer messaging, reviews, and secure online payments. Eligible providers can try Pro free for 30 days.</p>
+          <Link href={currentPlan === "pro" ? "/provider/dashboard/billing" : "/pricing?plan=pro#plans"} className="mt-7 inline-flex rounded-full bg-[#eee25a] px-7 py-4 text-base font-bold shadow-[0_12px_30px_rgba(24,49,38,.14)] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">{currentPlan === "owner" ? "View the 30-day Pro trial" : currentPlan === "pro" ? "Manage your Pro plan" : "Start 30-day Pro trial"}</Link>
         </div>
       </section>
 
@@ -101,12 +103,13 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
             {isCurrent && <span className="absolute -top-3 right-7 rounded-full bg-[#183126] px-3 py-1 text-xs font-bold text-white">Current plan</span>}
             <h2 className="text-2xl font-bold">{plan.name}</h2><p className="mt-2 min-h-12 text-sm leading-6 text-[#687970]">{plan.description}</p>
             <div className="mt-7 flex items-end gap-2"><span className="text-4xl font-bold tracking-[-.04em]">{plan.price}</span><span className="pb-1 text-sm text-[#6f7f77]">{plan.cadence}</span></div>
-            {plan.id === "pro" && proTrialEligible && <p className="mt-3 rounded-2xl bg-[#fff9d9] px-4 py-3 text-sm font-bold text-[#66580b]">30 days free, then $9.99/month</p>}
+            {plan.id === "pro" && showTrialPromotion && <p className="mt-3 rounded-2xl bg-[#fff9d9] px-4 py-3 text-sm font-bold text-[#66580b]">Eligible provider companies get 30 days free, then $9.99/month</p>}
             <p className="mt-2 inline-flex w-fit rounded-full bg-[#edf3e7] px-3 py-1.5 text-xs font-bold text-[#496756]">{plan.fee}</p>
+            {plan.id === "pro" && !isCurrent && <Link href="/pricing?plan=pro#plans" className="mt-5 rounded-full bg-[#eee25a] px-5 py-3.5 text-center text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">{currentPlan === "owner" ? "Pro is included in Owner Plan" : proTrialEligible ? "Start 30-day free trial" : "Choose Pro for $9.99"}</Link>}
             <ul className="mt-7 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex gap-3 text-sm"><span className="font-bold text-[#4c8a60]">✓</span><span>{feature}</span></li>)}</ul>
             {isCurrent
               ? <span className="mt-8 rounded-full bg-[#edf3e7] px-5 py-3.5 text-center text-sm font-bold text-[#496756]">Your current plan</span>
-              : <Link href={`/pricing?plan=${plan.id}#plans`} className={`mt-8 rounded-full px-5 py-3.5 text-center text-sm font-bold transition hover:-translate-y-0.5 ${plan.featured ? "bg-[#eee25a] hover:bg-[#f5ea6b]" : "bg-[#183126] text-white hover:bg-[#294b3c]"}`}>{selected === plan.id ? "Selected" : plan.id === "pro" && proTrialEligible ? "Start 30-day free trial" : `Choose ${plan.name}`}</Link>}
+              : plan.id === "starter" ? <Link href={`/pricing?plan=${plan.id}#plans`} className="mt-8 rounded-full bg-[#183126] px-5 py-3.5 text-center text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selected === plan.id ? "Selected" : "Choose Starter"}</Link> : null}
           </article>})}
         </div>
         <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">The Pro trial is available once per provider company and requires a card. It automatically renews at $9.99 per month after 30 days unless canceled before the trial ends. The 6% booking fee applies during the trial. All subscription details are shown again in Stripe Checkout.</p>
