@@ -1,0 +1,110 @@
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { database } from "@/lib/database";
+
+export const runtime = "nodejs";
+
+export async function GET() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return Response.json({ error: "Log in to download your data." }, { status: 401 });
+
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    const userId = session.user.id;
+    const accountResult = await client.query(
+      `SELECT id, name, email, "emailVerified", image, phone, role,
+              terms_accepted_at, privacy_acknowledged_at, ai_safety_acknowledged_at,
+              policy_version, "createdAt", "updatedAt"
+       FROM "user" WHERE id = $1`,
+      [userId],
+    );
+    const providerResult = await client.query("SELECT * FROM provider_profiles WHERE user_id = $1", [userId]);
+    const providerId = providerResult.rows[0]?.id ?? null;
+
+    async function rows(query: string, values: unknown[] = []) {
+      return (await client.query(query, values)).rows;
+    }
+
+    const [settings, signInMethods, bookings, conversations, messages, favorites, notifications, reviewsWritten, providerReviews, teamMemberships, safetyReports, disputes, bugReports, supportRequests, moderationEvents, activityEvents, analyticsEvents] = await Promise.all([
+      rows("SELECT * FROM user_settings WHERE user_id = $1", [userId]),
+      rows('SELECT id, "accountId", "providerId", "createdAt", "updatedAt" FROM "account" WHERE "userId" = $1', [userId]),
+      rows(`SELECT * FROM bookings WHERE customer_id = $1 OR provider_id IN (SELECT id FROM provider_profiles WHERE user_id = $1) ORDER BY created_at`, [userId]),
+      rows(`SELECT * FROM conversations WHERE customer_id = $1 OR provider_id IN (SELECT id FROM provider_profiles WHERE user_id = $1) ORDER BY created_at`, [userId]),
+      rows(`SELECT message.* FROM messages message JOIN conversations conversation ON conversation.id = message.conversation_id WHERE conversation.customer_id = $1 OR conversation.provider_id IN (SELECT id FROM provider_profiles WHERE user_id = $1) ORDER BY message.created_at`, [userId]),
+      rows("SELECT * FROM favorites WHERE customer_id = $1 ORDER BY created_at", [userId]),
+      rows("SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at", [userId]),
+      rows("SELECT * FROM reviews WHERE customer_id = $1 ORDER BY created_at", [userId]),
+      rows(`SELECT id, booking_id, service_id, rating, body, is_hidden, created_at, updated_at
+            FROM reviews
+            WHERE provider_id IN (SELECT id FROM provider_profiles WHERE user_id = $1)
+            ORDER BY created_at`, [userId]),
+      rows("SELECT * FROM provider_team_members WHERE user_id = $1 OR lower(email) = lower($2) ORDER BY created_at", [userId, session.user.email]),
+      rows(`SELECT id, conversation_id, booking_id, category, details, status, created_at, updated_at
+            FROM safety_reports WHERE reporter_id = $1 ORDER BY created_at`, [userId]),
+      rows(`SELECT id, booking_id, category, details, requested_resolution, status, admin_note, created_at, updated_at
+            FROM booking_disputes WHERE opened_by = $1 ORDER BY created_at`, [userId]),
+      rows("SELECT * FROM bug_reports WHERE reporter_id = $1 ORDER BY created_at", [userId]),
+      rows("SELECT * FROM support_requests WHERE user_id = $1 ORDER BY created_at", [userId]),
+      rows("SELECT * FROM moderation_events WHERE user_id = $1 ORDER BY created_at", [userId]),
+      rows("SELECT * FROM activity_log WHERE user_id = $1 ORDER BY created_at", [userId]),
+      rows("SELECT * FROM analytics_events WHERE user_id = $1 ORDER BY created_at", [userId]),
+    ]);
+
+    const providerData = providerId ? {
+      profile: providerResult.rows[0],
+      companies: await rows("SELECT * FROM provider_companies WHERE provider_id = $1 ORDER BY created_at", [providerId]),
+      locations: await rows("SELECT location.* FROM provider_locations location JOIN provider_companies company ON company.id = location.company_id WHERE company.provider_id = $1 ORDER BY location.created_at", [providerId]),
+      services: await rows("SELECT * FROM services WHERE provider_id = $1 ORDER BY created_at", [providerId]),
+      serviceImages: await rows("SELECT image.* FROM service_images image JOIN services service ON service.id = image.service_id WHERE service.provider_id = $1 ORDER BY image.created_at", [providerId]),
+      availability: await rows("SELECT * FROM availability WHERE provider_id = $1 ORDER BY weekday, start_time", [providerId]),
+      teamMembers: await rows("SELECT * FROM provider_team_members WHERE provider_id = $1 ORDER BY created_at", [providerId]),
+      teamAvailability: await rows("SELECT availability.* FROM team_member_availability availability JOIN provider_team_members member ON member.id = availability.team_member_id WHERE member.provider_id = $1 ORDER BY availability.weekday, availability.start_time", [providerId]),
+      timeOff: await rows("SELECT * FROM provider_time_off WHERE provider_id = $1 ORDER BY starts_at", [providerId]),
+      scheduleRequests: await rows("SELECT * FROM team_schedule_requests WHERE provider_id = $1 ORDER BY created_at", [providerId]),
+      verificationRequests: await rows("SELECT * FROM provider_verification_requests WHERE provider_id = $1 ORDER BY created_at", [providerId]),
+      verificationChecks: await rows("SELECT * FROM provider_verification_checks WHERE provider_id = $1 ORDER BY created_at", [providerId]),
+    } : null;
+
+    await client.query("COMMIT");
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      format: "BubsBookings account data export v1",
+      account: accountResult.rows[0] ?? null,
+      settings,
+      signInMethods,
+      bookings,
+      conversations,
+      messages,
+      favorites,
+      notifications,
+      reviewsWritten,
+      providerReviews,
+      teamMemberships,
+      safetyReports,
+      disputes,
+      bugReports,
+      supportRequests,
+      moderationEvents,
+      activityEvents,
+      analyticsEvents,
+      provider: providerData,
+      note: "Passwords, authentication secrets, full payment-card data, and bank credentials are not included because BubsBookings does not expose or store them in an exportable form. Stripe maintains its own records under its privacy policy.",
+    };
+    const date = new Date().toISOString().slice(0, 10);
+    return new Response(JSON.stringify(exportData, null, 2), {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Disposition": `attachment; filename="bubsbookings-data-${date}.json"`,
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    console.error("Account data export failed", error);
+    return Response.json({ error: "We could not prepare your data download. Please try again." }, { status: 500 });
+  } finally {
+    client.release();
+  }
+}

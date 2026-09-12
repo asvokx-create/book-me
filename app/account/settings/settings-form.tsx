@@ -35,6 +35,8 @@ export default function AccountSettings() {
   const [securityBusy, setSecurityBusy] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
+  const [deletionConfirmation, setDeletionConfirmation] = useState("");
+  const [deletionBusy, setDeletionBusy] = useState(false);
 
   useEffect(() => {
     if (!isPending && !session) router.replace("/login?redirect=/account/settings");
@@ -115,6 +117,28 @@ export default function AccountSettings() {
     setMessage("All other devices have been signed out.");
   }
 
+  async function deleteAccount() {
+    setError(""); setMessage("");
+    if (deletionConfirmation.trim().toLowerCase() !== settings.email.toLowerCase()) {
+      setError("Type your account email exactly to confirm deletion.");
+      return;
+    }
+    if (!window.confirm("Permanently delete your BubsBookings account and associated data? This cannot be undone.")) return;
+    setDeletionBusy(true);
+    const response = await fetch("/api/account", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation: deletionConfirmation }) }).catch(() => null);
+    const data = response ? await response.json() as { error?: string } : null;
+    if (!response?.ok) {
+      setDeletionBusy(false);
+      setError(data?.error ?? "We could not delete your account. Please try again.");
+      return;
+    }
+    localStorage.removeItem("bookme-service-area");
+    localStorage.removeItem("bookme-location-permission-asked");
+    await authClient.signOut().catch(() => undefined);
+    router.replace("/?accountDeleted=1");
+    router.refresh();
+  }
+
   if (isPending || !session || !loaded) return <main className="grid min-h-screen place-items-center bg-[#f5f4ef] text-[#183126]"><p className="font-semibold">Loading settings…</p></main>;
 
   return <main className="min-h-screen bg-[#f5f4ef] text-[#183126]">
@@ -137,6 +161,7 @@ export default function AccountSettings() {
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Password</h2><p className="mt-1 text-sm text-[#738179]">Changing it will also sign out your other devices.</p><form onSubmit={changePassword} className="mt-5 space-y-4"><label className="block text-sm font-bold">Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className={inputClass} /></label><label className="block text-sm font-bold">New password<input required type="password" minLength={8} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={inputClass} /></label><label className="block text-sm font-bold">Confirm new password<input required type="password" minLength={8} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className={inputClass} /></label><button disabled={securityBusy} className="w-full rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-60">Change password</button></form></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Security</h2><div className="mt-5 space-y-3"><Link href="/account/security" className="flex items-center justify-between rounded-2xl bg-[#f5f5ef] p-4 font-bold transition hover:bg-[#e3ecde]"><span>🔐 Authenticator protection</span><span>→</span></Link><button type="button" disabled={securityBusy} onClick={signOutOtherDevices} className="flex w-full items-center justify-between rounded-2xl bg-[#f5f5ef] p-4 text-left font-bold transition hover:bg-[#e3ecde] disabled:opacity-60"><span>Sign out other devices</span><span>→</span></button></div></section>
           {settings.isProvider && <section className="rounded-[2rem] bg-[#183126] p-6 text-white sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b5c5bd]">Provider tools</p><h2 className="mt-2 text-xl font-bold">Business settings</h2><div className="mt-5 grid gap-3"><Link href="/providers/join" className="rounded-2xl bg-white/10 p-4 font-bold transition hover:bg-white/20">Edit business profile →</Link><Link href="/provider/dashboard/services" className="rounded-2xl bg-white/10 p-4 font-bold transition hover:bg-white/20">Manage services →</Link><Link href="/provider/dashboard/availability" className="rounded-2xl bg-white/10 p-4 font-bold transition hover:bg-white/20">Set availability →</Link></div></section>}
+          <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Your data</p><h2 className="mt-2 text-xl font-bold">Download or delete</h2><p className="mt-2 text-sm leading-6 text-[#738179]">Download a JSON copy of the account, bookings, messages, reviews, reports, and provider information connected to you.</p><a href="/api/account/data-export" download className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846]">Download my data</a><div className="mt-7 border-t border-[#183126]/10 pt-6"><h3 className="font-bold text-[#8e382f]">Delete account permanently</h3><p className="mt-2 text-xs leading-5 text-[#738179]">This removes your BubsBookings profile and associated marketplace data and cancels connected subscriptions. Active bookings, unresolved disputes, or unsettled payments must be completed first. Some payment records may remain with Stripe where legally required.</p><label className="mt-4 block text-sm font-bold">Type {settings.email} to confirm<input type="email" autoComplete="off" value={deletionConfirmation} onChange={(event) => setDeletionConfirmation(event.target.value)} className={inputClass} /></label><button type="button" onClick={() => void deleteAccount()} disabled={deletionBusy || deletionConfirmation.trim().toLowerCase() !== settings.email.toLowerCase()} className="mt-4 w-full rounded-full bg-[#7b2d27] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#67231f] disabled:cursor-not-allowed disabled:opacity-45">{deletionBusy ? "Deleting account…" : "Permanently delete my account"}</button></div></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><h2 className="font-bold">Privacy and policies</h2><div className="mt-3 flex flex-wrap gap-4 text-sm font-bold"><Link href="/privacy" className="underline decoration-[#c8bc43] decoration-2 underline-offset-4">Privacy</Link><Link href="/terms" className="underline decoration-[#c8bc43] decoration-2 underline-offset-4">Terms</Link><Link href="/ai-transparency" className="underline decoration-[#c8bc43] decoration-2 underline-offset-4">AI transparency</Link></div></section>
         </div>
       </div>

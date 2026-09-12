@@ -20,13 +20,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const requestedRadius = Number(getParam(params.radius));
   const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 250 ? requestedRadius : 25;
   const city = location.split(",")[0]?.trim() || location;
-  const [services, allServices] = await Promise.all([
-    getServices({ location, radiusMiles: radius, limit: 3 }),
-    getServices({ limit: 50 }),
-  ]);
-  const nearbyServiceIds = new Set(services.map((service) => service.id));
-  const moreServices = allServices.filter((service) => !nearbyServiceIds.has(service.id));
-  const categoryCounts = new Map(FEATURED_SERVICE_CATEGORIES.map((category) => [category, allServices.filter((service) => service.category === category).length]));
+  const servicesWithinRange = await getServices({ location, radiusMiles: radius, limit: 50 });
+  const selectedState = location.split(",")[1]?.trim().toLowerCase();
+  const servicesNearCity = servicesWithinRange.filter((service) => service.city.trim().toLowerCase() === city.toLowerCase()
+    && (!selectedState || service.state.trim().toLowerCase() === selectedState));
+  const nearCityIds = new Set(servicesNearCity.map((service) => service.id));
+  const servicesAroundCity = servicesWithinRange.filter((service) => !nearCityIds.has(service.id));
+  const categoryCounts = new Map(FEATURED_SERVICE_CATEGORIES.map((category) => [category, servicesWithinRange.filter((service) => service.category === category).length]));
   const homeCategories = [...FEATURED_SERVICE_CATEGORIES].sort((left, right) => (categoryCounts.get(right) ?? 0) - (categoryCounts.get(left) ?? 0));
   const nearbyParams = new URLSearchParams({ location, radius: String(radius) });
   const nearbyServicesHref = `/services?${nearbyParams.toString()}#service-listings`;
@@ -133,29 +133,29 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
       <section id="nearby-listings" className="scroll-mt-24 mx-auto max-w-6xl px-4 pb-8 sm:px-6 sm:pb-10">
         <div className="mb-7 flex items-end justify-between">
-          <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Local marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">Available near {city}</h3></div>
+          <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Local marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">Near {city}</h3><p className="mt-2 text-sm text-[#687970]">Services based directly in {city}.</p></div>
 
           <Link href={nearbyServicesHref} className="text-sm font-medium hover:underline">
             View all
           </Link>
         </div>
 
-        {services.length > 0 ? <div className="grid gap-6 md:grid-cols-3">
-          {services.map((service) => <HomeServiceCard key={service.id} service={service} />)}
-        </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-14 text-center"><span className="text-4xl">🌱</span><h4 className="mt-4 text-xl font-bold">Local services are coming soon</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Be the first local professional to create a real BubsBookings listing.</p><Link href="/providers/join" className="mt-6 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">List your service</Link></div>}
+        {servicesNearCity.length > 0 ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {servicesNearCity.map((service) => <HomeServiceCard key={service.id} service={service} />)}
+        </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-10 text-center"><span className="text-4xl">🌱</span><h4 className="mt-4 text-xl font-bold">No listings in {city} yet</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Nearby services within your selected range are shown below.</p><Link href="/providers/join" className="mt-6 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">List your service</Link></div>}
       </section>
 
-      {moreServices.length > 0 && <section className="border-t border-[#183126]/10 bg-[#f1f3ed]">
+      <section className="border-t border-[#183126]/10 bg-[#f1f3ed]">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
           <div className="mb-8 flex items-end justify-between gap-4">
-            <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Browse the marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">More listings</h3><p className="mt-2 text-sm text-[#687970]">Explore other active services without repeating the nearby listings above.</p></div>
-            <Link href="/services#service-listings" className="shrink-0 rounded-full bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">Explore all →</Link>
+            <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Within your range</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">All other services within {radius} miles</h3><p className="mt-2 text-sm text-[#687970]">Nearby listings in surrounding cities, without repeating the {city} listings above.</p></div>
+            <Link href={nearbyServicesHref} className="shrink-0 rounded-full bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">View all →</Link>
           </div>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {moreServices.map((service) => <HomeServiceCard key={service.id} service={service} />)}
-          </div>
+          {servicesAroundCity.length > 0 ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {servicesAroundCity.map((service) => <HomeServiceCard key={service.id} service={service} />)}
+          </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white/70 px-6 py-10 text-center"><h4 className="text-xl font-bold">No additional nearby listings yet</h4><p className="mt-2 text-sm text-[#6d7c75]">Try a wider search radius to discover more services.</p><Link href={`/services?location=${encodeURIComponent(location)}&radius=${Math.min(250, Math.max(50, radius))}#service-listings`} className="mt-5 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Expand search</Link></div>}
         </div>
-      </section>}
+      </section>
     </main>
   );
 }
