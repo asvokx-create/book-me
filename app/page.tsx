@@ -21,11 +21,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 250 ? requestedRadius : 25;
   const city = location.split(",")[0]?.trim() || location;
   const servicesWithinRange = await getServices({ location, radiusMiles: radius, limit: 50 });
-  const selectedState = location.split(",")[1]?.trim().toLowerCase();
-  const servicesNearCity = servicesWithinRange.filter((service) => service.city.trim().toLowerCase() === city.toLowerCase()
-    && (!selectedState || service.state.trim().toLowerCase() === selectedState));
-  const nearCityIds = new Set(servicesNearCity.map((service) => service.id));
-  const servicesAroundCity = servicesWithinRange.filter((service) => !nearCityIds.has(service.id));
+  const featuredServices = servicesWithinRange.slice(0, 3);
   const categoryCounts = new Map(FEATURED_SERVICE_CATEGORIES.map((category) => [category, servicesWithinRange.filter((service) => service.category === category).length]));
   const homeCategories = [...FEATURED_SERVICE_CATEGORIES].sort((left, right) => (categoryCounts.get(right) ?? 0) - (categoryCounts.get(left) ?? 0));
   const nearbyParams = new URLSearchParams({ location, radius: String(radius) });
@@ -132,28 +128,34 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </section>
 
       <section id="nearby-listings" className="scroll-mt-24 mx-auto max-w-6xl px-4 pb-8 sm:px-6 sm:pb-10">
-        <div className="mb-7 flex items-end justify-between">
-          <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Local marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">Near {city}</h3><p className="mt-2 text-sm text-[#687970]">Services based directly in {city}.</p></div>
+        <div className="mb-7 flex items-end justify-between gap-4">
+          <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Local marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">Services near {city}</h3><p className="mt-2 text-sm text-[#687970]">A quick look at nearby options within {radius} miles.</p></div>
 
-          <Link href={nearbyServicesHref} className="text-sm font-medium hover:underline">
-            View all
+          <Link href={nearbyServicesHref} className="shrink-0 rounded-full border border-[#183126]/12 bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">
+            View all services →
           </Link>
         </div>
 
-        {servicesNearCity.length > 0 ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {servicesNearCity.map((service) => <HomeServiceCard key={service.id} service={service} />)}
-        </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-10 text-center"><span className="text-4xl">🌱</span><h4 className="mt-4 text-xl font-bold">No listings in {city} yet</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Nearby services within your selected range are shown below.</p><Link href="/providers/join" className="mt-6 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">List your service</Link></div>}
+        {featuredServices.length > 0 ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {featuredServices.map((service) => <HomeServiceCard key={service.id} service={service} />)}
+        </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-12 text-center"><span className="text-4xl">🌱</span><h4 className="mt-4 text-xl font-bold">Local services are coming soon</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Try a wider search or become one of the first providers near {city}.</p><div className="mt-6 flex flex-wrap justify-center gap-3"><Link href={`/services?location=${encodeURIComponent(location)}&radius=${Math.min(250, Math.max(50, radius))}#service-listings`} className="rounded-full border border-[#183126]/12 px-5 py-3 text-sm font-bold">Widen search</Link><Link href="/providers/join" className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">List your service</Link></div></div>}
       </section>
 
-      <section className="border-t border-[#183126]/10 bg-[#f1f3ed]">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
-          <div className="mb-8 flex items-end justify-between gap-4">
-            <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Within your range</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">All other services within {radius} miles</h3><p className="mt-2 text-sm text-[#687970]">Nearby listings in surrounding cities, without repeating the {city} listings above.</p></div>
-            <Link href={nearbyServicesHref} className="shrink-0 rounded-full bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">View all →</Link>
+      <section className="mt-5 bg-[#173d2e] text-white">
+        <div className="mx-auto grid max-w-6xl items-stretch gap-3 px-4 py-6 sm:px-6 md:grid-cols-2">
+          <Link href="/promise" className="group rounded-2xl border border-white/12 bg-white/7 p-5 transition hover:bg-white/10">
+            <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#bfd0c6]">☂️ The BubsBookings Promise</p>
+            <h3 className="mt-1.5 text-xl font-bold tracking-[-.03em]">Book with more confidence.</h3>
+            <p className="mt-2 text-xs leading-5 text-[#c8d7cf]">Clear provider information, secure payments, and booking support.</p>
+            <span className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-[#f1e45c]">Learn how you’re covered <span className="transition group-hover:translate-x-1">→</span></span>
+          </Link>
+
+          <div className="rounded-2xl bg-[#f3ed74] p-5 text-[#183126]">
+            <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#627065]">🧰 For local businesses</p>
+            <h3 className="mt-1.5 text-xl font-bold tracking-[-.03em]">Turn local searches into bookings.</h3>
+            <p className="mt-2 text-xs leading-5 text-[#52655a]">Publish services, organize your team, and manage requests.</p>
+            <Link href="/pricing" className="mt-3 inline-flex rounded-full border border-[#183126]/20 bg-white/45 px-3.5 py-2 text-xs font-bold transition hover:bg-white/70">Provider pricing →</Link>
           </div>
-          {servicesAroundCity.length > 0 ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {servicesAroundCity.map((service) => <HomeServiceCard key={service.id} service={service} />)}
-          </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white/70 px-6 py-10 text-center"><h4 className="text-xl font-bold">No additional nearby listings yet</h4><p className="mt-2 text-sm text-[#6d7c75]">Try a wider search radius to discover more services.</p><Link href={`/services?location=${encodeURIComponent(location)}&radius=${Math.min(250, Math.max(50, radius))}#service-listings`} className="mt-5 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Expand search</Link></div>}
         </div>
       </section>
     </main>
