@@ -1,12 +1,14 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { enforceRateLimit } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return Response.json({ error: "Log in to download your data." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "account-data-export", limit: 3, windowSeconds: 3600 })) return Response.json({ error: "Too many data exports. Please try again later." }, { status: 429 });
 
   const client = await database.connect();
   try {

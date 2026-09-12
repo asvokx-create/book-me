@@ -5,6 +5,7 @@ import { database } from "@/lib/database";
 import { hasAdminAccess, isOwnerEmail } from "@/lib/admin";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getProviderAccess } from "@/lib/provider-access";
+import { enforceRateLimit } from "@/lib/request-security";
 
 async function currentProvider() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -20,13 +21,13 @@ async function currentProvider() {
     if (provider.plan !== "owner") {
       await database.query("UPDATE provider_profiles SET plan = 'owner', updated_at = now() WHERE id::text = $1", [provider.id]);
     }
-    return { ...provider, plan: "owner" as const };
+    return { ...provider, plan: "owner" as const, session };
   }
   if (await hasAdminAccess(session.user.id, session.user.email)) {
-    return { ...provider, plan: "business" as const };
+    return { ...provider, plan: "business" as const, session };
   }
 
-  return provider;
+  return { ...provider, session };
 }
 
 export async function GET(request: Request) {
@@ -74,6 +75,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "provider-team", limit: 20 })) return NextResponse.json({ error: "Too many team changes. Please wait a minute." }, { status: 429 });
   const ownerProfile = await database.query("SELECT 1 FROM provider_profiles WHERE user_id = $1 AND is_active = true", [session.user.id]);
   if (!ownerProfile.rowCount) return NextResponse.json({ error: "Only the company owner can add workers." }, { status: 403 });
   const isOwner = isOwnerEmail(session.user.email);
@@ -152,6 +154,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const provider = await currentProvider();
   if (!provider) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
+  if (!await enforceRateLimit({ request, userId: provider.session.user.id, bucket: "provider-team", limit: 20 })) return NextResponse.json({ error: "Too many team changes. Please wait a minute." }, { status: 429 });
   const body = (await request.json()) as Record<string, unknown>;
   const memberId = typeof body.memberId === "string" ? body.memberId : "";
   const role = typeof body.role === "string" ? body.role.trim().replace(/\s+/g, " ") : "";
@@ -164,6 +167,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const provider = await currentProvider();
   if (!provider) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
+  if (!await enforceRateLimit({ request, userId: provider.session.user.id, bucket: "provider-team", limit: 20 })) return NextResponse.json({ error: "Too many team changes. Please wait a minute." }, { status: 429 });
   const body = (await request.json()) as { memberId?: unknown };
   const memberId = typeof body.memberId === "string" ? body.memberId : "";
   if (!memberId) return NextResponse.json({ error: "Choose a team member." }, { status: 400 });

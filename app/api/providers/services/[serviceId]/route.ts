@@ -6,6 +6,7 @@ import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
+import { enforceRateLimit } from "@/lib/request-security";
 
 const allowedDurations = new Set([60, 120, 180, 240, 480]);
 
@@ -74,6 +75,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
 export async function PATCH(request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId, bucket: "provider-listing-change", limit: 20 })) return NextResponse.json({ error: "Too many listing changes. Please wait a minute." }, { status: 429 });
 
   const { serviceId } = await params;
   const body = (await request.json()) as Record<string, unknown>;
@@ -158,9 +160,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId, bucket: "provider-listing-change", limit: 20 })) return NextResponse.json({ error: "Too many listing changes. Please wait a minute." }, { status: 429 });
 
   const { serviceId } = await params;
   const client = await database.connect();

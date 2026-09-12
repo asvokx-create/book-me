@@ -5,6 +5,7 @@ import { database } from "@/lib/database";
 import { releaseBookingPayout } from "@/lib/payment-release";
 import { scanContent } from "@/lib/content-safety";
 import { assessListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
+import { enforceRateLimit } from "@/lib/request-security";
 
 const reportStatuses = new Set(["reviewing", "resolved", "dismissed"]);
 const accountStatuses = new Set(["active", "suspended", "banned"]);
@@ -123,6 +124,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-action", limit: 30 })) return NextResponse.json({ error: "Too many admin actions. Please wait a minute." }, { status: 429 });
 
   const body = (await request.json()) as {
     action?: unknown; targetId?: unknown; status?: unknown; reason?: unknown;

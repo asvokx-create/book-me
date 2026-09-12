@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
+import { enforceRateLimit } from "@/lib/request-security";
 
 const statuses = new Set(["reviewing", "resolved", "dismissed"]);
 
@@ -40,6 +41,7 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-action", limit: 30 })) return NextResponse.json({ error: "Too many admin actions. Please wait a minute." }, { status: 429 });
   const body = (await request.json()) as Record<string, unknown>;
   const type = body.type === "bugs" || body.type === "disputes" ? body.type : "";
   const id = typeof body.id === "string" ? body.id : "";

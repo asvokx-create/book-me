@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { enforceRateLimit } from "@/lib/request-security";
 
 type AvailabilityInput = { weekday?: unknown; startTime?: unknown; endTime?: unknown };
 
@@ -12,6 +13,7 @@ function isTime(value: unknown): value is string {
 export async function PUT(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to update your availability." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "provider-availability", limit: 20 })) return NextResponse.json({ error: "Too many availability changes. Please wait a minute." }, { status: 429 });
 
   const body = (await request.json()) as { serviceId?: unknown; slots?: AvailabilityInput[] };
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";

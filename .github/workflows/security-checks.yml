@@ -1,0 +1,30 @@
+name: Security checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BETTER_AUTH_SECRET: local-ci-validation-secret-at-least-32-characters
+      DATABASE_URL: postgresql://bookme:bookme@127.0.0.1:5432/bookme
+      DATABASE_CA_CERT: local-ci-placeholder
+      RESEND_API_KEY: local-ci-placeholder
+      EMAIL_FROM: BubsBookings <security-ci@example.com>
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run lint
+      - run: npm run build

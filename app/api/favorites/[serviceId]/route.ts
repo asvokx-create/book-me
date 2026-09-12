@@ -2,15 +2,17 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { enforceRateLimit } from "@/lib/request-security";
 
 async function getUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user.id ?? null;
 }
 
-export async function POST(_request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
   const userId = await getUserId();
   if (!userId) return NextResponse.json({ error: "Log in to save services." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId, bucket: "favorite-change", limit: 40 })) return NextResponse.json({ error: "Too many saved-service changes. Please wait a minute." }, { status: 429 });
 
   const { serviceId } = await params;
   const result = await database.query(
@@ -32,9 +34,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ se
   return NextResponse.json({ saved: true });
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
   const userId = await getUserId();
   if (!userId) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId, bucket: "favorite-change", limit: 40 })) return NextResponse.json({ error: "Too many saved-service changes. Please wait a minute." }, { status: 429 });
 
   const { serviceId } = await params;
   await database.query(

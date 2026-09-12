@@ -35,7 +35,7 @@ export function ResetPasswordForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (password.length < 8 || password !== confirm) { setError("Use at least 8 characters and make sure both passwords match."); return; }
+    if (password.length < 12 || password !== confirm) { setError("Use at least 12 characters and make sure both passwords match."); return; }
     setBusy(true);
     const result = await authClient.resetPassword({ newPassword: password, token });
     setBusy(false);
@@ -43,7 +43,7 @@ export function ResetPasswordForm() {
     router.push("/login?reset=success");
   }
 
-  return <AuthCard eyebrow="Account recovery" title="Choose a new password">{invalid ? <div className="mt-6"><p className="rounded-xl bg-[#fff1e8] px-4 py-3 text-sm font-semibold text-[#9a4e25]">This reset link is invalid or expired.</p><Link href="/forgot-password" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request another link</Link></div> : <form onSubmit={submit} className="mt-7 space-y-4"><label className="block"><span className="mb-2 block text-sm font-bold">New password</span><input required type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className={inputClass} /></label><label className="block"><span className="mb-2 block text-sm font-bold">Confirm password</span><input required type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} className={inputClass} /></label>{error && <p role="alert" className="rounded-xl bg-[#fff1e8] px-4 py-3 text-sm font-semibold text-[#9a4e25]">{error}</p>}<button disabled={busy} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold disabled:opacity-60">{busy ? "Saving…" : "Save new password"}</button></form>}</AuthCard>;
+  return <AuthCard eyebrow="Account recovery" title="Choose a new password">{invalid ? <div className="mt-6"><p className="rounded-xl bg-[#fff1e8] px-4 py-3 text-sm font-semibold text-[#9a4e25]">This reset link is invalid or expired.</p><Link href="/forgot-password" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request another link</Link></div> : <form onSubmit={submit} className="mt-7 space-y-4"><label className="block"><span className="mb-2 block text-sm font-bold">New password</span><input required type="password" minLength={12} maxLength={128} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className={inputClass} /></label><label className="block"><span className="mb-2 block text-sm font-bold">Confirm password</span><input required type="password" minLength={12} maxLength={128} autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} className={inputClass} /></label>{error && <p role="alert" className="rounded-xl bg-[#fff1e8] px-4 py-3 text-sm font-semibold text-[#9a4e25]">{error}</p>}<button disabled={busy} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold disabled:opacity-60">{busy ? "Saving…" : "Save new password"}</button></form>}</AuthCard>;
 }
 
 function AuthCard({ eyebrow, title, children }: { eyebrow: string; title: string; children: React.ReactNode }) {

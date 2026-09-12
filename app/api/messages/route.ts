@@ -224,6 +224,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "message-change", limit: 60 })) return NextResponse.json({ error: "Too many message changes. Please wait a minute." }, { status: 429 });
   const body = (await request.json()) as { conversationId?: unknown };
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   if (!conversationId) return NextResponse.json({ error: "Choose a conversation." }, { status: 400 });
@@ -240,6 +241,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "message-change", limit: 30 })) return NextResponse.json({ error: "Too many message changes. Please wait a minute." }, { status: 429 });
   const body = (await request.json()) as { messageId?: unknown; conversationId?: unknown };
   const messageId = typeof body.messageId === "string" ? body.messageId : "";
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";

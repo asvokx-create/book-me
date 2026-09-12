@@ -39,5 +39,8 @@ export async function hasAdminAccess(userId: string, email: string | null | unde
 
 export async function getAdminSession() {
   const session = await auth.api.getSession({ headers: await headers() });
-  return session && await hasAdminAccess(session.user.id, session.user.email) ? session : null;
+  if (!session || !await hasAdminAccess(session.user.id, session.user.email)) return null;
+  const requiresTwoFactor = process.env.BOOKME_REQUIRE_ADMIN_2FA === "true";
+  const twoFactorEnabled = Boolean((session.user as typeof session.user & { twoFactorEnabled?: boolean }).twoFactorEnabled);
+  return requiresTwoFactor && !twoFactorEnabled ? null : session;
 }

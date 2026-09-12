@@ -6,6 +6,13 @@ import { createPolicyConsentFields, POLICY_VERSION } from "./policy-consent";
 
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+const configuredAuthSecret = process.env.BETTER_AUTH_SECRET?.trim();
+if (process.env.NODE_ENV === "production" && (!configuredAuthSecret || configuredAuthSecret.length < 32)) {
+  throw new Error("BETTER_AUTH_SECRET must be set to at least 32 characters in production.");
+}
+if (process.env.NODE_ENV === "production" && !emailEnabled) {
+  throw new Error("RESEND_API_KEY and EMAIL_FROM must be configured so production accounts require verified email addresses.");
+}
 const authBaseUrl = process.env.NODE_ENV === "production"
   ? "https://bubsbookings.com"
   : process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -21,11 +28,20 @@ const trustedOrigins = Array.from(new Set([
 export const auth = betterAuth({
   appName: "BubsBookings",
   database,
-  secret:
-    process.env.BETTER_AUTH_SECRET ??
-    "bookme-local-development-secret-change-before-deploy",
+  secret: configuredAuthSecret ?? "bookme-local-development-secret-change-before-deploy",
   baseURL: authBaseUrl,
   trustedOrigins,
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 8 },
+      "/sign-up/email": { window: 3600, max: 8 },
+      "/forget-password": { window: 3600, max: 5 },
+      "/request-password-reset": { window: 3600, max: 5 },
+    },
+  },
   socialProviders: {
     ...(googleEnabled
       ? {
@@ -41,6 +57,8 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    minPasswordLength: 12,
+    maxPasswordLength: 128,
     requireEmailVerification: emailEnabled,
     sendResetPassword: async ({ user, url }) => {
       void sendAuthEmail({ to: user.email, name: user.name, url, kind: "reset" });

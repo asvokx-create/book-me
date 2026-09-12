@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { enforceRateLimit } from "@/lib/request-security";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -68,6 +69,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "notification-change", limit: 60 })) return NextResponse.json({ error: "Too many notification changes. Please wait a minute." }, { status: 429 });
   const body = (await request.json()) as { notificationId?: unknown; all?: unknown };
 
   if (body.all === true) {
@@ -88,6 +90,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "notification-change", limit: 60 })) return NextResponse.json({ error: "Too many notification changes. Please wait a minute." }, { status: 429 });
   const body = (await request.json()) as { notificationId?: unknown; allRead?: unknown };
 
   if (body.allRead === true) {

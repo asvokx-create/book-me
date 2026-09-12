@@ -102,6 +102,7 @@ export async function PATCH(request: Request) {
   const current = await currentProvider();
   if (!current) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
   if (!current.isOwner) return NextResponse.json({ error: "Only the company owner can review working hours." }, { status: 403 });
+  if (!await enforceRateLimit({ request, userId: current.session.user.id, bucket: "team-schedule-review", limit: 20 })) return NextResponse.json({ error: "Too many schedule reviews. Please wait a minute." }, { status: 429 });
   const body = await request.json() as { requestId?: unknown; decision?: unknown };
   const requestId = typeof body.requestId === "string" ? body.requestId : "";
   const decision = body.decision === "approve" || body.decision === "reject" ? body.decision : "";
@@ -200,6 +201,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const current = await currentProvider();
   if (!current) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
+  if (!await enforceRateLimit({ request, userId: current.session.user.id, bucket: "team-time-off", limit: 20 })) return NextResponse.json({ error: "Too many time-off changes. Please wait a minute." }, { status: 429 });
   const body = await request.json() as { id?: unknown };
   const id = typeof body.id === "string" ? body.id : "";
   const result = await database.query(

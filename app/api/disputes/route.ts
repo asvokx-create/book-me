@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { database } from "@/lib/database";
+import { enforceRateLimit } from "@/lib/request-security";
 
 const categories = new Set(["service_quality", "no_show", "damage", "billing", "other"]);
 
@@ -43,6 +44,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "dispute-create", limit: 5, windowSeconds: 3600 })) return NextResponse.json({ error: "Too many dispute attempts. Please try again later." }, { status: 429 });
   const body = (await request.json()) as Record<string, unknown>;
   const bookingId = typeof body.bookingId === "string" ? body.bookingId : "";
   const category = typeof body.category === "string" ? body.category : "";

@@ -48,9 +48,10 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "profile-photo", limit: 8, windowSeconds: 3600 })) return NextResponse.json({ error: "Too many photo changes. Please try again later." }, { status: 429 });
   const previousKey = await currentImageKey(session.user.id);
   const client = await database.connect();
   try {

@@ -35,6 +35,9 @@ Set these in App Platform's environment settings:
 - `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID`: the Google Analytics web stream measurement ID (starts with `G-`).
 - `GOOGLE_SITE_VERIFICATION`: only the `content` value from Google Search Console's HTML verification tag.
 - `NEXT_PUBLIC_APP_URL`: the same public URL.
+- `BOOKME_REQUIRE_ADMIN_2FA`: after every administrator enables an authenticator under Account > Security, set this to `true` to refuse admin access from accounts without two-factor authentication.
+
+For production, the app intentionally refuses to start without `DATABASE_URL`, `DATABASE_CA_CERT`, a 32-character-or-longer `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, and `EMAIL_FROM`. This prevents an incomplete deployment from silently using an unverified database connection, a predictable session secret, or accounts whose email addresses were never verified.
 
 Never add `.env.local`, the database password, or the auth secret to GitHub.
 

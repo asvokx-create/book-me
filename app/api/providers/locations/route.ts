@@ -4,6 +4,7 @@ import { getProviderAccess } from "@/lib/provider-access";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getServiceAreaCoordinates } from "@/lib/service-areas";
 import { checkAndRecordContent } from "@/lib/content-safety";
+import { enforceRateLimit } from "@/lib/request-security";
 
 type LocationInput = { companyId?: unknown; locationId?: unknown; name?: unknown; location?: unknown; serviceRadiusMiles?: unknown; workerIds?: unknown };
 
@@ -61,6 +62,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const provider = await ownerProvider();
   if (!provider) return NextResponse.json({ error: "Only the company owner can add locations." }, { status: 403 });
+  if (!await enforceRateLimit({ request, userId: provider.session.user.id, bucket: "provider-locations", limit: 20 })) return NextResponse.json({ error: "Too many location changes. Please wait a minute." }, { status: 429 });
   const body = await request.json() as LocationInput;
   const companyId = typeof body.companyId === "string" ? body.companyId : "";
   const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
@@ -94,6 +96,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const provider = await ownerProvider();
   if (!provider) return NextResponse.json({ error: "Only the company owner can manage locations." }, { status: 403 });
+  if (!await enforceRateLimit({ request, userId: provider.session.user.id, bucket: "provider-locations", limit: 20 })) return NextResponse.json({ error: "Too many location changes. Please wait a minute." }, { status: 429 });
   const body = await request.json() as LocationInput;
   const locationId = typeof body.locationId === "string" ? body.locationId : "";
   const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
@@ -140,6 +143,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const provider = await ownerProvider();
   if (!provider) return NextResponse.json({ error: "Only the company owner can remove locations." }, { status: 403 });
+  if (!await enforceRateLimit({ request, userId: provider.session.user.id, bucket: "provider-locations", limit: 20 })) return NextResponse.json({ error: "Too many location changes. Please wait a minute." }, { status: 429 });
   const body = await request.json() as LocationInput;
   const locationId = typeof body.locationId === "string" ? body.locationId : "";
   const result = await database.query<{ is_primary: boolean; listing_count: number }>(

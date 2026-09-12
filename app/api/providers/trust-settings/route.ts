@@ -3,10 +3,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
+import { enforceRateLimit } from "@/lib/request-security";
 
 export async function PATCH(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "provider-trust-settings", limit: 12 })) return NextResponse.json({ error: "Too many policy changes. Please wait a minute." }, { status: 429 });
   const body = await request.json() as { cancellationWindowHours?: unknown; cancellationPolicy?: unknown; noShowPolicy?: unknown; serviceRadiusMiles?: unknown };
   const hours = Number(body.cancellationWindowHours);
   const policy = typeof body.cancellationPolicy === "string" ? body.cancellationPolicy.trim() : "";

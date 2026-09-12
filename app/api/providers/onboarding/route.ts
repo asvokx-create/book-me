@@ -12,6 +12,7 @@ import { sendTransactionalEmail } from "@/lib/email";
 import { PROVIDER_AGREEMENT_VERSION } from "@/lib/policy-consent";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
+import { enforceRateLimit } from "@/lib/request-security";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
   if (!business || !category || !serviceArea || !coordinates || !service || !description || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "provider-onboarding", limit: 6, windowSeconds: 3600 })) return NextResponse.json({ error: "Too many setup attempts. Please try again later." }, { status: 429 });
   if (!acceptedProviderAgreement) {
     return NextResponse.json({ error: "Accept the Provider Agreement before creating a provider profile." }, { status: 400 });
   }

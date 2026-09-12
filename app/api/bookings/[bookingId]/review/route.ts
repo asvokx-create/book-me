@@ -3,10 +3,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
+import { enforceRateLimit } from "@/lib/request-security";
 
 export async function POST(request: Request, context: RouteContext<"/api/bookings/[bookingId]/review">) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "review-create", limit: 8, windowSeconds: 3600 })) return NextResponse.json({ error: "Too many review attempts. Please try again later." }, { status: 429 });
   const { bookingId } = await context.params;
   const body = (await request.json()) as { rating?: unknown; review?: unknown };
   const rating = typeof body.rating === "number" ? body.rating : 0;
