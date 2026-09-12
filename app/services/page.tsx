@@ -63,16 +63,24 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
     return `/services?${queryString.toString()}${resultsAnchor}`;
   }
 
+  const currentResultsPath = serviceHref(selectedCategory);
+  const clearFiltersParams = new URLSearchParams({ location, radius: String(radius) });
+  const clearFiltersHref = `/services?${clearFiltersParams.toString()}${resultsAnchor}`;
+  const widerSearchParams = new URLSearchParams(clearFiltersParams);
+  widerSearchParams.set("radius", String(Math.max(radius, 50)));
+  if (query) widerSearchParams.set("q", query);
+  if (selectedCategory !== "All services") widerSearchParams.set("category", selectedCategory);
+
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>
-            <span className="hidden min-[390px]:inline">BubsBookings</span><span className="hidden min-[360px]:inline min-[390px]:hidden">Bubs</span>
+            <span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/pricing" className="rounded-full px-2 py-2 text-xs font-semibold transition hover:bg-[#183126]/5 sm:px-4 sm:text-sm">Pricing</Link>
+            <Link href="/pricing" className="rounded-full px-2 py-2 text-xs font-semibold transition hover:bg-[#183126]/5 sm:px-4 sm:text-sm"><span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Provider pricing</span></Link>
             <Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link>
             <AccountNav />
           </div>
@@ -92,7 +100,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <span className="sr-only">Search services</span>
               <input name="q" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" className="w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" />
             </label>
-            <div className="border-t border-[#183126]/10 sm:min-w-[330px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitRadius /></div>
+            <div className="border-t border-[#183126]/10 sm:min-w-[330px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitLocation autoSubmitRadius /></div>
             {selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
             {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}
             {maxDuration && <input type="hidden" name="maxDuration" value={maxDuration} />}
@@ -139,17 +147,16 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             <p className="text-sm text-[#6c7d74]">{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} found</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">{query ? `Results for “${query}”` : selectedCategory}</h2>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} />{(query || selectedCategory !== "All services" || maxPrice || maxDuration || location !== "Issaquah, WA" || radius !== 25) && <Link href={`/services${resultsAnchor}`} className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
+          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} />{(query || selectedCategory !== "All services" || maxPrice || maxDuration) && <Link href={clearFiltersHref} className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
         </div>
 
         {filteredServices.length > 0 ? (
           <div className="mt-7 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {filteredServices.map((service) => (
               <article key={service.slug} className="group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
-                <Link href={`/services/${service.slug}`} className="block">
+                <Link href={`/services/${service.slug}?from=${encodeURIComponent(currentResultsPath)}`} className="block">
                 <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${getServiceVisual(service.category).gradient}`}`}>
                   {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-                  <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">New listing</span>
                   {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{getServiceVisual(service.category).art}</span>}
                 </div>
                 <div className="p-6">
@@ -167,8 +174,13 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           <div className="mt-7 rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-16 text-center">
             <span className="text-4xl">🔎</span>
             <h3 className="mt-4 text-xl font-bold">No exact matches yet</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Try a broader search or explore all services. We&apos;re adding more local providers soon.</p>
-            <Link href={`/services${resultsAnchor}`} className="mt-6 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">View all services</Link>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Adjust one part of your search while keeping {location} as your area.</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              {radius < 50 && <Link href={`/services?${widerSearchParams.toString()}${resultsAnchor}`} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Expand to 50 miles</Link>}
+              {selectedCategory !== "All services" && <Link href={removeFilter("category")} className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold">Remove category</Link>}
+              {query && <Link href={clearFiltersHref} className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold">Clear search</Link>}
+              {!query && selectedCategory === "All services" && radius >= 50 && <Link href={clearFiltersHref} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">View all nearby services</Link>}
+            </div>
           </div>
         )}
       </section>

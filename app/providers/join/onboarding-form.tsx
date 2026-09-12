@@ -114,7 +114,8 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
     const result = (await response.json()) as { error?: string; serviceId?: string };
 
     if (response.status === 401) {
-      router.push("/login");
+      const returnPath = `/providers/join?plan=${plan}`;
+      router.push(`/login?redirect=${encodeURIComponent(returnPath)}`);
       return;
     }
     if (!response.ok) {

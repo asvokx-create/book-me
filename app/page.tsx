@@ -10,22 +10,37 @@ import ServiceCategoryIcon from "@/components/service-category-icon";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
-export default async function Home() {
+function getParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+export default async function Home({ searchParams }: PageProps<"/">) {
+  const params = await searchParams;
+  const location = getParam(params.location) || "Issaquah, WA";
+  const requestedRadius = Number(getParam(params.radius));
+  const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 250 ? requestedRadius : 25;
+  const city = location.split(",")[0]?.trim() || location;
   const [services, allServices] = await Promise.all([
-    getServices({ location: "Issaquah, WA", limit: 3 }),
+    getServices({ location, radiusMiles: radius, limit: 3 }),
     getServices({ limit: 50 }),
   ]);
+  const nearbyServiceIds = new Set(services.map((service) => service.id));
+  const moreServices = allServices.filter((service) => !nearbyServiceIds.has(service.id));
+  const categoryCounts = new Map(FEATURED_SERVICE_CATEGORIES.map((category) => [category, allServices.filter((service) => service.category === category).length]));
+  const homeCategories = [...FEATURED_SERVICE_CATEGORIES].sort((left, right) => (categoryCounts.get(right) ?? 0) - (categoryCounts.get(left) ?? 0));
+  const nearbyParams = new URLSearchParams({ location, radius: String(radius) });
+  const nearbyServicesHref = `/services?${nearbyParams.toString()}#service-listings`;
   return (
     <main className="min-h-screen overflow-hidden bg-[#f8f7f3] text-[#183126]">
       <header className="sticky top-0 z-50 border-b border-white/70 bg-[#f8f7f3]/82 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
           <h1 className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
             <span className="grid h-10 w-10 place-items-center rounded-[.9rem] bg-[#173d2e] text-base text-[#f1e45c] shadow-[0_8px_20px_rgba(23,61,46,.2)]">B</span>
-            <span className="hidden min-[390px]:inline">BubsBookings</span><span className="hidden min-[360px]:inline min-[390px]:hidden">Bubs</span>
+            <span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span>
           </h1>
 
           <div className="flex items-center gap-3">
-            <Link href="/pricing" className="rounded-xl px-2 py-2 text-xs font-semibold transition hover:bg-[#183126]/5 sm:px-4 sm:text-sm">Pricing</Link>
+            <Link href="/pricing" className="rounded-xl px-2 py-2 text-xs font-semibold transition hover:bg-[#183126]/5 sm:px-4 sm:text-sm"><span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Provider pricing</span></Link>
             <Link href="/providers/join" className="hidden rounded-xl px-4 py-2 text-sm font-medium transition hover:bg-[#183126]/5 sm:block">
               List your service
             </Link>
@@ -59,7 +74,7 @@ export default async function Home() {
 
         <div className="relative hidden lg:block">
           <div className="absolute -inset-8 rounded-full bg-[#bcd6b8]/35 blur-3xl" />
-          <div className="relative rotate-[2deg] rounded-[2.25rem] border border-white/80 bg-white/88 p-5 shadow-[0_30px_80px_rgba(24,49,38,.18)] backdrop-blur-xl">
+          <Link href={nearbyServicesHref} aria-label={`Browse services near ${city}`} className="relative block rotate-[2deg] rounded-[2.25rem] border border-white/80 bg-white/88 p-5 shadow-[0_30px_80px_rgba(24,49,38,.18)] backdrop-blur-xl transition hover:-translate-y-1 hover:shadow-[0_34px_85px_rgba(24,49,38,.22)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]">
             <div className="relative h-56 overflow-hidden rounded-[1.65rem] bg-gradient-to-br from-[#143d2c] via-[#2f7652] to-[#b8dc62]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(255,255,255,.4),transparent_27%)]" />
               <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold">Popular nearby</span>
@@ -69,7 +84,7 @@ export default async function Home() {
               <div className="flex items-start justify-between gap-4"><div><p className="text-lg font-bold">Help is closer than you think</p><p className="mt-1 text-sm text-[#65766d]">Compare, message, and book in one place.</p></div><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#f1e45c] text-lg">→</span></div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-center"><div className="rounded-2xl bg-[#f3f5f0] px-2 py-3"><p className="font-black">Local</p><p className="mt-0.5 text-[10px] text-[#6a7b72]">Search by area</p></div><div className="rounded-2xl bg-[#f3f5f0] px-2 py-3"><p className="font-black">Direct</p><p className="mt-0.5 text-[10px] text-[#6a7b72]">Chat with pros</p></div><div className="rounded-2xl bg-[#f3f5f0] px-2 py-3"><p className="font-black">Secure</p><p className="mt-0.5 text-[10px] text-[#6a7b72]">Pay with Stripe</p></div></div>
             </div>
-          </div>
+          </Link>
           <div className="absolute -bottom-5 -left-8 rounded-2xl border border-white bg-[#173d2e] px-4 py-3 text-white shadow-xl"><p className="text-xs font-bold text-[#bdd0c4]">BUILT FOR YOUR NEIGHBORHOOD</p><p className="mt-1 text-sm font-bold">Trusted help, without the hassle.</p></div>
         </div>
         </div>
@@ -86,7 +101,7 @@ export default async function Home() {
             />
           </div>
 
-          <div className="md:min-w-[330px]"><LocationFilter restoreRemembered /></div>
+          <div className="md:min-w-[330px]"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
 
           <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">
             Find a pro
@@ -100,45 +115,44 @@ export default async function Home() {
         <div className="mb-7 mt-2 flex items-end justify-between gap-4"><h3 className="text-3xl font-bold tracking-[-.04em]">What can we take off your plate?</h3><Link href="/services?showFilters=1#all-filters" className="shrink-0 rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a]">View all</Link></div>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {FEATURED_SERVICE_CATEGORIES.map((category) => (
-            <Link
-              key={category}
-              href={`/services?category=${encodeURIComponent(category)}`}
-              className="group relative overflow-hidden rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 text-left shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:-translate-y-1.5 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60"
-            >
+          {homeCategories.map((category) => {
+            const count = categoryCounts.get(category) ?? 0;
+            const card = <>
               <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[#e7efe3]/60 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
               <ServiceCategoryIcon category={category} />
               <div className="mt-5 flex items-center justify-between gap-3">
                 <p className="font-bold tracking-[-.01em]">{category}</p>
-                <span aria-hidden="true" className="grid h-8 w-8 translate-x-2 place-items-center rounded-full bg-[#183126] text-sm text-white opacity-0 transition duration-300 group-hover:translate-x-0 group-hover:opacity-100">→</span>
+                {count > 0 && <span aria-hidden="true" className="grid h-8 w-8 translate-x-2 place-items-center rounded-full bg-[#183126] text-sm text-white opacity-0 transition duration-300 group-hover:translate-x-0 group-hover:opacity-100">→</span>}
               </div>
-            </Link>
-          ))}
+              <p className="mt-2 text-xs font-semibold text-[#718078]">{count > 0 ? `${count} active ${count === 1 ? "listing" : "listings"}` : "Providers coming soon"}</p>
+            </>;
+            return count > 0 ? <Link key={category} href={`/services?category=${encodeURIComponent(category)}&location=${encodeURIComponent(location)}&radius=${radius}#service-listings`} className="group relative overflow-hidden rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 text-left shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:-translate-y-1.5 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60">{card}</Link> : <div key={category} className="group relative overflow-hidden rounded-[1.75rem] border border-dashed border-[#183126]/10 bg-white/55 p-5 text-left">{card}</div>;
+          })}
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 sm:pb-10">
+      <section id="nearby-listings" className="scroll-mt-24 mx-auto max-w-6xl px-4 pb-8 sm:px-6 sm:pb-10">
         <div className="mb-7 flex items-end justify-between">
-          <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Local marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">New near Issaquah</h3></div>
+          <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Local marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">Available near {city}</h3></div>
 
-          <Link href="/services" className="text-sm font-medium hover:underline">
+          <Link href={nearbyServicesHref} className="text-sm font-medium hover:underline">
             View all
           </Link>
         </div>
 
         {services.length > 0 ? <div className="grid gap-6 md:grid-cols-3">
-          {services.map((service) => <HomeServiceCard key={service.id} service={service} badge="New listing" />)}
+          {services.map((service) => <HomeServiceCard key={service.id} service={service} />)}
         </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-14 text-center"><span className="text-4xl">🌱</span><h4 className="mt-4 text-xl font-bold">Local services are coming soon</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">Be the first local professional to create a real BubsBookings listing.</p><Link href="/providers/join" className="mt-6 inline-block rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">List your service</Link></div>}
       </section>
 
-      {allServices.length > 0 && <section className="border-t border-[#183126]/10 bg-[#f1f3ed]">
+      {moreServices.length > 0 && <section className="border-t border-[#183126]/10 bg-[#f1f3ed]">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
           <div className="mb-8 flex items-end justify-between gap-4">
-            <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Browse the marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">All listings</h3><p className="mt-2 text-sm text-[#687970]">Explore every active service currently available on BubsBookings.</p></div>
+            <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Browse the marketplace</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">More listings</h3><p className="mt-2 text-sm text-[#687970]">Explore other active services without repeating the nearby listings above.</p></div>
             <Link href="/services#service-listings" className="shrink-0 rounded-full bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">Explore all →</Link>
           </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {allServices.map((service) => <HomeServiceCard key={service.id} service={service} />)}
+            {moreServices.map((service) => <HomeServiceCard key={service.id} service={service} />)}
           </div>
         </div>
       </section>}

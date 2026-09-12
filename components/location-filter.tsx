@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { closestServiceArea, nearbyServiceAreas, serviceAreaLabel } from "@/lib/service-areas";
 import RadiusSelector from "@/components/radius-selector";
@@ -10,11 +10,14 @@ type LocationFilterProps = {
   initialRadius?: number;
   restoreRemembered?: boolean;
   autoSubmitRadius?: boolean;
+  autoSubmitLocation?: boolean;
+  requestLocationOnFirstVisit?: boolean;
 };
 
 const STORAGE_KEY = "bookme-service-area";
+const LOCATION_PROMPTED_KEY = "bookme-location-permission-asked";
 
-export default function LocationFilter({ initialLocation = "Issaquah, WA", initialRadius = 25, restoreRemembered = false, autoSubmitRadius = false }: LocationFilterProps) {
+export default function LocationFilter({ initialLocation = "Issaquah, WA", initialRadius = 25, restoreRemembered = false, autoSubmitRadius = false, autoSubmitLocation = false, requestLocationOnFirstVisit = false }: LocationFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -27,27 +30,66 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
   const nearby = useMemo(() => nearbyServiceAreas(location), [location]);
   const currentSearch = searchParams.toString();
 
+  const navigateToLocation = useCallback((nextLocation: string, nextRadius: number, replace = false) => {
+    if (!autoSubmitLocation && !autoSubmitRadius) return;
+    const params = new URLSearchParams(currentSearch);
+    params.set("location", nextLocation);
+    params.set("radius", String(nextRadius));
+    params.delete("showFilters");
+    const anchor = pathname === "/" ? "#nearby-listings" : pathname === "/services" ? "#service-listings" : "";
+    const href = `${pathname}?${params.toString()}${replace ? "" : anchor}`;
+    if (replace) router.replace(href, { scroll: false });
+    else router.push(href);
+  }, [autoSubmitLocation, autoSubmitRadius, currentSearch, pathname, router]);
+
+  const requestCurrentLocation = useCallback((replace = false) => {
+    if (!navigator.geolocation) {
+      setMessage("Current location is not available in this browser.");
+      return;
+    }
+    setLocating(true);
+    setMessage("");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const closest = closestServiceArea(coords.latitude, coords.longitude);
+        const closestLabel = serviceAreaLabel(closest);
+        setLocation(closestLabel);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ location: closestLabel, radius }));
+        setLocating(false);
+        setMessage(`Using the nearest supported city: ${closestLabel}.`);
+        navigateToLocation(closestLabel, radius, replace);
+      },
+      () => {
+        setLocating(false);
+        setMessage("We could not access your location. Search for your city instead.");
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
+    );
+  }, [navigateToLocation, radius]);
+
   useEffect(() => {
-    if (!restoreRemembered) return;
+    if (!restoreRemembered && !requestLocationOnFirstVisit) return;
     const timer = window.setTimeout(() => {
       try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as { location?: string; radius?: number } | null;
-        if (!saved?.location) return;
-        const savedRadius = Number.isInteger(saved.radius) && saved.radius! >= 1 && saved.radius! <= 250 ? saved.radius! : initialRadius;
-        setLocation(saved.location);
-        setRadius(savedRadius);
-        if (pathname === "/services" && !new URLSearchParams(currentSearch).has("location")) {
-          const params = new URLSearchParams(currentSearch);
-          params.set("location", saved.location);
-          params.set("radius", String(savedRadius));
-          router.replace(`/services?${params.toString()}`, { scroll: false });
+        const hasLocationParameter = new URLSearchParams(currentSearch).has("location");
+        if (saved?.location) {
+          const savedRadius = Number.isInteger(saved.radius) && saved.radius! >= 1 && saved.radius! <= 250 ? saved.radius! : initialRadius;
+          setLocation(saved.location);
+          setRadius(savedRadius);
+          if (!hasLocationParameter) navigateToLocation(saved.location, savedRadius, true);
+          return;
+        }
+        if (!hasLocationParameter && requestLocationOnFirstVisit && !localStorage.getItem(LOCATION_PROMPTED_KEY)) {
+          localStorage.setItem(LOCATION_PROMPTED_KEY, "true");
+          requestCurrentLocation(true);
         }
       } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [currentSearch, initialRadius, pathname, restoreRemembered, router]);
+  }, [currentSearch, initialRadius, navigateToLocation, requestCurrentLocation, requestLocationOnFirstVisit, restoreRemembered]);
 
   useEffect(() => () => {
     if (radiusUpdateRef.current) window.clearTimeout(radiusUpdateRef.current);
@@ -82,14 +124,10 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
     setRadius(nextRadius);
     if (!Number.isInteger(nextRadius) || nextRadius < 1 || nextRadius > 250) return;
     remember(location, nextRadius);
-    if (!autoSubmitRadius || pathname !== "/services") return;
+    if (!autoSubmitRadius) return;
     if (radiusUpdateRef.current) window.clearTimeout(radiusUpdateRef.current);
     radiusUpdateRef.current = window.setTimeout(() => {
-      const params = new URLSearchParams(currentSearch);
-      params.set("location", location);
-      params.set("radius", String(nextRadius));
-      params.delete("showFilters");
-      router.push(`/services?${params.toString()}#service-listings`);
+      navigateToLocation(location, nextRadius);
     }, 350);
   }
 
@@ -98,30 +136,12 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
     remember(nextLocation, radius);
     setMessage("");
     if (detailsRef.current) detailsRef.current.open = false;
+    navigateToLocation(nextLocation, radius);
   }
 
   function useCurrentLocation() {
-    if (!navigator.geolocation) {
-      setMessage("Current location is not available in this browser.");
-      return;
-    }
-    setLocating(true);
-    setMessage("");
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const closest = closestServiceArea(coords.latitude, coords.longitude);
-        const closestLabel = serviceAreaLabel(closest);
-        setLocation(closestLabel);
-        remember(closestLabel, radius);
-        setLocating(false);
-        setMessage(`Using the nearest supported city: ${serviceAreaLabel(closest)}.`);
-      },
-      () => {
-        setLocating(false);
-        setMessage("We could not access your location. Search for your city instead.");
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
-    );
+    localStorage.setItem(LOCATION_PROMPTED_KEY, "true");
+    requestCurrentLocation();
   }
 
   return (

@@ -31,6 +31,13 @@ export type ServiceListing = {
   distanceMiles?: number;
 };
 
+export type ServiceDetails = ServiceListing & {
+  completedJobCount: number;
+  reviewCount: number;
+  averageRating: number | null;
+  screeningCheckedAt: Date | null;
+};
+
 type ServiceRow = {
   id: string;
   slug: string;
@@ -161,7 +168,7 @@ export async function getServices(options: { query?: string; category?: string; 
   return nearbyServices.slice(0, requestedLimit);
 }
 
-export async function getServiceBySlug(slug: string) {
+export async function getServiceBySlug(slug: string): Promise<ServiceDetails | null> {
   if (!isDatabaseConfigured()) return null;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
@@ -184,7 +191,29 @@ export async function getServiceBySlug(slug: string) {
      LIMIT 1`,
     [slug],
   );
-  return result.rows[0] ? mapService(result.rows[0]) : null;
+  if (!result.rows[0]) return null;
+  const service = mapService(result.rows[0]);
+  const evidence = await database.query<{
+    completed_job_count: string;
+    review_count: string;
+    average_rating: string | null;
+    screening_checked_at: Date | null;
+  }>(
+    `SELECT
+       (SELECT COUNT(*) FROM bookings b WHERE b.service_id = $1 AND b.status = 'completed')::text AS completed_job_count,
+       (SELECT COUNT(*) FROM reviews r WHERE r.service_id = $1 AND r.is_hidden = false)::text AS review_count,
+       (SELECT AVG(r.rating) FROM reviews r WHERE r.service_id = $1 AND r.is_hidden = false)::text AS average_rating,
+       (SELECT p.screening_checked_at FROM provider_profiles p WHERE p.id = $2 LIMIT 1) AS screening_checked_at`,
+    [service.id, service.providerId],
+  );
+  const details = evidence.rows[0];
+  return {
+    ...service,
+    completedJobCount: Number(details?.completed_job_count ?? 0),
+    reviewCount: Number(details?.review_count ?? 0),
+    averageRating: details?.average_rating ? Number(details.average_rating) : null,
+    screeningCheckedAt: details?.screening_checked_at ?? null,
+  };
 }
 
 export async function getServiceById(id: string) {
@@ -326,8 +355,8 @@ export async function getFavoriteServices(customerId: string) {
 }
 
 export function formatDuration(minutes: number) {
-  if (minutes >= 480) return "Full day";
-  if (minutes >= 240) return "Half day";
+  if (minutes >= 480) return "a full day";
+  if (minutes >= 240) return "half a day";
   const hours = minutes / 60;
   return `${hours} ${hours === 1 ? "hour" : "hours"}`;
 }

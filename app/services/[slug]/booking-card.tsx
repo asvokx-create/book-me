@@ -155,7 +155,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
           </fieldset>
         )}
 
-        {error && <div role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}{requiresLogin && <Link href="/login" className="ml-1 underline">Log in here.</Link>}</div>}
+        {error && <div role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}{requiresLogin && <Link href={`/login?redirect=${encodeURIComponent(returnPath)}`} className="ml-1 underline">Log in here.</Link>}</div>}
 
         {step === "details" ? (
           <button type="submit" disabled={loading} className="mt-3 w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{loading ? "Checking…" : "Check availability"}</button>

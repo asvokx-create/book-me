@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
   const timeZone = typeof body.timeZone === "string" ? body.timeZone.trim() : "auto";
 
   if (name.length < 2 || name.length > 80) return NextResponse.json({ error: "Enter your full name." }, { status: 400 });
-  if (phone.length !== 10) return NextResponse.json({ error: "Enter a 10-digit phone number." }, { status: 400 });
+  if (phone.length > 0 && phone.length !== 10) return NextResponse.json({ error: "Enter a 10-digit phone number or leave it blank." }, { status: 400 });
   if (city.length < 2 || city.length > 80 || !/^[A-Za-z .'-]+$/.test(city)) return NextResponse.json({ error: "Enter a valid city." }, { status: 400 });
   if (!/^[A-Z]{2}$/.test(state)) return NextResponse.json({ error: "Enter a two-letter state code." }, { status: 400 });
   if (!Number.isInteger(radius) || radius < 1 || radius > 250) return NextResponse.json({ error: "Enter a search radius from 1 to 250 miles." }, { status: 400 });

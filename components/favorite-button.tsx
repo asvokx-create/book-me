@@ -1,7 +1,7 @@
 "use client";
 
 import { MouseEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
 const favoriteCache = new Map<string, Promise<Set<string>>>();
@@ -17,6 +17,8 @@ function getFavoriteIds(userId: string) {
 
 export default function FavoriteButton({ serviceId, serviceTitle, className = "", onChange }: { serviceId: string; serviceTitle: string; className?: string; onChange?: (saved: boolean) => void }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -33,7 +35,9 @@ export default function FavoriteButton({ serviceId, serviceTitle, className = ""
     event.preventDefault();
     event.stopPropagation();
     if (!session) {
-      router.push("/login");
+      const query = searchParams.toString();
+      const returnPath = `${pathname}${query ? `?${query}` : ""}`;
+      router.push(`/login?redirect=${encodeURIComponent(returnPath)}`);
       return;
     }
     if (saving) return;

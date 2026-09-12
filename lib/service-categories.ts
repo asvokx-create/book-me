@@ -52,13 +52,36 @@ function normalizeSearchText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function editDistance(left: string, right: string) {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      current[rightIndex] = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1),
+      );
+    }
+    previous.splice(0, previous.length, ...current);
+  }
+  return previous[right.length];
+}
+
 export function getServiceCategorySearchMatches(query: string) {
   const normalizedQuery = normalizeSearchText(query);
   if (normalizedQuery.length < 3) return [];
 
   return SERVICE_CATEGORIES.filter((category) => {
     const searchTerms = [category, ...(SERVICE_SEARCH_ALIASES[category] ?? [])].map(normalizeSearchText);
-    return searchTerms.some((term) => normalizedQuery.includes(term) || term.includes(normalizedQuery));
+    const compactQuery = normalizedQuery.replaceAll(" ", "");
+    return searchTerms.some((term) => {
+      const compactTerm = term.replaceAll(" ", "");
+      return normalizedQuery.includes(term)
+        || term.startsWith(normalizedQuery)
+        || compactTerm === compactQuery
+        || (compactQuery.length >= 5 && editDistance(compactQuery, compactTerm) <= 2);
+    });
   });
 }
 
