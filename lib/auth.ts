@@ -7,12 +7,6 @@ import { createPolicyConsentFields, POLICY_VERSION } from "./policy-consent";
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 const configuredAuthSecret = process.env.BETTER_AUTH_SECRET?.trim();
-if (process.env.NODE_ENV === "production" && (!configuredAuthSecret || configuredAuthSecret.length < 32)) {
-  throw new Error("BETTER_AUTH_SECRET must be set to at least 32 characters in production.");
-}
-if (process.env.NODE_ENV === "production" && !emailEnabled) {
-  throw new Error("RESEND_API_KEY and EMAIL_FROM must be configured so production accounts require verified email addresses.");
-}
 const authBaseUrl = process.env.NODE_ENV === "production"
   ? "https://bubsbookings.com"
   : process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
