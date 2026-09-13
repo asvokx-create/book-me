@@ -150,7 +150,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <span className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-[#f1e45c]">Learn how you’re covered <span className="transition group-hover:translate-x-1">→</span></span>
           </Link>
 
-          <div className="rounded-2xl bg-[#f3ed74] p-5 text-[#183126]">
+          <div className="home-business-card rounded-2xl bg-[#f3ed74] p-5 text-[#183126]">
             <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#627065]">🧰 For local businesses</p>
             <h3 className="mt-1.5 text-xl font-bold tracking-[-.03em]">Turn local searches into bookings.</h3>
             <p className="mt-2 text-xs leading-5 text-[#52655a]">Publish services, organize your team, and manage requests.</p>

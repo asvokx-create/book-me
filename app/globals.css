@@ -285,6 +285,12 @@ html[data-theme="dark"] ::selection { background: #eee25a; color: #183126; }
 html[data-theme="dark"] ::-webkit-scrollbar-track { background: #101b16; }
 html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #4f685b; border-color: #101b16; }
 
+/* This card stays bright in both themes, so keep every label legibly dark. */
+html[data-theme="dark"] .home-business-card,
+html[data-theme="dark"] .home-business-card :where(*) {
+  color: #183126 !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
