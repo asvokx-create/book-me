@@ -23,6 +23,10 @@ export default function SiteFooter() {
             <Link href="/provider-agreement" className="rounded-lg px-2 py-1 hover:bg-white/10 hover:text-white">Providers</Link>
             <Link href="/ai-transparency" className="rounded-lg px-2 py-1 hover:bg-white/10 hover:text-white">AI & safety</Link>
             <Link href="/disputes" className="rounded-lg px-2 py-1 hover:bg-white/10 hover:text-white">Disputes</Link>
+            <Link href="/cookies" className="rounded-lg px-2 py-1 hover:bg-white/10 hover:text-white">Cookies</Link>
+            <Link href="/content-removal" className="rounded-lg px-2 py-1 hover:bg-white/10 hover:text-white">Content removal</Link>
+            <Link href="/accessibility" className="rounded-lg px-2 py-1 hover:bg-white/10 hover:text-white">Accessibility</Link>
+            <a href="mailto:christian@bubsbookings.com" className="rounded-lg px-2 py-1 hover:bg-white/10 hover:text-white">Contact</a>
           </nav>
         </div>
         <p className="mt-8 border-t border-white/10 pt-6 text-xs text-[#829b8d]">© {new Date().getFullYear()} BubsBookings. Built for local people and local work.</p>

@@ -1,0 +1,16 @@
+import type { Metadata } from "next";
+import { LegalPage } from "@/app/terms/page";
+
+export const metadata: Metadata = { title: "Content Removal" };
+
+const sections = [
+  ["1. Report content", <>Anyone may request review of content on BubsBookings that is unlawful, infringes intellectual-property or privacy rights, or depicts them in an intimate image shared without consent. An account is not required. Email <a href="mailto:christian@bubsbookings.com?subject=BubsBookings%20content%20removal%20request" className="font-bold underline">christian@bubsbookings.com</a> with “Content removal request” in the subject. For immediate danger, contact emergency services. Do not use email to send passwords, full payment-card details, or unnecessary identity documents.</>],
+  ["2. What to include", "Identify the exact BubsBookings URL, listing, message, image, account, or other location; describe the content and the right or rule involved; provide your name and a reliable contact method; explain your relationship to the affected person or rights owner; and include a good-faith statement that the report is accurate. A typed full name may serve as your signature. If the content is already visible at a BubsBookings URL, do not attach or retransmit a sensitive image unless BubsBookings specifically and securely requests it."],
+  ["3. Nonconsensual intimate images", "For an intimate-image request, state that you are the identifiable person depicted or their authorized representative and that you have a good-faith belief the intimate image—including a digitally created or altered image—was shared without consent. BubsBookings will provide a reference for a complete request. When the TAKE IT DOWN Act applies and a request is valid, BubsBookings will remove the reported content and make reasonable efforts to remove known identical copies within 48 hours, then confirm the result or explain why the request could not be completed."],
+  ["4. Copyright and other intellectual property", "For a copyright or trademark complaint, identify the protected work or mark, the content claimed to infringe it, where that content appears, your contact information, your good-faith belief that the use is unauthorized, and your statement under penalty of perjury that the notice is accurate and you are the rights owner or authorized to act for the owner. BubsBookings may request additional information, notify the person who posted the material, remove or restrict the content, or decline an incomplete or unsupported request."],
+  ["5. Review, records, and misuse", "BubsBookings may preserve limited information about a report and action for safety, repeat-abuse prevention, legal compliance, and dispute handling. Reports are handled as confidentially as practical but may be disclosed to the person who posted the content, service providers, advisers, or authorities when necessary and lawful. Knowingly false, fraudulent, or abusive reports may lead to rejection, account action, or legal consequences. Nothing on this page limits a right or remedy available under applicable law."],
+] as const;
+
+export default function ContentRemovalPage() {
+  return <LegalPage eyebrow="Safety and rights" title="Content Removal" intro="A public process for reporting unlawful, infringing, privacy-invasive, or nonconsensual intimate content." sections={sections} />;
+}
