@@ -291,6 +291,134 @@ html[data-theme="dark"] .home-business-card :where(*) {
   color: #183126 !important;
 }
 
+/* The public homepage uses richer surfaces than the generic dark-mode fallback. */
+html[data-theme="dark"] .home-page {
+  background:
+    radial-gradient(circle at 86% 5%, rgba(73, 128, 92, 0.18), transparent 28rem),
+    linear-gradient(180deg, #0d1a14 0%, #0a1510 55%, #0d1b15 100%) !important;
+}
+
+html[data-theme="dark"] .home-header {
+  background-color: rgba(10, 22, 16, 0.88) !important;
+  border-color: rgba(231, 243, 235, 0.1) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+}
+
+html[data-theme="dark"] .home-header a {
+  color: #dce8e1;
+}
+
+html[data-theme="dark"] .home-hero {
+  border-bottom: 1px solid rgba(231, 243, 235, 0.06);
+}
+
+html[data-theme="dark"] .home-hero-glow {
+  background-color: rgba(70, 125, 89, 0.16) !important;
+  opacity: 0.72;
+}
+
+html[data-theme="dark"] .home-hero-eyebrow {
+  background-color: rgba(238, 226, 90, 0.08) !important;
+  border-color: rgba(238, 226, 90, 0.2) !important;
+  color: #cfe0d6 !important;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .home-hero h2 {
+  color: #f4f8f5;
+  text-shadow: 0 3px 28px rgba(0, 0, 0, 0.2);
+}
+
+html[data-theme="dark"] .home-hero-copy {
+  color: #b8c8bf !important;
+}
+
+html[data-theme="dark"] .home-hero-points {
+  color: #d2dfd7 !important;
+}
+
+html[data-theme="dark"] .home-hero-points > span > span {
+  background-color: #1e3a2d !important;
+  color: #eee25a !important;
+}
+
+html[data-theme="dark"] .home-preview-card {
+  background: linear-gradient(145deg, rgba(28, 49, 39, 0.98), rgba(17, 34, 26, 0.98)) !important;
+  border-color: rgba(224, 239, 229, 0.16) !important;
+  box-shadow: 0 34px 80px rgba(0, 0, 0, 0.42);
+}
+
+html[data-theme="dark"] .home-preview-card > div:last-child > div:first-child > div > p:first-child {
+  color: #f1f6f3;
+}
+
+html[data-theme="dark"] .home-preview-stat {
+  background-color: #0e2118 !important;
+  border: 1px solid rgba(223, 238, 228, 0.08);
+}
+
+html[data-theme="dark"] .home-preview-stat > p:first-child {
+  color: #e8f0eb;
+}
+
+html[data-theme="dark"] .home-search-bar {
+  background-color: rgba(17, 35, 27, 0.94) !important;
+  border-color: rgba(205, 226, 214, 0.2) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+}
+
+html[data-theme="dark"] .home-search-bar input {
+  background-color: transparent !important;
+}
+
+html[data-theme="dark"] .home-discovery,
+html[data-theme="dark"] .home-marketplace {
+  color: #edf4ef;
+}
+
+html[data-theme="dark"] .home-section-action {
+  background-color: rgba(223, 239, 228, 0.06) !important;
+  border-color: rgba(223, 239, 228, 0.13) !important;
+  color: #dbe8e0 !important;
+}
+
+html[data-theme="dark"] .home-section-action:hover {
+  background-color: #eee25a !important;
+  color: #183126 !important;
+}
+
+html[data-theme="dark"] .home-category-card {
+  background: linear-gradient(145deg, #172a21, #122219) !important;
+  border-color: rgba(219, 235, 225, 0.12) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+}
+
+html[data-theme="dark"] .home-category-card--empty {
+  background: rgba(18, 32, 24, 0.72) !important;
+  border-color: rgba(219, 235, 225, 0.1) !important;
+}
+
+html[data-theme="dark"] .home-category-card--empty p:first-of-type {
+  color: #c8d6cd;
+}
+
+html[data-theme="dark"] .home-service-card,
+html[data-theme="dark"] .home-empty-state {
+  background: linear-gradient(155deg, #172a21, #122219) !important;
+  border-color: rgba(219, 235, 225, 0.12) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.2);
+}
+
+html[data-theme="dark"] .home-promo-strip {
+  background: linear-gradient(135deg, #143d2e, #102b21) !important;
+  border-top: 1px solid rgba(230, 243, 234, 0.1);
+}
+
+html[data-theme="dark"] .home-promise-card {
+  background: linear-gradient(145deg, rgba(45, 85, 66, 0.92), rgba(28, 61, 46, 0.92)) !important;
+  border-color: rgba(232, 244, 236, 0.14) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
