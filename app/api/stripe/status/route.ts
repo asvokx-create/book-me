@@ -8,13 +8,13 @@ export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const result = await database.query<{
-    stripe_customer_id: string | null; stripe_account_id: string | null;
+    stripe_customer_id: string | null; stripe_account_id: string | null; stripe_subscription_id: string | null;
     stripe_subscription_status: string; stripe_charges_enabled: boolean;
     stripe_payouts_enabled: boolean; stripe_current_period_end: Date | null;
     stripe_connect_mode: "test" | "live" | null; stripe_billing_mode: "test" | "live" | null;
     extra_team_seats: number;
     pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null;
-  }>(`SELECT stripe_customer_id, stripe_account_id, stripe_subscription_status,
+  }>(`SELECT stripe_customer_id, stripe_account_id, stripe_subscription_id, stripe_subscription_status,
       stripe_charges_enabled, stripe_payouts_enabled, stripe_current_period_end,
       stripe_connect_mode, stripe_billing_mode, extra_team_seats,
       pro_trial_used_at_test, pro_trial_used_at_live
@@ -29,6 +29,22 @@ export async function GET() {
   let requirements: string[] = [];
   let disabledReason: string | null = null;
   let taxReportingStatus: string | null = null;
+  let cancelAtPeriodEnd = false;
+  if (configuration.secretKey && hasCurrentBilling && provider.stripe_subscription_id) {
+    try {
+      const subscription = await getStripe().subscriptions.retrieve(provider.stripe_subscription_id);
+      cancelAtPeriodEnd = subscription.cancel_at_period_end;
+      const periodEnd = subscription.items.data[0]?.current_period_end ?? null;
+      provider.stripe_subscription_status = subscription.status;
+      provider.stripe_current_period_end = periodEnd ? new Date(periodEnd * 1000) : null;
+      await database.query(`UPDATE provider_profiles SET stripe_subscription_status = $2,
+        stripe_current_period_end = CASE WHEN $3::bigint IS NULL THEN NULL ELSE to_timestamp($3) END
+        WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $4`,
+      [subscription.id, subscription.status, periodEnd, mode]);
+    } catch (error) {
+      console.error("Stripe subscription status refresh failed", error);
+    }
+  }
   if (configuration.secretKey && hasCurrentConnect && provider.stripe_account_id) {
     try {
       const account = await getStripe().accounts.retrieve(provider.stripe_account_id);
@@ -50,6 +66,7 @@ export async function GET() {
     hasCustomer: hasCurrentBilling,
     subscriptionStatus: hasCurrentBilling ? provider.stripe_subscription_status : "inactive",
     currentPeriodEnd: hasCurrentBilling ? provider.stripe_current_period_end : null,
+    cancelAtPeriodEnd: hasCurrentBilling && cancelAtPeriodEnd,
     extraTeamSeats: hasCurrentBilling ? provider.extra_team_seats : 0,
     trialEligible: mode === "live" ? !provider.pro_trial_used_at_live : !provider.pro_trial_used_at_test,
     connect: {
