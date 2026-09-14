@@ -61,6 +61,7 @@ type AccountDetails = {
     restriction_expires_at: string | null; restriction_created_at: string | null;
   };
   settings: null | { city: string; state: string; search_radius_miles: number; booking_notifications: boolean; message_notifications: boolean; theme: string; time_zone: string };
+  consumerStripe: { connected: boolean; mode: "test" | "live" | null };
   provider: null | {
     id: string; business_name: string; bio: string; phone: string | null; city: string; state: string;
     service_radius_miles: number; plan: ProviderPlan; is_active: boolean; is_verified: boolean;
@@ -430,31 +431,38 @@ function DetailGrid({ items }: { items: Array<{ label: string; value: string | n
   return <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map((item) => <div key={item.label} className="rounded-2xl border border-[#183126]/10 bg-[#f8f8f4] p-4"><dt className="text-[10px] font-extrabold uppercase tracking-[.12em] text-[#718078]">{item.label}</dt><dd className="mt-1 break-words text-sm font-semibold [overflow-wrap:anywhere]">{show(item.value)}</dd></div>)}</dl>;
 }
 
-function StripeConnectionSummary({ provider }: { provider: AccountDetails["provider"] }) {
-  if (!provider) {
-    return <section className="rounded-3xl border border-[#183126]/15 bg-[#f8f8f4] p-5" aria-label="Stripe connection status">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Stripe connection</p><h3 className="mt-1 text-lg font-bold">Not applicable</h3></div><span className="rounded-full border border-[#183126]/15 bg-white px-3 py-1.5 text-xs font-bold">Customer account</span></div>
-      <p className="mt-2 text-sm leading-6 text-[#52665b]">This person does not have a provider profile, so they do not need a Stripe payout account.</p>
-    </section>;
-  }
-
-  const ready = provider.stripe_connected && provider.stripe_charges_enabled && provider.stripe_payouts_enabled;
-  const title = ready ? "Connected and ready" : provider.stripe_connected ? "Setup incomplete" : "Not connected";
-  const description = ready
+function StripeConnectionSummary({ consumerStripe, provider }: {
+  consumerStripe: AccountDetails["consumerStripe"];
+  provider: AccountDetails["provider"];
+}) {
+  const providerConnected = Boolean(provider?.stripe_connected);
+  const ready = Boolean(providerConnected && provider?.stripe_charges_enabled && provider?.stripe_payouts_enabled);
+  const providerTitle = ready ? "Connected and ready" : providerConnected ? "Setup incomplete" : "Not connected";
+  const providerDescription = ready
     ? "Stripe onboarding is complete. This provider can accept payments and receive payouts."
-    : provider.stripe_connected
+    : providerConnected
       ? "A Stripe account exists, but the provider still needs to finish Stripe onboarding before payments and payouts are fully enabled."
       : "This provider has not connected a Stripe payout account yet.";
-  const tone = ready
+  const providerTone = ready
     ? "border-[#34704a]/30 bg-[#e7f3e7] text-[#245c38]"
-    : provider.stripe_connected
+    : providerConnected
       ? "border-[#a66a1f]/30 bg-[#fff6dc] text-[#7a5711]"
       : "border-[#9a4e25]/25 bg-[#fff0e7] text-[#7b3c1b]";
 
-  return <section className={`rounded-3xl border p-5 ${tone}`} aria-label="Stripe connection status">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] opacity-75">Stripe connection</p><h3 className="mt-1 text-lg font-bold">{title}</h3></div><span className="rounded-full border border-current/20 bg-white/70 px-3 py-1.5 text-xs font-bold">{ready ? "Ready" : "Action needed"}</span></div>
-    <p className="mt-2 text-sm leading-6 opacity-90">{description}</p>
-    <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold"><span className="rounded-full bg-white/70 px-3 py-1.5">Account: {provider.stripe_connected ? "Connected" : "Not connected"}</span><span className="rounded-full bg-white/70 px-3 py-1.5">Charges: {provider.stripe_charges_enabled ? "Enabled" : "Disabled"}</span><span className="rounded-full bg-white/70 px-3 py-1.5">Payouts: {provider.stripe_payouts_enabled ? "Enabled" : "Disabled"}</span></div>
+  return <section className="rounded-3xl border border-[#183126]/15 bg-[#f8f8f4] p-5" aria-label="Stripe account status">
+    <div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Stripe status</p><h3 className="mt-1 text-lg font-bold">Payment and payout accounts</h3></div>
+    <div className={`mt-4 grid gap-4 ${provider ? "lg:grid-cols-2" : ""}`}>
+      <div className={`rounded-2xl border p-4 ${consumerStripe.connected ? "border-[#34704a]/30 bg-[#e7f3e7] text-[#245c38]" : "border-[#183126]/15 bg-white text-[#52665b]"}`}>
+        <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-[10px] font-extrabold uppercase tracking-[.12em] opacity-75">Consumer payments</p><h4 className="mt-1 font-bold">{consumerStripe.connected ? "Stripe profile connected" : "No Stripe profile yet"}</h4></div><span className="rounded-full border border-current/20 bg-white/70 px-3 py-1 text-xs font-bold">{consumerStripe.connected ? "Connected" : "Not connected"}</span></div>
+        <p className="mt-2 text-sm leading-6 opacity-90">{consumerStripe.connected ? "A Stripe Customer profile exists for this person, allowing secure customer payments. Card details remain private in Stripe." : "Stripe will create a Customer profile when this person first uses a payment feature."}</p>
+        {consumerStripe.mode && <span className="mt-3 inline-flex rounded-full bg-white/70 px-3 py-1 text-xs font-bold">{consumerStripe.mode === "live" ? "Live payments" : "Test data"}</span>}
+      </div>
+      {provider && <div className={`rounded-2xl border p-4 ${providerTone}`}>
+        <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-[10px] font-extrabold uppercase tracking-[.12em] opacity-75">Provider payouts</p><h4 className="mt-1 font-bold">{providerTitle}</h4></div><span className="rounded-full border border-current/20 bg-white/70 px-3 py-1 text-xs font-bold">{ready ? "Ready" : "Action needed"}</span></div>
+        <p className="mt-2 text-sm leading-6 opacity-90">{providerDescription}</p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold"><span className="rounded-full bg-white/70 px-3 py-1">Account: {providerConnected ? "Connected" : "Not connected"}</span><span className="rounded-full bg-white/70 px-3 py-1">Charges: {provider.stripe_charges_enabled ? "Enabled" : "Disabled"}</span><span className="rounded-full bg-white/70 px-3 py-1">Payouts: {provider.stripe_payouts_enabled ? "Enabled" : "Disabled"}</span></div>
+      </div>}
+    </div>
   </section>;
 }
 
@@ -472,7 +480,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
         {error && <div className="rounded-3xl border border-[#9a4e25]/20 bg-[#fff0e7] p-6"><h3 className="font-bold text-[#7b3c1b]">Account details unavailable</h3><p className="mt-2 text-sm text-[#9a4e25]">{error}</p><button type="button" onClick={onRetry} className="mt-4 rounded-full bg-[#183126] px-5 py-2.5 text-sm font-bold text-white">Try again</button></div>}
         {details && <>
           <div className="rounded-3xl border border-[#183126]/10 bg-[#f4f4ef] p-5"><p className="text-sm leading-6 text-[#52665b]">{details.privacyNote} Opening this view is recorded in the admin audit history.</p></div>
-          <StripeConnectionSummary provider={details.provider} />
+          <StripeConnectionSummary consumerStripe={details.consumerStripe} provider={details.provider} />
           <section><h3 className="mb-3 text-lg font-bold">Account and contact</h3><DetailGrid items={[
             { label: "Full name", value: details.account.name }, { label: "Email", value: details.account.email }, { label: "Phone", value: details.account.phone },
             { label: "Role", value: label(details.account.role) }, { label: "Email verified", value: details.account.email_verified }, { label: "Authenticator protection", value: details.account.two_factor_enabled },

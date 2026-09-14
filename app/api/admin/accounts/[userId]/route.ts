@@ -51,7 +51,9 @@ export async function GET(
     const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity] = await Promise.all([
       database.query(
         `SELECT city, state, search_radius_miles, booking_notifications, message_notifications,
-                theme, time_zone, created_at, updated_at
+                theme, time_zone, created_at, updated_at,
+                (consumer_stripe_customer_id IS NOT NULL) AS consumer_stripe_connected,
+                consumer_stripe_mode
          FROM user_settings WHERE user_id = $1`,
         [userId],
       ),
@@ -142,6 +144,10 @@ export async function GET(
     return NextResponse.json({
       account: accountResult.rows[0],
       settings: settings.rows[0] ?? null,
+      consumerStripe: {
+        connected: Boolean(settings.rows[0]?.consumer_stripe_connected),
+        mode: settings.rows[0]?.consumer_stripe_mode ?? null,
+      },
       provider: providerResult.rows[0] ?? null,
       counts: counts.rows[0],
       services: services.rows,
