@@ -5,6 +5,7 @@ import { isOwnerEmail } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { isPurchasableProviderPlan } from "@/lib/plans";
 import { getStripe, getStripeMode, isStripeReady } from "@/lib/stripe";
+import { getProMonthlyPriceId } from "@/lib/stripe-subscription-prices";
 import { enforceRateLimit } from "@/lib/request-security";
 
 export async function POST(request: Request) {
@@ -45,23 +46,13 @@ export async function POST(request: Request) {
   }
 
   const origin = new URL(request.url).origin;
+  const proPriceId = await getProMonthlyPriceId(stripe);
   const checkout = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
     payment_method_collection: "always",
     client_reference_id: provider.id,
-    line_items: [{
-      price_data: {
-        currency: "usd",
-        unit_amount: 999,
-        recurring: { interval: "month" },
-        product_data: {
-          name: "BubsBookings Pro",
-          description: "Unlimited listings and photos, growth tools, priority placement, and priority support.",
-        },
-      },
-      quantity: 1,
-    }],
+    line_items: [{ price: proPriceId, quantity: 1 }],
     success_url: `${origin}/provider/dashboard/billing?stripe=subscription-success`,
     cancel_url: `${origin}/provider/dashboard/billing?stripe=cancelled`,
     metadata: { kind: "provider_subscription", providerId: provider.id, plan: body.plan, trialOffered: String(trialEligible) },
