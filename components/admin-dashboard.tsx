@@ -53,6 +53,34 @@ type AdminActionOptions = {
   action: string; targetId: string; status?: string; needsReason?: boolean;
   confirmText?: string; successText: string;
 };
+type AccountDetails = {
+  account: Account & {
+    phone: string | null; email_verified: boolean; two_factor_enabled: boolean;
+    terms_accepted_at: string | null; privacy_acknowledged_at: string | null;
+    ai_safety_acknowledged_at: string | null; policy_version: string | null; updated_at: string;
+    restriction_expires_at: string | null; restriction_created_at: string | null;
+  };
+  settings: null | { city: string; state: string; search_radius_miles: number; booking_notifications: boolean; message_notifications: boolean; theme: string; time_zone: string };
+  provider: null | {
+    id: string; business_name: string; bio: string; phone: string | null; city: string; state: string;
+    service_radius_miles: number; plan: ProviderPlan; is_active: boolean; is_verified: boolean;
+    phone_verified: boolean; identity_verified: boolean; business_verified: boolean;
+    screening_status: string; screening_score: number | null; screening_summary: string; screening_checked_at: string | null;
+    stripe_subscription_status: string; stripe_charges_enabled: boolean; stripe_payouts_enabled: boolean;
+    stripe_current_period_end: string | null; stripe_connected: boolean;
+    provider_agreement_accepted_at: string | null; provider_agreement_version: string | null;
+    pro_trial_used_at_test: string | null; pro_trial_used_at_live: string | null; created_at: string; updated_at: string;
+  };
+  counts: { bookings: number; listings: number; reviews: number; safety_reports: number; disputes: number; support_requests: number };
+  services: Array<{ id: string; slug: string; title: string; category: string; business_name: string; price_cents: number; duration_minutes: number; is_active: boolean; created_at: string }>;
+  bookings: Array<{ id: string; service_title: string; status: string; payment_status: string; price_cents: number; starts_at: string; created_at: string; other_party_name: string; account_role: string }>;
+  reviews: Array<{ id: string; rating: number; body: string; is_hidden: boolean; created_at: string; service_title: string; customer_name: string; relationship: string }>;
+  reports: Array<{ id: string; category: string; details: string; status: string; created_at: string; reporter_name: string; reported_name: string; relationship: string }>;
+  disputes: Array<{ id: string; category: string; details: string; requested_resolution: string; status: string; admin_note: string; created_at: string; service_title: string; opened_by_name: string; against_name: string }>;
+  supportRequests: Array<{ id: string; subject: string; message: string; status: string; admin_reply: string; created_at: string }>;
+  activity: Array<{ id: string; action: string; target_type: string; target_id: string | null; created_at: string }>;
+  privacyNote: string;
+};
 
 const navItems: Array<{ id: AdminSection; label: string; icon: string }> = [
   { id: "overview", label: "Overview", icon: "▦" },
@@ -96,6 +124,10 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const [error, setError] = useState("");
   const [accountSearch, setAccountSearch] = useState("");
   const [pendingAction, setPendingAction] = useState<AdminActionOptions | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [accountDetails, setAccountDetails] = useState<AccountDetails | null>(null);
+  const [accountDetailsLoading, setAccountDetailsLoading] = useState(false);
+  const [accountDetailsError, setAccountDetailsError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -159,6 +191,31 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
     router.push("/");
     router.refresh();
   }
+
+  async function openAccount(account: Account) {
+    setSelectedAccount(account);
+    setAccountDetails(null);
+    setAccountDetailsError("");
+    setAccountDetailsLoading(true);
+    const response = await fetch(`/api/admin/accounts/${encodeURIComponent(account.id)}`, { cache: "no-store" }).catch(() => null);
+    const result = response ? await response.json() as AccountDetails & { error?: string } : null;
+    if (!response?.ok || !result) setAccountDetailsError(result?.error ?? "The account details could not be loaded.");
+    else setAccountDetails(result);
+    setAccountDetailsLoading(false);
+  }
+
+  function closeAccount() {
+    setSelectedAccount(null);
+    setAccountDetails(null);
+    setAccountDetailsError("");
+  }
+
+  useEffect(() => {
+    if (!selectedAccount) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") closeAccount(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedAccount]);
 
   const firstName = adminName.trim().split(/\s+/)[0] || "Admin";
   const openReports = data?.reports.filter((report) => report.status === "open" || report.status === "reviewing") ?? [];
@@ -299,10 +356,10 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
               {filteredAccounts.map((account) => (
                 <article key={account.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5">
                   <div className="grid gap-4 2xl:grid-cols-[minmax(20rem,1fr)_minmax(0,2fr)] 2xl:items-center">
-                    <div className="flex min-w-0 items-start gap-4 sm:items-center">
+                    <button type="button" onClick={() => void openAccount(account)} className="group -m-2 flex min-w-0 items-start gap-4 rounded-2xl p-2 text-left transition hover:bg-[#f4f6f1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#34704a] sm:items-center" aria-label={`View ${account.name}'s account details`}>
                       <ProfileAvatar name={account.name} imageUrl={account.image} className="h-12 w-12 shrink-0 text-sm" />
-                      <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{account.name}</h2><StatusPill value={account.restriction_status ?? "active"} /><span className="rounded-full bg-[#f0f1eb] px-2.5 py-1 text-[10px] font-bold uppercase">{account.role}</span>{account.provider_plan && <span className="rounded-full bg-[#fff3c4] px-2.5 py-1 text-[10px] font-extrabold uppercase text-[#775f00]">{PLAN_ENTITLEMENTS[account.provider_plan].name}</span>}</div><p className="mt-1 break-words text-sm text-[#718078] [overflow-wrap:anywhere]">{account.email}</p><p className="mt-1 text-xs text-[#8a9690]">Joined {formatDate(account.created_at)}{account.business_name ? " · " + account.business_name : ""}</p>{account.restriction_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Reason: {account.restriction_reason}</p>}</div>
-                    </div>
+                      <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold group-hover:underline">{account.name}</h2><StatusPill value={account.restriction_status ?? "active"} /><span className="rounded-full bg-[#f0f1eb] px-2.5 py-1 text-[10px] font-bold uppercase">{account.role}</span>{account.provider_plan && <span className="rounded-full bg-[#fff3c4] px-2.5 py-1 text-[10px] font-extrabold uppercase text-[#775f00]">{PLAN_ENTITLEMENTS[account.provider_plan].name}</span>}</div><p className="mt-1 break-words text-sm text-[#718078] [overflow-wrap:anywhere]">{account.email}</p><p className="mt-1 text-xs text-[#8a9690]">Joined {formatDate(account.created_at)}{account.business_name ? " · " + account.business_name : ""}</p>{account.restriction_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Reason: {account.restriction_reason}</p>}<span className="mt-2 inline-block text-xs font-bold text-[#34704a]">View account →</span></div>
+                    </button>
                     <div className="flex flex-wrap gap-2 2xl:justify-end">
                       <button disabled={busyId === account.id} onClick={() => void runAction({ action: "warn_account", targetId: account.id, needsReason: true, successText: "Warning sent to the account." })} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Warn</button>
                       {account.restriction_status ? <button disabled={busyId === account.id} onClick={() => void runAction({ action: "account_status", targetId: account.id, status: "active", confirmText: "Restore this account and allow it to sign in?", successText: "Account restored." })} className="rounded-full bg-[#34704a] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#285b3b]">Restore</button> : <>
@@ -353,6 +410,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
           )}
         </section>
       </div>
+      {selectedAccount && <AccountDetailDialog account={selectedAccount} details={accountDetails} loading={accountDetailsLoading} error={accountDetailsError} onClose={closeAccount} onRetry={() => void openAccount(selectedAccount)} />}
       {pendingAction && <div className="fixed inset-0 z-[100] grid place-items-center bg-[#10251c]/55 p-5" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title"><div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Confirm admin action</p><h2 id="admin-confirm-title" className="mt-2 text-2xl font-bold">Are you sure?</h2><p className="mt-3 text-sm leading-6 text-[#687970]">{pendingAction.confirmText}</p><p className="mt-4 rounded-2xl bg-[#f5f5ef] p-4 text-xs leading-5 text-[#718078]">This change is recorded in the permanent admin audit history.</p><div className="mt-6 flex justify-end gap-2"><button type="button" disabled={Boolean(busyId)} onClick={() => setPendingAction(null)} className="rounded-full px-5 py-3 text-sm font-bold transition hover:bg-[#edf1ec]">Cancel</button><button type="button" disabled={Boolean(busyId)} onClick={() => void executeAction({ ...pendingAction, confirmText: undefined })} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{busyId ? "Saving…" : pendingAction.status === "active" || pendingAction.status === "visible" ? "Restore" : "Confirm"}</button></div></div></div>}
     </main>
   );
@@ -360,4 +418,72 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return <div className="col-span-full p-10 text-center"><p className="text-3xl">✓</p><h3 className="mt-3 text-lg font-bold">{title}</h3><p className="mt-2 text-sm text-[#718078]">{body}</p></div>;
+}
+
+function show(value: string | number | boolean | null | undefined) {
+  if (value === null || value === undefined || value === "") return "Not provided";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value);
+}
+
+function DetailGrid({ items }: { items: Array<{ label: string; value: string | number | boolean | null | undefined }> }) {
+  return <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map((item) => <div key={item.label} className="rounded-2xl border border-[#183126]/10 bg-[#f8f8f4] p-4"><dt className="text-[10px] font-extrabold uppercase tracking-[.12em] text-[#718078]">{item.label}</dt><dd className="mt-1 break-words text-sm font-semibold [overflow-wrap:anywhere]">{show(item.value)}</dd></div>)}</dl>;
+}
+
+function AccountDetailDialog({ account, details, loading, error, onClose, onRetry }: {
+  account: Account; details: AccountDetails | null; loading: boolean; error: string; onClose: () => void; onRetry: () => void;
+}) {
+  return <div className="fixed inset-0 z-[90] flex justify-end bg-[#10251c]/55" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
+    <section className="h-full w-full max-w-4xl overflow-y-auto bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="account-detail-title">
+      <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#183126]/10 bg-white/95 px-5 py-5 backdrop-blur sm:px-8">
+        <div className="flex min-w-0 items-center gap-4"><ProfileAvatar name={account.name} imageUrl={account.image} className="h-12 w-12 shrink-0 text-sm" /><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Admin account view</p><h2 id="account-detail-title" className="truncate text-2xl font-bold">{account.name}</h2><p className="truncate text-sm text-[#718078]">{account.email}</p></div></div>
+        <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/20 text-xl transition hover:bg-[#edf1ec]" aria-label="Close account details">×</button>
+      </header>
+      <div className="space-y-6 p-5 sm:p-8">
+        {loading && <div className="grid min-h-80 place-items-center"><div className="text-center"><div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-[#dfe8df] border-t-[#34704a]" /><p className="mt-4 text-sm font-semibold text-[#718078]">Loading permitted account information…</p></div></div>}
+        {error && <div className="rounded-3xl border border-[#9a4e25]/20 bg-[#fff0e7] p-6"><h3 className="font-bold text-[#7b3c1b]">Account details unavailable</h3><p className="mt-2 text-sm text-[#9a4e25]">{error}</p><button type="button" onClick={onRetry} className="mt-4 rounded-full bg-[#183126] px-5 py-2.5 text-sm font-bold text-white">Try again</button></div>}
+        {details && <>
+          <div className="rounded-3xl border border-[#183126]/10 bg-[#f4f4ef] p-5"><p className="text-sm leading-6 text-[#52665b]">{details.privacyNote} Opening this view is recorded in the admin audit history.</p></div>
+          <section><h3 className="mb-3 text-lg font-bold">Account and contact</h3><DetailGrid items={[
+            { label: "Full name", value: details.account.name }, { label: "Email", value: details.account.email }, { label: "Phone", value: details.account.phone },
+            { label: "Role", value: label(details.account.role) }, { label: "Email verified", value: details.account.email_verified }, { label: "Authenticator protection", value: details.account.two_factor_enabled },
+            { label: "Account created", value: formatDate(details.account.created_at) }, { label: "Last updated", value: formatDate(details.account.updated_at) }, { label: "Account ID", value: details.account.id },
+            { label: "Restriction", value: details.account.restriction_status ? label(details.account.restriction_status) : "None" }, { label: "Restriction reason", value: details.account.restriction_reason }, { label: "Restriction expires", value: details.account.restriction_expires_at ? formatDate(details.account.restriction_expires_at) : null },
+          ]} /></section>
+          <section><h3 className="mb-3 text-lg font-bold">Policy acknowledgements</h3><DetailGrid items={[
+            { label: "Terms accepted", value: details.account.terms_accepted_at ? formatDate(details.account.terms_accepted_at) : null },
+            { label: "Privacy acknowledged", value: details.account.privacy_acknowledged_at ? formatDate(details.account.privacy_acknowledged_at) : null },
+            { label: "AI safety acknowledged", value: details.account.ai_safety_acknowledged_at ? formatDate(details.account.ai_safety_acknowledged_at) : null },
+            { label: "Policy version", value: details.account.policy_version },
+          ]} /></section>
+          {details.settings && <section><h3 className="mb-3 text-lg font-bold">Preferences</h3><DetailGrid items={[
+            { label: "Saved area", value: [details.settings.city, details.settings.state].filter(Boolean).join(", ") }, { label: "Search radius", value: `${details.settings.search_radius_miles} miles` },
+            { label: "Time zone", value: details.settings.time_zone }, { label: "Theme", value: label(details.settings.theme) },
+            { label: "Booking notifications", value: details.settings.booking_notifications }, { label: "Message notifications", value: details.settings.message_notifications },
+          ]} /></section>}
+          <section><h3 className="mb-3 text-lg font-bold">Marketplace history</h3><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">{Object.entries(details.counts).map(([key, value]) => <div key={key} className="rounded-2xl bg-[#183126] p-4 text-white"><p className="text-2xl font-bold">{value}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#bdd0c6]">{label(key)}</p></div>)}</div></section>
+          {details.provider && <details open className="rounded-3xl border border-[#183126]/10 p-5"><summary className="cursor-pointer text-lg font-bold">Provider profile and billing</summary><div className="mt-4 space-y-4"><DetailGrid items={[
+            { label: "Business", value: details.provider.business_name }, { label: "Provider plan", value: PLAN_ENTITLEMENTS[details.provider.plan].name }, { label: "Provider active", value: details.provider.is_active },
+            { label: "Business phone", value: details.provider.phone }, { label: "Service base", value: `${details.provider.city}, ${details.provider.state}` }, { label: "Service radius", value: `${details.provider.service_radius_miles} miles` },
+            { label: "Phone details checked", value: details.provider.phone_verified }, { label: "Stripe identity", value: details.provider.identity_verified }, { label: "Business profile checked", value: details.provider.business_verified },
+            { label: "Safety screening", value: label(details.provider.screening_status) }, { label: "Screening score", value: details.provider.screening_score }, { label: "Screening checked", value: details.provider.screening_checked_at ? formatDate(details.provider.screening_checked_at) : null },
+            { label: "Stripe connected", value: details.provider.stripe_connected }, { label: "Charges enabled", value: details.provider.stripe_charges_enabled }, { label: "Payouts enabled", value: details.provider.stripe_payouts_enabled },
+            { label: "Subscription", value: label(details.provider.stripe_subscription_status) }, { label: "Current period ends", value: details.provider.stripe_current_period_end ? formatDate(details.provider.stripe_current_period_end) : null }, { label: "Live Pro trial used", value: details.provider.pro_trial_used_at_live ? formatDate(details.provider.pro_trial_used_at_live) : "No" },
+            { label: "Provider agreement", value: details.provider.provider_agreement_accepted_at ? formatDate(details.provider.provider_agreement_accepted_at) : null }, { label: "Agreement version", value: details.provider.provider_agreement_version },
+          ]} />{details.provider.bio && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Business description</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{details.provider.bio}</p></div>}{details.provider.screening_summary && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Screening summary</p><p className="mt-2 text-sm leading-6">{details.provider.screening_summary}</p></div>}</div></details>}
+          <RecordSection title="Listings" empty="No listings on this account." records={details.services.map((service) => ({ id: service.id, title: service.title, meta: `${label(service.category)} · $${(service.price_cents / 100).toFixed(2)} · ${service.duration_minutes} min`, status: service.is_active ? "active" : "inactive", body: service.business_name }))} />
+          <RecordSection title="Bookings" empty="No bookings on this account." records={details.bookings.map((booking) => ({ id: booking.id, title: booking.service_title, meta: `${booking.account_role} · ${formatDate(booking.starts_at)} · $${(booking.price_cents / 100).toFixed(2)}`, status: `${label(booking.status)} · ${label(booking.payment_status)}`, body: `Other party: ${booking.other_party_name}` }))} />
+          <RecordSection title="Reviews" empty="No reviews connected to this account." records={details.reviews.map((review) => ({ id: review.id, title: `${review.relationship} · ${review.rating}/5 stars`, meta: `${review.service_title} · ${formatDate(review.created_at)}`, status: review.is_hidden ? "Hidden" : "Visible", body: review.body || "No written comment." }))} />
+          <RecordSection title="Safety reports" empty="No safety reports connected to this account." records={details.reports.map((report) => ({ id: report.id, title: `${report.relationship} · ${label(report.category)}`, meta: `${report.reporter_name} → ${report.reported_name} · ${formatDate(report.created_at)}`, status: label(report.status), body: report.details || "No additional details." }))} />
+          <RecordSection title="Booking disputes" empty="No disputes connected to this account." records={details.disputes.map((dispute) => ({ id: dispute.id, title: `${label(dispute.category)} · ${dispute.service_title}`, meta: `${dispute.opened_by_name} → ${dispute.against_name} · ${formatDate(dispute.created_at)}`, status: label(dispute.status), body: `${dispute.details}${dispute.requested_resolution ? `\nRequested resolution: ${dispute.requested_resolution}` : ""}${dispute.admin_note ? `\nAdmin note: ${dispute.admin_note}` : ""}` }))} />
+          <RecordSection title="Support requests" empty="No support requests from this account." records={details.supportRequests.map((request) => ({ id: request.id, title: request.subject, meta: formatDate(request.created_at), status: label(request.status), body: `${request.message}${request.admin_reply ? `\nAdmin reply: ${request.admin_reply}` : ""}` }))} />
+          <RecordSection title="Recent account activity" empty="No recent activity recorded." records={details.activity.map((event) => ({ id: event.id, title: label(event.action), meta: `${label(event.target_type)} · ${formatDate(event.created_at)}`, status: "Recorded", body: event.target_id ? `Record: ${event.target_id}` : "" }))} />
+        </>}
+      </div>
+    </section>
+  </div>;
+}
+
+function RecordSection({ title, empty, records }: { title: string; empty: string; records: Array<{ id: string; title: string; meta: string; status: string; body: string }> }) {
+  return <details className="rounded-3xl border border-[#183126]/10 p-5"><summary className="cursor-pointer text-lg font-bold">{title} <span className="text-sm text-[#718078]">({records.length})</span></summary>{records.length === 0 ? <p className="mt-4 text-sm text-[#718078]">{empty}</p> : <div className="mt-4 divide-y divide-[#183126]/10">{records.map((record) => <article key={record.id} className="py-4 first:pt-0 last:pb-0"><div className="flex flex-wrap items-start justify-between gap-2"><div><h4 className="font-bold">{record.title}</h4><p className="mt-1 text-xs text-[#718078]">{record.meta}</p></div><span className="rounded-full bg-[#f0f1eb] px-3 py-1 text-[10px] font-bold uppercase">{record.status}</span></div>{record.body && <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#52665b]">{record.body}</p>}</article>)}</div>}</details>;
 }
