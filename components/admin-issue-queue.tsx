@@ -154,6 +154,7 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [bugTab, setBugTab] = useState<"unresolved" | "resolved">("unresolved");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -226,9 +227,45 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
         {loading && issues.length === 0 ? (
           <p className="mt-7 rounded-[1.7rem] bg-white p-10 text-center text-[#718078]">Loading queue…</p>
         ) : type === "bugs" ? (
-          <div className="mt-8 space-y-12">
-            <BugSection title="Unresolved bugs" description="Open reports and bugs currently being reviewed." issues={unresolvedBugs} busy={busy} update={update} closed={false} />
-            <BugSection title="Resolved bugs" description="Resolved and dismissed reports kept for reference." issues={resolvedBugs} busy={busy} update={update} closed />
+          <div className="mt-8">
+            <div
+              role="tablist"
+              aria-label="Bug report status"
+              className="inline-flex w-full gap-1 rounded-2xl border border-[#183126]/10 bg-white p-1 sm:w-auto"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={bugTab === "unresolved"}
+                onClick={() => setBugTab("unresolved")}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition sm:flex-none ${bugTab === "unresolved" ? "bg-[#183126] text-white" : "text-[#59645e] hover:bg-[#edf2e9]"}`}
+              >
+                Unresolved bugs
+                <span className={`rounded-full px-2 py-0.5 text-xs ${bugTab === "unresolved" ? "bg-white/15" : "bg-[#edf2e9]"}`}>
+                  {unresolvedBugs.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={bugTab === "resolved"}
+                onClick={() => setBugTab("resolved")}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition sm:flex-none ${bugTab === "resolved" ? "bg-[#183126] text-white" : "text-[#59645e] hover:bg-[#edf2e9]"}`}
+              >
+                Resolved bugs
+                <span className={`rounded-full px-2 py-0.5 text-xs ${bugTab === "resolved" ? "bg-white/15" : "bg-[#edf2e9]"}`}>
+                  {resolvedBugs.length}
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-7">
+              {bugTab === "unresolved" ? (
+                <BugSection title="Unresolved bugs" description="Open reports and bugs currently being reviewed." issues={unresolvedBugs} busy={busy} update={update} closed={false} />
+              ) : (
+                <BugSection title="Resolved bugs" description="Resolved and dismissed reports kept for reference." issues={resolvedBugs} busy={busy} update={update} closed />
+              )}
+            </div>
           </div>
         ) : (
           <div className="mt-7 space-y-4">
