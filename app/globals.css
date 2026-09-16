@@ -37,10 +37,17 @@ body {
   min-width: 0;
   overflow-x: clip;
   line-height: 1.5;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
 }
 
-main { isolation: isolate; }
-h1, h2, h3, h4 { text-wrap: balance; }
+main { isolation: isolate; position: relative; }
+h1, h2, h3, h4 {
+  text-wrap: balance;
+  letter-spacing: -0.032em;
+  line-height: 1.1;
+}
+h1 { letter-spacing: -0.045em; }
 p { text-wrap: pretty; }
 
 button, a, input, select, textarea { font: inherit; }
@@ -83,7 +90,49 @@ img, picture, video, canvas, svg { max-width: 100%; }
 
 main > header {
   box-shadow: 0 1px 0 rgba(19, 46, 35, .07), 0 10px 35px rgba(19, 46, 35, .035);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
+
+/* Shared visual language for public, account, provider, and admin screens. */
+:where(main section, main article, main aside, main details)[class*="bg-white"][class*="rounded"] {
+  border-color: rgba(19, 46, 35, .1);
+  background-image: linear-gradient(145deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, 0) 48%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .82) inset, 0 8px 30px rgba(19, 46, 35, .055);
+}
+
+:where(main article, main section):has(> a)[class*="bg-white"][class*="rounded"] {
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1), border-color 220ms ease, box-shadow 220ms ease;
+}
+
+:where(main article, main section):has(> a)[class*="bg-white"][class*="rounded"]:hover {
+  border-color: rgba(46, 92, 69, .2);
+  box-shadow: 0 18px 48px rgba(19, 46, 35, .11);
+}
+
+:where(main, footer) :where(a, button)[class*="bg-[#183126]"],
+:where(main, footer) :where(a, button)[class*="bg-[#173d2e]"] {
+  box-shadow: 0 10px 24px rgba(19, 46, 35, .18), 0 1px 0 rgba(255, 255, 255, .14) inset;
+}
+
+:where(main, footer) :where(a, button)[class*="bg-[#eee25a]"],
+:where(main, footer) :where(a, button)[class*="bg-[#f1e45c]"] {
+  box-shadow: 0 10px 24px rgba(181, 163, 20, .16), 0 1px 0 rgba(255, 255, 255, .58) inset;
+}
+
+:where(main, footer) :where(a, button)[class*="rounded-full"]:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .72) inset, 0 1px 2px rgba(19, 46, 35, .025);
+}
+
+:where(label) > :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  margin-top: .45rem;
+}
+
+::placeholder { opacity: 1; }
 
 ::-webkit-scrollbar { width: 11px; height: 11px; }
 ::-webkit-scrollbar-track { background: #eeeee8; }
@@ -273,6 +322,17 @@ html[data-theme="dark"] :where(input, select, textarea) {
   color: #eef5f0 !important;
   border-color: rgba(232, 243, 236, 0.16) !important;
   color-scheme: dark;
+}
+
+html[data-theme="dark"] :where(main section, main article, main aside, main details)[class*="bg-white"][class*="rounded"] {
+  background-image: linear-gradient(145deg, rgba(255, 255, 255, .035), transparent 52%);
+  border-color: rgba(232, 243, 236, .12) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .045) inset, 0 14px 38px rgba(0, 0, 0, .2);
+}
+
+html[data-theme="dark"] :where(main, footer) :where(a, button)[class*="bg-[#183126]"],
+html[data-theme="dark"] :where(main, footer) :where(a, button)[class*="bg-[#173d2e]"] {
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .28), 0 0 0 1px rgba(255, 255, 255, .08) inset;
 }
 
 html[data-theme="dark"] :where(option) {
