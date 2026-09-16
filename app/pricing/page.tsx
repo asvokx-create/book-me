@@ -104,7 +104,11 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
             <h2 className="text-2xl font-bold">{plan.name}</h2><p className="mt-2 min-h-12 text-sm leading-6 text-[#687970]">{plan.description}</p>
             <div className="mt-7 flex items-end gap-2"><span className="text-4xl font-bold tracking-[-.04em]">{plan.price}</span><span className="pb-1 text-sm text-[#6f7f77]">{plan.cadence}</span></div>
             {plan.id === "pro" && showTrialPromotion && <p className="mt-3 rounded-2xl bg-[#fff9d9] px-4 py-3 text-sm font-bold text-[#66580b]">Eligible provider companies get 30 days free, then $9.99/month</p>}
-            <p className="mt-2 inline-flex w-fit rounded-full bg-[#edf3e7] px-3 py-1.5 text-xs font-bold text-[#496756]">{plan.fee}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex w-fit rounded-full bg-[#edf3e7] px-3 py-1.5 text-xs font-bold text-[#496756]">{plan.fee}</span>
+              {plan.id === "pro" && <span className="inline-flex w-fit rounded-full bg-[#183126] px-3 py-1.5 text-xs font-bold text-white">Save at $250+/month booked</span>}
+            </div>
+            {plan.id === "pro" && <p className="mt-2 text-xs leading-5 text-[#74827b]">Compared with Starter: Pro&apos;s $9.99 monthly price plus its 6% booking fee becomes less expensive once completed bookings reach $250 per month.</p>}
             <ul className="mt-7 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex gap-3 text-sm"><span className="font-bold text-[#4c8a60]">✓</span><span>{feature}</span></li>)}</ul>
             {isCurrent
               ? <span className="mt-8 rounded-full bg-[#edf3e7] px-5 py-3.5 text-center text-sm font-bold text-[#496756]">Your current plan</span>
