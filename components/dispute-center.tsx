@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type BookingOption = { id: string; status: string; starts_at: string; service_title: string; other_party: string };
-type Dispute = { id: string; booking_id: string; category: string; details: string; requested_resolution: string; status: string; admin_note: string; created_at: string; service_title: string; against_name: string };
+type Dispute = { id: string; booking_id: string; category: string; details: string; requested_resolution: string; status: string; admin_note: string; resolution_outcome?: "provider" | "customer" | null; resolved_at?: string | null; created_at: string; service_title: string; against_name: string };
 
 const categoryLabels: Record<string, string> = { service_quality: "Service quality", no_show: "No-show or late arrival", damage: "Damage or safety concern", billing: "Billing or price", other: "Something else" };
 

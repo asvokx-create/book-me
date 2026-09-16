@@ -20,11 +20,14 @@ type Issue = {
   booking_id?: string;
   against_name?: string;
   against_email?: string;
+  resolution_outcome?: "provider" | "customer" | null;
+  resolved_at?: string | null;
 };
 
 type UpdateIssue = (
   issue: Issue,
   status: "reviewing" | "resolved" | "dismissed",
+  outcome?: "provider" | "customer",
 ) => Promise<void>;
 
 function statusStyle(status: string) {
@@ -65,12 +68,25 @@ function IssueCard({ issue, busy, update, closed = false }: {
                 Start review
               </button>
             )}
-            <button type="button" disabled={busy === issue.id} onClick={() => void update(issue, "resolved")} className="rounded-full bg-[#183126] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-              Resolve
-            </button>
-            <button type="button" disabled={busy === issue.id} onClick={() => void update(issue, "dismissed")} className="rounded-full px-4 py-2 text-sm font-bold hover:bg-[#fff0e8] disabled:opacity-50">
-              Dismiss
-            </button>
+            {issue.booking_id ? (
+              <>
+                <button type="button" disabled={busy === issue.id} onClick={() => void update(issue, "resolved", "provider")} className="rounded-full bg-[#183126] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+                  Provider wins · Release payout
+                </button>
+                <button type="button" disabled={busy === issue.id} onClick={() => void update(issue, "resolved", "customer")} className="rounded-full bg-[#eee25a] px-4 py-2 text-sm font-bold text-[#183126] disabled:opacity-50">
+                  Customer wins · Refund
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" disabled={busy === issue.id} onClick={() => void update(issue, "resolved")} className="rounded-full bg-[#183126] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+                  Resolve
+                </button>
+                <button type="button" disabled={busy === issue.id} onClick={() => void update(issue, "dismissed")} className="rounded-full px-4 py-2 text-sm font-bold hover:bg-[#fff0e8] disabled:opacity-50">
+                  Dismiss
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -107,6 +123,14 @@ function IssueCard({ issue, busy, update, closed = false }: {
           <div className="rounded-xl bg-white p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Admin note</p>
             <p className="mt-2 text-sm">{issue.admin_note}</p>
+          </div>
+        )}
+        {issue.resolution_outcome && (
+          <div className="rounded-xl border border-[#183126]/10 bg-[#e7f1e3] p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Financial outcome</p>
+            <p className="mt-2 text-sm font-bold">
+              {issue.resolution_outcome === "provider" ? "Provider won — payout released or queued for release" : "Customer won — payment refunded"}
+            </p>
           </div>
         )}
       </div>
@@ -175,15 +199,23 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
     return () => window.clearTimeout(timer);
   }, [load]);
 
-  async function update(issue: Issue, status: "reviewing" | "resolved" | "dismissed") {
-    const note = window.prompt(status === "reviewing" ? "Optional internal note:" : "Add an outcome or admin note:", issue.admin_note)?.trim();
+  async function update(issue: Issue, status: "reviewing" | "resolved" | "dismissed", outcome?: "provider" | "customer") {
+    if (outcome) {
+      const action = outcome === "provider" ? "release the held payout to the provider" : "refund the held payment to the customer";
+      if (!window.confirm(`This will ${action}. This financial decision cannot be undone from this screen. Continue?`)) return;
+    }
+    const note = window.prompt(status === "reviewing" ? "Optional internal note:" : "Explain why this decision was made:", issue.admin_note)?.trim();
     if (note === undefined) return;
+    if (outcome && note.length < 3) {
+      setError("Add a short note explaining the dispute decision.");
+      return;
+    }
 
     setBusy(issue.id);
     const response = await fetch("/api/admin/issues", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, id: issue.id, status, note }),
+      body: JSON.stringify({ type, id: issue.id, status, note, outcome }),
     }).catch(() => null);
     setBusy("");
 
@@ -269,7 +301,7 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
           </div>
         ) : (
           <div className="mt-7 space-y-4">
-            {issues.map((issue) => <IssueCard key={issue.id} issue={issue} busy={busy} update={update} />)}
+            {issues.map((issue) => <IssueCard key={issue.id} issue={issue} busy={busy} update={update} closed={issue.status === "resolved" || issue.status === "dismissed"} />)}
             {issues.length === 0 && <p className="rounded-[1.7rem] bg-white p-10 text-center text-[#718078]">No disputes yet.</p>}
           </div>
         )}

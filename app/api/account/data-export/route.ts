@@ -44,7 +44,8 @@ export async function GET(request: Request) {
       rows("SELECT * FROM provider_team_members WHERE user_id = $1 OR lower(email) = lower($2) ORDER BY created_at", [userId, session.user.email]),
       rows(`SELECT id, conversation_id, booking_id, category, details, status, created_at, updated_at
             FROM safety_reports WHERE reporter_id = $1 ORDER BY created_at`, [userId]),
-      rows(`SELECT id, booking_id, category, details, requested_resolution, status, admin_note, created_at, updated_at
+      rows(`SELECT id, booking_id, category, details, requested_resolution, status, admin_note,
+                   resolution_outcome, resolved_at, created_at, updated_at
             FROM booking_disputes WHERE opened_by = $1 ORDER BY created_at`, [userId]),
       rows("SELECT * FROM bug_reports WHERE reporter_id = $1 ORDER BY created_at", [userId]),
       rows("SELECT * FROM support_requests WHERE user_id = $1 ORDER BY created_at", [userId]),

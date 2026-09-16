@@ -27,7 +27,7 @@ export async function GET() {
     ),
     database.query(
       `SELECT d.id::text, d.booking_id::text, d.category, d.details, d.requested_resolution,
-              d.status, d.admin_note, d.created_at, s.title AS service_title,
+              d.status, d.admin_note, d.resolution_outcome, d.resolved_at, d.created_at, s.title AS service_title,
               against_user.name AS against_name
        FROM booking_disputes d
        JOIN bookings b ON b.id = d.booking_id
@@ -56,8 +56,13 @@ export async function POST(request: Request) {
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "booking_dispute", fields: [details, requestedResolution] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
+  const client = await database.connect();
   try {
-    const result = await database.query<{ id: string }>(
+    await client.query("BEGIN");
+    // Payout release takes the same booking-scoped lock. This makes freezing
+    // and releasing mutually exclusive instead of leaving a small timing gap.
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`booking-payout:${bookingId}`]);
+    const result = await client.query<{ id: string }>(
       `WITH opened AS (
          INSERT INTO booking_disputes (booking_id, opened_by, against_user_id, category, details, requested_resolution)
          SELECT b.id, $2, CASE WHEN b.customer_id = $2 THEN p.user_id ELSE b.customer_id END, $3, $4, $5
@@ -77,13 +82,20 @@ export async function POST(request: Request) {
        ) SELECT opened.id::text FROM opened JOIN frozen ON frozen.id = opened.booking_id`,
       [bookingId, session.user.id, category, details, requestedResolution],
     );
-    if (!result.rows[0]) return NextResponse.json({ error: "That booking is not eligible for a dispute." }, { status: 404 });
+    if (!result.rows[0]) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "That booking is not eligible for a dispute." }, { status: 404 });
+    }
+    await client.query("COMMIT");
     return NextResponse.json({ ok: true, disputeId: result.rows[0].id }, { status: 201 });
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
     if (error instanceof Error && "code" in error && error.code === "23505") {
       return NextResponse.json({ error: "You already have an open dispute for this booking." }, { status: 409 });
     }
     console.error("Dispute creation failed", error);
     return NextResponse.json({ error: "We could not open that dispute." }, { status: 500 });
+  } finally {
+    client.release();
   }
 }

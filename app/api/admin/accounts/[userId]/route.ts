@@ -113,7 +113,7 @@ export async function GET(
       ),
       database.query(
         `SELECT d.id::text, d.category, d.details, d.requested_resolution, d.status,
-                d.admin_note, d.created_at, s.title AS service_title,
+                d.admin_note, d.resolution_outcome, d.resolved_at, d.created_at, s.title AS service_title,
                 opener.name AS opened_by_name, against_user.name AS against_name
          FROM booking_disputes d
          JOIN bookings b ON b.id = d.booking_id
