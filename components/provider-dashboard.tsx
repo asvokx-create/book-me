@@ -16,6 +16,7 @@ import LocationManager from "@/components/location-manager";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { isAllDayAvailability } from "@/lib/availability-hours";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
+import { dashboardWidgetDetails, ownerDashboardWidgets, workerDashboardWidgets, type DashboardWidgetId } from "@/lib/provider-dashboard-widgets";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
 export type DashboardSection = "overview" | "bookings" | "calendar" | "messages" | "revenue" | "services" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
@@ -129,6 +130,12 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   const [reviews, setReviews] = useState<ProviderReview[]>([]);
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const [selectedAvailabilityServiceId, setSelectedAvailabilityServiceId] = useState("");
+  const [dashboardWidgets, setDashboardWidgets] = useState<DashboardWidgetId[]>([...ownerDashboardWidgets]);
+  const [widgetDraft, setWidgetDraft] = useState<DashboardWidgetId[]>([...ownerDashboardWidgets]);
+  const [widgetCustomizerOpen, setWidgetCustomizerOpen] = useState(false);
+  const [widgetSaving, setWidgetSaving] = useState(false);
+  const [widgetError, setWidgetError] = useState("");
+  const providerAccessRole = provider?.accessRole;
 
   useEffect(() => {
     const photoNoticeTimer = window.setTimeout(() => {
@@ -139,7 +146,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
     let active = true;
     fetch("/api/providers/me")
       .then(async (response) => response.ok ? response.json() as Promise<ProviderSummary> : null)
-      .then((data) => { if (active) { setProvider(data); setSelectedAvailabilityServiceId((current) => current || data?.services[0]?.id || ""); } })
+      .then((data) => { if (active) { setProvider(data); setSelectedAvailabilityServiceId((current) => current || data?.services[0]?.id || ""); if (data?.accessRole === "worker") { setDashboardWidgets([...workerDashboardWidgets]); setWidgetDraft([...workerDashboardWidgets]); } } })
       .finally(() => { if (active) setProviderLoaded(true); });
     return () => { active = false; window.clearTimeout(photoNoticeTimer); };
   }, []);
@@ -174,6 +181,79 @@ export default function ProviderDashboard({ section = "overview", initialConvers
       .finally(() => { if (active) setReviewsLoaded(true); });
     return () => { active = false; };
   }, [section]);
+
+  useEffect(() => {
+    if (section !== "overview" || !providerAccessRole) return;
+    let active = true;
+    fetch("/api/providers/dashboard-preferences", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() as Promise<{ widgets: DashboardWidgetId[] }> : null)
+      .catch(() => null)
+      .then((data) => {
+        if (!active || !data) return;
+        setDashboardWidgets(data.widgets);
+        setWidgetDraft(data.widgets);
+      });
+    return () => { active = false; };
+  }, [section, providerAccessRole]);
+
+  function openWidgetCustomizer() {
+    setWidgetDraft(dashboardWidgets);
+    setWidgetError("");
+    setWidgetCustomizerOpen(true);
+  }
+
+  function toggleWidget(widget: DashboardWidgetId) {
+    setWidgetDraft((current) => current.includes(widget) ? current.filter((item) => item !== widget) : [...current, widget]);
+    setWidgetError("");
+  }
+
+  function moveWidget(widget: DashboardWidgetId, direction: -1 | 1) {
+    setWidgetDraft((current) => {
+      const index = current.indexOf(widget);
+      const destination = index + direction;
+      if (index < 0 || destination < 0 || destination >= current.length) return current;
+      const next = [...current];
+      [next[index], next[destination]] = [next[destination], next[index]];
+      return next;
+    });
+  }
+
+  async function saveWidgetLayout() {
+    if (!widgetDraft.length) {
+      setWidgetError("Choose at least one widget for your overview.");
+      return;
+    }
+    setWidgetSaving(true);
+    setWidgetError("");
+    const response = await fetch("/api/providers/dashboard-preferences", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ widgets: widgetDraft }),
+    }).catch(() => null);
+    const payload = response ? await response.json().catch(() => null) as { widgets?: DashboardWidgetId[]; error?: string } | null : null;
+    if (!response?.ok || !payload?.widgets) {
+      setWidgetError(payload?.error ?? "We could not save your layout. Please try again.");
+    } else {
+      setDashboardWidgets(payload.widgets);
+      setWidgetDraft(payload.widgets);
+      setWidgetCustomizerOpen(false);
+    }
+    setWidgetSaving(false);
+  }
+
+  const visibleDashboardWidgets = widgetCustomizerOpen ? widgetDraft : dashboardWidgets;
+
+  function renderWidgetEditorBar(widget: DashboardWidgetId) {
+    if (!widgetCustomizerOpen) return null;
+    const index = widgetDraft.indexOf(widget);
+    const detail = dashboardWidgetDetails[widget];
+    return <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-[#b8c7bb] bg-[#eef4ea] px-4 py-3">
+      <span className="mr-auto text-xs font-extrabold uppercase tracking-[.12em] text-[#52665b]">{detail.label}</span>
+      <button type="button" onClick={() => moveWidget(widget, -1)} disabled={index === 0} aria-label={`Move ${detail.label} up`} className="rounded-full border border-[#183126]/15 bg-white px-3 py-1.5 text-xs font-bold text-[#183126] disabled:opacity-30">↑ Move up</button>
+      <button type="button" onClick={() => moveWidget(widget, 1)} disabled={index === widgetDraft.length - 1} aria-label={`Move ${detail.label} down`} className="rounded-full border border-[#183126]/15 bg-white px-3 py-1.5 text-xs font-bold text-[#183126] disabled:opacity-30">↓ Move down</button>
+      <button type="button" onClick={() => toggleWidget(widget)} className="rounded-full border border-[#9b5a45]/20 bg-[#fff1e8] px-3 py-1.5 text-xs font-bold text-[#8b4934]">Remove</button>
+    </div>;
+  }
 
   async function updateRequest(id: string, action: "accepted" | "declined" | "completed") {
     setBookingActionId(id);
@@ -227,6 +307,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   ];
   const completedProfileItems = profileChecklist.filter((item) => item.complete).length;
   const isWorker = provider?.accessRole === "worker";
+  const availableWidgets: readonly DashboardWidgetId[] = isWorker ? workerDashboardWidgets : ownerDashboardWidgets;
   const visibleNav = isWorker ? dashboardNav.filter((item) => ["overview", "bookings", "locations", "team", "settings"].includes(item.section)) : dashboardNav;
   const ownerOnlySection = isWorker && ["calendar", "messages", "revenue", "services", "availability", "reviews", "billing"].includes(section);
 
@@ -261,34 +342,43 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
           {section === "overview" && !ownerOnlySection && <><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div><p className="text-sm font-semibold text-[#687a70]">Today&apos;s overview</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Welcome, {firstName}.</h1><div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[#687a70]"><span>{provider ? `${provider.services.length} ${provider.services.length === 1 ? "service" : "services"} · ${provider.location}` : "Here's what’s happening with your business."}</span>{provider && <span className="rounded-full bg-[#eee25a] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#183126]">{provider.plan} plan</span>}</div></div>
-            {!isWorker && <Link href="/providers/join" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Add a service</Link>}
+            <div className="flex flex-wrap gap-2"><button type="button" onClick={openWidgetCustomizer} className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5 hover:border-[#183126]/35">Customize page</button>{!isWorker && <Link href="/providers/join" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5">+ Add a service</Link>}</div>
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {widgetCustomizerOpen && <section className="mt-6 rounded-[2rem] border-2 border-[#8da691] bg-white p-5 shadow-[0_16px_45px_rgba(24,49,38,.09)] sm:p-7">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#55705e]">Page editor</p><h2 className="mt-2 text-2xl font-bold">Customize your entire overview</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#687a70]">Remove or rearrange widgets directly on the page below. Add anything you removed from the widget library.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => { setWidgetDraft(dashboardWidgets); setWidgetCustomizerOpen(false); setWidgetError(""); }} className="rounded-full border border-[#183126]/15 px-4 py-2.5 text-xs font-bold">Cancel</button><button type="button" disabled={widgetSaving} onClick={saveWidgetLayout} className="rounded-full bg-[#eee25a] px-5 py-2.5 text-xs font-bold shadow-sm disabled:opacity-50">{widgetSaving ? "Saving…" : "Save page"}</button></div></div>
+            <div className="mt-6 rounded-2xl bg-[#f5f5ef] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-bold">Add widgets</p><p className="mt-1 text-xs text-[#6c7b73]">Choose from the widgets BubsBookings offers for your role.</p></div><button type="button" onClick={() => { const defaults = isWorker ? workerDashboardWidgets : ownerDashboardWidgets; setWidgetDraft([...defaults]); setWidgetError(""); }} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 text-xs font-bold">Reset default</button></div><div className="mt-4 flex flex-wrap gap-2">{availableWidgets.filter((widget) => !widgetDraft.includes(widget)).map((widget) => { const detail = dashboardWidgetDetails[widget]; return <button key={widget} type="button" onClick={() => toggleWidget(widget)} className="inline-flex items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-4 py-2.5 text-xs font-bold transition hover:border-[#6f8b77] hover:bg-[#e8f0e5]"><span>{detail.icon}</span>+ {detail.label}</button>; })}{availableWidgets.every((widget) => widgetDraft.includes(widget)) && <p className="text-xs font-semibold text-[#607269]">Every available widget is already on your page.</p>}</div></div>
+            {widgetError && <p role="alert" className="mt-4 rounded-xl bg-[#fff1e8] px-4 py-3 text-sm font-semibold text-[#9a4e25]">{widgetError}</p>}
+          </section>}
+
+          <div className="mt-8 flex flex-col gap-5">
+          {visibleDashboardWidgets.includes("performance") && <div style={{ order: visibleDashboardWidgets.indexOf("performance") }} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="col-span-full">{renderWidgetEditorBar("performance")}</div>
             {([...(!isWorker ? [{ label: "Paid out this month", value: revenue ? formatCurrency(revenue.thisMonthRevenue) : "$0", note: revenue?.thisMonthRevenue ? "Net earnings sent to Stripe" : "No payouts received yet", icon: "$" }] : []), { label: "Upcoming jobs", value: String(acceptedRequests), note: acceptedRequests ? "Accepted bookings" : "Your schedule is clear", icon: "◷" }, { label: "New requests", value: String(activeRequests), note: activeRequests ? "Waiting for a response" : "No requests yet", icon: "↗" }, { label: isWorker ? "My role" : "Average rating", value: isWorker ? provider?.teamRole ?? "Worker" : "—", note: isWorker ? provider?.businessName ?? "Company team" : "No reviews yet", icon: isWorker ? "♙" : "★" }]).map((stat) => <div key={stat.label} className="rounded-2xl border border-[#183126]/10 bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><div className="flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">{stat.label}</p><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#edf2e8] text-sm font-bold">{stat.icon}</span></div><p className="mt-4 text-3xl font-bold tracking-tight">{stat.value}</p><p className="mt-1 text-xs text-[#77857e]">{stat.note}</p></div>)}
-          </div>
+          </div>}
 
-          {!isWorker && <section className="mt-8 rounded-[2rem] bg-[#183126] p-6 text-white sm:p-7">
+          {!isWorker && visibleDashboardWidgets.includes("quick-actions") && <section style={{ order: visibleDashboardWidgets.indexOf("quick-actions") }} className="rounded-[2rem] bg-[#183126] p-6 text-white sm:p-7">
+            {renderWidgetEditorBar("quick-actions")}
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#acc0b5]">Quick actions</p><h2 className="mt-2 text-2xl font-bold">What would you like to manage?</h2></div><div className="flex flex-wrap gap-2"><Link href="/providers/join" className="rounded-full bg-[#eee25a] px-4 py-2.5 text-xs font-bold text-[#183126]">+ Add service</Link><Link href="/provider/dashboard/services" className="rounded-full border border-white/20 px-4 py-2.5 text-xs font-bold">Manage listings</Link><Link href="/provider/dashboard/availability" className="rounded-full border border-white/20 px-4 py-2.5 text-xs font-bold">Update hours</Link></div></div>
           </section>}
 
-          <div className="mt-6 grid gap-5 xl:grid-cols-2">
-            {!isWorker && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
+          {!isWorker && visibleDashboardWidgets.includes("latest-bookings") && <section style={{ order: visibleDashboardWidgets.indexOf("latest-bookings") }} className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
+              {renderWidgetEditorBar("latest-bookings")}
               <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Bookings</p><h2 className="mt-2 text-xl font-bold">Latest requests</h2></div><Link href="/provider/dashboard/bookings" className="text-sm font-bold underline decoration-[#c5b940] decoration-2 underline-offset-4">View bookings</Link></div>
               {requests.length ? <div className="mt-5 space-y-3">{requests.slice(0, 3).map((request) => <div key={request.id} className="flex items-center gap-3 rounded-2xl bg-[#f5f5ef] p-4"><ProfileAvatar name={request.customer} imageUrl={request.customerImage} className="h-10 w-10 text-xs" /><div className="min-w-0 flex-1"><p className="truncate font-bold">{request.customer}</p><p className="truncate text-xs text-[#738179]">{request.service} · {formatBookingDate(request.startsAt, timeZone)}</p></div><span className="rounded-full bg-[#fff1bf] px-2.5 py-1 text-[10px] font-bold uppercase">{request.status}</span></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">📅</p><p className="mt-2 font-bold">No requests yet</p><p className="mt-1 text-sm text-[#738179]">New customer booking requests will appear here.</p></div>}
-            </section>}
+          </section>}
 
-            <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
+          {visibleDashboardWidgets.includes("active-listings") && <section style={{ order: visibleDashboardWidgets.indexOf("active-listings") }} className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">
+              {renderWidgetEditorBar("active-listings")}
               <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Services</p><h2 className="mt-2 text-xl font-bold">Active listings</h2></div><Link href="/provider/dashboard/services" className="text-sm font-bold underline decoration-[#c5b940] decoration-2 underline-offset-4">Manage</Link></div>
               {provider?.services.length ? <div className="mt-5 space-y-3">{provider.services.slice(0, 3).map((service) => <div key={service.id} className="flex items-center gap-4 rounded-2xl bg-[#f5f5ef] p-4"><span role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-cover bg-center ${service.imageUrls[0] ? "" : "bg-gradient-to-br from-lime-700 to-yellow-200 text-2xl"}`}>{service.imageUrls[0] ? "" : "🧰"}</span><div className="min-w-0 flex-1"><p className="truncate font-bold">{service.title}</p><Link href={`/companies/${service.companySlug}`} className="mt-1 block truncate text-xs font-semibold text-[#52665b] underline decoration-[#c5b940] underline-offset-2">{service.businessName}</Link><p className="mt-1 text-xs text-[#738179]">From ${service.price} · {formatDuration(service.durationMinutes)}</p></div><Link href={`/provider/services/${service.id}/edit`} className="rounded-full border border-[#183126]/15 bg-white px-3 py-2 text-xs font-bold">Edit</Link></div>)}</div> : <div className="mt-5 rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="text-2xl">◇</p><p className="mt-2 font-bold">No active listings</p><Link href="/providers/join" className="mt-3 inline-flex text-sm font-bold underline">Create your first service</Link></div>}
-            </section>
-          </div>
+          </section>}
 
-          {!isWorker && <div className="mt-6 grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
-            <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Schedule</p><h2 className="mt-2 text-xl font-bold">Working hours</h2></div><Link href="/provider/dashboard/availability" className="text-sm font-bold">Edit</Link></div>{nextAvailability ? <div className="mt-5 rounded-2xl bg-[#e8f0e5] p-5"><p className="text-sm font-bold">Next saved schedule</p><p className="mt-2 text-lg font-bold">{dayNames[nextAvailability.weekday]}</p><p className="mt-1 text-sm text-[#5f7367]">{isAllDayAvailability(nextAvailability.startTime, nextAvailability.endTime) ? "Open 24 hours" : `${formatTime(nextAvailability.startTime)}–${formatTime(nextAvailability.endTime)}`}</p><p className="mt-3 text-xs text-[#718078]">{provider?.availability.length} working {provider?.availability.length === 1 ? "day" : "days"} saved</p></div> : <div className="mt-5 rounded-2xl bg-[#fff6cf] p-5"><p className="font-bold">Add your working hours</p><p className="mt-1 text-sm text-[#776c3e]">Customers need your availability before they can choose a time.</p></div>}</section>
+          {!isWorker && visibleDashboardWidgets.includes("working-hours") && <section style={{ order: visibleDashboardWidgets.indexOf("working-hours") }} className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">{renderWidgetEditorBar("working-hours")}<div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Schedule</p><h2 className="mt-2 text-xl font-bold">Working hours</h2></div><Link href="/provider/dashboard/availability" className="text-sm font-bold">Edit</Link></div>{nextAvailability ? <div className="mt-5 rounded-2xl bg-[#e8f0e5] p-5"><p className="text-sm font-bold">Next saved schedule</p><p className="mt-2 text-lg font-bold">{dayNames[nextAvailability.weekday]}</p><p className="mt-1 text-sm text-[#5f7367]">{isAllDayAvailability(nextAvailability.startTime, nextAvailability.endTime) ? "Open 24 hours" : `${formatTime(nextAvailability.startTime)}–${formatTime(nextAvailability.endTime)}`}</p><p className="mt-3 text-xs text-[#718078]">{provider?.availability.length} working {provider?.availability.length === 1 ? "day" : "days"} saved</p></div> : <div className="mt-5 rounded-2xl bg-[#fff6cf] p-5"><p className="font-bold">Add your working hours</p><p className="mt-1 text-sm text-[#776c3e]">Customers need your availability before they can choose a time.</p></div>}</section>}
 
-            <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Profile setup</p><h2 className="mt-2 text-xl font-bold">Ready to get booked</h2></div><span className="rounded-full bg-[#edf2e8] px-3 py-1.5 text-xs font-bold">{completedProfileItems}/{profileChecklist.length}</span></div><div className="mt-5 grid gap-3 sm:grid-cols-2">{profileChecklist.map((item) => <div key={item.label} className={`flex items-center gap-3 rounded-2xl p-4 text-sm font-bold ${item.complete ? "bg-[#e8f0e5]" : "bg-[#f5f5ef] text-[#718078]"}`}><span className={`grid h-6 w-6 place-items-center rounded-full text-xs ${item.complete ? "bg-[#183126] text-white" : "border border-[#183126]/20"}`}>{item.complete ? "✓" : ""}</span>{item.label}</div>)}</div></section>
-          </div>}{isWorker && <Link href="/provider/dashboard/team" className="mt-6 block rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#b8c7bf]">My schedule</p><h2 className="mt-2 text-xl font-bold">Submit working hours</h2><p className="mt-2 text-sm text-[#c2d0c8]">Choose when you can work and send the changes to the company owner for approval.</p><span className="mt-4 inline-flex rounded-full bg-[#eee25a] px-4 py-2 text-xs font-bold text-[#183126]">Open worker schedule</span></Link>}</>}
+          {!isWorker && visibleDashboardWidgets.includes("profile-setup") && <section style={{ order: visibleDashboardWidgets.indexOf("profile-setup") }} className="rounded-[2rem] border border-[#183126]/10 bg-white p-6">{renderWidgetEditorBar("profile-setup")}<div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Profile setup</p><h2 className="mt-2 text-xl font-bold">Ready to get booked</h2></div><span className="rounded-full bg-[#edf2e8] px-3 py-1.5 text-xs font-bold">{completedProfileItems}/{profileChecklist.length}</span></div><div className="mt-5 grid gap-3 sm:grid-cols-2">{profileChecklist.map((item) => <div key={item.label} className={`flex items-center gap-3 rounded-2xl p-4 text-sm font-bold ${item.complete ? "bg-[#e8f0e5]" : "bg-[#f5f5ef] text-[#718078]"}`}><span className={`grid h-6 w-6 place-items-center rounded-full text-xs ${item.complete ? "bg-[#183126] text-white" : "border border-[#183126]/20"}`}>{item.complete ? "✓" : ""}</span>{item.label}</div>)}</div></section>}
+          {isWorker && visibleDashboardWidgets.includes("worker-schedule") && <div style={{ order: visibleDashboardWidgets.indexOf("worker-schedule") }}>{renderWidgetEditorBar("worker-schedule")}<Link href="/provider/dashboard/team" className="block rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#b8c7bf]">My schedule</p><h2 className="mt-2 text-xl font-bold">Submit working hours</h2><p className="mt-2 text-sm text-[#c2d0c8]">Choose when you can work and send the changes to the company owner for approval.</p><span className="mt-4 inline-flex rounded-full bg-[#eee25a] px-4 py-2 text-xs font-bold text-[#183126]">Open worker schedule</span></Link></div>}
+          </div></>}
 
           {section === "bookings" && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-[0_6px_24px_rgba(24,49,38,.05)] sm:p-7">
             <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold tracking-tight">Booking requests</h2><p className="mt-1 text-sm text-[#73827b]">Respond quickly to keep customers in the loop.</p></div><span className="rounded-full bg-[#f0f1eb] px-3 py-1.5 text-xs font-bold">{requests.length} total</span></div>

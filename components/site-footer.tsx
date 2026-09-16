@@ -63,7 +63,7 @@ export default function SiteFooter() {
             <Link href="/" className="flex w-fit items-center gap-3 text-xl font-bold tracking-[-.03em]"><span className="grid h-11 w-11 place-items-center rounded-[.9rem] bg-[#f1e45c] text-base text-[#173d2e] shadow-[0_10px_25px_rgba(0,0,0,.2)]">B</span>BubsBookings</Link>
             <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local services, safer conversations, clear choices—and a simpler way to get things done.</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
-              <div className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-white"><BugReportButton /></div>
+              <BugReportButton />
               <a href="mailto:christian@bubsbookings.com" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-[#c8d7cf] hover:bg-white/10 hover:text-white">Contact support</a>
             </div>
           </div>
