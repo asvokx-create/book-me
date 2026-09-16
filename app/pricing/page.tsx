@@ -22,7 +22,7 @@ const plans = [
     cadence: "forever",
     fee: "10% booking fee",
     description: "Everything you need to start getting booked.",
-    features: ["Up to 2 services", "Up to 5 photos", "Booking calendar", "Customer messaging", "24-hour booking reminders", "Basic analytics", "Owner only"],
+    features: ["Up to 2 services", "Up to 5 photos", "Listing marketing tools, share link & QR code", "Booking calendar", "Customer messaging", "24-hour booking reminders", "Basic analytics", "Owner only"],
     featured: false,
   },
   {
@@ -32,7 +32,7 @@ const plans = [
     cadence: "per month",
     fee: "6% booking fee",
     description: "Every growth tool in one affordable plan.",
-    features: ["Unlimited services & photos", "Custom booking questions", "24-hour and 1-hour reminders", "Advanced analytics", "Repeat-customer insights", "3 total team seats included", "Extra employees for $0.50/month each", "Multiple service locations", "Priority support", "Priority placement in browse results"],
+    features: ["Unlimited services & photos", "Listing marketing tools, share links & QR codes", "Custom booking questions", "24-hour and 1-hour reminders", "Advanced analytics", "Repeat-customer insights", "3 total team seats included", "Extra employees for $0.50/month each", "Multiple service locations", "Priority support", "Priority placement in browse results"],
     featured: true,
   },
 ] as const;
@@ -86,7 +86,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
         <div className="relative mx-auto max-w-7xl px-4 py-12 text-center sm:px-8 sm:py-20">
           <p className="text-xs font-bold uppercase tracking-[.18em] text-[#65796d]">Simple provider pricing</p>
           <h1 className="mx-auto mt-3 max-w-3xl text-[clamp(2.4rem,8vw,3.75rem)] font-bold leading-tight tracking-[-.05em]">Start free. Grow when <span className="underline decoration-[#eee25a] decoration-[10px] underline-offset-[-4px]">you&apos;re ready.</span></h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-[#607269]">Every plan includes a business profile, services, scheduling, customer messaging, reviews, and secure online payments. Eligible providers can try Pro free for 30 days.</p>
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-[#607269]">Every plan includes a business profile, listing marketing tools with shareable links and QR codes, scheduling, customer messaging, reviews, and secure online payments. Eligible providers can try Pro free for 30 days.</p>
           <Link href={currentPlan === "pro" ? "/provider/dashboard/billing" : "/pricing?plan=pro#plans"} className="mt-7 inline-flex rounded-full bg-[#eee25a] px-7 py-4 text-base font-bold shadow-[0_12px_30px_rgba(24,49,38,.14)] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">{currentPlan === "owner" ? "View the 30-day Pro trial" : currentPlan === "pro" ? "Manage your Pro plan" : "Start 30-day Pro trial"}</Link>
         </div>
       </section>
