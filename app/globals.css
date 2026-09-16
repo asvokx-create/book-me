@@ -376,6 +376,11 @@ html[data-theme="dark"] .home-marketplace {
   color: #edf4ef;
 }
 
+html[data-theme="dark"] .home-all-services {
+  background: rgba(20, 43, 32, 0.72) !important;
+  border-color: rgba(223, 239, 228, 0.09) !important;
+}
+
 html[data-theme="dark"] .home-section-action {
   background-color: rgba(223, 239, 228, 0.06) !important;
   border-color: rgba(223, 239, 228, 0.13) !important;
