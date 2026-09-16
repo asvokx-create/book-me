@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
+import { sendAccountWelcome } from "@/lib/welcome-message";
 
 export const runtime = "nodejs";
 
@@ -48,7 +49,7 @@ export async function GET(
     );
     const providerId = providerResult.rows[0]?.id as string | undefined;
 
-    const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity] = await Promise.all([
+    const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity, welcomeEmail] = await Promise.all([
       database.query(
         `SELECT city, state, search_radius_miles, booking_notifications, message_notifications,
                 theme, time_zone, created_at, updated_at,
@@ -133,6 +134,13 @@ export async function GET(
          FROM activity_log WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
         [userId],
       ),
+      database.query(
+        `SELECT status, created_at
+         FROM email_delivery_log
+         WHERE user_id = $1 AND email_type = 'account_welcome'
+         ORDER BY created_at DESC LIMIT 1`,
+        [userId],
+      ),
     ]);
 
     await database.query(
@@ -157,10 +165,46 @@ export async function GET(
       disputes: disputes.rows,
       supportRequests: supportRequests.rows,
       activity: activity.rows,
+      welcomeEmail: welcomeEmail.rows[0] ?? null,
       privacyNote: "Passwords, authentication secrets, payment-card and bank details, private conversations, booking addresses, and booking notes are intentionally excluded.",
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Admin account detail lookup failed", error);
     return NextResponse.json({ error: "The account details could not be loaded." }, { status: 500 });
   }
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ userId: string }> },
+) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-welcome-email", limit: 10, windowSeconds: 3600 })) {
+    return NextResponse.json({ error: "Too many welcome-email requests. Please try again later." }, { status: 429 });
+  }
+
+  const { userId } = await params;
+  if (!userId || userId.length > 200) return NextResponse.json({ error: "Invalid account." }, { status: 400 });
+
+  const account = await database.query<{ name: string; email: string }>(
+    `SELECT name, email FROM "user" WHERE id = $1`,
+    [userId],
+  );
+  if (!account.rows[0]) return NextResponse.json({ error: "Account not found." }, { status: 404 });
+
+  const delivery = await sendAccountWelcome({ id: userId, name: account.rows[0].name, email: account.rows[0].email });
+  await database.query(
+    `INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
+     VALUES ($1, 'account_welcome_email_requested', 'account', $2, $3::jsonb)`,
+    [session.user.id, userId, JSON.stringify({ status: delivery.status })],
+  );
+
+  if (delivery.status === "failed") return NextResponse.json({ error: "The welcome email could not be delivered." }, { status: 502 });
+  if (delivery.status === "skipped") return NextResponse.json({ error: "Email delivery is not configured." }, { status: 503 });
+  return NextResponse.json({
+    ok: true,
+    status: delivery.status,
+    message: delivery.status === "already_sent" ? "This account already received its welcome email." : "Welcome email sent.",
+  });
 }

@@ -11,7 +11,15 @@ type NewAccount = {
 
 export async function sendAccountWelcome(user: NewAccount) {
   try {
-    const notification = await database.query(
+    const existingDelivery = await database.query<{ sent: boolean }>(
+      `SELECT true AS sent
+       FROM email_delivery_log
+       WHERE user_id = $1 AND email_type = 'account_welcome' AND status = 'sent'
+       LIMIT 1`,
+      [user.id],
+    );
+
+    await database.query(
       `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
        VALUES ($1, 'account_welcome', 'Welcome to BubsBookings',
                'Your account is ready. Explore local services, save favorites, and manage your bookings in one place.',
@@ -21,9 +29,9 @@ export async function sendAccountWelcome(user: NewAccount) {
       [user.id, `account-welcome-${user.id}`],
     );
 
-    if (!notification.rowCount) return;
+    if (existingDelivery.rows[0]?.sent) return { status: "already_sent" as const };
 
-    await sendTransactionalEmail({
+    const delivery = await sendTransactionalEmail({
       to: user.email,
       userId: user.id,
       emailType: "account_welcome",
@@ -34,11 +42,13 @@ export async function sendAccountWelcome(user: NewAccount) {
       actionLabel: "Explore local services",
       actionUrl: "/services",
     });
+    return { status: delivery.sent ? "sent" as const : delivery.skipped ? "skipped" as const : "failed" as const };
   } catch (error) {
     // Account creation must still succeed if a non-essential welcome delivery fails.
     console.error("Account welcome delivery failed", {
       userId: user.id,
       message: error instanceof Error ? error.message : "Unknown error",
     });
+    return { status: "failed" as const };
   }
 }

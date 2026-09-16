@@ -80,6 +80,7 @@ type AccountDetails = {
   disputes: Array<{ id: string; category: string; details: string; requested_resolution: string; status: string; admin_note: string; created_at: string; service_title: string; opened_by_name: string; against_name: string }>;
   supportRequests: Array<{ id: string; subject: string; message: string; status: string; admin_reply: string; created_at: string }>;
   activity: Array<{ id: string; action: string; target_type: string; target_id: string | null; created_at: string }>;
+  welcomeEmail: null | { status: "sent" | "skipped" | "failed"; created_at: string };
   privacyNote: string;
 };
 
@@ -469,6 +470,19 @@ function StripeConnectionSummary({ consumerStripe, provider }: {
 function AccountDetailDialog({ account, details, loading, error, onClose, onRetry }: {
   account: Account; details: AccountDetails | null; loading: boolean; error: string; onClose: () => void; onRetry: () => void;
 }) {
+  const [welcomeBusy, setWelcomeBusy] = useState(false);
+  const [welcomeResult, setWelcomeResult] = useState("");
+  const welcomeSent = details?.welcomeEmail?.status === "sent" || welcomeResult === "Welcome email sent.";
+
+  async function sendWelcomeEmail() {
+    setWelcomeBusy(true);
+    setWelcomeResult("");
+    const response = await fetch(`/api/admin/accounts/${encodeURIComponent(account.id)}`, { method: "POST" }).catch(() => null);
+    const result = response ? await response.json() as { error?: string; message?: string } : null;
+    setWelcomeResult(response?.ok ? result?.message ?? "Welcome email sent." : result?.error ?? "The welcome email could not be sent.");
+    setWelcomeBusy(false);
+  }
+
   return <div className="fixed inset-0 z-[90] flex justify-end bg-[#10251c]/55" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
     <section className="h-full w-full max-w-4xl overflow-y-auto bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="account-detail-title">
       <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#183126]/10 bg-white/95 px-5 py-5 backdrop-blur sm:px-8">
@@ -480,6 +494,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
         {error && <div className="rounded-3xl border border-[#9a4e25]/20 bg-[#fff0e7] p-6"><h3 className="font-bold text-[#7b3c1b]">Account details unavailable</h3><p className="mt-2 text-sm text-[#9a4e25]">{error}</p><button type="button" onClick={onRetry} className="mt-4 rounded-full bg-[#183126] px-5 py-2.5 text-sm font-bold text-white">Try again</button></div>}
         {details && <>
           <div className="rounded-3xl border border-[#183126]/10 bg-[#f4f4ef] p-5"><p className="text-sm leading-6 text-[#52665b]">{details.privacyNote} Opening this view is recorded in the admin audit history.</p></div>
+          <section className="flex flex-col justify-between gap-4 rounded-3xl border border-[#183126]/15 bg-[#f8f8f4] p-5 sm:flex-row sm:items-center"><div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Account welcome</p><h3 className="mt-1 text-lg font-bold">Welcome email</h3><p className="mt-1 text-sm text-[#52665b]">{welcomeSent ? `Sent${details.welcomeEmail?.created_at ? ` ${formatDate(details.welcomeEmail.created_at)}` : ""}.` : "Send the branded new-account introduction and add it to the notification inbox."}</p>{welcomeResult && <p role="status" className={`mt-2 text-sm font-bold ${welcomeResult.includes("could not") ? "text-[#9a4e25]" : "text-[#34704a]"}`}>{welcomeResult}</p>}</div><button type="button" disabled={welcomeBusy || welcomeSent} onClick={() => void sendWelcomeEmail()} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:cursor-not-allowed disabled:opacity-50">{welcomeBusy ? "Sending…" : welcomeSent ? "Welcome email sent" : "Send welcome email"}</button></section>
           <StripeConnectionSummary consumerStripe={details.consumerStripe} provider={details.provider} />
           <section><h3 className="mb-3 text-lg font-bold">Account and contact</h3><DetailGrid items={[
             { label: "Full name", value: details.account.name }, { label: "Email", value: details.account.email }, { label: "Phone", value: details.account.phone },
