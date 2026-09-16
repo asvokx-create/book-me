@@ -3,6 +3,7 @@ import { twoFactor } from "better-auth/plugins";
 import { database } from "./database";
 import { isEmailConfigured, sendAuthEmail } from "./email";
 import { createPolicyConsentFields, POLICY_VERSION } from "./policy-consent";
+import { sendAccountWelcome } from "./welcome-message";
 
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -82,6 +83,9 @@ export const auth = betterAuth({
             !Number.isFinite(privacyAcknowledgedAt) ||
             !Number.isFinite(aiSafetyAcknowledgedAt)
           ) return false;
+        },
+        async after(user) {
+          await sendAccountWelcome({ id: user.id, email: user.email, name: user.name });
         },
       },
     },

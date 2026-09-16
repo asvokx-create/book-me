@@ -13,6 +13,7 @@ import { PROVIDER_AGREEMENT_VERSION } from "@/lib/policy-consent";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
+import { sendFirstListingSuccessEmail } from "@/lib/provider-success-email";
 
 const durationMinutes: Record<string, number> = {
   "1 hour": 60,
@@ -177,10 +178,17 @@ export async function POST(request: Request) {
       serviceLocation = locationResult.rows[0];
     }
 
+    const listingCounts = await client.query<{ total_count: number; active_count: number }>(
+      `SELECT count(*)::int AS total_count,
+              (count(*) FILTER (WHERE is_active = true))::int AS active_count
+       FROM services
+       WHERE provider_id = $1`,
+      [providerId],
+    );
+    const isFirstListing = listingCounts.rows[0].total_count === 0;
     const serviceLimit = PLAN_ENTITLEMENTS[plan].serviceLimit;
     if (serviceLimit !== null) {
-      const serviceCount = await client.query<{ count: number }>("SELECT count(*)::int AS count FROM services WHERE provider_id = $1 AND is_active = true", [providerId]);
-      if (serviceCount.rows[0].count >= serviceLimit) {
+      if (listingCounts.rows[0].active_count >= serviceLimit) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: `Your ${PLAN_ENTITLEMENTS[plan].name} plan allows up to ${serviceLimit} active services. Upgrade from Billing to add more.`, upgradeRequired: true }, { status: 403 });
       }
@@ -206,16 +214,15 @@ export async function POST(request: Request) {
     await runAutomatedProviderVerification(providerId).catch((error) => {
       console.error("Initial automated provider verification failed", providerId, error);
     });
-    await sendTransactionalEmail({
-      to: session.user.email,
-      userId: session.user.id,
-      emailType: "provider_screening_passed",
-      subject: "Your BubsBookings provider profile is live",
-      heading: "Automated screening passed",
-      message: `${business} passed the BubsBookings profile and content checks. Your service is now visible to customers.`,
-      actionLabel: "Open provider dashboard",
-      actionUrl: "/provider/dashboard",
-    });
+    if (isFirstListing) {
+      await sendFirstListingSuccessEmail({
+        userId: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        businessName: business,
+        serviceTitle: service,
+      });
+    }
     return NextResponse.json({ ok: true, serviceId: serviceResult.rows[0].id });
   } catch (error) {
     await client.query("ROLLBACK");
