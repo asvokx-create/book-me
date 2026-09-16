@@ -13,13 +13,14 @@ import ProviderTrustSettings from "@/components/provider-trust-settings";
 import BookingCalendar from "@/components/booking-calendar";
 import ProfileAvatar from "@/components/profile-avatar";
 import LocationManager from "@/components/location-manager";
+import ProviderMarketingTools from "@/components/provider-marketing-tools";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { isAllDayAvailability } from "@/lib/availability-hours";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 import { dashboardWidgetDetails, ownerDashboardWidgets, workerDashboardWidgets, type DashboardWidgetId } from "@/lib/provider-dashboard-widgets";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
-export type DashboardSection = "overview" | "bookings" | "calendar" | "messages" | "revenue" | "services" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
+export type DashboardSection = "overview" | "bookings" | "calendar" | "messages" | "revenue" | "services" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
 
 type ProviderBooking = { id: string; customer: string; customerImage: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus; assigneeName: string; repeatBookings: number };
 const initialRequests: ProviderBooking[] = [];
@@ -106,6 +107,7 @@ const dashboardNav: Array<{ section: DashboardSection; href: string; icon: strin
   { section: "messages", href: "/provider/dashboard/messages", icon: "✉", label: "Messages" },
   { section: "revenue", href: "/provider/dashboard/revenue", icon: "$", label: "Revenue" },
   { section: "services", href: "/provider/dashboard/services", icon: "◇", label: "Services" },
+  { section: "marketing", href: "/provider/dashboard/marketing", icon: "⌁", label: "Marketing" },
   { section: "locations", href: "/provider/dashboard/locations", icon: "⌖", label: "Locations" },
   { section: "availability", href: "/provider/dashboard/availability", icon: "□", label: "Availability" },
   { section: "reviews", href: "/provider/dashboard/reviews", icon: "☆", label: "Reviews" },
@@ -309,7 +311,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   const isWorker = provider?.accessRole === "worker";
   const availableWidgets: readonly DashboardWidgetId[] = isWorker ? workerDashboardWidgets : ownerDashboardWidgets;
   const visibleNav = isWorker ? dashboardNav.filter((item) => ["overview", "bookings", "locations", "team", "settings"].includes(item.section)) : dashboardNav;
-  const ownerOnlySection = isWorker && ["calendar", "messages", "revenue", "services", "availability", "reviews", "billing"].includes(section);
+  const ownerOnlySection = isWorker && ["calendar", "messages", "revenue", "services", "marketing", "availability", "reviews", "billing"].includes(section);
 
   return (
     <main className="min-h-screen scroll-smooth bg-[#f4f4ef] text-[#183126]">
@@ -402,6 +404,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
             <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex items-center justify-between"><div><h2 className="text-xl font-bold">Company listings</h2><p className="mt-1 text-xs text-[#738179]">Every service belongs to one company page.</p></div><Link href="/providers/join" className="text-sm font-bold">+ Add</Link></div>{provider?.services.length ? <div className="mt-5 space-y-5">{provider.services.map((service) => <div key={service.id} className="rounded-2xl bg-[#f5f5ef] p-4"><div className="mb-3 flex items-center justify-between gap-3"><Link href={`/companies/${service.companySlug}`} className="truncate text-xs font-bold uppercase tracking-[.1em] text-[#52665b] underline decoration-[#c5b940] underline-offset-4">{service.businessName}</Link><Link href={`/companies/${service.companySlug}`} className="shrink-0 text-xs font-bold">View company →</Link></div><div className="flex items-center gap-4"><span role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cover bg-center ${service.imageUrls[0] ? "" : "bg-gradient-to-br from-lime-700 to-yellow-200 text-3xl"}`}>{service.imageUrls[0] ? "" : "🧰"}</span><div className="min-w-0 flex-1"><p className="truncate font-bold">{service.title}</p><p className="mt-1 text-xs text-[#738179]">From ${service.price} · {formatDuration(service.durationMinutes)}</p></div><Link href={`/provider/services/${service.id}/edit`} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 text-xs font-bold hover:border-[#4d725d]">Edit</Link></div><ServiceImageManager serviceId={service.id} initialImageUrls={service.imageUrls} compact /></div>)}</div> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">Create a company page and its first service to appear in customer searches.</p>}</section>
             <section className="rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a9c1b1]">Profile strength</p><div className="mt-3 flex items-end justify-between"><p className="text-3xl font-bold">{hasListingPhotos ? "100%" : "75%"}</p><p className="text-xs text-[#adbbb3]">{hasListingPhotos ? "Complete" : "Add listing photos"}</p></div><div className="mt-4 h-2 rounded-full bg-white/15"><div className={`h-full rounded-full bg-[#eee25a] ${hasListingPhotos ? "w-full" : "w-3/4"}`} /></div><p className="mt-5 text-sm font-bold text-[#eee25a]">{hasListingPhotos ? "Your profile is ready ✓" : "Add photos to a service"}</p></section>
           </div>}
+
+          {section === "marketing" && !isWorker && <ProviderMarketingTools services={provider?.services ?? []} />}
 
           {section === "locations" && <LocationManager />}
 
