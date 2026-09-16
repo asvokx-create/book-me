@@ -134,7 +134,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
       </section>
 
-      <section id="nearby-listings" className="home-marketplace scroll-mt-24 mx-auto max-w-6xl px-4 pb-8 sm:px-6 sm:pb-10">
+      <section id="nearby-listings" className="home-marketplace scroll-mt-24 mx-auto max-w-6xl px-4 pb-2 sm:px-6 sm:pb-3">
         <div className="mb-7 flex items-end justify-between gap-4">
           <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Right in your city</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">Services in {city}</h3><p className="mt-2 text-sm text-[#687970]">Providers whose listed service location is directly in {city}.</p></div>
           <span className="shrink-0 rounded-full border border-[#183126]/10 bg-[#e8f0e4] px-4 py-2 text-xs font-bold text-[#496756]">{cityServices.length} {cityServices.length === 1 ? "local service" : "local services"}</span>
@@ -146,7 +146,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </section>
 
       <section className="home-all-services home-marketplace border-y border-[#183126]/8 bg-[#eef3ea]/70">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 pb-12 pt-7 sm:px-6 sm:pb-16 sm:pt-9">
           <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
             <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">More around you</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">All services</h3><p className="mt-2 text-sm text-[#687970]">More providers serving locations within {radius} miles of {city}.</p></div>
             <Link href={nearbyServicesHref} className="home-section-action shrink-0 rounded-full border border-[#183126]/12 bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">Browse all within {radius} miles →</Link>
