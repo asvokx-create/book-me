@@ -120,6 +120,12 @@ export default function AccountSettings() {
     setMessage("All other devices have been signed out.");
   }
 
+  async function signOutCurrentDevice() {
+    await authClient.signOut();
+    router.push("/");
+    router.refresh();
+  }
+
   async function deleteAccount() {
     setError(""); setMessage("");
     if (deletionConfirmation.trim().toLowerCase() !== settings.email.toLowerCase()) {
@@ -161,6 +167,7 @@ export default function AccountSettings() {
         </form>
 
         <div className="space-y-6">
+          <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Current session</h2><p className="mt-2 text-sm leading-6 text-[#738179]">Log out of BubsBookings on this device. Your account and saved information will remain available the next time you sign in.</p><button type="button" onClick={() => void signOutCurrentDevice()} className="mt-5 w-full rounded-full border border-[#8e382f]/25 bg-[#fff3ef] px-5 py-3 text-sm font-bold text-[#8e382f] transition hover:border-[#8e382f]/40 hover:bg-[#ffe8df]">Log out</button></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Password</h2><p className="mt-1 text-sm text-[#738179]">Changing it will also sign out your other devices.</p><form onSubmit={changePassword} className="mt-5 space-y-4"><label className="block text-sm font-bold">Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className={inputClass} /></label><label className="block text-sm font-bold">New password<input required type="password" minLength={12} maxLength={128} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className={inputClass} /></label><label className="block text-sm font-bold">Confirm new password<input required type="password" minLength={12} maxLength={128} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className={inputClass} /></label><button disabled={securityBusy} className="w-full rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-60">Change password</button></form></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Security</h2><div className="mt-5 space-y-3"><Link href="/account/security" className="flex items-center justify-between rounded-2xl border border-[#183126]/15 bg-[#f5f5ef] p-4 font-bold transition hover:border-[#70877a] hover:bg-[#e3ecde] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eee25a]"><span>🔐 Authenticator protection</span><span>→</span></Link><button type="button" disabled={securityBusy} onClick={signOutOtherDevices} className="flex w-full items-center justify-between rounded-2xl border border-[#183126]/15 bg-[#f5f5ef] p-4 text-left font-bold transition hover:border-[#70877a] hover:bg-[#e3ecde] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eee25a] disabled:opacity-60"><span>Sign out other devices</span><span>→</span></button></div></section>
           {settings.isProvider && <section className="rounded-[2rem] bg-[#183126] p-6 text-white sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b5c5bd]">Provider tools</p><h2 className="mt-2 text-xl font-bold">Business settings</h2><div className="mt-5 grid gap-3"><Link href="/providers/join" className="rounded-2xl bg-white/10 p-4 font-bold transition hover:bg-white/20">Edit business profile →</Link><Link href="/provider/dashboard/services" className="rounded-2xl bg-white/10 p-4 font-bold transition hover:bg-white/20">Manage services →</Link><Link href="/provider/dashboard/availability" className="rounded-2xl bg-white/10 p-4 font-bold transition hover:bg-white/20">Set availability →</Link></div></section>}

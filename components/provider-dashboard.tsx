@@ -1,5 +1,6 @@
 "use client";
 
+import BrandWordmark from "@/components/brand-wordmark";
 import BrandMark from "@/components/brand-mark";
 
 import Link from "next/link";
@@ -328,7 +329,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
     <main className="min-h-screen scroll-smooth bg-[#f4f4ef] text-[#183126]">
       <header className="sticky top-0 z-50 border-b border-[#183126]/10 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-8 sm:py-4">
-          <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 text-lg font-bold tracking-tight sm:text-xl"><BrandMark className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]" /><span className="hidden sm:inline">BubsBookings</span><span className="hidden rounded-full bg-[#e8f0e5] px-2.5 py-1 text-[10px] uppercase tracking-wider text-[#55705e] sm:inline">Provider</span></Link>
+          <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2"><BrandMark priority className="h-9 w-9 rounded-xl" /><BrandWordmark priority className="hidden h-6 w-[134px] min-[430px]:block sm:h-7 sm:w-[156px]" /><span className="hidden rounded-full bg-[#e8f0e5] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#55705e] sm:inline">Provider</span></Link>
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">{provider?.isAdmin && <Link href="/admin" className="whitespace-nowrap rounded-full bg-[#eee25a] px-3.5 py-2.5 text-[11px] font-bold shadow-[0_5px_16px_rgba(202,185,42,.18)] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] min-[370px]:text-xs sm:px-4 sm:text-sm">Admin</Link>}<Link href="/account" aria-label="Switch to consumer" className="whitespace-nowrap rounded-full bg-[#183126] px-3.5 py-2.5 text-[11px] font-bold text-white shadow-[0_6px_18px_rgba(24,49,38,.16)] transition hover:-translate-y-0.5 hover:bg-[#315846] min-[370px]:text-xs sm:px-4 sm:text-sm">Switch to consumer</Link><NotificationBell /><ProfileAvatar name={accountName} imageUrl={session?.user.image} className="hidden h-10 w-10 text-sm md:grid" /></div>
         </div>
       </header>

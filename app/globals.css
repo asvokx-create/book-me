@@ -368,6 +368,12 @@ html[data-theme="dark"] .home-header a {
   color: #dce8e1;
 }
 
+html[data-theme="dark"] .brand-wordmark {
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.94);
+}
+
 html[data-theme="dark"] .home-hero {
   border-bottom: 1px solid rgba(231, 243, 235, 0.06);
 }
