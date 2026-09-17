@@ -246,7 +246,6 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
           <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center gap-2.5 text-xl font-bold">
               <BrandLockup />
-              BubsBookings
             </Link>
             <span className="hidden rounded-full bg-[#eee25a] px-3 py-1 text-xs font-extrabold uppercase tracking-wider sm:inline">Admin</span>
           </div>
