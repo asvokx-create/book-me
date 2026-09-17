@@ -18,7 +18,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   const result = await database.query<{
     id: string; customer_id: string; customer_name: string; provider_id: string; provider_user_id: string; provider_name: string; owner_name: string;
     service_id: string; service_slug: string; service_title: string; service_location_id: string; category: string; starts_at: Date; ends_at: Date;
-    service_address: string; notes: string; booking_answers: Record<string, string>; price_cents: number; status: string; cancelled_by: string | null;
+    service_address: string; service_city: string | null; service_state: string | null; service_postal_code: string | null;
+    access_instructions: string; notes: string; booking_answers: Record<string, string>; price_cents: number; status: string; was_confirmed: boolean; cancelled_by: string | null;
     cancellation_reason: string | null; late_cancellation: boolean; cancellation_window_hours: number;
     cancellation_policy: string; completed_at: Date | null; conversation_id: string | null;
     review_id: string | null; rating: number | null; review_body: string | null; reschedule_requested_by: string | null;
@@ -36,7 +37,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text, p.user_id AS provider_user_id,
             s.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title, s.location_id::text AS service_location_id,
-            s.category, b.starts_at, b.ends_at, b.service_address, b.notes, b.booking_answers, b.price_cents, b.status,
+            s.category, b.starts_at, b.ends_at, b.service_address, b.service_city, b.service_state, b.service_postal_code,
+            b.access_instructions, b.notes, b.booking_answers, b.price_cents, b.status,
+            EXISTS (SELECT 1 FROM booking_events confirmed_event WHERE confirmed_event.booking_id = b.id AND confirmed_event.event_type IN ('confirmed', 'reschedule_approved')) AS was_confirmed,
             b.cancelled_by, b.cancellation_reason, b.late_cancellation, p.cancellation_window_hours,
             p.cancellation_policy, b.completed_at, b.reschedule_requested_by,
             b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.reschedule_requested_at,
@@ -81,6 +84,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     `SELECT id::text, event_type, message, created_at FROM booking_events WHERE booking_id::text = $1 ORDER BY created_at DESC`, [bookingId],
   );
   const viewerRole = row.customer_id === session.user.id ? "customer" : row.provider_user_id === session.user.id ? "provider" : "worker";
+  const approximateLocation = [row.service_city, row.service_state].filter(Boolean).join(", ") + (row.service_postal_code ? ` ${row.service_postal_code}` : "");
+  const canSeeExactAddress = viewerRole === "customer" || ["confirmed", "completed"].includes(row.status) || row.was_confirmed;
   const team = viewerRole !== "provider" ? [] : (await database.query<{ id: string; name: string }>(
     `SELECT member.id::text, member.name FROM provider_team_members member
      JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id
@@ -89,7 +94,10 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     id: row.id, viewerRole, customerName: row.customer_name,
     providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceSlug: row.service_slug,
     serviceTitle: row.service_title, category: row.category, startsAt: row.starts_at, endsAt: row.ends_at,
-    location: row.service_address, notes: row.notes, bookingAnswers: row.booking_answers ?? {}, price: row.price_cents / 100,
+    location: canSeeExactAddress ? row.service_address : approximateLocation.trim() || "Address available after acceptance",
+    addressIsApproximate: !canSeeExactAddress,
+    accessInstructions: canSeeExactAddress ? row.access_instructions : "",
+    notes: row.notes, bookingAnswers: row.booking_answers ?? {}, price: row.price_cents / 100,
     customerServiceFee: (["paid", "refunded"] as string[]).includes(row.payment_status)
       ? row.customer_service_fee_cents / 100
       : CUSTOMER_SERVICE_FEE_CENTS / 100,

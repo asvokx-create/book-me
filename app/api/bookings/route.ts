@@ -9,6 +9,7 @@ import { recordAnalytics } from "@/lib/analytics";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+const usStateCodes = new Set("AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC".split(" "));
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -50,15 +51,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many booking requests. Please wait a minute and try again." }, { status: 429 });
   }
 
-  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; location?: unknown; notes?: unknown; answers?: unknown };
+  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; addressLine1?: unknown; addressLine2?: unknown; city?: unknown; state?: unknown; postalCode?: unknown; accessInstructions?: unknown; notes?: unknown; answers?: unknown };
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const date = typeof body.date === "string" ? body.date : "";
   const time = typeof body.time === "string" ? body.time : "";
-  const location = typeof body.location === "string" ? body.location.trim() : "";
+  const addressLine1 = typeof body.addressLine1 === "string" ? body.addressLine1.trim() : "";
+  const addressLine2 = typeof body.addressLine2 === "string" ? body.addressLine2.trim() : "";
+  const city = typeof body.city === "string" ? body.city.trim() : "";
+  const state = typeof body.state === "string" ? body.state.trim().toUpperCase() : "";
+  const postalCode = typeof body.postalCode === "string" ? body.postalCode.trim() : "";
+  const accessInstructions = typeof body.accessInstructions === "string" ? body.accessInstructions.trim() : "";
+  const location = [addressLine1, addressLine2, `${city}, ${state} ${postalCode}`].filter(Boolean).join(", ");
   const notes = typeof body.notes === "string" ? body.notes.trim() : "";
   const submittedAnswers = body.answers && typeof body.answers === "object" && !Array.isArray(body.answers) ? body.answers as Record<string, unknown> : {};
-  if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !location || location.length > 200 || notes.length > 1000) {
-    return NextResponse.json({ error: "Complete the location, date, and time fields." }, { status: 400 });
+  if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !addressLine1 || addressLine1.length > 120 || addressLine2.length > 80 || !city || city.length > 80 || !usStateCodes.has(state) || !/^\d{5}(?:-\d{4})?$/.test(postalCode) || accessInstructions.length > 500 || location.length > 320 || notes.length > 1000) {
+    return NextResponse.json({ error: "Complete the service address, date, and time fields." }, { status: 400 });
   }
   const serviceResult = await database.query<{
     id: string; provider_id: string; duration_minutes: number; price_cents: number;
@@ -85,7 +92,7 @@ export async function POST(request: Request) {
     if (!answer || answer.length > 500) return NextResponse.json({ error: "Answer every provider question before requesting this booking." }, { status: 400 });
     answers[question] = answer;
   }
-  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "booking", fields: [location, notes, ...Object.values(answers)] });
+  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "booking", fields: [location, accessInstructions, notes, ...Object.values(answers)] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   if (Number(time.slice(3, 5)) % 30 !== 0) return NextResponse.json({ error: "Choose a listed 30-minute time." }, { status: 409 });
@@ -138,10 +145,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "That time is no longer available. Choose another listed time." }, { status: 409 });
     }
     const created = await client.query<{ id: string }>(
-      `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address, notes, price_cents, assigned_team_member_id, booking_answers)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid, $10::jsonb)
+      `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address,
+          service_address_line1, service_address_line2, service_city, service_state, service_postal_code,
+          access_instructions, notes, price_cents, assigned_team_member_id, booking_answers)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, $10, $11, NULLIF($12, ''), $13, $14, $15::uuid, $16::jsonb)
        RETURNING id::text`,
-      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, notes, service.price_cents, candidate.rows[0].member_id, JSON.stringify(answers)],
+      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, service.price_cents, candidate.rows[0].member_id, JSON.stringify(answers)],
     );
     const bookingId = created.rows[0].id;
     await client.query(

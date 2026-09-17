@@ -19,6 +19,8 @@ type Booking = {
   startsAt: string;
   endsAt: string;
   location: string;
+  addressIsApproximate: boolean;
+  accessInstructions: string;
   notes: string;
   bookingAnswers: Record<string, string>;
   price: number;
@@ -292,11 +294,12 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
         <div className="grid gap-6 p-6 sm:grid-cols-2 sm:p-8">
           <Detail icon="◷" label="Date and time" value={formatInUserTimeZone(start, { weekday: "long", month: "long", day: "numeric", year: "numeric" }, timeZone)} note={`${formatInUserTimeZone(start, { hour: "numeric", minute: "2-digit" }, timeZone)}–${formatInUserTimeZone(end, { hour: "numeric", minute: "2-digit" }, timeZone)}`} />
           {booking.viewerRole !== "worker" && <Detail icon="$" label={booking.quote.status === "accepted" ? "Approved quote" : "Service price"} value={`$${booking.price.toLocaleString()}`} note={releaseCopy.detail} />}
-          <Detail icon="⌖" label="Service location" value={booking.location} note="Shared only with this booking" />
+          <Detail icon="⌖" label={booking.addressIsApproximate ? "Approximate service area" : "Service address"} value={booking.location} note={booking.addressIsApproximate ? "The street address unlocks after acceptance" : "Private to this booking and its assigned professionals"} />
           <Detail icon="✉" label={booking.viewerRole === "customer" ? "Service professional" : "Customer"} value={booking.viewerRole === "customer" ? booking.assigneeName : booking.customerName} note={booking.viewerRole === "customer" ? `From ${booking.providerName}` : "Message through BubsBookings"} />
         </div>
 
         {booking.notes && <div className="border-t border-[#183126]/10 px-6 py-5 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Booking notes</p><p className="mt-2 text-sm leading-6 text-[#4f6559]">{booking.notes}</p></div>}
+        {booking.accessInstructions && <div className="border-t border-[#183126]/10 px-6 py-5 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Arrival and access instructions</p><p className="mt-2 text-sm leading-6 text-[#4f6559]">{booking.accessInstructions}</p></div>}
         {Object.keys(booking.bookingAnswers ?? {}).length > 0 && <div className="border-t border-[#183126]/10 px-6 py-5 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Provider questions</p><div className="mt-3 space-y-3">{Object.entries(booking.bookingAnswers).map(([question, answer]) => <div key={question}><p className="text-sm font-bold">{question}</p><p className="mt-1 text-sm leading-6 text-[#4f6559]">{answer}</p></div>)}</div></div>}
         {booking.status === "cancelled" && <div className="border-t border-[#183126]/10 bg-[#fff7f3] px-6 py-5 sm:px-8"><p className="font-bold text-[#854c3b]">Cancelled by {booking.cancelledBy ?? "a booking participant"}{booking.lateCancellation ? " · Late cancellation" : ""}</p><p className="mt-2 text-sm leading-6 text-[#765e55]">{booking.cancellationReason || "No reason was provided."}</p>{booking.lateCancellation && <p className="mt-2 text-xs font-semibold text-[#854c3b]">This was cancelled inside the provider&apos;s {booking.cancellationWindowHours}-hour notice window. Any future refund decision will follow the provider policy and payment terms.</p>}</div>}
         {booking.refund.status !== "none" && <div className="border-t border-[#183126]/10 bg-[#f3f6f0] px-6 py-5 sm:px-8"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold capitalize">Refund {booking.refund.status}</p><p className="mt-1 text-sm text-[#61736a]">{booking.refund.reason || booking.refund.failureReason || `${booking.refund.refundedAmount.toFixed(2)} returned to the original payment method.`}</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-bold">{booking.refund.requestedAmount ? `$${booking.refund.requestedAmount.toFixed(2)}` : "Payment refund"}</span></div></div>}

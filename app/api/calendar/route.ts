@@ -11,7 +11,11 @@ export async function GET(request: Request) {
     id: string; title: string; person: string; starts_at: Date; ends_at: Date; location: string; status: string;
     assigned_team_member_id: string | null; assigned_team_member_ids: string[]; assignee_name: string;
   }>(role === "provider" ?
-    `SELECT b.id::text, s.title, u.name AS person, b.starts_at, b.ends_at, b.service_address AS location, b.status,
+    `SELECT b.id::text, s.title, u.name AS person, b.starts_at, b.ends_at,
+            CASE WHEN b.status = 'requested' THEN
+              COALESCE(NULLIF(trim(concat_ws(' ', concat_ws(', ', b.service_city, b.service_state), b.service_postal_code)), ''), 'Address available after acceptance')
+              ELSE b.service_address END AS location,
+            b.status,
             b.assigned_team_member_id::text,
             ARRAY(SELECT COALESCE(assigned.team_member_id::text, 'owner') FROM booking_assignees assigned WHERE assigned.booking_id = b.id) AS assigned_team_member_ids,
             COALESCE((SELECT string_agg(CASE WHEN assigned.is_owner THEN owner_user.name ELSE assigned_member.name END, ', ' ORDER BY assigned.is_owner DESC, assigned_member.name)

@@ -11,7 +11,13 @@ export async function GET() {
     price_cents: number; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string; previous_booking_count: number; plan: "starter" | "pro" | "business" | "owner";
   }>(
     `SELECT b.id::text, u.name AS customer, u.image AS customer_image, s.title AS service, b.starts_at,
-            b.service_address AS location, b.price_cents, b.status, p.plan,
+            CASE WHEN b.status IN ('confirmed', 'completed') OR EXISTS (
+              SELECT 1 FROM booking_events confirmed_event
+              WHERE confirmed_event.booking_id = b.id AND confirmed_event.event_type IN ('confirmed', 'reschedule_approved')
+            ) THEN b.service_address ELSE
+              COALESCE(NULLIF(trim(concat_ws(' ', concat_ws(', ', b.service_city, b.service_state), b.service_postal_code)), ''), 'Address available after acceptance')
+            END AS location,
+            b.price_cents, b.status, p.plan,
             COALESCE((SELECT string_agg(CASE WHEN assigned.is_owner THEN owner_user.name ELSE assigned_member.name END, ', ' ORDER BY assigned.is_owner DESC, assigned_member.name)
               FROM booking_assignees assigned LEFT JOIN provider_team_members assigned_member ON assigned_member.id = assigned.team_member_id
               WHERE assigned.booking_id = b.id), COALESCE(member.name, owner_user.name)) AS assignee_name,

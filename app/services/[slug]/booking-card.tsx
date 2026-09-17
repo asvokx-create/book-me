@@ -9,6 +9,8 @@ type BookingCardProps = {
   duration: string;
   serviceTitle: string;
   provider: string;
+  serviceCity: string;
+  serviceState: string;
   isSignedIn: boolean;
   returnPath: string;
   cancellationPolicy: string;
@@ -24,8 +26,13 @@ function formatTime(time: string) {
   return `${hours % 12 || 12}:${minutes} ${hours >= 12 ? "PM" : "AM"}`;
 }
 
-export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false }: BookingCardProps) {
-  const [location, setLocation] = useState("Issaquah, WA");
+export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, serviceCity, serviceState, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false }: BookingCardProps) {
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState(serviceCity);
+  const [state, setState] = useState(serviceState);
+  const [postalCode, setPostalCode] = useState("");
+  const [accessInstructions, setAccessInstructions] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
@@ -44,8 +51,8 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
       setShowFullyBooked(true);
       return;
     }
-    if (!location.trim() || !date) {
-      setError("Add a location and date to see available times.");
+    if (!addressLine1.trim() || !city.trim() || !/^[A-Za-z]{2}$/.test(state.trim()) || !/^\d{5}(?:-\d{4})?$/.test(postalCode.trim()) || !date) {
+      setError("Add a complete US service address and date to see available times.");
       return;
     }
     setError("");
@@ -77,7 +84,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serviceId, date, time, location, notes, answers }),
+      body: JSON.stringify({ serviceId, date, time, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, answers }),
     }).catch(() => null);
     if (!response) {
       setLoading(false);
@@ -108,7 +115,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         <div className="mt-6 rounded-2xl bg-[#f7f6f1] p-4 text-left">
           <p className="text-xs font-bold uppercase tracking-wider text-[#78867f]">Booking summary</p>
           <p className="mt-2 font-bold">{serviceTitle}</p>
-          <p className="mt-1 text-sm text-[#6c7b74]">{location} · from ${price}</p>
+          <p className="mt-1 text-sm text-[#6c7b74]">{addressLine1}{addressLine2 ? `, ${addressLine2}` : ""}, {city}, {state.toUpperCase()} {postalCode} · from ${price}</p>
         </div>
         <Link href="/account" className="mt-5 block w-full rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#294a3a]">View my bookings</Link>
         <button onClick={() => { setStep("details"); setTime(""); setTimeSlots([]); }} className="mt-6 rounded-full px-4 py-2 text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Make another request</button>
@@ -130,13 +137,20 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
 
       <form onSubmit={checkAvailability} className="mt-7 space-y-3">
         {bookingQuestions.map((question) => <label key={question} className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">{question}</span><textarea required={!bookingDisabled} value={answers[question] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [question]: event.target.value }))} maxLength={500} rows={2} className="w-full resize-none rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label>)}
-        <label className="block">
-          <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Location</span>
-          <input value={location} onChange={(event) => setLocation(event.target.value)} className="w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" />
-        </label>
+        <fieldset className="rounded-2xl border border-[#183126]/10 bg-[#f5f7f2] p-4">
+          <legend className="px-2 text-xs font-bold uppercase tracking-wider text-[#708078]">Private service address</legend>
+          <p className="mb-4 text-xs leading-5 text-[#6d7c75]">The provider sees only your city and ZIP until the booking is accepted. Your street address is never shown publicly.</p>
+          <div className="space-y-3">
+            <label className="block"><span className="mb-1.5 block text-xs font-bold">Street address</span><input required={!bookingDisabled} autoComplete="address-line1" maxLength={120} value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} placeholder="123 Main Street" className="w-full rounded-xl border border-[#183126]/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-bold">Apartment, unit, or suite <span className="font-medium text-[#718078]">(optional)</span></span><input autoComplete="address-line2" maxLength={80} value={addressLine2} onChange={(event) => setAddressLine2(event.target.value)} placeholder="Apt 4B" className="w-full rounded-xl border border-[#183126]/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label>
+            <div className="grid grid-cols-[1fr_72px] gap-2"><label className="block"><span className="mb-1.5 block text-xs font-bold">City</span><input required={!bookingDisabled} autoComplete="address-level2" maxLength={80} value={city} onChange={(event) => setCity(event.target.value)} className="w-full rounded-xl border border-[#183126]/15 bg-white px-3 py-3 text-sm outline-none focus:border-[#4d725d]" /></label><label className="block"><span className="mb-1.5 block text-xs font-bold">State</span><input required={!bookingDisabled} autoComplete="address-level1" inputMode="text" maxLength={2} value={state} onChange={(event) => setState(event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} className="w-full rounded-xl border border-[#183126]/15 bg-white px-3 py-3 text-sm uppercase outline-none focus:border-[#4d725d]" /></label></div>
+            <label className="block"><span className="mb-1.5 block text-xs font-bold">ZIP code</span><input required={!bookingDisabled} autoComplete="postal-code" inputMode="numeric" maxLength={10} pattern="[0-9]{5}(-[0-9]{4})?" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="98027" className="w-full rounded-xl border border-[#183126]/15 bg-white px-4 py-3 text-sm outline-none focus:border-[#4d725d]" /></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-bold">Arrival, parking, or access instructions <span className="font-medium text-[#718078]">(optional)</span></span><textarea value={accessInstructions} onChange={(event) => setAccessInstructions(event.target.value)} maxLength={500} rows={2} placeholder="Parking location, building entrance, or other helpful directions. Do not include alarm or access codes." className="w-full resize-none rounded-xl border border-[#183126]/15 bg-white px-4 py-3 text-sm outline-none focus:border-[#4d725d]" /></label>
+          </div>
+        </fieldset>
         <label className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Booking notes <span className="font-medium normal-case tracking-normal">(optional)</span></span>
-          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={3} placeholder="Share access details or what you need help with. Don’t include passwords or payment information." className="w-full resize-none rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" />
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={3} placeholder="Describe the job or anything the provider should know. Keep addresses, access codes, passwords, and payment information out of this box." className="w-full resize-none rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" />
         </label>
         <label className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Preferred date</span>
