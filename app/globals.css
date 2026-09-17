@@ -514,16 +514,34 @@ html[data-theme="dark"] .home-header a {
   color: #dce8e1;
 }
 
-.brand-wordmark-dark {
-  display: none;
+.brand-wordmark-text {
+  display: inline-flex;
+  align-items: center;
+  line-height: .92;
+  font-weight: 850;
+  letter-spacing: -.072em;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
 }
 
-html[data-theme="dark"] .brand-wordmark-light {
-  display: none;
+.brand-wordmark-bubs {
+  color: #082b1f;
 }
 
-html[data-theme="dark"] .brand-wordmark-dark {
-  display: block;
+.brand-wordmark-bookings {
+  background: linear-gradient(105deg, #3d985d 5%, #54ae70 48%, #388c57 100%);
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+html[data-theme="dark"] .brand-wordmark-bubs {
+  color: #f2f7f4;
+}
+
+html[data-theme="dark"] .brand-wordmark-bookings {
+  background-image: linear-gradient(105deg, #83d49b 5%, #5fbd7a 52%, #9bdfa9 100%);
 }
 
 html[data-theme="dark"] .home-hero {

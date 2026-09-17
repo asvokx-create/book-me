@@ -5,7 +5,7 @@ export default function BrandLockup({ priority = false, compact = false }: { pri
   return (
     <span className="flex min-w-0 items-center gap-2 sm:gap-2.5">
       <BrandMark priority={priority} className="h-9 w-9 rounded-xl shadow-[0_7px_18px_rgba(23,61,46,.18)] sm:h-10 sm:w-10" />
-      <BrandWordmark priority={priority} className={compact ? "h-5 w-[112px] sm:h-6 sm:w-[134px]" : "h-5 w-[112px] min-[390px]:h-6 min-[390px]:w-[134px] sm:h-7 sm:w-[156px]"} />
+      <BrandWordmark compact={compact} />
     </span>
   );
 }

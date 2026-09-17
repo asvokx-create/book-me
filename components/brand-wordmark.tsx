@@ -1,24 +1,7 @@
-import Image from "next/image";
-
-export default function BrandWordmark({ className = "h-8 w-[179px]", priority = false }: { className?: string; priority?: boolean }) {
+export default function BrandWordmark({ compact = false }: { compact?: boolean }) {
   return (
-    <span className={`brand-wordmark relative block shrink-0 ${className}`}>
-      <Image
-        src="/brand-wordmark.png"
-        alt="BubsBookings"
-        fill
-        priority={priority}
-        sizes="(max-width: 390px) 136px, 180px"
-        className="brand-wordmark-light object-contain object-left"
-      />
-      <Image
-        src="/brand-wordmark-dark.png"
-        alt=""
-        fill
-        priority={priority}
-        sizes="(max-width: 390px) 136px, 180px"
-        className="brand-wordmark-dark object-contain object-left"
-      />
+    <span className={`brand-wordmark-text shrink-0 whitespace-nowrap ${compact ? "text-[1.05rem] sm:text-[1.2rem]" : "text-[1.05rem] min-[390px]:text-[1.2rem] sm:text-[1.4rem]"}`}>
+      <span className="brand-wordmark-bubs">Bubs</span><span className="brand-wordmark-bookings">Bookings</span>
     </span>
   );
 }
