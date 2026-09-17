@@ -9,7 +9,15 @@ export default function BrandWordmark({ className = "h-8 w-[179px]", priority = 
         fill
         priority={priority}
         sizes="(max-width: 390px) 136px, 180px"
-        className="object-contain object-left"
+        className="brand-wordmark-light object-contain object-left"
+      />
+      <Image
+        src="/brand-wordmark-dark.png"
+        alt=""
+        fill
+        priority={priority}
+        sizes="(max-width: 390px) 136px, 180px"
+        className="brand-wordmark-dark object-contain object-left"
       />
     </span>
   );
