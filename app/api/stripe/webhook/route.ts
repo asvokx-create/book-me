@@ -103,6 +103,184 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
   await recordAnalytics({ eventName: "payment_completed", targetType: "booking", targetId: checkout.metadata.bookingId, metadata: { amountTotal: checkout.amount_total } });
 }
 
+async function recordStripeDisputeOpened(dispute: Stripe.Dispute) {
+  const chargeId = idOf(dispute.charge);
+  if (!chargeId) return;
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    const bookingIdResult = await client.query<{ id: string }>(
+      "SELECT id::text FROM bookings WHERE stripe_charge_id = $1 AND stripe_mode = $2",
+      [chargeId, getStripeMode()],
+    );
+    const bookingId = bookingIdResult.rows[0]?.id;
+    if (!bookingId) {
+      await client.query("COMMIT");
+      return;
+    }
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`booking-payout:${bookingId}`]);
+    const bookingResult = await client.query<{
+      id: string; customer_id: string; provider_user_id: string; service_title: string;
+      stripe_transfer_id: string | null; payment_release_status: string;
+    }>(`SELECT b.id::text, b.customer_id, p.user_id AS provider_user_id, s.title AS service_title,
+        b.stripe_transfer_id, b.payment_release_status
+      FROM bookings b
+      JOIN provider_profiles p ON p.id = b.provider_id
+      JOIN services s ON s.id = b.service_id
+      WHERE b.id::text = $1
+      FOR UPDATE OF b`, [bookingId]);
+    const booking = bookingResult.rows[0];
+    if (!booking) {
+      await client.query("COMMIT");
+      return;
+    }
+    const payoutAlreadySent = Boolean(booking.stripe_transfer_id);
+    await client.query(`UPDATE bookings SET
+        stripe_dispute_id = $2,
+        stripe_dispute_status = $3,
+        stripe_dispute_reason = $4,
+        stripe_dispute_opened_at = COALESCE(stripe_dispute_opened_at, now()),
+        stripe_dispute_closed_at = NULL,
+        payout_frozen_at = CASE
+          WHEN stripe_transfer_id IS NULL AND payment_release_status IN ('secured', 'awaiting_customer', 'processing', 'failed') THEN now()
+          ELSE payout_frozen_at END,
+        payout_freeze_reason = CASE
+          WHEN stripe_transfer_id IS NULL AND payment_release_status IN ('secured', 'awaiting_customer', 'processing', 'failed') THEN 'Stripe chargeback under review'
+          ELSE payout_freeze_reason END,
+        payment_release_status = CASE
+          WHEN stripe_transfer_id IS NULL AND payment_release_status IN ('secured', 'awaiting_customer', 'processing', 'failed') THEN 'frozen'
+          ELSE payment_release_status END,
+        payout_failure_reason = CASE
+          WHEN stripe_transfer_id IS NOT NULL THEN 'A Stripe chargeback was opened after the provider payout. An administrator must review transfer recovery.'
+          ELSE payout_failure_reason END
+      WHERE id::text = $1`, [booking.id, dispute.id, dispute.status, dispute.reason]);
+    await client.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
+      VALUES ($1::uuid, 'stripe_dispute_opened', $2,
+      jsonb_build_object('stripeDisputeId', $3, 'reason', $4, 'payoutAlreadySent', $5))`,
+      [booking.id, payoutAlreadySent
+        ? "A bank chargeback was opened after the provider payout. Administrator review is required."
+        : "A bank chargeback was opened. The unreleased provider payout is frozen while Stripe reviews it.",
+      dispute.id, dispute.reason, payoutAlreadySent]);
+    await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+      VALUES ($1, $3::uuid, 'stripe_dispute', 'Bank chargeback opened', $4,
+        '/provider/dashboard/bookings/' || $3::uuid::text, 'stripe-dispute-opened-' || $2 || '-provider'),
+      ($5, $3::uuid, 'stripe_dispute', 'Bank chargeback opened', $6,
+        '/account/bookings/' || $3::uuid::text, 'stripe-dispute-opened-' || $2 || '-customer')
+      ON CONFLICT (dedupe_key) DO NOTHING`, [booking.provider_user_id, dispute.id, booking.id,
+      payoutAlreadySent
+        ? `A bank chargeback was opened for ${booking.service_title}. BubsBookings will review the completed payout and Stripe case.`
+        : `A bank chargeback was opened for ${booking.service_title}. Your unreleased payout is frozen until Stripe reports the outcome.`,
+      booking.customer_id, `Your bank opened a chargeback for ${booking.service_title}. Follow the case through your bank or card issuer; BubsBookings will follow Stripe's reported outcome.`]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function recordStripeDisputeClosed(dispute: Stripe.Dispute) {
+  const chargeId = idOf(dispute.charge);
+  if (!chargeId) return;
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    const bookingIdResult = await client.query<{ id: string }>(
+      "SELECT id::text FROM bookings WHERE stripe_charge_id = $1 AND stripe_mode = $2",
+      [chargeId, getStripeMode()],
+    );
+    const bookingId = bookingIdResult.rows[0]?.id;
+    if (!bookingId) {
+      await client.query("COMMIT");
+      return;
+    }
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`booking-payout:${bookingId}`]);
+    const bookingResult = await client.query<{
+      id: string; customer_id: string; provider_user_id: string; service_title: string;
+      stripe_transfer_id: string | null;
+    }>(`SELECT b.id::text, b.customer_id, p.user_id AS provider_user_id, s.title AS service_title,
+        b.stripe_transfer_id
+      FROM bookings b
+      JOIN provider_profiles p ON p.id = b.provider_id
+      JOIN services s ON s.id = b.service_id
+      WHERE b.id::text = $1
+      FOR UPDATE OF b`, [bookingId]);
+    const booking = bookingResult.rows[0];
+    if (!booking) {
+      await client.query("COMMIT");
+      return;
+    }
+    const providerWon = dispute.status === "won" || dispute.status === "warning_closed";
+    const customerWon = dispute.status === "lost";
+    await client.query(`UPDATE bookings b SET
+        stripe_dispute_id = $2,
+        stripe_dispute_status = $3,
+        stripe_dispute_reason = $4,
+        stripe_dispute_closed_at = now(),
+        payout_frozen_at = CASE
+          WHEN payout_freeze_reason = 'Stripe chargeback under review' AND $5 THEN NULL
+          WHEN payout_freeze_reason = 'Stripe chargeback under review' AND $6
+            AND refund_status NOT IN ('requested', 'processing')
+            AND NOT EXISTS (
+              SELECT 1 FROM booking_disputes d
+              WHERE d.booking_id = b.id AND d.status IN ('open', 'reviewing')
+            ) THEN NULL
+          ELSE payout_frozen_at END,
+        payout_freeze_reason = CASE
+          WHEN payout_freeze_reason = 'Stripe chargeback under review' AND $5 THEN NULL
+          WHEN payout_freeze_reason = 'Stripe chargeback under review' AND $6
+            AND refund_status IN ('requested', 'processing') THEN 'Refund requested'
+          WHEN payout_freeze_reason = 'Stripe chargeback under review' AND $6
+            AND EXISTS (
+              SELECT 1 FROM booking_disputes d
+              WHERE d.booking_id = b.id AND d.status IN ('open', 'reviewing')
+            ) THEN 'Open booking dispute'
+          WHEN payout_freeze_reason = 'Stripe chargeback under review' AND $6 THEN NULL
+          ELSE payout_freeze_reason END,
+        payment_release_status = CASE
+          WHEN $5 AND stripe_transfer_id IS NULL THEN 'reversed'
+          WHEN $6 AND payment_release_status = 'frozen'
+            AND payout_freeze_reason = 'Stripe chargeback under review'
+            AND refund_status NOT IN ('requested', 'processing')
+            AND NOT EXISTS (
+              SELECT 1 FROM booking_disputes d
+              WHERE d.booking_id = b.id AND d.status IN ('open', 'reviewing')
+            ) THEN CASE WHEN b.status = 'completed' THEN 'awaiting_customer' ELSE 'secured' END
+          ELSE payment_release_status END,
+        payout_failure_reason = CASE
+          WHEN $5 AND stripe_transfer_id IS NOT NULL THEN 'The bank upheld a chargeback after the provider payout. An administrator must review transfer recovery.'
+          WHEN $6 AND payout_failure_reason LIKE 'A Stripe chargeback was opened%' THEN NULL
+          ELSE payout_failure_reason END
+      WHERE id::text = $1`, [booking.id, dispute.id, dispute.status, dispute.reason, customerWon, providerWon]);
+    const outcomeMessage = customerWon
+      ? (booking.stripe_transfer_id
+        ? "The bank upheld the chargeback after the provider payout. Administrator review of transfer recovery is required."
+        : "The bank upheld the chargeback. The held provider payout will not be released.")
+      : "The bank closed the chargeback in the platform's favor. Any eligible held payout returned to the normal release process.";
+    await client.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
+      VALUES ($1::uuid, 'stripe_dispute_closed', $2,
+      jsonb_build_object('stripeDisputeId', $3, 'status', $4))`,
+      [booking.id, outcomeMessage, dispute.id, dispute.status]);
+    await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+      VALUES ($1, $3::uuid, 'stripe_dispute', 'Bank chargeback closed', $4,
+        '/provider/dashboard/bookings/' || $3::uuid::text, 'stripe-dispute-closed-' || $2 || '-provider'),
+      ($5, $3::uuid, 'stripe_dispute', 'Bank chargeback closed', $6,
+        '/account/bookings/' || $3::uuid::text, 'stripe-dispute-closed-' || $2 || '-customer')
+      ON CONFLICT (dedupe_key) DO NOTHING`, [booking.provider_user_id, dispute.id, booking.id,
+      `${outcomeMessage} Service: ${booking.service_title}.`, booking.customer_id,
+      customerWon
+        ? `Your bank upheld the chargeback for ${booking.service_title}. The card issuer's decision is final in Stripe.`
+        : `Your bank chargeback for ${booking.service_title} closed without a customer refund through the dispute process.`]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function processEvent(event: Stripe.Event) {
   switch (event.type) {
     case "checkout.session.completed": {
@@ -155,6 +333,14 @@ async function processEvent(event: Stripe.Event) {
         customer_service_fee_refunded_cents = LEAST(customer_service_fee_cents, GREATEST($4 - price_cents, 0)),
         refunded_at = now()
         WHERE stripe_payment_intent_id = $1 AND stripe_mode = $2`, [idOf(charge.payment_intent), getStripeMode(), charge.refunded, charge.amount_refunded]);
+      break;
+    }
+    case "charge.dispute.created": {
+      await recordStripeDisputeOpened(event.data.object);
+      break;
+    }
+    case "charge.dispute.closed": {
+      await recordStripeDisputeClosed(event.data.object);
       break;
     }
     case "payment_intent.payment_failed": {
