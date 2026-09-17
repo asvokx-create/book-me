@@ -48,7 +48,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <Link href="/guides" className="site-nav-link">Guides</Link>
               <Link href="/pricing" className="site-nav-link">Pricing</Link>
             </nav>
-            <Link href="/pricing" className="site-nav-link lg:hidden">Pricing</Link>
+            <Link href="/pricing" className="inline-flex min-h-10 items-center justify-center rounded-full px-2.5 py-2 text-xs font-bold hover:bg-[#183126]/5 sm:px-3 sm:text-sm lg:hidden">Pricing</Link>
             <Link href="/providers/join" className="hidden rounded-full border border-[#183126]/10 bg-white/60 px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:border-[#183126]/20 hover:bg-white sm:block">
               List your service
             </Link>
