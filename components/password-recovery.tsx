@@ -1,5 +1,7 @@
 "use client";
 
+import BrandMark from "@/components/brand-mark";
+
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -47,5 +49,5 @@ export function ResetPasswordForm() {
 }
 
 function AuthCard({ eyebrow, title, children }: { eyebrow: string; title: string; children: React.ReactNode }) {
-  return <main className="grid min-h-screen place-items-center bg-[#f5f4ef] px-5 py-10 text-[#183126]"><section className="w-full max-w-md rounded-[2rem] border border-[#183126]/10 bg-white p-7 shadow-[0_24px_70px_rgba(24,49,38,.12)] sm:p-9"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span>BubsBookings</Link><p className="mt-8 text-xs font-bold uppercase tracking-[.15em] text-[#6f8077]">{eyebrow}</p><h1 className="mt-2 text-3xl font-bold tracking-tight">{title}</h1>{children}</section></main>;
+  return <main className="grid min-h-screen place-items-center bg-[#f5f4ef] px-5 py-10 text-[#183126]"><section className="w-full max-w-md rounded-[2rem] border border-[#183126]/10 bg-white p-7 shadow-[0_24px_70px_rgba(24,49,38,.12)] sm:p-9"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><BrandMark className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]" />BubsBookings</Link><p className="mt-8 text-xs font-bold uppercase tracking-[.15em] text-[#6f8077]">{eyebrow}</p><h1 className="mt-2 text-3xl font-bold tracking-tight">{title}</h1>{children}</section></main>;
 }

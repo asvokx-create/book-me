@@ -1,5 +1,7 @@
 "use client";
 
+import BrandMark from "@/components/brand-mark";
+
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -59,7 +61,7 @@ export default function AdminSupportQueue() {
   const pendingVerifications = verifications.filter((item) => item.status === "pending");
 
   return <main className="min-h-screen bg-[#f4f4ef] text-[#183126]">
-    <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4"><Link href="/admin" className="flex items-center gap-2 font-bold"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#183126] text-[#eee25a]">B</span>BubsBookings Admin</Link><Link href="/admin" className="rounded-full px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">← Admin overview</Link></div></header>
+    <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4"><Link href="/admin" className="flex items-center gap-2 font-bold"><BrandMark className="grid h-10 w-10 place-items-center rounded-xl bg-[#183126] text-[#eee25a]" />BubsBookings Admin</Link><Link href="/admin" className="rounded-full px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">← Admin overview</Link></div></header>
     <div className="mx-auto max-w-6xl px-5 py-10">
       <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">Admin inbox</p><h1 className="mt-2 text-4xl font-bold">Support &amp; verification</h1>
       <div className="mt-6 flex flex-wrap gap-2"><button onClick={() => setTab("support")} className={`rounded-full px-5 py-2.5 text-sm font-bold ${tab === "support" ? "bg-[#183126] text-white" : "bg-white hover:bg-[#eee25a]"}`}>Support ({support.filter((item) => item.status !== "resolved").length})</button><button onClick={() => setTab("verification")} className={`rounded-full px-5 py-2.5 text-sm font-bold ${tab === "verification" ? "bg-[#183126] text-white" : "bg-white hover:bg-[#eee25a]"}`}>Automatic verification ({automatedChecks.length})</button></div>

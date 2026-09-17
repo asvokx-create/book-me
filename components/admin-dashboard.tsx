@@ -1,5 +1,7 @@
 "use client";
 
+import BrandMark from "@/components/brand-mark";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -243,7 +245,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
         <div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-4 sm:px-8">
           <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center gap-2.5 text-xl font-bold">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#183126] text-[#eee25a]">B</span>
+              <BrandMark className="grid h-10 w-10 place-items-center rounded-xl bg-[#183126] text-[#eee25a]" />
               BubsBookings
             </Link>
             <span className="hidden rounded-full bg-[#eee25a] px-3 py-1 text-xs font-extrabold uppercase tracking-wider sm:inline">Admin</span>

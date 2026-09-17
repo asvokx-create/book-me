@@ -1,3 +1,4 @@
+import BrandMark from "@/components/brand-mark";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getServices, getServiceVisual, type ServiceListing } from "@/lib/marketplace";
@@ -38,7 +39,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       <header className="home-header sticky top-0 z-50 border-b border-white/70 bg-[#f8f7f3]/82 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
           <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
-            <span className="grid h-10 w-10 place-items-center rounded-[.9rem] bg-[#173d2e] text-base text-[#f1e45c] shadow-[0_8px_20px_rgba(23,61,46,.2)]">B</span>
+            <BrandMark className="grid h-10 w-10 place-items-center rounded-[.9rem] bg-[#173d2e] text-base text-[#f1e45c] shadow-[0_8px_20px_rgba(23,61,46,.2)]" />
             <span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span>
           </Link>
 

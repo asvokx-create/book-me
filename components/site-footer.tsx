@@ -1,3 +1,4 @@
+import BrandMark from "@/components/brand-mark";
 import Link from "next/link";
 import BugReportButton from "@/components/bug-report-button";
 
@@ -60,7 +61,7 @@ export default function SiteFooter() {
 
         <div className="grid gap-10 py-11 sm:grid-cols-2 lg:grid-cols-[1.35fr_.8fr_.8fr_.8fr]">
           <div>
-            <Link href="/" className="flex w-fit items-center gap-3 text-xl font-bold tracking-[-.03em]"><span className="grid h-11 w-11 place-items-center rounded-[.9rem] bg-[#f1e45c] text-base text-[#173d2e] shadow-[0_10px_25px_rgba(0,0,0,.2)]">B</span>BubsBookings</Link>
+            <Link href="/" className="flex w-fit items-center gap-3 text-xl font-bold tracking-[-.03em]"><BrandMark className="grid h-11 w-11 place-items-center rounded-[.9rem] bg-[#f1e45c] text-base text-[#173d2e] shadow-[0_10px_25px_rgba(0,0,0,.2)]" />BubsBookings</Link>
             <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local services, safer conversations, clear choices—and a simpler way to get things done.</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <BugReportButton />

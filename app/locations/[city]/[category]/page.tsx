@@ -1,3 +1,4 @@
+import BrandMark from "@/components/brand-mark";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -59,7 +60,7 @@ export default async function LocalCategoryPage({ params }: LocalCategoryPagePro
 
   return <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-    <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-[#eee25a]">B</span>BubsBookings</Link><Link href={`/locations/${serviceAreaSlug(area)}`} className="text-sm font-bold hover:underline">Services in {area.city}</Link></div></header>
+    <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><BrandMark className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-[#eee25a]" />BubsBookings</Link><Link href={`/locations/${serviceAreaSlug(area)}`} className="text-sm font-bold hover:underline">Services in {area.city}</Link></div></header>
     <section className="border-b border-[#183126]/10 bg-[radial-gradient(circle_at_85%_15%,rgba(206,225,198,.85),transparent_30%)]"><div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
       <nav aria-label="Breadcrumb" className="text-sm font-semibold text-[#61736a]"><Link href="/locations" className="hover:underline">Service areas</Link><span aria-hidden="true"> / </span><Link href={`/locations/${serviceAreaSlug(area)}`} className="hover:underline">{location}</Link><span aria-hidden="true"> / </span><span>{category}</span></nav>
       <div className="mt-8 grid items-center gap-8 md:grid-cols-[1fr_auto]"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">Local {category.toLowerCase()}</p><h1 className="mt-3 text-4xl font-bold tracking-[-.05em] sm:text-6xl">{category} in {area.city}, {area.state}</h1><p className="mt-5 max-w-3xl text-lg leading-8 text-[#5d7066]">Compare local {category.toLowerCase()} providers serving {area.city} and nearby communities. Review photos, starting prices, service details, and availability before requesting a booking.</p></div><div aria-hidden="true" className={`grid h-28 w-28 place-items-center rounded-[2rem] bg-gradient-to-br text-6xl shadow-sm ${visual.gradient}`}>{visual.art}</div></div>

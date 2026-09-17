@@ -14,7 +14,7 @@ export default async function OpenGraphImage({ params }: { params: Promise<{ slu
   return new ImageResponse(
     <div style={{ display: "flex", width: "100%", height: "100%", background: "#f8f7f3", color: "#183126", padding: "62px 70px", flexDirection: "column", justifyContent: "space-between" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 30, fontWeight: 700 }}>
-        <div style={{ display: "flex", width: 64, height: 64, borderRadius: 18, alignItems: "center", justifyContent: "center", background: "#183126", color: "#eee25a", fontSize: 32 }}>B</div>
+        <div style={{ display: "flex", width: 64, height: 64, borderRadius: 18, backgroundColor: "#183126", backgroundImage: 'url("https://bubsbookings.com/brand-icon.png")', backgroundPosition: "center", backgroundRepeat: "no-repeat", backgroundSize: "cover" }} />
         <div>BubsBookings Blog</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", maxWidth: 1030 }}>

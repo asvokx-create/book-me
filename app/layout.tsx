@@ -31,8 +31,9 @@ export const metadata: Metadata = {
     url: "https://bubsbookings.com",
     title: "BubsBookings | Trusted local services",
     description: "Find and book trusted local professionals for the jobs on your list.",
+    images: [{ url: "/brand-logo.png", width: 1200, height: 1200, alt: "BubsBookings — Local services. Real people." }],
   },
-  twitter: { card: "summary", title: "BubsBookings", description: "Find and book trusted local professionals near you." },
+  twitter: { card: "summary", title: "BubsBookings", description: "Find and book trusted local professionals near you.", images: ["/brand-logo.png"] },
   ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
 };
 

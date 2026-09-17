@@ -1,3 +1,4 @@
+import BrandMark from "@/components/brand-mark";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -30,7 +31,7 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
       <header className="border-b border-[#183126]/10">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]">B</span>
+            <BrandMark className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]" />
             BubsBookings
           </Link>
           <p className="hidden text-sm text-[#6b7c73] sm:block">Already a provider? <Link href="/provider/dashboard" className="font-bold text-[#183126] underline decoration-[#c9be45] decoration-2 underline-offset-4">Open dashboard</Link></p>

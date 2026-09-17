@@ -1,5 +1,7 @@
 "use client";
 
+import BrandMark from "@/components/brand-mark";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
@@ -85,7 +87,7 @@ export default function AccountPage() {
     <main className="min-h-screen bg-[#f5f4ef] text-[#183126]">
       <header className="relative z-50 border-b border-[#183126]/10 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-8 sm:py-4">
-          <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 text-lg font-bold tracking-tight sm:gap-2.5 sm:text-xl"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]">B</span><span className="hidden sm:inline">BubsBookings</span></Link>
+          <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 text-lg font-bold tracking-tight sm:gap-2.5 sm:text-xl"><BrandMark className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]" /><span className="hidden sm:inline">BubsBookings</span></Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold md:flex"><Link href="/services" className="hover:text-[#5b7365]">Explore services</Link><Link href="/providers/join" className="hover:text-[#5b7365]">List your service</Link></nav>
           <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Link href={isProvider ? "/provider/dashboard" : "/providers/join"} aria-label={isProvider ? "Switch to provider" : "Become a provider"} className="whitespace-nowrap rounded-full bg-[#183126] px-3.5 py-2.5 text-[11px] font-bold text-white shadow-[0_6px_18px_rgba(24,49,38,.16)] transition hover:-translate-y-0.5 hover:bg-[#315846] min-[370px]:text-xs sm:px-4 sm:text-sm">{isProvider ? "Switch to provider" : "Become a provider"}</Link><NotificationBell /><ProfileAvatar name={accountName ?? "BubsBookings"} imageUrl={session?.user.image} className="hidden h-10 w-10 text-sm md:grid" /></div>
         </div>
