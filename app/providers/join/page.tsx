@@ -8,6 +8,7 @@ import OnboardingForm from "./onboarding-form";
 export const metadata: Metadata = {
   title: "Become a provider",
   description: "Grow your local service business with BubsBookings.",
+  alternates: { canonical: "/providers/join" },
 };
 
 function getParam(value: string | string[] | undefined) {

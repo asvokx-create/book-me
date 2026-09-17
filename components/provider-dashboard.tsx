@@ -116,6 +116,15 @@ const dashboardNav: Array<{ section: DashboardSection; href: string; icon: strin
   { section: "settings", href: "/provider/dashboard/settings", icon: "⚙", label: "Settings" },
 ];
 
+const sectionsNeedingPageHeading: Partial<Record<DashboardSection, string>> = {
+  bookings: "Booking requests",
+  messages: "Provider messages",
+  services: "Company listings",
+  availability: "Service availability",
+  reviews: "Verified reviews",
+  settings: "Provider settings",
+};
+
 export default function ProviderDashboard({ section = "overview", initialConversationId = "" }: { section?: DashboardSection; initialConversationId?: string }) {
   const timeZone = useUserTimeZone();
   const { data: session } = authClient.useSession();
@@ -335,6 +344,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
         <div className="min-w-0">
           <nav aria-label="Provider dashboard sections" className="mobile-scroll-row -mx-4 mb-6 flex snap-x gap-2 overflow-x-auto px-4 pb-2 text-sm font-bold lg:hidden">{visibleNav.map((item) => <Link key={item.section} href={item.href} className={`shrink-0 snap-start rounded-full px-4 py-2.5 ${section === item.section ? "bg-[#183126] text-white shadow-[0_8px_20px_rgba(24,49,38,.16)]" : "border border-[#183126]/10 bg-white"}`}>{item.label}</Link>)}</nav>
+          {!ownerOnlySection && sectionsNeedingPageHeading[section] && <h1 className="sr-only">{sectionsNeedingPageHeading[section]}</h1>}
           {ownerOnlySection && <section className="rounded-[2rem] border border-[#d6ca65] bg-[#fff8cd] p-7"><h1 className="text-2xl font-bold">Owner-only company area</h1><p className="mt-2 text-sm leading-6 text-[#6f6840]">Workers can view assigned bookings and manage their own requested hours. Revenue, billing, listings, company messages, and business settings stay private to the company owner.</p><Link href="/provider/dashboard/team" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Open my worker area</Link></section>}
           {notice && provider && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Welcome to BubsBookings, {firstName}!</p><p className="mt-1 text-[#567060]">{isWorker ? `You have worker access to ${provider.businessName}.` : "Your provider profile and services are saved."}</p></div><button onClick={() => setNotice(false)} aria-label="Dismiss" className="rounded-full px-2 text-lg text-[#64786a] transition hover:bg-[#cbdcc8]">×</button></div>}
           {photoUploadFailed && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#e0b58f] bg-[#fff3e9] p-4 text-sm"><div><p className="font-bold">Your listing was saved, but a photo did not upload.</p><p className="mt-1 text-[#765e4c]">You can add it again under Your services below.</p></div><button onClick={() => setPhotoUploadFailed(false)} aria-label="Dismiss" className="rounded-full px-2 text-lg text-[#806b5b] transition hover:bg-[#f4d8cc]">×</button></div>}

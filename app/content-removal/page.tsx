@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/app/terms/page";
 
-export const metadata: Metadata = { title: "Content Removal" };
+export const metadata: Metadata = { title: "Content Removal", alternates: { canonical: "/content-removal" } };
 
 const sections = [
   ["1. Report content", <>Anyone may request review of content on BubsBookings that is unlawful, infringes intellectual-property or privacy rights, or depicts them in an intimate image shared without consent. An account is not required. Email <a href="mailto:christian@bubsbookings.com?subject=BubsBookings%20content%20removal%20request" className="font-bold underline">christian@bubsbookings.com</a> with “Content removal request” in the subject. For immediate danger, contact emergency services. Do not use email to send passwords, full payment-card details, or unnecessary identity documents.</>],

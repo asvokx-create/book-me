@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/app/terms/page";
 
-export const metadata: Metadata = { title: "Accessibility" };
+export const metadata: Metadata = { title: "Accessibility", alternates: { canonical: "/accessibility" } };
 
 const sections = [
   ["1. Our commitment", "BubsBookings wants customers and providers, including people with disabilities, to be able to use the marketplace. Accessibility is ongoing work, not a one-time certification. We aim to improve keyboard access, readable contrast, clear labels, responsive layouts, and compatibility with common assistive technologies as the service develops."],

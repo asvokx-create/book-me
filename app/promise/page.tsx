@@ -5,6 +5,7 @@ import AccountNav from "@/components/account-nav";
 export const metadata: Metadata = {
   title: "BubsBookings Promise",
   description: "Learn how BubsBookings helps protect your booking, payment, communication, and support experience.",
+  alternates: { canonical: "/promise" },
 };
 
 const protections = [

@@ -3,7 +3,7 @@ import Link from "next/link";
 import AuthForm from "../auth-form";
 import { getSocialProviderAvailability } from "@/lib/auth";
 
-export const metadata: Metadata = { title: "Create an account" };
+export const metadata: Metadata = { title: "Create an account", robots: { index: false, follow: false } };
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ redirect?: string }> }) {
   const query = await searchParams;

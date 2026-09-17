@@ -384,7 +384,7 @@ html[data-theme="dark"] .home-hero-eyebrow {
   box-shadow: none;
 }
 
-html[data-theme="dark"] .home-hero h2 {
+html[data-theme="dark"] .home-hero h1 {
   color: #f4f8f5;
   text-shadow: 0 3px 28px rgba(0, 0, 0, 0.2);
 }

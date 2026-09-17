@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/app/terms/page";
 
-export const metadata: Metadata = { title: "Privacy Policy" };
+export const metadata: Metadata = { title: "Privacy Policy", alternates: { canonical: "/privacy" } };
 
 const sections = [
   ["1. Scope and information collected", <><p>This policy applies to the BubsBookings website, accounts, marketplace, and support tools. We collect information you provide: name, email, phone, authentication data such as password hashes, profile photo, service and business details, photos, availability, location and working radius, booking address and notes, quotes, messages, reviews, team information, reports, disputes, support requests, preferences, and agreement records.</p><p className="mt-3">We also collect transaction and status information from Stripe; Google profile information when you choose Google sign-in; and technical data such as IP address, browser, device, pages and features used, timestamps, session identifiers, security events, analytics identifiers, and approximate location based on the area you select. If you allow browser location access, your device provides coordinates temporarily to the page to choose a nearby supported city; BubsBookings does not send or store those precise coordinates as part of that feature. Your browser or operating system controls the permission.</p></>],

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/app/terms/page";
 
-export const metadata: Metadata = { title: "Cookie Notice" };
+export const metadata: Metadata = { title: "Cookie Notice", alternates: { canonical: "/cookies" } };
 
 const sections = [
   ["1. What this notice covers", <>This notice explains how BubsBookings uses cookies and similar browser technologies, including local storage. It supplements the <Link href="/privacy" className="font-bold underline">Privacy Policy</Link>. A cookie is a small piece of data stored by a browser; local storage keeps preferences or identifiers in the browser.</>],

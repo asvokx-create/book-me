@@ -37,10 +37,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     <main className="home-page min-h-screen overflow-hidden bg-[#f8f7f3] text-[#183126]">
       <header className="home-header sticky top-0 z-50 border-b border-white/70 bg-[#f8f7f3]/82 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
-          <h1 className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
+          <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
             <span className="grid h-10 w-10 place-items-center rounded-[.9rem] bg-[#173d2e] text-base text-[#f1e45c] shadow-[0_8px_20px_rgba(23,61,46,.2)]">B</span>
             <span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span>
-          </h1>
+          </Link>
 
           <div className="flex items-center gap-3">
             <Link href="/pricing" className="rounded-xl px-2 py-2 text-xs font-semibold transition hover:bg-[#183126]/5 sm:px-4 sm:text-sm"><span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Provider pricing</span></Link>
@@ -61,9 +61,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <span className="h-2 w-2 rounded-full bg-[#69a67e]" /> Trusted help, right nearby
           </p>
 
-          <h2 className="text-[clamp(2.6rem,8vw,3.75rem)] font-bold leading-[1.04] tracking-[-0.05em]">
+          <h1 className="text-[clamp(2.6rem,8vw,3.75rem)] font-bold leading-[1.04] tracking-[-0.05em]">
             Your to-do list just got <span className="underline decoration-[#eee25a] decoration-[10px] underline-offset-[-4px]">a lot lighter.</span>
-          </h2>
+          </h1>
 
           <p className="home-hero-copy mt-6 max-w-2xl text-lg leading-8 text-[#5a6d63]">
             Discover trusted local pros, compare your options, and book the right help—all in one simple place.
@@ -95,8 +95,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <form action="/services" className="home-search-bar mt-12 flex max-w-5xl flex-col gap-2 rounded-3xl border border-white bg-white/92 p-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl md:flex-row md:rounded-full">
           <div className="flex flex-1 items-center rounded-full px-4">
             <span className="mr-3 text-lg">🔎</span>
-
+            <label htmlFor="home-service-search" className="sr-only">Service to search for</label>
             <input
+              id="home-service-search"
               name="q"
               type="text"
               placeholder="What service do you need?"
