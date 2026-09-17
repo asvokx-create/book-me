@@ -48,6 +48,7 @@ export default function RadiusSelector({ value, onChange, name, compact = false 
             step={1}
             required
             value={normalizedValue}
+            onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => onChange(Number(event.target.value))}
             className={compact ? "w-16 rounded-lg border border-[#183126]/15 bg-white px-2 py-1.5 text-sm font-semibold outline-none focus:border-[#4d725d]" : "w-28 rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none focus:border-[#4d725d]"}
           />

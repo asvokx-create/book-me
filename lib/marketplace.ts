@@ -1,7 +1,8 @@
 import "server-only";
 
 import { database, isDatabaseConfigured } from "./database";
-import { distanceMiles, getServiceAreaCoordinates } from "./service-areas";
+import { distanceMiles } from "./service-areas";
+import { findUsCity } from "./us-cities";
 import { getServiceCategorySearchMatches } from "./service-categories";
 
 export type ServiceListing = {
@@ -99,7 +100,7 @@ export async function getServices(options: { query?: string; category?: string; 
   const conditions = ["s.is_active = true", "p.is_active = true"];
   const requestedLimit = options.limit ?? 50;
   const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), 250) : undefined;
-  const searchOrigin = options.location && radiusMiles ? getServiceAreaCoordinates(options.location) : undefined;
+  const searchOrigin = options.location && radiusMiles ? findUsCity(options.location) : undefined;
   if (options.category && options.category !== "All services") {
     values.push(options.category);
     conditions.push(`LOWER(s.category) = LOWER($${values.length})`);
@@ -159,7 +160,7 @@ export async function getServices(options: { query?: string; category?: string; 
   const services = result.rows.map(mapService);
   if (!searchOrigin || !radiusMiles) return services;
   const nearbyServices = services.flatMap((service) => {
-    const serviceArea = getServiceAreaCoordinates(`${service.city}, ${service.state}`);
+    const serviceArea = findUsCity(`${service.city}, ${service.state}`);
     if (!serviceArea) return [];
     const distance = distanceMiles(searchOrigin, serviceArea);
     return distance <= radiusMiles && distance <= service.serviceRadiusMiles ? [{ ...service, distanceMiles: distance }] : [];

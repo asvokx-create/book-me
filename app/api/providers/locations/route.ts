@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { database } from "@/lib/database";
 import { getProviderAccess } from "@/lib/provider-access";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
-import { getServiceAreaCoordinates } from "@/lib/service-areas";
+import { findUsCity } from "@/lib/us-cities";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { enforceRateLimit } from "@/lib/request-security";
 
@@ -13,7 +13,7 @@ function parseLocation(value: unknown) {
   const parts = label.split(",").map((part) => part.trim()).filter(Boolean);
   const state = parts.length > 1 ? parts.pop()! : "WA";
   const city = parts.join(", ") || label;
-  const coordinates = getServiceAreaCoordinates(`${city}, ${state}`);
+  const coordinates = findUsCity(`${city}, ${state}`);
   return { label, city, state, coordinates };
 }
 

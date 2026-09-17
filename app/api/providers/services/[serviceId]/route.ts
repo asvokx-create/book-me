@@ -2,13 +2,10 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
-import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
-
-const allowedDurations = new Set([60, 120, 180, 240, 480]);
 
 async function getSessionUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -88,7 +85,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   const durationMinutes = Number(body.durationMinutes);
   const bookingQuestions = Array.isArray(body.bookingQuestions) ? body.bookingQuestions.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean) : [];
 
-  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !SERVICE_CATEGORIES.includes(category as (typeof SERVICE_CATEGORIES)[number]) || description.length < 10 || description.length > 2000 || !locationId || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !allowedDurations.has(durationMinutes) || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180)) {
+  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !category || category.length > 80 || description.length < 10 || description.length > 2000 || !locationId || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 10080 || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180)) {
     return NextResponse.json({ error: "Complete every field with valid listing details." }, { status: 400 });
   }
   const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [businessName, title, description] });

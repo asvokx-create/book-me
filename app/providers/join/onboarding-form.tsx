@@ -4,10 +4,11 @@ import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SERVICE_CATEGORIES } from "@/lib/service-categories";
-import { SERVICE_AREAS, serviceAreaLabel } from "@/lib/service-areas";
 import { LISTING_IMAGE_MAX_BYTES, LISTING_IMAGE_MAX_MB } from "@/lib/listing-images";
 import { ALL_DAY_END_TIME, ALL_DAY_START_TIME } from "@/lib/availability-hours";
 import RadiusSelector from "@/components/radius-selector";
+import UsCitySelector from "@/components/us-city-selector";
+import { formatUsPhone } from "@/lib/phone";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -21,22 +22,29 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   const [useNewCompany, setUseNewCompany] = useState(true);
   const [locationId, setLocationId] = useState("");
   const [category, setCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
   const [city, setCity] = useState("Issaquah, WA");
   const [serviceRadiusMiles, setServiceRadiusMiles] = useState("25");
   const [service, setService] = useState("");
   const [price, setPrice] = useState("");
-  const [duration, setDuration] = useState("2 hours");
+  const [durationChoice, setDurationChoice] = useState("120");
+  const [customDurationHours, setCustomDurationHours] = useState("24");
+  const [phone, setPhone] = useState("");
   const [description, setDescription] = useState("");
   const [selectedDays, setSelectedDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri"]);
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("17:00");
-  const [open24Hours, setOpen24Hours] = useState(false);
+  const [dayHours, setDayHours] = useState<Record<string, { startTime: string; endTime: string; open24Hours: boolean }>>(() => Object.fromEntries(days.map((day) => [day, { startTime: "09:00", endTime: "17:00", open24Hours: false }])));
   const [acceptedProviderAgreement, setAcceptedProviderAgreement] = useState(false);
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<Array<{ file: File; preview: string }>>([]);
   const previewUrls = useRef<string[]>([]);
 
   useEffect(() => () => previewUrls.current.forEach((url) => URL.revokeObjectURL(url)), []);
+  useEffect(() => {
+    fetch("/api/account/settings", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() as Promise<{ phone?: string }> : null)
+      .then((data) => { if (data?.phone) setPhone(formatUsPhone(data.phone)); })
+      .catch(() => null);
+  }, []);
   useEffect(() => {
     let active = true;
     fetch("/api/providers/companies", { cache: "no-store" })
@@ -83,16 +91,20 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
 
   async function next(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (step === 1 && (!business.trim() || !city.trim())) {
-      setError("Complete each field to continue.");
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (step === 1 && (!business.trim() || !city.trim() || phoneDigits.length !== 10)) {
+      setError(phoneDigits.length !== 10 ? "Enter a valid 10-digit contact number, such as (425) 555-0123." : "Complete each field to continue.");
       return;
     }
-    if (step === 2 && (!category || !service.trim() || !price || description.trim().length < 30)) {
+    const finalCategory = category === "__custom__" ? customCategory.trim() : category;
+    const durationMinutes = durationChoice === "__custom__" ? Math.round(Number(customDurationHours) * 60) : Number(durationChoice);
+    if (step === 2 && (!finalCategory || finalCategory.length > 80 || !service.trim() || !price || !Number.isFinite(durationMinutes) || durationMinutes < 15 || durationMinutes > 10080 || description.trim().length < 30)) {
       setError("Add a service title, price, and a clear description of at least 30 characters.");
       return;
     }
-    if (step === 3 && (selectedDays.length === 0 || (!open24Hours && startTime >= endTime))) {
-      setError(selectedDays.length === 0 ? "Choose at least one available day." : "Your start time must be earlier than your end time.");
+    const invalidDay = selectedDays.find((day) => !dayHours[day].open24Hours && dayHours[day].startTime >= dayHours[day].endTime);
+    if (step === 3 && (selectedDays.length === 0 || invalidDay)) {
+      setError(selectedDays.length === 0 ? "Choose at least one available day." : `${invalidDay} needs a start time earlier than its end time.`);
       return;
     }
     if (step === 3 && !acceptedProviderAgreement) {
@@ -109,7 +121,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
     const response = await fetch("/api/providers/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ business, locationId, category, city, serviceRadiusMiles: Number(serviceRadiusMiles), service, price, duration, description, selectedDays, startTime: open24Hours ? ALL_DAY_START_TIME : startTime, endTime: open24Hours ? ALL_DAY_END_TIME : endTime, plan, acceptedProviderAgreement }),
+      body: JSON.stringify({ business, locationId, category: finalCategory, city, serviceRadiusMiles: Number(serviceRadiusMiles), phone, service, price, durationMinutes, description, availabilitySlots: selectedDays.map((day) => ({ day, startTime: dayHours[day].open24Hours ? ALL_DAY_START_TIME : dayHours[day].startTime, endTime: dayHours[day].open24Hours ? ALL_DAY_END_TIME : dayHours[day].endTime })), plan, acceptedProviderAgreement }),
     });
     const result = (await response.json()) as { error?: string; serviceId?: string };
 
@@ -145,6 +157,10 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
     setSelectedDays((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day]);
   }
 
+  function updateDayHours(day: string, changes: Partial<{ startTime: string; endTime: string; open24Hours: boolean }>) {
+    setDayHours((current) => ({ ...current, [day]: { ...current[day], ...changes } }));
+  }
+
   const inputClass = "w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
 
   return (
@@ -159,15 +175,16 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
         {step === 1 && <div className="space-y-5">
           {companies.length > 0 && <label className="block"><span className="mb-2 block text-sm font-bold">Company page</span><select value={useNewCompany ? "__new__" : business} onChange={(event) => { if (event.target.value === "__new__") { setUseNewCompany(true); setBusiness(""); setLocationId(""); } else { const company = companies.find((item) => item.name === event.target.value); const firstLocation = company?.locations?.find((item) => item.primary) ?? company?.locations?.[0]; setUseNewCompany(false); setBusiness(event.target.value); setLocationId(firstLocation?.id ?? ""); if (company) { setCity(firstLocation?.location ?? company.location); setServiceRadiusMiles(String(firstLocation?.serviceRadiusMiles ?? company.serviceRadiusMiles)); } } }} className={inputClass}>{companies.map((company) => <option key={company.id} value={company.name}>{company.name} · {company.listingCount} {company.listingCount === 1 ? "listing" : "listings"}</option>)}<option value="__new__">+ Create another company page</option></select></label>}
           {(useNewCompany || companies.length === 0) && <label className="block"><span className="mb-2 block text-sm font-bold">Company name</span><input value={business} onChange={(event) => setBusiness(event.target.value)} placeholder="e.g. Canela" className={inputClass} /><span className="mt-2 block text-xs text-[#74827b]">This creates the main public page that holds the company&apos;s listings, team, and identity.</span></label>}
-          {!useNewCompany && (companies.find((item) => item.name === business)?.locations.length ?? 0) > 0 ? <label className="block"><span className="mb-2 block text-sm font-bold">Service location</span><select value={locationId} onChange={(event) => { const company = companies.find((item) => item.name === business); const selected = company?.locations.find((item) => item.id === event.target.value); setLocationId(event.target.value); if (selected) { setCity(selected.location); setServiceRadiusMiles(String(selected.serviceRadiusMiles)); } }} className={inputClass}>{companies.find((item) => item.name === business)?.locations.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.location}</option>)}</select><span className="mt-2 block text-xs text-[#74827b]">Add or edit branches from Service locations in your dashboard.</span></label> : <label className="block"><span className="mb-2 block text-sm font-bold">Primary service area</span><select value={city} onChange={(event) => setCity(event.target.value)} className={inputClass}>{SERVICE_AREAS.map((area) => { const label = serviceAreaLabel(area); return <option key={label} value={label}>{label}</option>; })}</select><span className="mt-2 block text-xs text-[#74827b]">This becomes the company&apos;s first service location.</span></label>}
+          {!useNewCompany && (companies.find((item) => item.name === business)?.locations.length ?? 0) > 0 ? <label className="block"><span className="mb-2 block text-sm font-bold">Service location</span><select value={locationId} onChange={(event) => { const company = companies.find((item) => item.name === business); const selected = company?.locations.find((item) => item.id === event.target.value); setLocationId(event.target.value); if (selected) { setCity(selected.location); setServiceRadiusMiles(String(selected.serviceRadiusMiles)); } }} className={inputClass}>{companies.find((item) => item.name === business)?.locations.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.location}</option>)}</select><span className="mt-2 block text-xs text-[#74827b]">Add or edit branches from Service locations in your dashboard.</span></label> : <label className="block"><span className="mb-2 block text-sm font-bold">Primary service area</span><UsCitySelector value={city} onChange={setCity} className={inputClass} /><span className="mt-2 block text-xs text-[#74827b]">Choose a nearby city or use “View all U.S. cities” to search nationwide. This becomes the company&apos;s first service location.</span></label>}
           <div className="block"><p className="mb-2 text-sm font-bold">Working radius</p><RadiusSelector value={Number(serviceRadiusMiles)} onChange={(value) => setServiceRadiusMiles(String(value))} /><span className="mt-2 block text-xs text-[#74827b]">Choose a common distance or enter a custom whole number from 1 to 250 miles. Your listings appear only to customers searching within this distance.</span></div>
+          <label className="block"><span className="mb-2 block text-sm font-bold">Business contact number</span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(formatUsPhone(event.target.value))} placeholder="(425) 555-0123" className={inputClass} /><span className="mt-2 block text-xs text-[#74827b]">Required for provider screening. We check it here so you can fix it before continuing.</span></label>
         </div>}
 
         {step === 2 && <div className="space-y-5">
           <div className="rounded-2xl bg-[#edf3e7] p-4 text-sm"><span className="font-bold">Company:</span> {business}</div>
-          <label className="block"><span className="mb-2 block text-sm font-bold">Service category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass}><option value="">Choose a category</option>{SERVICE_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label className="block"><span className="mb-2 block text-sm font-bold">Service category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass}><option value="">Choose a category</option>{SERVICE_CATEGORIES.map((item) => <option key={item}>{item}</option>)}<option value="__custom__">Other / custom category…</option></select>{category === "__custom__" && <input value={customCategory} onChange={(event) => setCustomCategory(event.target.value)} maxLength={80} placeholder="Type your service category" className={`${inputClass} mt-3`} />}</label>
           <label className="block"><span className="mb-2 block text-sm font-bold">Service title</span><input value={service} onChange={(event) => setService(event.target.value)} placeholder="e.g. Weekly lawn care" className={inputClass} /></label>
-          <div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-2 block text-sm font-bold">Starting price</span><div className="relative"><span className="absolute left-4 top-3.5 text-sm text-[#65766d]">$</span><input type="number" min="1" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="75" className={`${inputClass} pl-8`} /></div></label><label className="block"><span className="mb-2 block text-sm font-bold">Estimated job duration</span><select value={duration} onChange={(event) => setDuration(event.target.value)} className={inputClass}>{["1 hour", "2 hours", "3 hours", "Half day", "Full day"].map((item) => <option key={item}>{item}</option>)}</select><span className="mt-2 block text-xs font-normal leading-5 text-[#75837c]">This reserves enough calendar time. The actual job may finish sooner or later.</span></label></div>
+          <div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-2 block text-sm font-bold">Starting price</span><div className="relative"><span className="absolute left-4 top-3.5 text-sm text-[#65766d]">$</span><input type="number" min="0.01" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="75.00" className={`${inputClass} pl-8`} /></div><span className="mt-2 block text-xs text-[#74827b]">Decimals are allowed.</span></label><label className="block"><span className="mb-2 block text-sm font-bold">Estimated job duration</span><select value={durationChoice} onChange={(event) => setDurationChoice(event.target.value)} className={inputClass}><option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">Half day</option><option value="480">Full day</option><option value="__custom__">Custom duration…</option></select>{durationChoice === "__custom__" && <div className="mt-3"><input type="number" min="0.25" max="168" step="0.25" value={customDurationHours} onChange={(event) => setCustomDurationHours(event.target.value)} className={inputClass} /><span className="mt-2 block text-xs text-[#74827b]">Hours, including multi-day jobs (up to 168 hours).</span></div>}<span className="mt-2 block text-xs font-normal leading-5 text-[#75837c]">This reserves enough calendar time. The actual job may finish sooner or later.</span></label></div>
           <label className="block"><span className="mb-2 block text-sm font-bold">What&apos;s included?</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe what customers can expect..." rows={4} minLength={30} maxLength={2000} className={`${inputClass} resize-none`} /><span className="mt-2 block text-xs text-[#74827b]">Use at least 30 characters so customers and the automated safety check can understand the service.</span></label>
           <div className="rounded-2xl border border-dashed border-[#183126]/20 bg-[#faf9f5] p-5">
             <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold">Listing photos <span className="font-normal text-[#7a8881]">(optional)</span></p><p className="mt-1 text-xs leading-5 text-[#74827b]">Add up to 5 JPG, PNG, or WebP photos. The first becomes your cover.</p></div><span className="text-xl">📷</span></div>
@@ -177,9 +194,8 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
         </div>}
 
         {step === 3 && <div>
-          <p className="text-sm leading-6 text-[#687970]">Select the days you generally accept bookings. You can adjust individual dates later.</p>
-          <div className="mt-6 grid grid-cols-4 gap-2 sm:grid-cols-7">{days.map((day) => <button key={day} type="button" onClick={() => toggleDay(day)} className={`rounded-xl border px-2 py-3 text-sm font-bold transition ${selectedDays.includes(day) ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/15 bg-white hover:border-[#4d725d]"}`}>{day}</button>)}</div>
-          <div className="mt-7 rounded-2xl bg-[#f5f5ef] p-5"><div><p className="text-sm font-bold">Typical hours</p><p className="mt-1 text-xs text-[#75837c]">These hours will apply to the selected days. You can customize each day later.</p></div><label className="mt-4 flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-bold"><input type="checkbox" checked={open24Hours} onChange={(event) => setOpen24Hours(event.target.checked)} className="h-5 w-5 accent-[#183126]" />Open 24 hours on selected days</label>{!open24Hours && <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3"><label><span className="mb-2 block text-xs font-bold text-[#65766d]">Start time</span><input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className={inputClass} /></label><span className="mt-6 text-sm text-[#718078]">to</span><label><span className="mb-2 block text-xs font-bold text-[#65766d]">End time</span><input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className={inputClass} /></label></div>}</div>
+          <p className="text-sm leading-6 text-[#687970]">Turn on each day you accept bookings, then set that day&apos;s own hours.</p>
+          <div className="mt-6 space-y-3">{days.map((day) => { const enabled = selectedDays.includes(day); const hours = dayHours[day]; return <div key={day} className={`rounded-2xl border p-4 ${enabled ? "border-[#8eaa91] bg-[#f4f8f1]" : "border-[#183126]/10 bg-[#f7f7f2]"}`}><div className="flex flex-wrap items-center justify-between gap-3"><button type="button" onClick={() => toggleDay(day)} className={`rounded-full px-4 py-2 text-sm font-bold ${enabled ? "bg-[#183126] text-white" : "border border-[#183126]/15 bg-white"}`}>{enabled ? "✓ " : "+ "}{day}</button><label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={hours.open24Hours} disabled={!enabled} onChange={(event) => updateDayHours(day, { open24Hours: event.target.checked })} className="h-4 w-4 accent-[#183126] disabled:opacity-40" />Open 24 hours</label></div>{enabled && !hours.open24Hours && <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2"><input aria-label={`${day} start time`} type="time" value={hours.startTime} onChange={(event) => updateDayHours(day, { startTime: event.target.value })} className={inputClass} /><span className="text-xs text-[#718078]">to</span><input aria-label={`${day} end time`} type="time" value={hours.endTime} onChange={(event) => updateDayHours(day, { endTime: event.target.value })} className={inputClass} /></div>}</div>; })}</div>
           <div className="mt-4 rounded-2xl border border-[#b9cdbb] bg-[#edf5e9] p-5"><p className="text-sm font-bold">⚡ Instant automated screening</p><p className="mt-2 text-xs leading-5 text-[#5f7067]">When you finish, BubsBookings checks your verified email, contact number, profile completeness, and listing language. Clean profiles publish immediately—there is no admin approval wait.</p></div>
           <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#183126]/15 bg-white p-5"><input type="checkbox" required checked={acceptedProviderAgreement} onChange={(event) => setAcceptedProviderAgreement(event.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#183126]" /><span className="text-sm leading-6 text-[#5f7067]">I have read and agree to the <Link href="/provider-agreement" target="_blank" className="font-bold text-[#183126] underline">Provider Agreement</Link>, including the Stripe payment, payout-delay, refund, and transfer-reversal terms.</span></label>
         </div>}

@@ -6,7 +6,7 @@ import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { isOwnerEmail } from "@/lib/admin";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
-import { getServiceAreaCoordinates } from "@/lib/service-areas";
+import { findUsCity } from "@/lib/us-cities";
 import { screenProviderProfile } from "@/lib/provider-screening";
 import { sendTransactionalEmail } from "@/lib/email";
 import { PROVIDER_AGREEMENT_VERSION } from "@/lib/policy-consent";
@@ -14,14 +14,6 @@ import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
 import { sendFirstListingSuccessEmail } from "@/lib/provider-success-email";
-
-const durationMinutes: Record<string, number> = {
-  "1 hour": 60,
-  "2 hours": 120,
-  "3 hours": 180,
-  "Half day": 240,
-  "Full day": 480,
-};
 
 const weekdayNumbers: Record<string, number> = {
   Sun: 0,
@@ -54,21 +46,25 @@ export async function POST(request: Request) {
   const requestedLocationId = typeof body.locationId === "string" ? body.locationId.trim() : "";
   const category = typeof body.category === "string" ? body.category.trim() : "";
   const serviceArea = typeof body.city === "string" ? body.city.trim() : "";
-  const coordinates = getServiceAreaCoordinates(serviceArea);
+  const coordinates = findUsCity(serviceArea);
   const service = typeof body.service === "string" ? body.service.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
-  const duration = typeof body.duration === "string" ? body.duration : "";
+  const durationMinutes = Number(body.durationMinutes);
+  const phone = typeof body.phone === "string" ? body.phone.replace(/\D/g, "") : "";
   const price = Number(body.price);
   const serviceRadiusMiles = Number(body.serviceRadiusMiles ?? 25);
   const acceptedProviderAgreement = body.acceptedProviderAgreement === true;
-  const selectedDays = Array.isArray(body.selectedDays)
-    ? body.selectedDays.filter((day): day is string => typeof day === "string" && day in weekdayNumbers)
-    : [];
-  const startTime = typeof body.startTime === "string" ? body.startTime : "09:00";
-  const endTime = typeof body.endTime === "string" ? body.endTime : "17:00";
+  const availabilitySlots = Array.isArray(body.availabilitySlots) ? body.availabilitySlots.flatMap((slot) => {
+    if (!slot || typeof slot !== "object") return [];
+    const candidate = slot as Record<string, unknown>;
+    const day = typeof candidate.day === "string" ? candidate.day : "";
+    const startTime = typeof candidate.startTime === "string" ? candidate.startTime : "";
+    const endTime = typeof candidate.endTime === "string" ? candidate.endTime : "";
+    return day in weekdayNumbers ? [{ day, startTime, endTime }] : [];
+  }) : [];
   const validTime = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-  if (!business || !category || !serviceArea || !coordinates || !service || !description || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !durationMinutes[duration] || selectedDays.length === 0 || !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime) {
+  if (!business || !category || category.length > 80 || !serviceArea || !coordinates || !service || !description || phone.length !== 10 || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 10080 || availabilitySlots.length === 0 || availabilitySlots.some((slot) => !validTime.test(slot.startTime) || !validTime.test(slot.endTime) || slot.startTime >= slot.endTime)) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "provider-onboarding", limit: 6, windowSeconds: 3600 })) return NextResponse.json({ error: "Too many setup attempts. Please try again later." }, { status: 429 });
@@ -87,7 +83,7 @@ export async function POST(request: Request) {
   }
   const screening = screenProviderProfile({
     emailVerified: Boolean(session.user.emailVerified),
-    phone: session.user.phone ?? "",
+    phone,
     business,
     service,
     description,
@@ -122,7 +118,7 @@ export async function POST(request: Request) {
 
   try {
     await client.query("BEGIN");
-    await client.query('UPDATE "user" SET role = $1, "updatedAt" = now() WHERE id = $2', ["provider", session.user.id]);
+    await client.query('UPDATE "user" SET role = $1, phone = $2, "updatedAt" = now() WHERE id = $3', ["provider", phone, session.user.id]);
 
     const profileResult = await client.query<{ id: string }>(
       `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state, plan, latitude, longitude, service_radius_miles,
@@ -142,7 +138,7 @@ export async function POST(request: Request) {
          is_verified = true,
          is_active = true
        RETURNING id`,
-      [session.user.id, business, description, session.user.phone ?? null, city, state, plan, coordinates.latitude, coordinates.longitude, serviceRadiusMiles, screening.score, screening.summary, PROVIDER_AGREEMENT_VERSION],
+      [session.user.id, business, description, phone, city, state, plan, coordinates.latitude, coordinates.longitude, serviceRadiusMiles, screening.score, screening.summary, PROVIDER_AGREEMENT_VERSION],
     );
     const providerId = profileResult.rows[0].id;
 
@@ -198,15 +194,15 @@ export async function POST(request: Request) {
       `INSERT INTO services (provider_id, company_id, location_id, business_name, slug, category, title, description, price_cents, duration_minutes, city, state, latitude, longitude)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING id::text`,
-      [providerId, companyId, serviceLocation.id, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes[duration], serviceLocation.city, serviceLocation.state, serviceLocation.latitude, serviceLocation.longitude],
+      [providerId, companyId, serviceLocation.id, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes, serviceLocation.city, serviceLocation.state, serviceLocation.latitude, serviceLocation.longitude],
     );
 
     await client.query("DELETE FROM availability WHERE provider_id = $1 AND service_id = $2", [providerId, serviceResult.rows[0].id]);
-    for (const day of selectedDays) {
+    for (const slot of availabilitySlots) {
       await client.query(
         `INSERT INTO availability (provider_id, service_id, weekday, start_time, end_time)
          VALUES ($1, $2, $3, $4, $5)`,
-        [providerId, serviceResult.rows[0].id, weekdayNumbers[day], startTime, endTime],
+        [providerId, serviceResult.rows[0].id, weekdayNumbers[slot.day], slot.startTime, slot.endTime],
       );
     }
 
