@@ -42,9 +42,14 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <BrandLockup priority />
           </Link>
 
-          <div className="flex items-center gap-3">
-            <Link href="/pricing" className="rounded-xl px-2 py-2 text-xs font-semibold transition hover:bg-[#183126]/5 sm:px-4 sm:text-sm"><span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Provider pricing</span></Link>
-            <Link href="/providers/join" className="hidden rounded-xl px-4 py-2 text-sm font-medium transition hover:bg-[#183126]/5 sm:block">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex">
+              <Link href="/services" className="site-nav-link">Find services</Link>
+              <Link href="/guides" className="site-nav-link">Guides</Link>
+              <Link href="/pricing" className="site-nav-link">Pricing</Link>
+            </nav>
+            <Link href="/pricing" className="site-nav-link lg:hidden">Pricing</Link>
+            <Link href="/providers/join" className="hidden rounded-full border border-[#183126]/10 bg-white/60 px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:border-[#183126]/20 hover:bg-white sm:block">
               List your service
             </Link>
             <AccountNav />

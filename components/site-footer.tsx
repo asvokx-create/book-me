@@ -75,7 +75,7 @@ export default function SiteFooter() {
 
         <div className="flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-[#7f9b8c] sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} BubsBookings. Built for local people and local work.</p>
-          <p>Issaquah, Washington · Serving nearby communities</p>
+          <p>Connecting local communities across the United States</p>
         </div>
       </div>
     </footer>

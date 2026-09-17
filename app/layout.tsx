@@ -53,7 +53,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><Script id="bubsbookings-theme" strategy="beforeInteractive">{`try{const p=localStorage.getItem("bubsbookings-theme")||"system";const t=p==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch{}`}</Script><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} /><PreferencesProvider><Suspense fallback={null}><AnalyticsTracker /></Suspense>{children}<SiteFooter /></PreferencesProvider><GoogleAnalytics /></body>
+      <body className="min-h-full flex flex-col">
+        <a href="#site-content" className="skip-link">Skip to main content</a>
+        <Script id="bubsbookings-theme" strategy="beforeInteractive">{`try{const p=localStorage.getItem("bubsbookings-theme")||"system";const t=p==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch{}`}</Script>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
+        <PreferencesProvider>
+          <Suspense fallback={null}><AnalyticsTracker /></Suspense>
+          <div id="site-content" tabIndex={-1} className="contents">{children}</div>
+          <SiteFooter />
+        </PreferencesProvider>
+        <GoogleAnalytics />
+      </body>
     </html>
   );
 }

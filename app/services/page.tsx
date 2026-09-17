@@ -80,7 +80,8 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             <BrandLockup />
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/pricing" className="rounded-full px-2 py-2 text-xs font-semibold transition hover:bg-[#183126]/5 sm:px-4 sm:text-sm"><span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Provider pricing</span></Link>
+            <nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex"><Link href="/guides" className="site-nav-link">Guides</Link><Link href="/pricing" className="site-nav-link">Pricing</Link></nav>
+            <Link href="/pricing" className="site-nav-link lg:hidden">Pricing</Link>
             <Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link>
             <AccountNav />
           </div>
