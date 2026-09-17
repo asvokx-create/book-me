@@ -34,7 +34,9 @@ export async function GET() {
     try {
       const subscription = await getStripe().subscriptions.retrieve(provider.stripe_subscription_id);
       cancelAtPeriodEnd = subscription.cancel_at_period_end;
-      const periodEnd = subscription.items.data[0]?.current_period_end ?? null;
+      const periodEnd = subscription.status === "trialing"
+        ? subscription.trial_end
+        : subscription.items.data[0]?.current_period_end ?? null;
       provider.stripe_subscription_status = subscription.status;
       provider.stripe_current_period_end = periodEnd ? new Date(periodEnd * 1000) : null;
       await database.query(`UPDATE provider_profiles SET stripe_subscription_status = $2,

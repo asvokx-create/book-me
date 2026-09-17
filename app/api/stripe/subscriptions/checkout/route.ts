@@ -18,8 +18,8 @@ export async function POST(request: Request) {
   if (!isPurchasableProviderPlan(body.plan)) return NextResponse.json({ error: "Choose Pro." }, { status: 400 });
   if (isOwnerEmail(session.user.email)) return NextResponse.json({ error: "Your private Owner Plan already includes every feature at no charge." }, { status: 409 });
 
-  const providerResult = await database.query<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_billing_mode: "test" | "live" | null; pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null }>(
-    `SELECT id::text, stripe_customer_id, stripe_subscription_id, stripe_billing_mode,
+  const providerResult = await database.query<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_subscription_checkout_session_id: string | null; stripe_billing_mode: "test" | "live" | null; pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null }>(
+    `SELECT id::text, stripe_customer_id, stripe_subscription_id, stripe_subscription_checkout_session_id, stripe_billing_mode,
       pro_trial_used_at_test, pro_trial_used_at_live
      FROM provider_profiles WHERE user_id = $1 AND is_active = true`,
     [session.user.id],
@@ -38,11 +38,23 @@ export async function POST(request: Request) {
       email: session.user.email,
       name: session.user.name,
       metadata: { userId: session.user.id, providerId: provider.id },
-    });
+    }, { idempotencyKey: `provider-billing-customer-${mode}-${provider.id}` });
     customerId = customer.id;
     await database.query(`UPDATE provider_profiles SET stripe_customer_id = $2, stripe_billing_mode = $3,
       stripe_subscription_id = NULL, stripe_subscription_status = 'inactive', stripe_current_period_end = NULL
       WHERE id::text = $1`, [provider.id, customerId, mode]);
+  }
+
+  if (hasCurrentBilling && provider.stripe_subscription_checkout_session_id) {
+    const existingCheckout = await stripe.checkout.sessions.retrieve(provider.stripe_subscription_checkout_session_id);
+    if (existingCheckout.status === "open" && existingCheckout.url) {
+      return NextResponse.json({ url: existingCheckout.url });
+    }
+    if (existingCheckout.status === "complete") {
+      return NextResponse.json({ error: "Stripe is finishing your subscription setup. Refresh Billing in a moment." }, { status: 409 });
+    }
+    await database.query(`UPDATE provider_profiles SET stripe_subscription_checkout_session_id = NULL
+      WHERE id::text = $1 AND stripe_subscription_checkout_session_id = $2`, [provider.id, existingCheckout.id]);
   }
 
   const origin = new URL(request.url).origin;
@@ -63,6 +75,8 @@ export async function POST(request: Request) {
         trial_settings: { end_behavior: { missing_payment_method: "cancel" as const } },
       } : {}),
     },
-  });
+  }, { idempotencyKey: `provider-plan-checkout-${mode}-${provider.id}-${trialEligible ? "trial" : "paid"}` });
+  await database.query(`UPDATE provider_profiles SET stripe_subscription_checkout_session_id = $2
+    WHERE id::text = $1 AND stripe_subscription_id IS NULL`, [provider.id, checkout.id]);
   return NextResponse.json({ url: checkout.url });
 }

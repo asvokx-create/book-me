@@ -47,19 +47,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Your Pro subscription must be active before changing employee seats." }, { status: 409 });
     }
     const current = extraSeatQuantity(subscription);
+    const prorationBehavior = subscription.status === "trialing" ? "none" as const : "create_prorations" as const;
     let itemId = current.itemId;
     if (extraSeats === 0 && itemId) {
-      await stripe.subscriptionItems.del(itemId, { proration_behavior: "create_prorations" });
+      await stripe.subscriptionItems.del(itemId, { proration_behavior: prorationBehavior });
       itemId = null;
     } else if (extraSeats > 0) {
       if (itemId) {
-        await stripe.subscriptionItems.update(itemId, { quantity: extraSeats, proration_behavior: "create_prorations" });
+        await stripe.subscriptionItems.update(itemId, { quantity: extraSeats, proration_behavior: prorationBehavior });
       } else {
         const item = await stripe.subscriptionItems.create({
           subscription: subscription.id,
           price: await getTeamSeatPriceId(),
           quantity: extraSeats,
-          proration_behavior: "create_prorations",
+          proration_behavior: prorationBehavior,
           metadata: { kind: "pro_extra_team_seat", providerId: provider.id },
         });
         itemId = item.id;

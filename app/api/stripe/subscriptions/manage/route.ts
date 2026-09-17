@@ -50,7 +50,9 @@ export async function POST(request: Request) {
   const subscription = existing.cancel_at_period_end === cancelAtPeriodEnd
     ? existing
     : await stripe.subscriptions.update(existing.id, { cancel_at_period_end: cancelAtPeriodEnd });
-  const periodEnd = subscription.items.data[0]?.current_period_end ?? null;
+  const periodEnd = subscription.status === "trialing"
+    ? subscription.trial_end
+    : subscription.items.data[0]?.current_period_end ?? null;
   await database.query(`UPDATE provider_profiles SET stripe_subscription_status = $2,
       stripe_current_period_end = CASE WHEN $3::bigint IS NULL THEN NULL ELSE to_timestamp($3) END
       WHERE id::text = $1 AND stripe_subscription_id = $4 AND stripe_billing_mode = $5`,

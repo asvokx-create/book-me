@@ -19,12 +19,15 @@ async function updateSubscription(subscription: Stripe.Subscription) {
   const plan = subscription.metadata.plan;
   if (!providerId || !isPurchasableProviderPlan(plan)) return;
   const active = subscription.status === "active" || subscription.status === "trialing";
-  const periodEnd = subscription.items.data[0]?.current_period_end;
+  const periodEnd = subscription.status === "trialing"
+    ? subscription.trial_end
+    : subscription.items.data[0]?.current_period_end;
   const teamSeats = extraSeatQuantity(subscription);
   const mode = getStripeMode();
   await database.query(`UPDATE provider_profiles SET
       plan = CASE WHEN $4 THEN $3 ELSE 'starter' END,
       stripe_subscription_id = $2,
+      stripe_subscription_checkout_session_id = NULL,
       stripe_subscription_status = $5,
       stripe_current_period_end = CASE WHEN $6::bigint IS NULL THEN NULL ELSE to_timestamp($6) END,
       stripe_billing_mode = $7,
@@ -41,6 +44,11 @@ async function notifyTrialWillEnd(subscription: Stripe.Subscription) {
   if (!providerId || !trialEnd) return;
   const mode = getStripeMode();
   const trialEndLabel = new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "America/Los_Angeles" }).format(new Date(trialEnd * 1000));
+  const monthlyTotalCents = subscription.items.data.reduce(
+    (total, item) => total + (item.price.unit_amount ?? 0) * (item.quantity ?? 1),
+    0,
+  );
+  const monthlyTotal = `$${(monthlyTotalCents / 100).toFixed(2)}`;
   const provider = await database.query<{ user_id: string; email: string }>(
     `SELECT p.user_id, u.email
      FROM provider_profiles p JOIN "user" u ON u.id = p.user_id
@@ -53,7 +61,7 @@ async function notifyTrialWillEnd(subscription: Stripe.Subscription) {
     `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
      VALUES ($1, 'subscription_trial', 'Your Pro trial ends soon', $2, '/provider/dashboard/billing', $3)
      ON CONFLICT (dedupe_key) DO NOTHING`,
-    [recipient.user_id, `Your Pro trial ends on ${trialEndLabel}. It will renew at $9.99 per month unless you cancel before then.`, `pro-trial-ending-${mode}-${subscription.id}`],
+    [recipient.user_id, `Your Pro trial ends on ${trialEndLabel}. It will renew at ${monthlyTotal} per month unless you cancel before then.`, `pro-trial-ending-${mode}-${subscription.id}`],
   );
   await sendTransactionalEmail({
     to: recipient.email,
@@ -61,7 +69,7 @@ async function notifyTrialWillEnd(subscription: Stripe.Subscription) {
     emailType: `pro_trial_ending_${mode}_${subscription.id}`,
     subject: "Your BubsBookings Pro trial ends soon",
     heading: "Your Pro trial ends soon",
-    message: `Your 30-day Pro trial ends on ${trialEndLabel}. Your saved card will be charged $9.99 per month after the trial unless you cancel before then.`,
+    message: `Your 30-day Pro trial ends on ${trialEndLabel}. Your saved card will be charged ${monthlyTotal} for the first paid month after the trial unless you cancel before then.`,
     actionLabel: "Manage subscription",
     actionUrl: "/provider/dashboard/billing",
   });
@@ -286,6 +294,14 @@ async function processEvent(event: Stripe.Event) {
     case "checkout.session.completed": {
       const checkout = event.data.object;
       if (checkout.payment_status === "paid") await markBookingPaid(checkout);
+      if (checkout.metadata?.kind === "provider_subscription") {
+        await database.query(`UPDATE provider_profiles SET
+          stripe_subscription_checkout_session_id = NULL,
+          stripe_subscription_id = COALESCE(stripe_subscription_id, $3),
+          stripe_billing_mode = $4
+          WHERE id::text = $1 AND stripe_subscription_checkout_session_id = $2`,
+        [checkout.metadata.providerId ?? "", checkout.id, idOf(checkout.subscription), getStripeMode()]);
+      }
       break;
     }
     case "checkout.session.async_payment_succeeded": {
@@ -302,6 +318,10 @@ async function processEvent(event: Stripe.Event) {
       if (checkout.metadata?.kind === "booking_payment" && checkout.metadata.bookingId) {
         await database.query("UPDATE bookings SET payment_status = 'unpaid' WHERE id::text = $1 AND stripe_checkout_session_id = $2 AND stripe_mode = $3 AND payment_status = 'pending'", [checkout.metadata.bookingId, checkout.id, getStripeMode()]);
       }
+      if (checkout.metadata?.kind === "provider_subscription") {
+        await database.query(`UPDATE provider_profiles SET stripe_subscription_checkout_session_id = NULL
+          WHERE id::text = $1 AND stripe_subscription_checkout_session_id = $2`, [checkout.metadata.providerId ?? "", checkout.id]);
+      }
       break;
     }
     case "customer.subscription.created":
@@ -313,7 +333,8 @@ async function processEvent(event: Stripe.Event) {
       break;
     case "customer.subscription.deleted": {
       const subscription = event.data.object;
-      await database.query(`UPDATE provider_profiles SET plan = 'starter', stripe_subscription_status = $2,
+      await database.query(`UPDATE provider_profiles SET plan = 'starter', stripe_subscription_id = NULL,
+        stripe_subscription_checkout_session_id = NULL, stripe_subscription_status = $2,
         stripe_current_period_end = NULL, extra_team_seats = 0, stripe_team_seat_item_id = NULL
         WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $3 AND plan <> 'owner'`, [subscription.id, subscription.status, getStripeMode()]);
       break;
