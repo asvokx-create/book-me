@@ -1,4 +1,4 @@
-import BrandMark from "@/components/brand-mark";
+import BrandLockup from "@/components/brand-lockup";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getServices, getServiceVisual } from "@/lib/marketplace";
@@ -77,8 +77,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
-            <BrandMark className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]" />
-            <span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span>
+            <BrandLockup />
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/pricing" className="rounded-full px-2 py-2 text-xs font-semibold transition hover:bg-[#183126]/5 sm:px-4 sm:text-sm"><span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Provider pricing</span></Link>

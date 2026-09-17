@@ -1,4 +1,4 @@
-import BrandMark from "@/components/brand-mark";
+import BrandLockup from "@/components/brand-lockup";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -27,7 +27,7 @@ export default function TermsPage() {
 
 export function LegalPage({ eyebrow, title, intro, sections, effectiveDate = "September 13, 2026" }: { eyebrow: string; title: string; intro: string; sections: ReadonlyArray<readonly [string, string | React.ReactNode]>; effectiveDate?: string }) {
   return <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
-    <header className="border-b border-[#183126]/10"><div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><BrandMark className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]" />BubsBookings</Link><Link href="/" className="rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#e5eddf]">Back home</Link></div></header>
+    <header className="border-b border-[#183126]/10"><div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><BrandLockup /></Link><Link href="/" className="rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#e5eddf]">Back home</Link></div></header>
     <article className="mx-auto max-w-4xl px-6 py-14 sm:py-20">
       <p className="text-xs font-bold uppercase tracking-[.16em] text-[#65776e]">{eyebrow}</p>
       <h1 className="mt-3 text-4xl font-bold tracking-[-.05em] sm:text-5xl">{title}</h1>

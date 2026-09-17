@@ -1,4 +1,4 @@
-import BrandMark from "@/components/brand-mark";
+import BrandLockup from "@/components/brand-lockup";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -77,7 +77,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="border-b border-[#183126]/10 bg-[#f8f7f3]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
-          <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><BrandMark className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-base text-[#eee25a]" /><span className="hidden min-[390px]:inline">BubsBookings</span><span className="min-[390px]:hidden">Bubs</span></Link>
+          <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><BrandLockup /></Link>
           <div className="flex items-center gap-2 sm:gap-3"><Link href="/services" className="hidden rounded-full px-4 py-2 text-sm font-semibold transition hover:bg-[#183126]/5 sm:block">Find a service</Link><AccountNav /></div>
         </div>
       </header>

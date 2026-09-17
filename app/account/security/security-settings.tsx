@@ -1,6 +1,6 @@
 "use client";
 
-import BrandMark from "@/components/brand-mark";
+import BrandLockup from "@/components/brand-lockup";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -95,7 +95,7 @@ export default function SecuritySettings() {
     <main className="min-h-screen bg-[#f5f4ef] px-5 py-8 text-[#183126] sm:px-8">
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center justify-between gap-4">
-          <Link href="/account" className="flex items-center gap-2.5 text-xl font-bold"><BrandMark className="grid h-9 w-9 place-items-center rounded-xl bg-[#183126] text-sm text-[#eee25a]" />BubsBookings</Link>
+          <Link href="/account" className="flex items-center gap-2.5 text-xl font-bold"><BrandLockup /></Link>
           <Link href="/account" className="rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#dfead9]">← My account</Link>
         </div>
 

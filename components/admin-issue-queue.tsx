@@ -1,6 +1,6 @@
 "use client";
 
-import BrandMark from "@/components/brand-mark";
+import BrandLockup from "@/components/brand-lockup";
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -238,8 +238,8 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
       <header className="border-b border-[#183126]/10 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <Link href="/admin" className="flex items-center gap-2 font-bold">
-            <BrandMark className="grid h-10 w-10 place-items-center rounded-xl bg-[#183126] text-[#eee25a]" />
-            BubsBookings Admin
+            <BrandLockup />
+            <span className="hidden sm:inline">Admin</span>
           </Link>
           <div className="flex gap-2">
             <Link href="/admin/reported-bugs" className="rounded-full px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">Bug reports</Link>
