@@ -28,11 +28,10 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
   }
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
-      <header className="border-b border-[#183126]/10">
+      <header className="provider-join-header border-b border-[#183126]/10 bg-[#f8f7f3]">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
             <BrandLockup />
-            BubsBookings
           </Link>
           <p className="hidden text-sm text-[#6b7c73] sm:block">Already a provider? <Link href="/provider/dashboard" className="font-bold text-[#183126] underline decoration-[#c9be45] decoration-2 underline-offset-4">Open dashboard</Link></p>
         </div>
