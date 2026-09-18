@@ -190,7 +190,7 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
   const distanceLabel = typeof service.distanceMiles === "number"
     ? service.distanceMiles < 0.1 ? "In your city" : `${service.distanceMiles.toFixed(1)} mi away`
     : "";
-  return <article className="home-service-card group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
+  return <article className="home-service-card group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition duration-300 hover:border-[#547562]/25 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
     <Link href={`/services/${service.slug}`} className="block">
       <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
         {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
