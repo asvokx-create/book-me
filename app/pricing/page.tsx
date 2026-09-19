@@ -23,7 +23,7 @@ const plans = [
     cadence: "forever",
     fee: "10% booking fee",
     description: "Everything you need to start getting booked.",
-    features: ["No lead, inquiry, message, or quote fees", "Up to 2 services", "Up to 5 photos", "Listing marketing tools, share link & QR code", "Booking calendar", "Customer messaging", "24-hour booking reminders", "Basic analytics", "Owner only"],
+    features: ["No lead, inquiry, message, or quote fees", "2 services with up to 5 photos", "Share link, QR code & listing tools", "Booking calendar & customer messaging", "24-hour reminders & basic analytics", "Single-owner access"],
     featured: false,
   },
   {
@@ -33,7 +33,7 @@ const plans = [
     cadence: "per month",
     fee: "6% booking fee",
     description: "Every growth tool in one affordable plan.",
-    features: ["No lead, inquiry, message, or quote fees", "Unlimited services & photos", "Listing marketing tools, share links & QR codes", "Custom booking questions", "24-hour and 1-hour reminders", "Advanced analytics", "Repeat-customer insights", "3 total team seats included", "Extra employees for $0.50/month each", "Multiple service locations", "Priority support", "Priority placement in browse results"],
+    features: ["No lead, inquiry, message, or quote fees", "Unlimited services, photos & locations", "Share links, QR codes & listing tools", "Custom questions & advanced reminders", "Advanced analytics & repeat-customer insights", "3 team seats included", "Extra employees for $0.50/month each", "Priority support & browse placement"],
     featured: true,
   },
 ] as const;
@@ -95,7 +95,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
               <a href="#plans" className="inline-flex min-h-11 items-center text-sm font-bold text-white underline decoration-white/35 decoration-2 underline-offset-4 transition hover:decoration-[#eee25a]">Compare plans ↓</a>
             </div>
           </div>
-          <aside className="relative overflow-hidden rounded-[2rem] border border-white/20 bg-white/[.09] p-6 shadow-[0_24px_70px_rgba(0,0,0,.18)] backdrop-blur-md sm:p-8">
+          <aside className="relative overflow-hidden rounded-[2rem] border border-white/20 bg-[rgba(7,42,29,.72)] p-6 shadow-[0_24px_70px_rgba(0,0,0,.22)] backdrop-blur-md sm:p-8">
             <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#eee25a]/15 blur-3xl" />
             <p className="relative text-xs font-bold uppercase tracking-[.17em] text-[#c8d7cf]">Your cost before a booking</p>
             <div className="relative mt-3 flex items-end gap-3"><span className="text-6xl font-bold tracking-[-.06em] text-white">$0</span><span className="pb-2 text-sm font-semibold text-[#c8d7cf]">always</span></div>
@@ -140,7 +140,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
               <span className="inline-flex w-fit rounded-full bg-[#edf3e7] px-3 py-1.5 text-xs font-bold text-[#496756]">{plan.fee}</span>
               {plan.id === "pro" && <span className="inline-flex w-fit rounded-full bg-[#183126] px-3 py-1.5 text-xs font-bold text-white">Save at $250+/month booked</span>}
             </div>
-            {plan.id === "pro" && <p className="mt-2 text-xs leading-5 text-[#74827b]">Compared with Starter: Pro&apos;s $9.99 monthly price plus its 6% booking fee becomes less expensive once completed bookings reach $250 per month.</p>}
+            {plan.id === "pro" && <p className="mt-2 text-xs leading-5 text-[#74827b]">At $250+ in monthly bookings, Pro&apos;s lower 6% fee offsets the monthly price.</p>}
             <ul className="mt-7 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex gap-3 text-sm"><span className="font-bold text-[#4c8a60]">✓</span><span>{feature}</span></li>)}</ul>
             {isCurrent
               ? <span className="mt-8 rounded-full bg-[#edf3e7] px-5 py-3.5 text-center text-sm font-bold text-[#496756]">Your current plan</span>
