@@ -104,26 +104,12 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
             </div>
             <p className="relative mt-5 text-sm leading-6 text-[#c8d7cf]">A booking fee applies only after you complete a paid booking.</p>
           </aside>
+          <Link href="/guides/why-bubsbookings-does-not-charge-for-leads" className="justify-self-end text-sm font-bold text-white underline decoration-[#eee25a] decoration-2 underline-offset-4 transition hover:text-[#eee25a] lg:absolute lg:bottom-7 lg:right-8">See exactly how our fees work <span aria-hidden="true">→</span></Link>
         </div>
       </section>
 
       <section id="plans" className="mx-auto max-w-7xl px-4 py-12 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-4xl">
-        <section className="mb-10 overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_20px_55px_rgba(24,49,38,.09)]">
-          <div className="grid lg:grid-cols-[1.15fr_.85fr]">
-            <div className="p-6 sm:p-9 lg:p-10">
-              <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.17em] text-[#64766d]"><span className="h-2 w-2 rounded-full bg-[#d8ca35]" />The BubsBookings provider promise</p>
-              <h2 className="mt-4 max-w-xl text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.02] tracking-[-.045em]">Keep the conversation.<br /><span className="text-[#4a9a68]">Skip the lead fees.</span></h2>
-              <p className="mt-5 max-w-xl text-base leading-7 text-[#5d6e60]">Receive inquiries, reply to customers, and send quotes without paying a cent for the conversation. You only pay a booking fee when real work gets booked and paid.</p>
-              <Link href="/guides/why-bubsbookings-does-not-charge-for-leads" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold transition hover:border-[#183126]/30 hover:bg-[#f4f6f1]">See exactly how our fees work <span aria-hidden="true">→</span></Link>
-            </div>
-            <div className="flex flex-col justify-center gap-3 bg-[#eef3e9] p-5 sm:p-7 lg:p-8">
-              <div className="flex items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 shadow-[0_6px_20px_rgba(24,49,38,.05)]"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Customer inquiries</p><p className="mt-1 text-sm text-[#687970]">New opportunities</p></div><p className="text-3xl font-bold tracking-[-.04em] text-[#3e8b5b]">$0</p></div>
-              <div className="flex items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 shadow-[0_6px_20px_rgba(24,49,38,.05)]"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Messages & quotes</p><p className="mt-1 text-sm text-[#687970]">Every conversation</p></div><p className="text-3xl font-bold tracking-[-.04em] text-[#3e8b5b]">$0</p></div>
-              <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#183126] px-5 py-4 text-white shadow-[0_12px_30px_rgba(24,49,38,.18)]"><div><p className="text-xs font-bold uppercase tracking-[.12em] text-[#b8c8c0]">Booking fee</p><p className="mt-1 text-sm text-[#d8e2dc]">When you get paid</p></div><p className="max-w-28 text-right text-base font-bold leading-5">Paid bookings only</p></div>
-            </div>
-          </div>
-        </section>
         {currentPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#183126] px-5 py-4 text-center text-white sm:flex-row sm:text-left"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b8c8c0]">Your current plan</p><p className="mt-1 text-xl font-bold">{PLAN_ENTITLEMENTS[currentPlan].name}</p>{currentPlan === "owner" && <p className="mt-1 text-xs text-[#b8c8c0]">Private account access · $0/month · 0% booking fee · all features unlocked</p>}</div><Link href="/provider/dashboard/billing" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Manage billing</Link></div>}
         {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : proTrialEligible ? "Create your provider profile first, then start the 30-day trial securely from Billing." : "Continue to Billing to subscribe securely through Stripe."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : currentProvider ? "/provider/dashboard/billing" : "/providers/join?plan=pro"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : currentProvider ? "Continue to billing" : "Create provider profile"}</Link></div>}
 
