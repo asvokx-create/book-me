@@ -620,6 +620,16 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
   box-shadow: 0 24px 60px rgba(11, 42, 30, .2);
 }
 
+@media (min-width: 64rem) {
+  .dashboard-sidebar {
+    position: fixed;
+    top: 7.8rem;
+    left: max(2rem, calc((100vw - 80rem) / 2 + 2rem));
+    z-index: 40;
+    width: 236px;
+  }
+}
+
 .dashboard-nav-link {
   min-height: 3rem;
 }
