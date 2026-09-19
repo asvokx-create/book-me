@@ -95,13 +95,13 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           <h1 className="mt-2 text-[clamp(2.25rem,7vw,3rem)] font-bold leading-tight tracking-[-.05em]">Find the right help for the job.</h1>
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">Compare trusted local providers, prices, and availability around {location}.</p>
 
-          <form action={`/services${resultsAnchor}`} className="services-search-panel relative z-30 mt-8 flex max-w-4xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 sm:flex-row sm:rounded-full">
-            <label className="flex flex-1 items-center gap-3 px-4 py-3">
+          <form action={`/services${resultsAnchor}`} className="services-search-panel relative z-30 mt-8 flex max-w-5xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 sm:flex-row sm:items-center sm:rounded-full">
+            <label className="services-search-query flex flex-1 items-center gap-3 px-5 py-3">
               <span aria-hidden="true">🔎</span>
               <span className="sr-only">Search services</span>
-              <input name="q" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" className="w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" />
+              <input name="q" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" className="services-search-query-input w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" />
             </label>
-            <div className="border-t border-[#183126]/10 sm:min-w-[330px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitLocation autoSubmitRadius /></div>
+            <div className="services-search-location border-t border-[#183126]/10 sm:min-w-[350px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitLocation autoSubmitRadius /></div>
             {selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
             {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}
             {maxDuration && <input type="hidden" name="maxDuration" value={maxDuration} />}

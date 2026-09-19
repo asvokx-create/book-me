@@ -328,6 +328,41 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
   -webkit-backdrop-filter: blur(18px);
 }
 
+.services-search-query {
+  min-height: 4.5rem;
+}
+
+.services-search-query-input,
+.services-search-query-input:focus {
+  margin-top: 0 !important;
+  border-color: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.services-search-location {
+  display: flex;
+  min-height: 4.5rem;
+  align-self: stretch;
+  align-items: center;
+  padding-inline: .35rem;
+}
+
+.services-search-location > div {
+  width: 100%;
+  align-items: center;
+}
+
+.services-search-location summary,
+.services-search-location > div > div:last-child {
+  min-height: 3.25rem;
+}
+
+.services-search-panel > button[type="submit"] {
+  min-height: 4.5rem;
+  padding-inline: 2rem;
+}
+
 .marketplace-card,
 .pricing-plan-card {
   border-color: rgba(16, 41, 31, .095) !important;
@@ -913,6 +948,12 @@ html[data-theme="dark"] .services-search-panel {
   background: rgba(17, 34, 26, .95) !important;
   border-color: rgba(223, 239, 228, .15) !important;
   box-shadow: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 24px 64px rgba(0, 0, 0, .32) !important;
+}
+
+html[data-theme="dark"] .services-search-query-input,
+html[data-theme="dark"] .services-search-query-input:focus {
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 html[data-theme="dark"] :where(main section, main article, main aside, main details)[class*="bg-white"][class*="rounded"] {
