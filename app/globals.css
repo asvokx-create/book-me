@@ -610,11 +610,7 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
 }
 
 .dashboard-sidebar-nav {
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, .28) transparent;
+  overflow: hidden;
   padding: .7rem;
   border: 1px solid rgba(255, 255, 255, .08);
   border-radius: 1.6rem;

@@ -344,7 +344,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
       <div className="dashboard-shell mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-8 sm:py-8 lg:grid-cols-[236px_1fr] lg:gap-8">
         <aside className="dashboard-sidebar hidden lg:block">
-          <nav className="dashboard-sidebar-nav fixed top-40 max-h-[calc(100vh-11rem)] w-[236px] space-y-1 overflow-y-auto text-sm font-semibold">
+          <nav className="dashboard-sidebar-nav fixed top-40 w-[236px] space-y-1 text-sm font-semibold">
             {visibleNav.map((item) => <div key={item.section}>{item.section === "settings" && <div className="dashboard-nav-divider my-4 border-t border-white/10" />}<Link href={item.href} className={`dashboard-nav-link flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "dashboard-nav-link-active bg-[#eee25a] text-[#183126]" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><span className="dashboard-nav-icon">{item.icon}</span>{item.label}{item.section === "bookings" && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{activeRequests}</span>}</Link></div>)}
           </nav>
         </aside>
