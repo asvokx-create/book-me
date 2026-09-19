@@ -356,8 +356,12 @@ export async function getFavoriteServices(customerId: string) {
 }
 
 export function formatDuration(minutes: number) {
-  if (minutes >= 480) return "a full day";
-  if (minutes >= 240) return "half a day";
+  if (minutes >= 1440) {
+    const days = Math.floor(minutes / 1440);
+    const remainingHours = Math.round(((minutes % 1440) / 60) * 100) / 100;
+    return remainingHours ? `${days} ${days === 1 ? "day" : "days"}, ${remainingHours} ${remainingHours === 1 ? "hour" : "hours"}` : `${days} ${days === 1 ? "day" : "days"}`;
+  }
+  if (minutes < 60) return `${minutes} minutes`;
   const hours = minutes / 60;
   return `${hours} ${hours === 1 ? "hour" : "hours"}`;
 }

@@ -85,7 +85,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   const durationMinutes = Number(body.durationMinutes);
   const bookingQuestions = Array.isArray(body.bookingQuestions) ? body.bookingQuestions.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean) : [];
 
-  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !category || category.length > 80 || description.length < 10 || description.length > 2000 || !locationId || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 10080 || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180)) {
+  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !category || category.length > 80 || description.length < 10 || description.length > 2000 || !locationId || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 2_147_483_647 || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180)) {
     return NextResponse.json({ error: "Complete every field with valid listing details." }, { status: 400 });
   }
   const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [businessName, title, description] });

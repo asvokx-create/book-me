@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   }) : [];
   const validTime = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-  if (!business || !category || category.length > 80 || !serviceArea || !coordinates || !service || !description || phone.length !== 10 || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 10080 || availabilitySlots.length === 0 || availabilitySlots.some((slot) => !validTime.test(slot.startTime) || !validTime.test(slot.endTime) || slot.startTime >= slot.endTime)) {
+  if (!business || !category || category.length > 80 || !serviceArea || !coordinates || !service || !description || phone.length !== 10 || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 2_147_483_647 || availabilitySlots.length === 0 || availabilitySlots.some((slot) => !validTime.test(slot.startTime) || !validTime.test(slot.endTime) || slot.startTime >= slot.endTime)) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "provider-onboarding", limit: 6, windowSeconds: 3600 })) return NextResponse.json({ error: "Too many setup attempts. Please try again later." }, { status: 429 });

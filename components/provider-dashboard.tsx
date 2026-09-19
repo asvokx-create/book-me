@@ -81,9 +81,14 @@ function formatCurrency(amount: number) {
 }
 
 function formatDuration(minutes: number) {
-  if (minutes >= 480) return "Est. full day";
-  if (minutes >= 240) return "Est. half day";
-  return `Est. ${minutes / 60} ${minutes === 60 ? "hour" : "hours"}`;
+  if (minutes >= 1440) {
+    const days = Math.floor(minutes / 1440);
+    const remainingHours = Math.round(((minutes % 1440) / 60) * 100) / 100;
+    return `Est. ${days} ${days === 1 ? "day" : "days"}${remainingHours ? `, ${remainingHours} ${remainingHours === 1 ? "hour" : "hours"}` : ""}`;
+  }
+  if (minutes < 60) return `Est. ${minutes} minutes`;
+  const hours = minutes / 60;
+  return `Est. ${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
