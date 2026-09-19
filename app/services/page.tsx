@@ -73,7 +73,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   if (selectedCategory !== "All services") widerSearchParams.set("category", selectedCategory);
 
   return (
-    <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
+    <main className="services-page min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
@@ -88,14 +88,14 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         </div>
       </header>
 
-      <section style={{ animation: "none" }} className="relative z-40 border-b border-[#183126]/10 bg-[radial-gradient(circle_at_85%_15%,rgba(206,225,198,.8),transparent_25%)]">
+      <section style={{ animation: "none" }} className="services-hero relative z-40 border-b border-[#183126]/10">
         <div className="mx-auto max-w-7xl px-4 py-9 sm:px-8 sm:py-16">
           <Link href="/" className="text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
           <p className="mt-8 text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">Explore nearby</p>
           <h1 className="mt-2 text-[clamp(2.25rem,7vw,3rem)] font-bold leading-tight tracking-[-.05em]">Find the right help for the job.</h1>
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">Compare trusted local providers, prices, and availability around {location}.</p>
 
-          <form action={`/services${resultsAnchor}`} className="relative z-30 mt-8 flex max-w-4xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 shadow-[0_14px_40px_rgba(24,49,38,.1)] sm:flex-row sm:rounded-full">
+          <form action={`/services${resultsAnchor}`} className="services-search-panel relative z-30 mt-8 flex max-w-4xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 sm:flex-row sm:rounded-full">
             <label className="flex flex-1 items-center gap-3 px-4 py-3">
               <span aria-hidden="true">🔎</span>
               <span className="sr-only">Search services</span>
@@ -154,7 +154,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         {filteredServices.length > 0 ? (
           <div className="mt-7 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {filteredServices.map((service) => (
-              <article key={service.slug} className="group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition hover:border-[#547562]/25 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
+              <article key={service.slug} className="marketplace-card group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white transition">
                 <Link href={`/services/${service.slug}?from=${encodeURIComponent(currentResultsPath)}`} className="block">
                 <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${getServiceVisual(service.category).gradient}`}`}>
                   {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}

@@ -74,7 +74,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
   const showTrialPromotion = proTrialEligible || currentPlan === "owner";
 
   return (
-    <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
+    <main className="pricing-page min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="border-b border-[#183126]/10 bg-[#f8f7f3]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><BrandLockup /></Link>
@@ -82,7 +82,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
         </div>
       </header>
 
-      <section className="relative overflow-hidden border-b border-[#183126]/10">
+      <section className="pricing-hero relative overflow-hidden border-b border-[#183126]/10">
         <div className="pointer-events-none absolute -right-32 -top-40 h-[520px] w-[520px] rounded-full bg-[#d8e7d3] blur-3xl" />
         <div className="relative mx-auto max-w-7xl px-4 py-12 text-center sm:px-8 sm:py-20">
           <p className="text-xs font-bold uppercase tracking-[.18em] text-[#65796d]">Simple provider pricing</p>
@@ -99,7 +99,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
         <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.id;
-            return <article key={plan.id} className={`relative flex flex-col rounded-[2rem] border bg-white p-7 shadow-[0_10px_35px_rgba(24,49,38,.06)] sm:p-8 ${plan.featured || isCurrent ? "border-[#183126] ring-4 ring-[#eee25a]/60" : "border-[#183126]/10"}`}>
+            return <article key={plan.id} className={`pricing-plan-card relative flex flex-col rounded-[2rem] border bg-white p-7 sm:p-8 ${plan.featured || isCurrent ? "border-[#183126] ring-4 ring-[#eee25a]/60" : "border-[#183126]/10"}`}>
             {plan.featured && <span className="absolute -top-3 left-7 rounded-full bg-[#eee25a] px-3 py-1 text-xs font-bold">Most popular</span>}
             {isCurrent && <span className="absolute -top-3 right-7 rounded-full bg-[#183126] px-3 py-1 text-xs font-bold text-white">Current plan</span>}
             <h2 className="text-2xl font-bold">{plan.name}</h2><p className="mt-2 min-h-12 text-sm leading-6 text-[#687970]">{plan.description}</p>

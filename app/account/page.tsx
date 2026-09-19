@@ -84,7 +84,7 @@ export default function AccountPage() {
   const bookingTime = (startsAt: string) => formatInUserTimeZone(startsAt, { hour: "numeric", minute: "2-digit" }, timeZone);
 
   return (
-    <main className="min-h-screen bg-[#f5f4ef] text-[#183126]">
+    <main className="account-page min-h-screen bg-[#f5f4ef] text-[#183126]">
       <header className="relative z-50 border-b border-[#183126]/10 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-8 sm:py-4">
           <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 text-lg font-bold tracking-tight sm:gap-2.5 sm:text-xl"><BrandLockup compact /></Link>

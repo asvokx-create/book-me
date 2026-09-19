@@ -325,7 +325,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   const ownerOnlySection = isWorker && ["calendar", "messages", "revenue", "services", "marketing", "availability", "reviews", "billing"].includes(section);
 
   return (
-    <main className="min-h-screen scroll-smooth bg-[#f4f4ef] text-[#183126]">
+    <main className="dashboard-page min-h-screen scroll-smooth bg-[#f4f4ef] text-[#183126]">
       <header className="sticky top-0 z-50 border-b border-[#183126]/10 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-8 sm:py-4">
           <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2"><BrandLockup priority compact /><span className="hidden rounded-full bg-[#e8f0e5] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#55705e] lg:inline">Provider</span></Link>
@@ -337,14 +337,14 @@ export default function ProviderDashboard({ section = "overview", initialConvers
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm sm:px-8"><span className="font-bold">Company: {provider.businessName}</span><span className="text-[#687a70]">Your role: {provider.teamRole || "Team member"}</span><Link href="/provider/dashboard/team" className="ml-auto font-bold underline decoration-[#c5b940] decoration-2 underline-offset-4">View my team & hours</Link></div>
       </div>}
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-8 sm:py-8 lg:grid-cols-[210px_1fr] lg:gap-8">
-        <aside className="hidden lg:block">
-          <nav className="sticky top-8 space-y-1 text-sm font-semibold">
-            {visibleNav.map((item) => <div key={item.section}>{item.section === "settings" && <div className="my-4 border-t border-[#183126]/10" />}<Link href={item.href} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "bg-[#183126] text-white" : "hover:bg-[#dfead9]"}`}><span>{item.icon}</span>{item.label}{item.section === "bookings" && <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] ${section === "bookings" ? "bg-[#eee25a] text-[#183126]" : "bg-[#eee25a]"}`}>{activeRequests}</span>}</Link></div>)}
+      <div className="dashboard-shell mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-8 sm:py-8 lg:grid-cols-[236px_1fr] lg:gap-8">
+        <aside className="dashboard-sidebar hidden lg:block">
+          <nav className="dashboard-sidebar-nav sticky top-28 space-y-1 text-sm font-semibold">
+            {visibleNav.map((item) => <div key={item.section}>{item.section === "settings" && <div className="dashboard-nav-divider my-4 border-t border-white/10" />}<Link href={item.href} className={`dashboard-nav-link flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "dashboard-nav-link-active bg-[#eee25a] text-[#183126]" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><span className="dashboard-nav-icon">{item.icon}</span>{item.label}{item.section === "bookings" && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{activeRequests}</span>}</Link></div>)}
           </nav>
         </aside>
 
-        <div className="min-w-0">
+        <div className="dashboard-content min-w-0">
           <nav aria-label="Provider dashboard sections" className="mobile-scroll-row -mx-4 mb-6 flex snap-x gap-2 overflow-x-auto px-4 pb-2 text-sm font-bold lg:hidden">{visibleNav.map((item) => <Link key={item.section} href={item.href} className={`shrink-0 snap-start rounded-full px-4 py-2.5 ${section === item.section ? "bg-[#183126] text-white shadow-[0_8px_20px_rgba(24,49,38,.16)]" : "border border-[#183126]/10 bg-white"}`}>{item.label}</Link>)}</nav>
           {!ownerOnlySection && sectionsNeedingPageHeading[section] && <h1 className="sr-only">{sectionsNeedingPageHeading[section]}</h1>}
           {ownerOnlySection && <section className="rounded-[2rem] border border-[#d6ca65] bg-[#fff8cd] p-7"><h1 className="text-2xl font-bold">Owner-only company area</h1><p className="mt-2 text-sm leading-6 text-[#6f6840]">Workers can view assigned bookings and manage their own requested hours. Revenue, billing, listings, company messages, and business settings stay private to the company owner.</p><Link href="/provider/dashboard/team" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Open my worker area</Link></section>}

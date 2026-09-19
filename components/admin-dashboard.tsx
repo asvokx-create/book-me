@@ -240,7 +240,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   ] : [];
 
   return (
-    <main className="min-h-screen bg-[#f4f4ef] text-[#183126]">
+    <main className="admin-page min-h-screen bg-[#f4f4ef] text-[#183126]">
       <header className="border-b border-[#183126]/10 bg-white">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-4 sm:px-8">
           <div className="flex items-center gap-4">

@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f6f1;
-  --foreground: #132e23;
-  --brand: #173d2e;
-  --brand-soft: #dfeade;
+  --background: #f5f6f1;
+  --foreground: #10291f;
+  --brand: #123d2d;
+  --brand-soft: #e2ece1;
   --accent: #f1e45c;
-  --surface: #fffefa;
-  --surface-elevated: rgba(255, 255, 252, 0.92);
-  --surface-muted: #f0f3ed;
-  --muted: #65766d;
-  --line: rgba(19, 46, 35, 0.11);
-  --shadow-sm: 0 4px 18px rgba(19, 46, 35, 0.055);
-  --shadow-md: 0 18px 55px rgba(19, 46, 35, 0.11);
-  --shadow-lg: 0 30px 90px rgba(19, 46, 35, 0.15);
-  --radius-card: 1.75rem;
+  --surface: #ffffff;
+  --surface-elevated: rgba(255, 255, 255, 0.94);
+  --surface-muted: #eef2ec;
+  --muted: #64766c;
+  --line: rgba(16, 41, 31, 0.1);
+  --shadow-sm: 0 1px 2px rgba(16, 41, 31, 0.025), 0 8px 24px rgba(16, 41, 31, 0.045);
+  --shadow-md: 0 2px 5px rgba(16, 41, 31, 0.035), 0 18px 48px rgba(16, 41, 31, 0.085);
+  --shadow-lg: 0 4px 10px rgba(16, 41, 31, 0.045), 0 32px 90px rgba(16, 41, 31, 0.13);
+  --radius-card: 1.5rem;
   --font-site-sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
   --font-site-mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 html {
-  font-size: clamp(15px, calc(13.65px + 0.36vw), 18px);
+  font-size: clamp(15.5px, calc(15.15px + 0.08vw), 16.25px);
   scroll-behavior: smooth;
   scroll-padding-top: 6rem;
   text-size-adjust: 100%;
@@ -38,26 +38,28 @@ body {
   background: var(--background);
   color: var(--foreground);
   background-image:
-    radial-gradient(circle at 92% 4%, rgba(198, 222, 191, 0.34), transparent 24rem),
-    radial-gradient(circle at 4% 56%, rgba(241, 228, 92, 0.08), transparent 22rem);
+    radial-gradient(circle at 92% 2%, rgba(186, 218, 189, 0.26), transparent 28rem),
+    radial-gradient(circle at 2% 58%, rgba(241, 228, 92, 0.055), transparent 24rem);
   background-attachment: fixed;
   font-family: var(--font-site-sans);
   min-width: 0;
   overflow-x: clip;
-  line-height: 1.5;
+  line-height: 1.55;
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  font-optical-sizing: auto;
   text-rendering: optimizeLegibility;
 }
 
 main { isolation: isolate; position: relative; flex: 1 0 auto; }
 h1, h2, h3, h4 {
   text-wrap: balance;
-  letter-spacing: -0.022em;
-  line-height: 1.12;
+  letter-spacing: -0.026em;
+  line-height: 1.1;
+  font-variation-settings: "wght" 710;
 }
-h1 { letter-spacing: -0.034em; }
-h1[class*="tracking-"] { letter-spacing: -0.034em; }
-h2[class*="tracking-"], h3[class*="tracking-"], h4[class*="tracking-"] { letter-spacing: -0.022em; }
+h1 { letter-spacing: -0.042em; }
+h1[class*="tracking-"] { letter-spacing: -0.042em; }
+h2[class*="tracking-"], h3[class*="tracking-"], h4[class*="tracking-"] { letter-spacing: -0.026em; }
 p { text-wrap: pretty; }
 
 button, a, input, select, textarea { font: inherit; }
@@ -80,12 +82,20 @@ img, picture, video, canvas, svg { max-width: 100%; }
 ::selection { background: #eee25a; color: #183126; }
 
 :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-radius: .9rem;
+  border-color: rgba(16, 41, 31, .14);
+  background-color: rgba(255, 255, 255, .88);
   transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
+:where(input:not([type="checkbox"]):not([type="radio"]), select) {
+  min-height: 2.8rem;
+}
+
 :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
-  border-color: rgba(23, 61, 46, .45) !important;
-  box-shadow: 0 0 0 4px rgba(105, 166, 126, .16), 0 8px 24px rgba(19, 46, 35, .06);
+  border-color: rgba(18, 61, 45, .48) !important;
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(91, 157, 112, .14), 0 8px 24px rgba(16, 41, 31, .055);
   outline: none;
 }
 
@@ -106,13 +116,22 @@ main > header {
   position: sticky;
   top: 0;
   z-index: 50;
-  box-shadow: 0 1px 0 rgba(19, 46, 35, .07), 0 10px 35px rgba(19, 46, 35, .035);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 1px 0 rgba(16, 41, 31, .07), 0 12px 32px rgba(16, 41, 31, .03);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
 }
 
 main > header > div {
-  min-height: 4.25rem;
+  min-height: 4.5rem;
+}
+
+html:not([data-theme="dark"]) main > header {
+  background-color: rgba(250, 250, 247, .88) !important;
+  border-color: rgba(16, 41, 31, .085) !important;
+}
+
+html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
+  background-color: transparent !important;
 }
 
 .skip-link {
@@ -140,9 +159,9 @@ main > header > div {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.5rem;
+  min-height: 2.65rem;
   border-radius: 999px;
-  padding: .55rem .85rem;
+  padding: .6rem .95rem;
   color: inherit;
   font-size: .8rem;
   font-weight: 700;
@@ -150,7 +169,7 @@ main > header > div {
 }
 
 .site-nav-link:hover {
-  background: rgba(24, 49, 38, .065);
+  background: rgba(18, 61, 45, .075);
 }
 
 .site-nav-link:focus-visible {
@@ -159,9 +178,36 @@ main > header > div {
 
 /* Shared visual language for public, account, provider, and admin screens. */
 :where(main section, main article, main aside, main details)[class*="bg-white"][class*="rounded"] {
-  border-color: rgba(19, 46, 35, .1);
-  background-image: linear-gradient(145deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, 0) 48%);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .82) inset, 0 8px 30px rgba(19, 46, 35, .055);
+  border-color: rgba(16, 41, 31, .095);
+  background-color: rgba(255, 255, 255, .96);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .52), rgba(255, 255, 255, 0) 32%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, var(--shadow-sm);
+}
+
+:where(main section, main article, main aside, main details)[class*="rounded-[2rem]"] {
+  border-radius: 1.5rem;
+}
+
+:where(main section, main article, main aside, main details)[class*="rounded-[2.5rem]"] {
+  border-radius: 1.75rem;
+}
+
+:where(main, footer) :where(a, button)[class*="rounded-full"] {
+  letter-spacing: -.008em;
+}
+
+:where(main, footer) :where(a, button)[class*="bg-[#183126]"],
+:where(main, footer) :where(a, button)[class*="bg-[#173d2e]"],
+:where(main, footer) :where(a, button)[class*="bg-[#eee25a]"],
+:where(main, footer) :where(a, button)[class*="bg-[#f1e45c]"] {
+  border: 1px solid rgba(16, 41, 31, .06);
+}
+
+:where(main, footer) :where(a, button)[class*="bg-[#183126]"]:hover,
+:where(main, footer) :where(a, button)[class*="bg-[#173d2e]"]:hover,
+:where(main, footer) :where(a, button)[class*="bg-[#eee25a]"]:hover,
+:where(main, footer) :where(a, button)[class*="bg-[#f1e45c]"]:hover {
+  filter: brightness(1.035) saturate(1.04);
 }
 
 :where(main article, main section):has(> a)[class*="bg-white"][class*="rounded"] {
@@ -232,6 +278,14 @@ main > header > div {
   border-bottom: 1px solid var(--line);
 }
 
+:where(main) tbody tr {
+  transition: background-color 160ms ease;
+}
+
+:where(main) tbody tr:hover {
+  background-color: rgba(226, 236, 225, .45);
+}
+
 :where(main) :where(td, th) {
   padding: .9rem .75rem;
 }
@@ -239,6 +293,195 @@ main > header > div {
 :where(main) details > summary {
   cursor: pointer;
   font-weight: 750;
+}
+
+:where(main) details[class*="rounded"] > summary {
+  padding-block: .15rem;
+}
+
+:where(main) label,
+:where(main) legend {
+  letter-spacing: -.008em;
+}
+
+:where([role="dialog"]) {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.services-hero,
+.pricing-hero {
+  background:
+    radial-gradient(circle at 86% 10%, rgba(181, 218, 185, .52), transparent 26rem),
+    linear-gradient(180deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, 0));
+}
+
+.services-search-panel {
+  border-color: rgba(16, 41, 31, .095) !important;
+  background: rgba(255, 255, 255, .94) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .95) inset, 0 22px 60px rgba(16, 41, 31, .1) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.marketplace-card,
+.pricing-plan-card {
+  border-color: rgba(16, 41, 31, .095) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.marketplace-card:hover,
+.pricing-plan-card:hover {
+  border-color: rgba(31, 91, 63, .24) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.dashboard-page > header,
+.account-page > header,
+.admin-page > header {
+  background-color: rgba(250, 250, 247, .9) !important;
+}
+
+/* Bold 2026 shell: navigation floats above the page instead of blending into it. */
+main > header {
+  top: .75rem;
+  width: calc(100% - 1.5rem);
+  margin: .75rem auto 0;
+  border: 1px solid rgba(16, 41, 31, .1) !important;
+  border-radius: 1.35rem;
+  background-color: rgba(252, 252, 249, .9) !important;
+  box-shadow: 0 14px 40px rgba(16, 41, 31, .09), 0 1px 0 rgba(255, 255, 255, .9) inset;
+}
+
+:where(main, footer) :where(a, button)[class*="rounded-full"] {
+  min-height: 2.7rem;
+}
+
+/* Public pages use bold, editorial hero panels with bright functional surfaces. */
+html:not([data-theme="dark"]) .home-hero,
+html:not([data-theme="dark"]) .services-hero,
+html:not([data-theme="dark"]) .pricing-hero {
+  overflow: hidden;
+  margin: 1rem;
+  border: 1px solid rgba(255, 255, 255, .1) !important;
+  border-radius: 2.5rem;
+  color: #f7fbf8;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(123, 205, 143, .3), transparent 30rem),
+    radial-gradient(circle at 12% 100%, rgba(241, 228, 92, .12), transparent 22rem),
+    linear-gradient(135deg, #0b2d20 0%, #123e2d 52%, #1a5139 100%);
+  box-shadow: 0 34px 90px rgba(10, 42, 29, .2);
+}
+
+.home-preview-card {
+  color: #10291f;
+}
+
+html:not([data-theme="dark"]) .home-hero h1,
+html:not([data-theme="dark"]) .services-hero h1,
+html:not([data-theme="dark"]) .pricing-hero h1 {
+  color: #f8fbf9;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, .18);
+}
+
+html:not([data-theme="dark"]) .home-hero-copy,
+html:not([data-theme="dark"]) .services-hero > div > p:not(:first-of-type),
+html:not([data-theme="dark"]) .pricing-hero p:not(:first-child) {
+  color: #c8d9cf !important;
+}
+
+html:not([data-theme="dark"]) .home-hero-eyebrow {
+  border-color: rgba(255, 255, 255, .14) !important;
+  background-color: rgba(255, 255, 255, .08) !important;
+  color: #d7e7dd !important;
+  box-shadow: none;
+}
+
+html:not([data-theme="dark"]) .home-hero-points {
+  color: #d5e4db !important;
+}
+
+html:not([data-theme="dark"]) .home-hero-points > span > span {
+  background-color: rgba(255, 255, 255, .1) !important;
+  color: #f1e45c;
+}
+
+html:not([data-theme="dark"]) .services-hero > div > a,
+html:not([data-theme="dark"]) .services-hero > div > p:first-of-type,
+html:not([data-theme="dark"]) .pricing-hero > div > p:first-of-type {
+  color: #bcd2c5 !important;
+}
+
+html:not([data-theme="dark"]) .services-search-panel,
+html:not([data-theme="dark"]) .services-search-panel :where(label, input, select, button, span),
+html:not([data-theme="dark"]) .home-search-bar,
+html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, button, span) {
+  color: #10291f;
+}
+
+.home-discovery {
+  padding-top: 5rem;
+}
+
+.home-category-card,
+.home-service-card,
+.marketplace-card,
+.pricing-plan-card {
+  border-radius: 1.6rem !important;
+}
+
+.home-category-card {
+  min-height: 13rem;
+  padding: 1.4rem !important;
+}
+
+.pricing-plan-card {
+  padding: 2.25rem !important;
+}
+
+/* Provider workspace gets a true application shell and high-contrast nav rail. */
+.dashboard-page {
+  background:
+    radial-gradient(circle at 92% 5%, rgba(159, 205, 166, .28), transparent 28rem),
+    #edf1eb !important;
+}
+
+.dashboard-sidebar-nav {
+  overflow: hidden;
+  padding: .7rem;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 1.6rem;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(89, 160, 111, .2), transparent 15rem),
+    linear-gradient(180deg, #103a2a, #0b2a1e);
+  box-shadow: 0 24px 60px rgba(11, 42, 30, .2);
+}
+
+.dashboard-nav-link {
+  min-height: 3rem;
+}
+
+.dashboard-nav-icon {
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border-radius: .55rem;
+  background: rgba(255, 255, 255, .07);
+}
+
+.dashboard-nav-link-active {
+  color: #10291f !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+}
+
+.dashboard-nav-link-active .dashboard-nav-icon {
+  background: rgba(16, 41, 31, .09);
+}
+
+.dashboard-content > :where(section, div)[class*="bg-white"][class*="rounded"] {
+  border-radius: 1.6rem;
+  box-shadow: 0 18px 50px rgba(16, 41, 31, .07);
 }
 
 :where(main) [role="alert"] {
@@ -296,11 +539,23 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
 
   main > header {
     position: sticky;
-    top: 0;
+    top: .4rem;
     z-index: 50;
+    width: calc(100% - .8rem);
+    margin-top: .4rem;
+    border-radius: 1rem;
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
   }
+
+  .home-hero,
+  .services-hero,
+  .pricing-hero {
+    margin: .5rem;
+    border-radius: 1.75rem !important;
+  }
+
+  .home-discovery { padding-top: 3.5rem; }
 
   :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
     font-size: 16px !important;
@@ -485,6 +740,22 @@ html[data-theme="dark"] :where(input, select, textarea) {
   color-scheme: dark;
 }
 
+html[data-theme="dark"] .services-hero,
+html[data-theme="dark"] .pricing-hero {
+  overflow: hidden;
+  margin: 1rem;
+  border-radius: 2.5rem;
+  background:
+    radial-gradient(circle at 86% 10%, rgba(63, 111, 82, .28), transparent 27rem),
+    linear-gradient(180deg, rgba(255, 255, 255, .018), transparent) !important;
+}
+
+html[data-theme="dark"] .services-search-panel {
+  background: rgba(17, 34, 26, .95) !important;
+  border-color: rgba(223, 239, 228, .15) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 24px 64px rgba(0, 0, 0, .32) !important;
+}
+
 html[data-theme="dark"] :where(main section, main article, main aside, main details)[class*="bg-white"][class*="rounded"] {
   background-image: linear-gradient(145deg, rgba(255, 255, 255, .035), transparent 52%);
   border-color: rgba(232, 243, 236, .12) !important;
@@ -579,7 +850,19 @@ html[data-theme="dark"] .brand-wordmark-bookings {
 }
 
 html[data-theme="dark"] .home-hero {
+  overflow: hidden;
+  margin: 1rem;
+  border-radius: 2.5rem;
   border-bottom: 1px solid rgba(231, 243, 235, 0.06);
+}
+
+@media (max-width: 640px) {
+  html[data-theme="dark"] .home-hero,
+  html[data-theme="dark"] .services-hero,
+  html[data-theme="dark"] .pricing-hero {
+    margin: .5rem;
+    border-radius: 1.75rem;
+  }
 }
 
 html[data-theme="dark"] .home-hero-glow {
