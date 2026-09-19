@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import SiteFooter from "@/components/site-footer";
 import AnalyticsTracker from "@/components/analytics-tracker";
 import GoogleAnalytics from "@/components/google-analytics";
@@ -7,16 +6,6 @@ import { Suspense } from "react";
 import Script from "next/script";
 import { PreferencesProvider } from "@/components/preferences-provider";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const googleSiteVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 
@@ -51,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col">
         <a href="#site-content" className="skip-link">Skip to main content</a>
