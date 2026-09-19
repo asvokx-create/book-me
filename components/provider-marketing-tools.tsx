@@ -124,7 +124,7 @@ export default function ProviderMarketingTools({ services }: { services: Marketi
         <p className="text-xs font-bold uppercase tracking-[.14em] text-[#b9c9c0]">Choose a listing</p>
         {services.length > 1 ? <label className="mt-4 block">
           <span className="sr-only">Service listing</span>
-          <select value={selected.id} onChange={(event) => { setSelectedId(event.target.value); setCopied(false); setDownloadError(""); }} className="w-full rounded-2xl border border-white/20 bg-[#244638] px-4 py-3.5 text-sm font-bold text-white outline-none focus:border-[#eee25a]">
+          <select value={selected.id} onChange={(event) => { setSelectedId(event.target.value); setCopied(false); setDownloadError(""); }} className="marketing-listing-select w-full rounded-2xl border px-5 py-3.5 text-sm font-bold outline-none">
             {services.map((service) => <option key={service.id} value={service.id}>{service.title} — {service.businessName}</option>)}
           </select>
         </label> : null}

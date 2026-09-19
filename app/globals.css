@@ -161,11 +161,15 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
   justify-content: center;
   min-height: 2.65rem;
   border-radius: 999px;
-  padding: .6rem .95rem;
+  padding: .68rem 1.1rem;
   color: inherit;
-  font-size: .8rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 760;
   white-space: nowrap;
+}
+
+.home-header > div > div a {
+  font-size: 1rem;
 }
 
 .site-nav-link:hover {
@@ -358,7 +362,6 @@ main > header {
 }
 
 /* Public pages use bold, editorial hero panels with bright functional surfaces. */
-html:not([data-theme="dark"]) .home-hero,
 html:not([data-theme="dark"]) .services-hero,
 html:not([data-theme="dark"]) .pricing-hero {
   overflow: hidden;
@@ -373,37 +376,61 @@ html:not([data-theme="dark"]) .pricing-hero {
   box-shadow: 0 34px 90px rgba(10, 42, 29, .2);
 }
 
+html:not([data-theme="dark"]) .home-hero {
+  overflow: hidden;
+  margin: 1rem;
+  border: 1px solid rgba(72, 103, 84, .13) !important;
+  border-radius: 2.5rem;
+  color: #17382a;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(179, 217, 183, .72), transparent 31rem),
+    radial-gradient(circle at 8% 100%, rgba(238, 226, 90, .18), transparent 25rem),
+    linear-gradient(135deg, #fbfaf4 0%, #f2f4e9 54%, #e6f0e6 100%);
+  box-shadow: 0 28px 75px rgba(18, 55, 39, .12);
+}
+
 .home-preview-card {
   color: #10291f;
 }
 
-html:not([data-theme="dark"]) .home-hero h1,
 html:not([data-theme="dark"]) .services-hero h1,
 html:not([data-theme="dark"]) .pricing-hero h1 {
   color: #f8fbf9;
   text-shadow: 0 4px 30px rgba(0, 0, 0, .18);
 }
 
-html:not([data-theme="dark"]) .home-hero-copy,
+html:not([data-theme="dark"]) .home-hero h1 {
+  color: #17382a;
+  text-shadow: none;
+}
+
 html:not([data-theme="dark"]) .services-hero > div > p:not(:first-of-type),
 html:not([data-theme="dark"]) .pricing-hero p:not(:first-child) {
   color: #c8d9cf !important;
 }
 
+html:not([data-theme="dark"]) .home-hero-copy {
+  color: #526b5e !important;
+}
+
 html:not([data-theme="dark"]) .home-hero-eyebrow {
-  border-color: rgba(255, 255, 255, .14) !important;
-  background-color: rgba(255, 255, 255, .08) !important;
-  color: #d7e7dd !important;
-  box-shadow: none;
+  border-color: rgba(38, 89, 63, .13) !important;
+  background-color: rgba(255, 255, 255, .72) !important;
+  color: #3b6650 !important;
+  box-shadow: 0 8px 24px rgba(22, 61, 43, .06);
 }
 
 html:not([data-theme="dark"]) .home-hero-points {
-  color: #d5e4db !important;
+  color: #365b48 !important;
 }
 
 html:not([data-theme="dark"]) .home-hero-points > span > span {
-  background-color: rgba(255, 255, 255, .1) !important;
-  color: #f1e45c;
+  background-color: #dcebdc !important;
+  color: #24583d;
+}
+
+html:not([data-theme="dark"]) .home-hero-glow {
+  background-color: rgba(157, 201, 164, .36) !important;
 }
 
 html:not([data-theme="dark"]) .services-hero > div > a,
@@ -417,6 +444,63 @@ html:not([data-theme="dark"]) .services-search-panel :where(label, input, select
 html:not([data-theme="dark"]) .home-search-bar,
 html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, button, span) {
   color: #10291f;
+}
+
+/* Home search is a calm, clearly segmented surface rather than one long gray strip. */
+.home-search-bar {
+  gap: .65rem !important;
+  border-color: rgba(231, 242, 234, .72) !important;
+  background: rgba(239, 245, 240, .96) !important;
+  box-shadow: 0 26px 70px rgba(4, 29, 19, .24), 0 1px 0 rgba(255, 255, 255, .85) inset !important;
+}
+
+.home-search-input {
+  min-height: 4.5rem;
+  border: 1px solid rgba(16, 41, 31, .08);
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(13, 47, 33, .06);
+}
+
+.home-search-input input {
+  min-width: 0;
+  color: #173a2b !important;
+  background: transparent !important;
+  font-size: 1rem;
+  font-weight: 560;
+}
+
+.home-search-input input::placeholder {
+  color: #7b8c83;
+}
+
+.home-search-icon {
+  color: #285b43 !important;
+  background: #e3efe5;
+  font-family: Arial, sans-serif;
+  font-size: 1.35rem !important;
+  font-weight: 700;
+}
+
+.home-search-location {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .58);
+}
+
+.home-search-location summary:hover,
+.home-search-location > div > div:last-child:hover {
+  background-color: #e1ede3 !important;
+}
+
+.home-search-submit {
+  min-height: 4.5rem !important;
+  border: 1px solid rgba(139, 123, 12, .2);
+  background: linear-gradient(135deg, #f6e959, #eadc43) !important;
+  box-shadow: 0 10px 24px rgba(138, 122, 15, .17), 0 1px 0 rgba(255, 255, 255, .55) inset;
+}
+
+.home-search-submit:hover {
+  background: linear-gradient(135deg, #fff06a, #eee14b) !important;
+  box-shadow: 0 14px 30px rgba(138, 122, 15, .22);
 }
 
 .home-discovery {
@@ -441,9 +525,20 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
 
 /* Provider workspace gets a true application shell and high-contrast nav rail. */
 .dashboard-page {
+  padding-top: 6.25rem;
   background:
     radial-gradient(circle at 92% 5%, rgba(159, 205, 166, .28), transparent 28rem),
     #edf1eb !important;
+}
+
+.dashboard-page > header {
+  position: fixed !important;
+  top: .75rem !important;
+  right: .75rem;
+  left: .75rem;
+  z-index: 100 !important;
+  width: auto;
+  margin: 0;
 }
 
 .dashboard-sidebar-nav {
@@ -482,6 +577,31 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
 .dashboard-content > :where(section, div)[class*="bg-white"][class*="rounded"] {
   border-radius: 1.6rem;
   box-shadow: 0 18px 50px rgba(16, 41, 31, .07);
+}
+
+.marketing-listing-select {
+  min-height: 4.15rem !important;
+  border-color: rgba(238, 226, 90, .5) !important;
+  background-color: #f4f6ed !important;
+  color: #173a2b !important;
+  color-scheme: light;
+  box-shadow: 0 10px 25px rgba(5, 26, 18, .16), 0 1px 0 rgba(255, 255, 255, .8) inset !important;
+}
+
+.marketing-listing-select:hover {
+  border-color: #eee25a !important;
+  background-color: #fbfbed !important;
+}
+
+.marketing-listing-select:focus {
+  border-color: #eee25a !important;
+  background-color: #fffef1 !important;
+  box-shadow: 0 0 0 4px rgba(238, 226, 90, .2), 0 12px 28px rgba(5, 26, 18, .18) !important;
+}
+
+.marketing-listing-select option {
+  background-color: #f7f8f1;
+  color: #173a2b;
 }
 
 :where(main) [role="alert"] {
@@ -546,6 +666,18 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
     border-radius: 1rem;
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
+  }
+
+  .dashboard-page {
+    padding-top: 5.4rem;
+  }
+
+  .dashboard-page > header {
+    top: .4rem !important;
+    right: .4rem;
+    left: .4rem;
+    width: auto;
+    margin: 0;
   }
 
   .home-hero,
@@ -740,6 +872,25 @@ html[data-theme="dark"] :where(input, select, textarea) {
   color-scheme: dark;
 }
 
+html[data-theme="dark"] .marketing-listing-select {
+  border-color: rgba(238, 226, 90, .38) !important;
+  background-color: #244638 !important;
+  color: #f2f7f3 !important;
+  color-scheme: dark;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, .2) !important;
+}
+
+html[data-theme="dark"] .marketing-listing-select:hover,
+html[data-theme="dark"] .marketing-listing-select:focus {
+  border-color: #eee25a !important;
+  background-color: #2b503f !important;
+}
+
+html[data-theme="dark"] .marketing-listing-select option {
+  background-color: #17382a;
+  color: #f2f7f3;
+}
+
 html[data-theme="dark"] .services-hero,
 html[data-theme="dark"] .pricing-hero {
   overflow: hidden;
@@ -915,13 +1066,32 @@ html[data-theme="dark"] .home-preview-stat > p:first-child {
 }
 
 html[data-theme="dark"] .home-search-bar {
-  background-color: rgba(17, 35, 27, 0.94) !important;
+  background: rgba(13, 34, 25, 0.96) !important;
   border-color: rgba(205, 226, 214, 0.2) !important;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
 }
 
-html[data-theme="dark"] .home-search-bar input {
-  background-color: transparent !important;
+html[data-theme="dark"] .home-search-input {
+  border-color: rgba(220, 236, 225, .12);
+  background: #17372a;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .home-search-input input {
+  color: #eef5f0 !important;
+}
+
+html[data-theme="dark"] .home-search-input input::placeholder {
+  color: #a9bcb1;
+}
+
+html[data-theme="dark"] .home-search-icon {
+  color: #d7eadc !important;
+  background: #28513c;
+}
+
+html[data-theme="dark"] .home-search-location {
+  background: rgba(255, 255, 255, .045);
 }
 
 html[data-theme="dark"] .home-discovery,

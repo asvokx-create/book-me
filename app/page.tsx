@@ -97,9 +97,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
         </div>
 
-        <form action="/services" className="home-search-bar mt-12 flex max-w-5xl flex-col gap-2 rounded-3xl border border-white bg-white/92 p-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl md:flex-row md:rounded-full">
-          <div className="flex flex-1 items-center rounded-full px-4">
-            <span className="mr-3 text-lg">🔎</span>
+        <form action="/services" className="home-search-bar mt-12 flex max-w-5xl flex-col gap-2 rounded-3xl border border-white bg-white/92 p-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl md:flex-row md:items-center md:rounded-full">
+          <div className="home-search-input flex flex-1 items-center rounded-full px-6 sm:px-7">
+            <span className="home-search-icon mr-4 grid h-9 w-9 shrink-0 place-items-center rounded-full text-base" aria-hidden="true">⌕</span>
             <label htmlFor="home-service-search" className="sr-only">Service to search for</label>
             <input
               id="home-service-search"
@@ -110,9 +110,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             />
           </div>
 
-          <div className="md:min-w-[330px]"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
+          <div className="home-search-location md:min-w-[330px]"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
 
-          <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">
+          <button type="submit" className="home-search-submit rounded-full bg-[#eee25a] px-8 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">
             Find a pro
           </button>
         </form>
