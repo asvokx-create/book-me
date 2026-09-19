@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { closestServiceArea, nearbyServiceAreas, serviceAreaLabel } from "@/lib/service-areas";
 import RadiusSelector from "@/components/radius-selector";
 
 type LocationFilterProps = {
@@ -16,8 +15,9 @@ type LocationFilterProps = {
 
 const STORAGE_KEY = "bookme-service-area";
 const LOCATION_PROMPTED_KEY = "bookme-location-permission-asked";
+type CityChoice = { city: string; state: string; label: string; distance?: number };
 
-export default function LocationFilter({ initialLocation = "Issaquah, WA", initialRadius = 25, restoreRemembered = false, autoSubmitRadius = false, autoSubmitLocation = false, requestLocationOnFirstVisit = false }: LocationFilterProps) {
+export default function LocationFilter({ initialLocation = "Seattle, WA", initialRadius = 25, restoreRemembered = false, autoSubmitRadius = false, autoSubmitLocation = false, requestLocationOnFirstVisit = false }: LocationFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -25,10 +25,19 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
   const [radius, setRadius] = useState(initialRadius);
   const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState("");
+  const [nearby, setNearby] = useState<CityChoice[]>([]);
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const radiusUpdateRef = useRef<number | null>(null);
-  const nearby = useMemo(() => nearbyServiceAreas(location), [location]);
   const currentSearch = searchParams.toString();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/locations/cities?near=${encodeURIComponent(location)}&limit=8`, { signal: controller.signal })
+      .then((response) => response.json())
+      .then((data: { cities?: CityChoice[] }) => setNearby(data.cities ?? []))
+      .catch((error: Error) => { if (error.name !== "AbortError") setNearby([]); });
+    return () => controller.abort();
+  }, [location]);
 
   const navigateToLocation = useCallback((nextLocation: string, nextRadius: number, replace = false) => {
     if (!autoSubmitLocation && !autoSubmitRadius) return;
@@ -51,13 +60,18 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
     setMessage("");
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        const closest = closestServiceArea(coords.latitude, coords.longitude);
-        const closestLabel = serviceAreaLabel(closest);
-        setLocation(closestLabel);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ location: closestLabel, radius }));
-        setLocating(false);
-        setMessage(`Using the nearest supported city: ${closestLabel}.`);
-        navigateToLocation(closestLabel, radius, replace);
+        fetch(`/api/locations/cities?lat=${coords.latitude}&lng=${coords.longitude}&limit=1`)
+          .then((response) => response.json())
+          .then((data: { cities?: CityChoice[] }) => {
+            const closest = data.cities?.[0];
+            if (!closest) throw new Error("No city found");
+            setLocation(closest.label);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ location: closest.label, radius }));
+            setMessage(`Using your nearest city: ${closest.label}.`);
+            navigateToLocation(closest.label, radius, replace);
+          })
+          .catch(() => setMessage("We found your location but could not match it to a city. Search for your city instead."))
+          .finally(() => setLocating(false));
       },
       () => {
         setLocating(false);
@@ -157,10 +171,7 @@ export default function LocationFilter({ initialLocation = "Issaquah, WA", initi
           <button type="button" onClick={useCurrentLocation} disabled={locating} className="mt-3 w-full rounded-xl border border-[#183126]/12 px-4 py-2.5 text-left text-sm font-bold transition hover:bg-[#edf3e7] disabled:opacity-60">◎ {locating ? "Finding your city…" : "Use my current location"}</button>
           {message && <p className="mt-2 text-xs leading-5 text-[#6c7d74]">{message}</p>}
           <p className="mt-5 text-xs font-bold text-[#718078]">Nearby cities</p>
-          <div className="mt-2 grid grid-cols-2 gap-2">{nearby.map((area) => {
-            const label = serviceAreaLabel(area);
-            return <button key={label} type="button" onClick={() => chooseLocation(label)} className="rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[#edf3e7]"><span className="block font-semibold">{area.city}</span><span className="text-[11px] text-[#7a8881]">{area.distance < 1 ? "Current city" : `${Math.round(area.distance)} mi away`}</span></button>;
-          })}</div>
+          <div className="mt-2 grid grid-cols-2 gap-2">{nearby.map((area) => <button key={area.label} type="button" onClick={() => chooseLocation(area.label)} className="rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[#edf3e7]"><span className="block font-semibold">{area.city}</span><span className="text-[11px] text-[#7a8881]">{typeof area.distance === "number" ? `${Math.round(area.distance)} mi away` : area.state}</span></button>)}</div>
           <button type="button" onClick={() => chooseLocation(location.trim() || initialLocation)} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">Use this city</button>
         </div>
       </details>

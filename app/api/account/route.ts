@@ -96,6 +96,7 @@ export async function DELETE(request: Request) {
     await client.query("DELETE FROM messages WHERE sender_id = $1", [userId]);
     await client.query("DELETE FROM provider_team_members WHERE user_id = $1 OR lower(email) = lower($2)", [userId, session.user.email]);
     await client.query("DELETE FROM email_delivery_log WHERE user_id = $1 OR lower(recipient) = lower($2)", [userId, session.user.email]);
+    await client.query("DELETE FROM service_demand_requests WHERE user_id = $1 OR lower(email) = lower($2)", [userId, session.user.email]);
     await client.query("DELETE FROM analytics_events WHERE user_id = $1 OR target_id = $1", [userId]);
     await client.query("DELETE FROM activity_log WHERE user_id = $1 OR target_id = $1", [userId]);
     await client.query("DELETE FROM admin_audit_log WHERE actor_user_id = $1 OR target_id = $1", [userId]);

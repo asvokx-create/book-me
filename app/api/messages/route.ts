@@ -5,6 +5,7 @@ import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendTransactionalEmail } from "@/lib/email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
+import { recordAnalytics } from "@/lib/analytics";
 
 type ConversationRow = {
   id: string; customer_id: string; provider_id: string; provider_user_id: string;
@@ -204,6 +205,13 @@ export async function POST(request: Request) {
     );
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: "message_sent", targetType: "conversation", targetId: conversation.id });
+    await recordAnalytics({
+      eventName: "message_sent",
+      userId: session.user.id,
+      targetType: "conversation",
+      targetId: conversation.id,
+      metadata: { senderRole: conversation.customer_id === session.user.id ? "customer" : "provider" },
+    });
     const recipient = await database.query<{ email: string; enabled: boolean }>(
       `SELECT u.email, COALESCE(settings.message_notifications, true) AS enabled
        FROM "user" u LEFT JOIN user_settings settings ON settings.user_id = u.id

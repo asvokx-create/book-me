@@ -16,7 +16,7 @@ export default function AnalyticsTracker() {
     }
     const path = `${pathname}${query ? `?${query}` : ""}`;
     const serviceMatch = pathname.match(/^\/services\/([^/]+)$/);
-    const eventName = serviceMatch ? "service_view" : pathname === "/services" && query ? "search_results" : "page_view";
+    const eventName = serviceMatch ? "service_view" : "page_view";
     void fetch("/api/analytics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

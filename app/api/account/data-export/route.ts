@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       return (await client.query(query, values)).rows;
     }
 
-    const [settings, signInMethods, bookings, conversations, messages, favorites, notifications, reviewsWritten, providerReviews, teamMemberships, safetyReports, disputes, bugReports, supportRequests, moderationEvents, activityEvents, analyticsEvents] = await Promise.all([
+    const [settings, signInMethods, bookings, conversations, messages, favorites, notifications, reviewsWritten, providerReviews, teamMemberships, safetyReports, disputes, bugReports, supportRequests, demandRequests, moderationEvents, activityEvents, analyticsEvents] = await Promise.all([
       rows("SELECT * FROM user_settings WHERE user_id = $1", [userId]),
       rows('SELECT id, "accountId", "providerId", "createdAt", "updatedAt" FROM "account" WHERE "userId" = $1', [userId]),
       rows(`SELECT * FROM bookings WHERE customer_id = $1 OR provider_id IN (SELECT id FROM provider_profiles WHERE user_id = $1) ORDER BY created_at`, [userId]),
@@ -49,6 +49,7 @@ export async function GET(request: Request) {
             FROM booking_disputes WHERE opened_by = $1 ORDER BY created_at`, [userId]),
       rows("SELECT * FROM bug_reports WHERE reporter_id = $1 ORDER BY created_at", [userId]),
       rows("SELECT * FROM support_requests WHERE user_id = $1 ORDER BY created_at", [userId]),
+      rows("SELECT * FROM service_demand_requests WHERE user_id = $1 OR lower(email) = lower($2) ORDER BY created_at", [userId, session.user.email]),
       rows("SELECT * FROM moderation_events WHERE user_id = $1 ORDER BY created_at", [userId]),
       rows("SELECT * FROM activity_log WHERE user_id = $1 ORDER BY created_at", [userId]),
       rows("SELECT * FROM analytics_events WHERE user_id = $1 ORDER BY created_at", [userId]),
@@ -88,6 +89,7 @@ export async function GET(request: Request) {
       disputes,
       bugReports,
       supportRequests,
+      demandRequests,
       moderationEvents,
       activityEvents,
       analyticsEvents,

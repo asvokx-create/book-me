@@ -16,7 +16,8 @@ export async function generateMetadata({ params }: PageProps<"/locations/[city]"
   if (!area) return {};
   const title = `Local services in ${area.city}, ${area.state}`;
   const description = `Find and compare local service providers near ${area.city}, ${area.state} on BubsBookings.`;
-  return { title, description, alternates: { canonical: `/locations/${serviceAreaSlug(area)}` }, openGraph: { title, description, url: `/locations/${serviceAreaSlug(area)}` } };
+  const services = await getServices({ location: serviceAreaLabel(area), radiusMiles: 25, limit: 1 }).catch(() => []);
+  return { title, description, alternates: { canonical: `/locations/${serviceAreaSlug(area)}` }, robots: services.length ? undefined : { index: false, follow: true }, openGraph: { title, description, url: `/locations/${serviceAreaSlug(area)}` } };
 }
 
 export default async function LocationPage({ params }: PageProps<"/locations/[city]">) {

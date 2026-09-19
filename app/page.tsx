@@ -7,9 +7,10 @@ import FavoriteButton from "@/components/favorite-button";
 import { FEATURED_SERVICE_CATEGORIES } from "@/lib/service-categories";
 import LocationFilter from "@/components/location-filter";
 import ServiceCategoryIcon from "@/components/service-category-icon";
+import { getContextualLocation } from "@/lib/request-location";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { alternates: { canonical: "/" } };
+export const metadata: Metadata = { title: "Find and book local services", description: "Compare local service listings, message providers, and request bookings across the United States.", alternates: { canonical: "/" } };
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -17,7 +18,8 @@ function getParam(value: string | string[] | undefined) {
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
-  const location = getParam(params.location) || "Issaquah, WA";
+  const requestedLocation = getParam(params.location);
+  const location = await getContextualLocation(requestedLocation);
   const requestedRadius = Number(getParam(params.radius));
   const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 250 ? requestedRadius : 25;
   const [cityPart, statePart] = location.split(",");
@@ -63,7 +65,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_.65fr] lg:gap-14">
         <div className="max-w-3xl">
           <p className="home-hero-eyebrow mb-5 inline-flex items-center gap-2 rounded-full border border-[#183126]/10 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#4d6b59] shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-[#69a67e]" /> Trusted help, right nearby
+            <span className="h-2 w-2 rounded-full bg-[#69a67e]" /> Local help, one simple booking
           </p>
 
           <h1 className="text-[clamp(2.6rem,8vw,3.75rem)] font-bold leading-[1.04] tracking-[-0.05em]">
@@ -71,11 +73,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </h1>
 
           <p className="home-hero-copy mt-6 max-w-2xl text-lg leading-8 text-[#5a6d63]">
-            Discover trusted local pros, compare your options, and book the right help—all in one simple place.
+            Discover local pros, compare your options, and request the right help—all in one simple place.
           </p>
           <div className="home-hero-points mt-7 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#4e675a]">
             <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Local professionals</span>
-            <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Secure payments</span>
+            <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Stripe-powered payments</span>
             <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Real booking support</span>
           </div>
         </div>
@@ -110,7 +112,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             />
           </div>
 
-          <div className="home-search-location md:min-w-[330px]"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
+          <div className="home-search-location md:min-w-[330px]"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
 
           <button type="submit" className="home-search-submit rounded-full bg-[#eee25a] px-8 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">
             Find a pro
@@ -135,7 +137,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </div>
               <p className="mt-2 text-xs font-semibold text-[#718078]">{count > 0 ? `${count} active ${count === 1 ? "listing" : "listings"}` : "Providers coming soon"}</p>
             </>;
-            return count > 0 ? <Link key={category} href={`/services?category=${encodeURIComponent(category)}&location=${encodeURIComponent(location)}&radius=${radius}#service-listings`} className="home-category-card group relative overflow-hidden rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 text-left shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:-translate-y-1.5 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60">{card}</Link> : <div key={category} className="home-category-card home-category-card--empty group relative overflow-hidden rounded-[1.75rem] border border-dashed border-[#183126]/10 bg-white/55 p-5 text-left">{card}</div>;
+            return <Link key={category} href={`/services?category=${encodeURIComponent(category)}&location=${encodeURIComponent(location)}&radius=${radius}#service-listings`} aria-label={count > 0 ? `Browse ${category}` : `Join the availability list for ${category}`} className={`home-category-card group relative overflow-hidden rounded-[1.75rem] border p-5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60 ${count > 0 ? "border-[#183126]/10 bg-white shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:-translate-y-1.5 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)]" : "home-category-card--empty border-dashed border-[#183126]/10 bg-white/55 transition hover:border-[#6d8d78] hover:bg-white/80"}`}>{card}</Link>;
           })}
         </div>
       </section>
@@ -169,14 +171,14 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <Link href="/promise" className="home-promise-card group rounded-2xl border border-white/12 bg-white/7 p-5 transition hover:bg-white/10">
             <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#bfd0c6]">☂️ The BubsBookings Promise</p>
             <h3 className="mt-1.5 text-xl font-bold tracking-[-.03em]">Book with more confidence.</h3>
-            <p className="mt-2 text-xs leading-5 text-[#c8d7cf]">Clear provider information, secure payments, and booking support.</p>
+            <p className="mt-2 text-xs leading-5 text-[#c8d7cf]">Clear provider information, Stripe payment tools, and booking support. Not insurance or a workmanship guarantee.</p>
             <span className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-[#f1e45c]">Learn how you’re covered <span className="transition group-hover:translate-x-1">→</span></span>
           </Link>
 
           <div className="home-business-card rounded-2xl bg-[#f3ed74] p-5 text-[#183126]">
             <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#627065]">🧰 For local businesses</p>
-            <h3 className="mt-1.5 text-xl font-bold tracking-[-.03em]">Turn local searches into bookings.</h3>
-            <p className="mt-2 text-xs leading-5 text-[#52655a]">Publish services, organize your team, and manage requests.</p>
+            <h3 className="mt-1.5 text-xl font-bold tracking-[-.03em]">No lead fees. No charge to chat.</h3>
+            <p className="mt-2 text-xs leading-5 text-[#52655a]">List services and send quotes for free. Starter charges 10% and Pro charges 6% only on paid bookings.</p>
             <Link href="/pricing" className="mt-3 inline-flex rounded-full border border-[#183126]/20 bg-white/45 px-3.5 py-2 text-xs font-bold transition hover:bg-white/70">Provider pricing →</Link>
           </div>
         </div>

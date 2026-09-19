@@ -332,7 +332,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           </div>
           <p className="mt-5 text-center text-xs leading-5 text-[#7b8982]">Both sides are notified whenever the booking status changes.</p>
         </div>
-        <div className="rounded-[2rem] bg-[#e7eee2] p-6"><p className="text-2xl">☂</p><h2 className="mt-3 font-bold">BubsBookings Promise</h2><p className="mt-2 text-sm leading-6 text-[#61736a]">Your booking information and messages stay together in one secure place.</p></div>
+        <div className="rounded-[2rem] bg-[#e7eee2] p-6"><p className="text-2xl">☂</p><h2 className="mt-3 font-bold">BubsBookings Promise</h2><p className="mt-2 text-sm leading-6 text-[#61736a]">Your booking information, payment status, messages, and support path stay together. This is not insurance or a guarantee of the provider&apos;s work.</p><Link href="/promise" className="mt-3 inline-flex text-xs font-bold underline decoration-[#b8a91d] decoration-2 underline-offset-4">See coverage and limitations →</Link></div>
       </aside>
     </div>
 

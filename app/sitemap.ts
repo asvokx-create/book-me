@@ -10,6 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const services = await getServices({ limit: 1000 }).catch(() => []);
   const providerIds = [...new Set(services.map((service) => service.providerId))];
   const companySlugs = [...new Set(services.map((service) => service.companySlug).filter((slug): slug is string => Boolean(slug)))];
+  const activeServiceAreas = SERVICE_AREAS.filter((area) => services.some((service) => service.city.toLowerCase() === area.city.toLowerCase() && service.state.toLowerCase() === area.state.toLowerCase()));
   const localCategoryPages = [...new Map(services.flatMap((service) => {
     const area = SERVICE_AREAS.find((candidate) => candidate.city.toLowerCase() === service.city.toLowerCase() && candidate.state.toLowerCase() === service.state.toLowerCase());
     if (!area) return [];
@@ -20,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticPages.map((path) => ({ url: `${baseUrl}${path}`, changeFrequency: path === "" || path === "/services" ? "daily" as const : "monthly" as const, priority: path === "" ? 1 : path === "/services" ? 0.9 : 0.5 })),
-    ...SERVICE_AREAS.map((area) => ({ url: `${baseUrl}/locations/${serviceAreaSlug(area)}`, changeFrequency: "daily" as const, priority: 0.7 })),
+    ...activeServiceAreas.map((area) => ({ url: `${baseUrl}/locations/${serviceAreaSlug(area)}`, changeFrequency: "daily" as const, priority: 0.7 })),
     ...localCategoryPages,
     ...GUIDES.map((guide) => ({ url: `${baseUrl}/guides/${guide.slug}`, lastModified: guide.updatedAt, changeFrequency: "monthly" as const, priority: 0.6 })),
     ...services.map((service) => ({ url: `${baseUrl}/services/${service.slug}`, changeFrequency: "weekly" as const, priority: 0.8 })),

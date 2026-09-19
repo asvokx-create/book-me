@@ -8,12 +8,15 @@ import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORIES, SERVICE_CATEGORY_ICONS
 import LocationFilter from "@/components/location-filter";
 import SortSelect from "@/components/sort-select";
 import ServiceFiltersMenu from "@/components/service-filters-menu";
+import { getContextualLocation } from "@/lib/request-location";
+import ServiceDemandCapture from "@/components/service-demand-capture";
+import SearchResultsAnalytics from "@/components/search-results-analytics";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Explore local services",
-  description: "Search trusted local service providers near Issaquah.",
+  description: "Search local service providers, compare details, and request bookings in cities across the United States.",
   alternates: { canonical: "/services" },
 };
 
@@ -29,7 +32,8 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const showFilters = getParam(params.showFilters) === "1";
   const query = getParam(params.q).trim();
   const selectedCategory = getParam(params.category) || "All services";
-  const location = getParam(params.location) || "Issaquah, WA";
+  const requestedLocation = getParam(params.location);
+  const location = await getContextualLocation(requestedLocation);
   const requestedRadius = Number(getParam(params.radius));
   const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 250 ? requestedRadius : 25;
   const maxPrice = Number(getParam(params.maxPrice)) || undefined;
@@ -74,6 +78,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
 
   return (
     <main className="services-page min-h-screen bg-[#f8f7f3] text-[#183126]">
+      <SearchResultsAnalytics query={query} category={selectedCategory} location={location} radiusMiles={radius} resultCount={filteredServices.length} />
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
@@ -101,7 +106,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <span className="sr-only">Search services</span>
               <input name="q" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" className="services-search-query-input w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" />
             </label>
-            <div className="services-search-location border-t border-[#183126]/10 sm:min-w-[350px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!getParam(params.location)} autoSubmitLocation autoSubmitRadius /></div>
+            <div className="services-search-location border-t border-[#183126]/10 sm:min-w-[350px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
             {selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
             {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}
             {maxDuration && <input type="hidden" name="maxDuration" value={maxDuration} />}
@@ -182,6 +187,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               {query && <Link href={clearFiltersHref} className="rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold">Clear search</Link>}
               {!query && selectedCategory === "All services" && radius >= 50 && <Link href={clearFiltersHref} className="rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">View all nearby services</Link>}
             </div>
+            <ServiceDemandCapture query={query} category={selectedCategory} location={location} radiusMiles={radius} />
           </div>
         )}
       </section>

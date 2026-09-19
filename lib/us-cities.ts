@@ -51,3 +51,14 @@ export function nearbyUsCities(value: string, limit = 12) {
     .slice(0, limit)
     .map(({ city, distance }) => ({ ...city, distance: Math.round(distance * 10) / 10 }));
 }
+
+export function nearestUsCities(latitude: number, longitude: number, limit = 12) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+  const origin = { latitude, longitude };
+  return cities
+    .filter((city) => city.lsad !== "57")
+    .map((city) => ({ city, distance: distanceMiles(origin, city) }))
+    .sort((left, right) => left.distance - right.distance)
+    .slice(0, Math.min(Math.max(limit, 1), 30))
+    .map(({ city, distance }) => ({ ...city, distance: Math.round(distance * 10) / 10 }));
+}
