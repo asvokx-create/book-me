@@ -93,10 +93,11 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
       </section>
 
       <section id="plans" className="mx-auto max-w-7xl px-4 py-12 sm:px-8 sm:py-20">
+        <div className="mx-auto max-w-4xl">
         {currentPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#183126] px-5 py-4 text-center text-white sm:flex-row sm:text-left"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b8c8c0]">Your current plan</p><p className="mt-1 text-xl font-bold">{PLAN_ENTITLEMENTS[currentPlan].name}</p>{currentPlan === "owner" && <p className="mt-1 text-xs text-[#b8c8c0]">Private account access · $0/month · 0% booking fee · all features unlocked</p>}</div><Link href="/provider/dashboard/billing" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Manage billing</Link></div>}
         {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : proTrialEligible ? "Create your provider profile first, then start the 30-day trial securely from Billing." : "Continue to Billing to subscribe securely through Stripe."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : currentProvider ? "/provider/dashboard/billing" : "/providers/join?plan=pro"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : currentProvider ? "Continue to billing" : "Create provider profile"}</Link></div>}
 
-        <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.id;
             return <article key={plan.id} className={`pricing-plan-card relative flex flex-col rounded-[2rem] border bg-white p-7 sm:p-8 ${plan.featured || isCurrent ? "border-[#183126] ring-4 ring-[#eee25a]/60" : "border-[#183126]/10"}`}>
@@ -119,6 +120,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
           </article>})}
         </div>
         <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">The Pro trial is available once per provider company and requires a card. It automatically renews at $9.99 per month after 30 days unless canceled before the trial ends. The 6% booking fee applies during the trial. All subscription details are shown again in Stripe Checkout.</p>
+        </div>
       </section>
     </main>
   );

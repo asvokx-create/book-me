@@ -22,7 +22,7 @@
 html {
   font-size: clamp(15.5px, calc(15.15px + 0.08vw), 16.25px);
   scroll-behavior: smooth;
-  scroll-padding-top: 7rem;
+  scroll-padding-top: 1.5rem;
   text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
 }
@@ -113,20 +113,16 @@ img, picture, video, canvas, svg { max-width: 100%; }
 }
 
 main > header {
-  position: fixed !important;
-  top: .75rem !important;
-  right: .75rem;
-  left: .75rem;
+  position: relative !important;
+  top: auto !important;
+  right: auto;
+  left: auto;
   z-index: 100 !important;
-  width: auto !important;
-  margin: 0 !important;
+  width: calc(100% - 1.5rem) !important;
+  margin: .75rem auto 0 !important;
   box-shadow: 0 1px 0 rgba(16, 41, 31, .07), 0 12px 32px rgba(16, 41, 31, .03);
   backdrop-filter: blur(22px) saturate(150%);
   -webkit-backdrop-filter: blur(22px) saturate(150%);
-}
-
-main:has(> header) {
-  padding-top: 6.25rem;
 }
 
 main > header > div {
@@ -400,9 +396,9 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
 
 /* Bold 2026 shell: navigation floats above the page instead of blending into it. */
 main > header {
-  top: .75rem !important;
-  width: auto !important;
-  margin: 0 !important;
+  top: auto !important;
+  width: calc(100% - 1.5rem) !important;
+  margin: .75rem auto 0 !important;
   border: 1px solid rgba(16, 41, 31, .1) !important;
   border-radius: 1.35rem;
   background-color: rgba(252, 252, 249, .9) !important;
@@ -723,27 +719,23 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
 @media (max-width: 640px) {
   html {
     font-size: 15px;
-    scroll-padding-top: 6rem;
+    scroll-padding-top: 1.5rem;
   }
 
   body { background-attachment: scroll; }
   main { min-height: 100dvh; }
 
   main > header {
-    position: fixed !important;
-    top: .4rem !important;
-    right: .4rem;
-    left: .4rem;
+    position: relative !important;
+    top: auto !important;
+    right: auto;
+    left: auto;
     z-index: 100 !important;
-    width: auto !important;
-    margin: 0 !important;
+    width: calc(100% - .8rem) !important;
+    margin: .4rem auto 0 !important;
     border-radius: 1rem;
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-  }
-
-  main:has(> header) {
-    padding-top: 5.5rem;
   }
 
   .home-hero,
