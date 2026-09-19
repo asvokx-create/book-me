@@ -406,7 +406,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
             </div>
           </section>}
 
-          {section === "messages" && !isWorker && <MessagingCenter mode="provider" initialConversationId={initialConversationId} />}
+          {section === "messages" && !isWorker && <><section className="mb-5 flex flex-col justify-between gap-3 rounded-2xl border border-[#d7ca4d]/45 bg-[#fff9cf] px-5 py-4 sm:flex-row sm:items-center"><div><p className="text-xs font-extrabold uppercase tracking-[.13em] text-[#716a31]">No pay-to-chat fees</p><p className="mt-1 font-bold">Reply to every genuine customer inquiry for free.</p><p className="mt-1 text-xs leading-5 text-[#647064]">BubsBookings never charges you to receive a lead, send a message, or provide a quote.</p></div><Link href="/guides/why-bubsbookings-does-not-charge-for-leads" className="shrink-0 text-sm font-bold underline decoration-[#ad9e25] decoration-2 underline-offset-4">Learn how fees work →</Link></section><MessagingCenter mode="provider" initialConversationId={initialConversationId} /></>}
 
           {section === "calendar" && !isWorker && <BookingCalendar role="provider" />}
 

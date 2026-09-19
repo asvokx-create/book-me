@@ -23,7 +23,7 @@ const plans = [
     cadence: "forever",
     fee: "10% booking fee",
     description: "Everything you need to start getting booked.",
-    features: ["Up to 2 services", "Up to 5 photos", "Listing marketing tools, share link & QR code", "Booking calendar", "Customer messaging", "24-hour booking reminders", "Basic analytics", "Owner only"],
+    features: ["No lead, inquiry, message, or quote fees", "Up to 2 services", "Up to 5 photos", "Listing marketing tools, share link & QR code", "Booking calendar", "Customer messaging", "24-hour booking reminders", "Basic analytics", "Owner only"],
     featured: false,
   },
   {
@@ -33,7 +33,7 @@ const plans = [
     cadence: "per month",
     fee: "6% booking fee",
     description: "Every growth tool in one affordable plan.",
-    features: ["Unlimited services & photos", "Listing marketing tools, share links & QR codes", "Custom booking questions", "24-hour and 1-hour reminders", "Advanced analytics", "Repeat-customer insights", "3 total team seats included", "Extra employees for $0.50/month each", "Multiple service locations", "Priority support", "Priority placement in browse results"],
+    features: ["No lead, inquiry, message, or quote fees", "Unlimited services & photos", "Listing marketing tools, share links & QR codes", "Custom booking questions", "24-hour and 1-hour reminders", "Advanced analytics", "Repeat-customer insights", "3 total team seats included", "Extra employees for $0.50/month each", "Multiple service locations", "Priority support", "Priority placement in browse results"],
     featured: true,
   },
 ] as const;
@@ -94,6 +94,10 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
 
       <section id="plans" className="mx-auto max-w-7xl px-4 py-12 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-4xl">
+        <section className="mb-8 overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-[#fff9cf] p-6 shadow-[0_14px_35px_rgba(24,49,38,.08)] sm:p-8">
+          <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#68734b]">The BubsBookings provider promise</p><h2 className="mt-2 text-3xl font-bold tracking-[-.035em]">No lead fees. No charge to chat.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-[#5d6e60]">Receive inquiries, reply to customers, and send quotes without paying for the conversation. Provider booking fees apply to paid bookings; Pro also has a $9.99 monthly subscription after any eligible trial.</p></div><Link href="/guides/why-bubsbookings-does-not-charge-for-leads" className="shrink-0 text-sm font-bold underline decoration-[#a99a22] decoration-2 underline-offset-4">How our fees work →</Link></div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-white/75 p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Customer inquiry</p><p className="mt-1 text-xl font-bold">$0</p></div><div className="rounded-2xl bg-white/75 p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#718078]">Messages & quotes</p><p className="mt-1 text-xl font-bold">$0</p></div><div className="rounded-2xl bg-[#183126] p-4 text-white"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#b8c8c0]">Booking fee</p><p className="mt-1 text-xl font-bold">Only on paid bookings</p></div></div>
+        </section>
         {currentPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#183126] px-5 py-4 text-center text-white sm:flex-row sm:text-left"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b8c8c0]">Your current plan</p><p className="mt-1 text-xl font-bold">{PLAN_ENTITLEMENTS[currentPlan].name}</p>{currentPlan === "owner" && <p className="mt-1 text-xs text-[#b8c8c0]">Private account access · $0/month · 0% booking fee · all features unlocked</p>}</div><Link href="/provider/dashboard/billing" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Manage billing</Link></div>}
         {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : proTrialEligible ? "Create your provider profile first, then start the 30-day trial securely from Billing." : "Continue to Billing to subscribe securely through Stripe."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : currentProvider ? "/provider/dashboard/billing" : "/providers/join?plan=pro"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : currentProvider ? "Continue to billing" : "Create provider profile"}</Link></div>}
 

@@ -15,6 +15,25 @@ export type Guide = {
 
 export const GUIDES: Guide[] = [
   {
+    slug: "why-bubsbookings-does-not-charge-for-leads",
+    title: "Why BubsBookings does not charge providers for leads",
+    description: "Learn why customer inquiries, provider replies, and quotes are free—and exactly when provider plan fees apply.",
+    category: "Provider growth",
+    readMinutes: 5,
+    publishedAt: "2026-09-19",
+    updatedAt: "2026-09-19",
+    ctaHref: "/pricing#plans",
+    ctaLabel: "See transparent provider pricing",
+    ctaHeading: "Keep the conversation free",
+    ctaDescription: "Compare Starter and Pro, including every current monthly price, booking fee, feature, and trial term.",
+    sections: [
+      { heading: "A conversation should not become a surprise bill", paragraphs: ["BubsBookings does not charge a provider when a customer sends an inquiry, when the provider replies, or when a quote is sent. A customer can ask questions or decide that the service is not the right fit without creating a lead fee for the business."], checklist: ["Receive a customer inquiry for $0", "Reply and continue the conversation for $0", "Send or revise a quote for $0", "Decline an unsuitable request for $0"] },
+      { heading: "Provider fees are tied to the plan and paid booking", paragraphs: ["Starter costs $0 per month and uses a 10% provider booking fee. Pro costs $9.99 per month after any eligible trial and uses a 6% provider booking fee. The provider booking fee is calculated from the service price of a paid booking and deducted from the provider share; it is not charged merely because two people exchanged messages."], checklist: ["Starter: $0 per month and a 10% booking fee", "Pro: $9.99 per month and a 6% booking fee", "No separate charge for inquiries, messages, or quotes", "Current prices and terms remain visible on the pricing page"] },
+      { heading: "Providers keep control before accepting work", paragraphs: ["Review the requested service, timing, location, and available customer details before accepting. Ask useful questions in the BubsBookings conversation and send a custom quote if the scope changes. If the request is not a fit, decline it without paying for the exchange."] },
+      { heading: "Judge marketing by completed work—not raw leads", paragraphs: ["A high number of inquiries can look impressive while producing little revenue. Track accepted bookings, completed jobs, repeat customers, and the amount remaining after business costs and plan fees. BubsBookings is designed so an unanswered or unsuitable inquiry is not itself a provider expense."], checklist: ["Completed paid bookings", "Net provider earnings", "Repeat-customer activity", "Time spent qualifying requests"] },
+    ],
+  },
+  {
     slug: "market-your-local-service-with-a-qr-code",
     title: "How to market your local service with a QR code",
     description: "Turn business cards, flyers, vehicles, and storefront signs into a direct path to your BubsBookings listing.",
