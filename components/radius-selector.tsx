@@ -16,7 +16,7 @@ export default function RadiusSelector({ value, onChange, name, compact = false 
 
   const normalizedValue = Number.isFinite(value) ? value : 25;
   const selectClass = compact
-    ? "bg-transparent font-semibold outline-none"
+    ? "compact-radius-select bg-transparent font-semibold outline-none"
     : "w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
 
   return (

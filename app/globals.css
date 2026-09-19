@@ -113,9 +113,9 @@ img, picture, video, canvas, svg { max-width: 100%; }
 }
 
 main > header {
-  position: sticky;
+  position: sticky !important;
   top: 0;
-  z-index: 50;
+  z-index: 100 !important;
   box-shadow: 0 1px 0 rgba(16, 41, 31, .07), 0 12px 32px rgba(16, 41, 31, .03);
   backdrop-filter: blur(22px) saturate(150%);
   -webkit-backdrop-filter: blur(22px) saturate(150%);
@@ -348,7 +348,7 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
 
 /* Bold 2026 shell: navigation floats above the page instead of blending into it. */
 main > header {
-  top: .75rem;
+  top: .75rem !important;
   width: calc(100% - 1.5rem);
   margin: .75rem auto 0;
   border: 1px solid rgba(16, 41, 31, .1) !important;
@@ -503,6 +503,37 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
   box-shadow: 0 14px 30px rgba(138, 122, 15, .22);
 }
 
+.compact-radius-select,
+.sort-control-select {
+  min-height: 2.5rem !important;
+  margin-top: 0 !important;
+  border-color: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  line-height: 1.25;
+}
+
+.compact-radius-select:focus,
+.sort-control-select:focus {
+  border-color: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.sort-control {
+  min-height: 3.65rem;
+}
+
+.sort-control > span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.sort-control-select {
+  display: block;
+  align-self: center;
+}
+
 .home-discovery {
   padding-top: 5rem;
 }
@@ -525,20 +556,9 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
 
 /* Provider workspace gets a true application shell and high-contrast nav rail. */
 .dashboard-page {
-  padding-top: 6.25rem;
   background:
     radial-gradient(circle at 92% 5%, rgba(159, 205, 166, .28), transparent 28rem),
     #edf1eb !important;
-}
-
-.dashboard-page > header {
-  position: fixed !important;
-  top: .75rem !important;
-  right: .75rem;
-  left: .75rem;
-  z-index: 100 !important;
-  width: auto;
-  margin: 0;
 }
 
 .dashboard-sidebar-nav {
@@ -658,26 +678,14 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
   main { min-height: 100dvh; }
 
   main > header {
-    position: sticky;
-    top: .4rem;
-    z-index: 50;
+    position: sticky !important;
+    top: .4rem !important;
+    z-index: 100 !important;
     width: calc(100% - .8rem);
     margin-top: .4rem;
     border-radius: 1rem;
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-  }
-
-  .dashboard-page {
-    padding-top: 5.4rem;
-  }
-
-  .dashboard-page > header {
-    top: .4rem !important;
-    right: .4rem;
-    left: .4rem;
-    width: auto;
-    margin: 0;
   }
 
   .home-hero,
@@ -1092,6 +1100,14 @@ html[data-theme="dark"] .home-search-icon {
 
 html[data-theme="dark"] .home-search-location {
   background: rgba(255, 255, 255, .045);
+}
+
+html[data-theme="dark"] .compact-radius-select,
+html[data-theme="dark"] .sort-control-select,
+html[data-theme="dark"] .compact-radius-select:focus,
+html[data-theme="dark"] .sort-control-select:focus {
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 html[data-theme="dark"] .home-discovery,

@@ -14,9 +14,9 @@ export default function SortSelect({ value }: { value: string }) {
   }
 
   return (
-    <label className="flex items-center gap-2 rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-sm">
+    <label className="sort-control flex items-center gap-2 rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-sm">
       <span className="font-semibold text-[#6b7c73]">Sort</span>
-      <select value={value} onChange={(event) => changeSort(event.target.value)} className="bg-transparent font-bold outline-none" aria-label="Sort services">
+      <select value={value} onChange={(event) => changeSort(event.target.value)} className="sort-control-select bg-transparent font-bold outline-none" aria-label="Sort services">
         <option value="nearest">Nearest</option>
         <option value="price-low">Lowest price</option>
         <option value="price-high">Highest price</option>
