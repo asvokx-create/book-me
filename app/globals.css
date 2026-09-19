@@ -303,6 +303,15 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
   padding-block: .15rem;
 }
 
+.booking-detail-toggle {
+  display: flex;
+  min-height: 3.35rem;
+  align-items: center;
+  padding: .9rem 1.2rem !important;
+  font-size: .9rem;
+  line-height: 1.35;
+}
+
 :where(main) label,
 :where(main) legend {
   letter-spacing: -.008em;
