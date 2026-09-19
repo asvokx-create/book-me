@@ -70,11 +70,11 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
   filter: saturate(.72);
 }
 button, a, summary {
-  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-property: color, background-color, border-color, box-shadow, opacity;
   transition-duration: 180ms;
   transition-timing-function: cubic-bezier(.2,.8,.2,1);
 }
-button:active, a:active { transform: translateY(1px) scale(.985); }
+button:active, a:active { opacity: .94; }
 input, select, textarea { min-width: 0; }
 img, picture, video, canvas, svg { max-width: 100%; }
 ::selection { background: #eee25a; color: #183126; }
@@ -177,7 +177,6 @@ main > header > div {
 :where(main) a[class*="bg-white"][class*="rounded-[2rem]"]:hover {
   border-color: rgba(46, 92, 69, .24);
   box-shadow: 0 18px 48px rgba(19, 46, 35, .1);
-  transform: translateY(-2px);
 }
 
 :where(main, footer) :where(a, button)[class*="bg-[#183126]"],
@@ -191,7 +190,15 @@ main > header > div {
 }
 
 :where(main, footer) :where(a, button)[class*="rounded-full"]:not(:disabled):hover {
-  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(19, 46, 35, .14);
+}
+
+/* Keep every interactive hit area stationary. Moving a control on hover makes
+   the pointer repeatedly leave and re-enter along its lower edge. */
+:where(a, button):not([class*="-translate-y-1/2"]):hover {
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
 }
 
 :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
@@ -525,11 +532,19 @@ html[data-theme="dark"] .home-header a {
 .brand-wordmark-text {
   display: inline-flex;
   align-items: center;
-  line-height: .92;
-  font-weight: 850;
-  letter-spacing: -.072em;
-  text-rendering: geometricPrecision;
+  overflow: visible;
+  padding: .08em .04em .12em;
+  margin: -.08em -.04em -.12em;
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -.052em;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+.brand-wordmark-text > span {
+  display: inline-block;
+  overflow: visible;
 }
 
 .brand-wordmark-bubs {

@@ -29,7 +29,7 @@ function FooterLinks({ title, links }: { title: string; links: ReadonlyArray<rea
     <nav aria-label={title}>
       <p className="text-[11px] font-bold uppercase tracking-[.17em] text-[#88a596]">{title}</p>
       <div className="mt-4 grid gap-2.5 text-sm font-semibold text-[#c8d7cf]">
-        {links.map(([label, href]) => <Link key={href} href={href} className="w-fit rounded-md py-0.5 transition hover:translate-x-1 hover:text-white">{label}</Link>)}
+        {links.map(([label, href]) => <Link key={href} href={href} className="w-fit rounded-md py-0.5 transition hover:text-white hover:underline hover:decoration-[#eee25a] hover:decoration-2 hover:underline-offset-4">{label}</Link>)}
       </div>
     </nav>
   );

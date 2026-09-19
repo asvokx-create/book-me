@@ -84,8 +84,8 @@ export default function ListingPhotoGallery({ images, title, fallbackGradient, f
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t from-black/35 to-transparent" />
         {children}
         {hasMultiple && <>
-          <button type="button" onClick={previous} aria-label="Previous photo" className="absolute left-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/40 bg-white/90 text-xl font-bold text-[#183126] shadow-lg backdrop-blur transition hover:scale-105 hover:bg-white sm:left-5">‹</button>
-          <button type="button" onClick={next} aria-label="Next photo" className="absolute right-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/40 bg-white/90 text-xl font-bold text-[#183126] shadow-lg backdrop-blur transition hover:scale-105 hover:bg-white sm:right-5">›</button>
+          <button type="button" onClick={previous} aria-label="Previous photo" className="absolute left-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/40 bg-white/90 text-xl font-bold text-[#183126] shadow-lg backdrop-blur transition hover:bg-white hover:shadow-xl sm:left-5">‹</button>
+          <button type="button" onClick={next} aria-label="Next photo" className="absolute right-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/40 bg-white/90 text-xl font-bold text-[#183126] shadow-lg backdrop-blur transition hover:bg-white hover:shadow-xl sm:right-5">›</button>
         </>}
         <span className="absolute bottom-4 right-4 z-20 rounded-full bg-black/65 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">{selectedIndex + 1} / {images.length}</span>
       </div>

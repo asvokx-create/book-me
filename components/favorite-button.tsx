@@ -55,7 +55,7 @@ export default function FavoriteButton({ serviceId, serviceTitle, className = ""
   }
 
   return (
-    <button type="button" onClick={toggle} disabled={saving || sessionPending} aria-label={`${saved ? "Remove" : "Save"} ${serviceTitle}`} aria-pressed={saved} className={`grid place-items-center transition hover:scale-105 disabled:cursor-wait disabled:opacity-60 ${saved ? "text-[#b54e46]" : "text-[#183126]"} ${className}`}>
+    <button type="button" onClick={toggle} disabled={saving || sessionPending} aria-label={`${saved ? "Remove" : "Save"} ${serviceTitle}`} aria-pressed={saved} className={`grid place-items-center transition hover:bg-[#f7f5ed] disabled:cursor-wait disabled:opacity-60 ${saved ? "text-[#b54e46]" : "text-[#183126]"} ${className}`}>
       <span aria-hidden="true" className="text-xl">{saved ? "♥" : "♡"}</span>
     </button>
   );
