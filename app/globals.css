@@ -719,7 +719,7 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
 }
 
 main > section,
-main > div:not([class*="fixed"]) {
+main > div:not([class*="fixed"]):not(.dashboard-shell) {
   animation: page-enter 420ms cubic-bezier(.2,.8,.2,1) both;
 }
 
