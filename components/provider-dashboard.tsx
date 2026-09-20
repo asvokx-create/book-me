@@ -41,6 +41,7 @@ type ProviderSummary = {
   availability: Array<{ weekday: number; startTime: string; endTime: string }>;
   availabilityByService: Record<string, Array<{ weekday: number; startTime: string; endTime: string }>>;
   emailVerified: boolean;
+  accountVerified: boolean;
   phoneVerified: boolean;
   identityVerified: boolean;
   businessVerified: boolean;

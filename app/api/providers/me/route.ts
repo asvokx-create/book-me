@@ -18,6 +18,8 @@ export async function GET() {
     city: string;
     state: string;
     plan: ProviderPlan;
+    is_active: boolean;
+    user_name: string;
     email_verified: boolean;
     phone_verified: boolean;
     identity_verified: boolean;
@@ -31,7 +33,8 @@ export async function GET() {
     no_show_policy: string;
     service_radius_miles: number;
   }>(
-    `SELECT p.id::text, p.user_id, p.business_name, p.city, p.state, p.plan,
+    `SELECT p.id::text, p.user_id, p.business_name, p.city, p.state, p.plan, p.is_active,
+            u.name AS user_name,
             u."emailVerified" AS email_verified, p.phone_verified, p.identity_verified,
             p.business_verified, p.screening_status, p.screening_score, p.screening_summary,
             p.screening_checked_at, p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
@@ -144,6 +147,7 @@ export async function GET() {
     plan: access.isOwner && isOwnerEmail(session.user.email) ? "owner" : provider.plan,
     isAdmin,
     emailVerified: provider.email_verified,
+    accountVerified: provider.is_active && provider.email_verified && provider.user_name.trim().length >= 2,
     phoneVerified: provider.phone_verified,
     identityVerified: provider.identity_verified,
     businessVerified: provider.business_verified,

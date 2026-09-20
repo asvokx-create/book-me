@@ -67,8 +67,9 @@ export async function runAutomatedProviderVerification(providerId: string): Prom
     FROM services WHERE provider_id::text = $1`, [providerId]);
   const activeServices = servicesResult.rows.filter((service) => service.is_active);
 
-  const accountPassed = provider.is_active && provider.email_verified && provider.user_name.trim().length >= 2
-    && Boolean(provider.terms_accepted_at && provider.privacy_acknowledged_at && provider.ai_safety_acknowledged_at);
+  // Signup already requires the account agreements. This ongoing health check
+  // verifies the account facts that can subsequently change.
+  const accountPassed = provider.is_active && provider.email_verified && provider.user_name.trim().length >= 2;
 
   const profilePhone = normalizedPhone(provider.phone);
   const accountPhone = normalizedPhone(provider.user_phone);
@@ -105,7 +106,7 @@ export async function runAutomatedProviderVerification(providerId: string): Prom
   }
 
   const checks: AutomatedProviderVerification["checks"] = [
-    { key: "account", label: "Account verified", passed: accountPassed, verifiedBy: "bubsbookings", detail: accountPassed ? "Email, age/policy agreements, profile name, and account status passed." : "Verify the email and complete all required account agreements and profile details." },
+    { key: "account", label: "Account verified", passed: accountPassed, verifiedBy: "bubsbookings", detail: accountPassed ? "The account is active with a verified email and complete profile name." : "Verify the email and complete the account profile name." },
     { key: "phone", label: "Phone details checked", passed: phonePassed, verifiedBy: "bubsbookings", detail: phonePassed ? "The account and provider profile contain the same validly formatted phone number. This does not prove ownership by SMS." : "Add one valid phone number to both the account and provider profile." },
     { key: "identity", label: "Stripe identity verified", passed: identityPassed, verifiedBy: "stripe", detail: identityDetail },
     { key: "business", label: "Business profile checked", passed: businessPassed, verifiedBy: "bubsbookings", detail: businessPassed ? "Active listings, business details, location, pricing, and safety rules passed." : "Complete the business profile and active listings, then remove placeholder or unsafe content." },

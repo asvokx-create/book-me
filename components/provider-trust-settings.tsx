@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 
 type TrustSettings = {
   emailVerified: boolean;
+  accountVerified: boolean;
   phoneVerified: boolean;
   identityVerified: boolean;
   businessVerified: boolean;
@@ -29,16 +30,23 @@ export default function ProviderTrustSettings({ initial }: { initial: TrustSetti
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const fallbackChecks = [
-    { key: "account", label: "Account verified", passed: initial.emailVerified, detail: "Email and required account agreements are checked automatically." },
+    { key: "account", label: "Account verified", passed: initial.accountVerified, detail: initial.accountVerified ? "The account is active with a verified email and complete profile name." : "Verify the email and complete the account profile name." },
     { key: "phone", label: "Phone details checked", passed: initial.phoneVerified, detail: "Checks that the account and provider profile have the same validly formatted number." },
     { key: "identity", label: "Stripe identity verified", passed: initial.identityVerified, detail: "Becomes complete after Stripe accepts the required payout-onboarding details." },
     { key: "business", label: "Business profile checked", passed: initial.businessVerified, detail: "Checks business details and every active listing for completeness and safety." },
   ];
-  const [automaticChecks, setAutomaticChecks] = useState(initial.automaticVerificationChecks?.length ? initial.automaticVerificationChecks : fallbackChecks);
+  const initialChecks = (initial.automaticVerificationChecks?.length ? initial.automaticVerificationChecks : fallbackChecks).map((check) =>
+    check.key === "account" ? fallbackChecks[0] : check,
+  );
+  const initialPassedCount = initialChecks.filter((check) => check.passed).length;
+  const initialScore = Math.round(initialPassedCount / initialChecks.length * 100);
+  const [automaticChecks, setAutomaticChecks] = useState(initialChecks);
   const [verification, setVerification] = useState({
-    status: initial.screeningStatus,
-    score: initial.screeningScore,
-    summary: initial.screeningSummary,
+    status: initialPassedCount === initialChecks.length ? "passed" : "needs_changes",
+    score: initialScore,
+    summary: initialPassedCount === initialChecks.length
+      ? "Automated account, phone-detail, Stripe identity, and business-profile checks passed."
+      : initialChecks.filter((check) => !check.passed).map((check) => check.detail).join(" "),
     checkedAt: initial.screeningCheckedAt,
   });
 
