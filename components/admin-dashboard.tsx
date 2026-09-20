@@ -227,7 +227,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const normalizedAccountSearch = accountSearch.trim().toLocaleLowerCase();
   const filteredAccounts = data?.accounts.filter((account) => {
     if (!normalizedAccountSearch) return true;
-    return [account.name, account.email, account.role, account.business_name ?? ""]
+    return [account.id, account.name, account.email, account.role, account.business_name ?? ""]
       .some((value) => value.toLocaleLowerCase().includes(normalizedAccountSearch));
   }) ?? [];
   const statCards = data ? [
@@ -346,7 +346,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                       type="search"
                       value={accountSearch}
                       onChange={(event) => setAccountSearch(event.target.value)}
-                      placeholder="Search by name, email, role, or business"
+                      placeholder="Search by name, email, account ID, role, or business"
                       autoComplete="off"
                       className="w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-[#8a9690] focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/20"
                     />
@@ -375,7 +375,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                   </div>
                 </article>
               ))}
-              {filteredAccounts.length === 0 && <EmptyState title="No matching accounts" body="Try searching with a different name, email, role, or business." />}
+              {filteredAccounts.length === 0 && <EmptyState title="No matching accounts" body="Try searching with a different name, email, account ID, role, or business." />}
             </div>
           )}
 
