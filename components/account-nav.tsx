@@ -27,8 +27,8 @@ export default function AccountNav() {
 
   return (
     <div className="flex items-center gap-2 sm:gap-3">
-      <Link href="/login" className="rounded-full px-3 py-2 text-sm font-semibold hover:bg-white sm:px-4">Log in</Link>
-      <Link href="/signup" className="rounded-full bg-[#173d2e] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_22px_rgba(23,61,46,.18)] hover:-translate-y-0.5 hover:bg-[#265842] sm:px-5">Sign up</Link>
+      <Link href="/login" className="whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold hover:bg-white sm:px-4">Log in</Link>
+      <Link href="/signup" className="whitespace-nowrap rounded-full bg-[#173d2e] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_22px_rgba(23,61,46,.18)] hover:-translate-y-0.5 hover:bg-[#265842] sm:px-5">Sign up</Link>
     </div>
   );
 }

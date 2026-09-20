@@ -475,6 +475,19 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
   const [welcomeResult, setWelcomeResult] = useState("");
   const welcomeSent = details?.welcomeEmail?.status === "sent" || welcomeResult === "Welcome email sent.";
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [onClose]);
+
   async function sendWelcomeEmail() {
     setWelcomeBusy(true);
     setWelcomeResult("");
@@ -484,7 +497,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
     setWelcomeBusy(false);
   }
 
-  return <div className="fixed inset-0 z-[90] flex justify-end bg-[#10251c]/55" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
+  return <div className="fixed inset-0 z-[200] flex justify-end bg-[#10251c]/55" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
     <section className="h-full w-full max-w-4xl overflow-y-auto bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="account-detail-title">
       <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#183126]/10 bg-white/95 px-5 py-5 backdrop-blur sm:px-8">
         <div className="flex min-w-0 items-center gap-4"><ProfileAvatar name={account.name} imageUrl={account.image} className="h-12 w-12 shrink-0 text-sm" /><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Admin account view</p><h2 id="account-detail-title" className="truncate text-2xl font-bold">{account.name}</h2><p className="truncate text-sm text-[#718078]">{account.email}</p></div></div>

@@ -87,7 +87,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex"><Link href="/guides" className="site-nav-link">Guides</Link><Link href="/pricing" className="site-nav-link">Pricing</Link></nav>
-            <Link href="/pricing" className="inline-flex min-h-10 items-center justify-center rounded-full px-2.5 py-2 text-xs font-bold hover:bg-[#183126]/5 sm:px-3 sm:text-sm lg:hidden">Pricing</Link>
+            <Link href="/pricing" className="hidden min-h-10 items-center justify-center rounded-full px-2.5 py-2 text-xs font-bold hover:bg-[#183126]/5 min-[430px]:inline-flex sm:px-3 sm:text-sm lg:hidden">Pricing</Link>
             <Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link>
             <AccountNav />
           </div>
