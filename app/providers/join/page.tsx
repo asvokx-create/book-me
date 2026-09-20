@@ -15,6 +15,23 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
+const providerWorkflow = [
+  ["Create your profile", "Add your business information and choose the company that owns each listing."],
+  ["List your services", "Set the service area, starting price, duration, photos, availability, and booking questions."],
+  ["Receive inquiries", "Customers can ask about a service without creating a charge for you."],
+  ["Chat and send quotes", "Clarify the scope and send a price before either side commits."],
+  ["Get booked", "Accept work that fits your schedule and let the customer pay securely through Stripe."],
+  ["Complete the job", "Mark the service complete when the agreed work is finished."],
+  ["Receive your payout", "After the customer review period, the provider share is released under the payment and dispute rules."],
+] as const;
+
+const providerFaqs = [
+  ["Do I pay for a lead?", "No. Customer inquiries, replies, and quotes do not create a charge."],
+  ["When does a booking fee apply?", "The plan percentage applies only to a paid marketplace booking. Starter is $0 per month with a 10% booking fee. Pro is $9.99 per month after any eligible trial with a 6% booking fee."],
+  ["Can I choose where and when I work?", "Yes. You control your service area, availability, offerings, and starting prices."],
+  ["Does BubsBookings guarantee work?", "No. Demand varies by category and location, and joining does not guarantee inquiries or bookings."],
+] as const;
+
 export default async function ProviderJoinPage({ searchParams }: PageProps<"/providers/join">) {
   const requestedPlan = getParam((await searchParams).plan).toLowerCase();
   const planName = requestedPlan === "pro" ? "Pro" : requestedPlan === "starter" ? "Starter" : "";
@@ -49,8 +66,36 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
           <ol className="mt-6 space-y-4 text-sm"><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">1</span><span><strong>Create your account.</strong><br /><span className="text-[#687970]">Use email or an available sign-in option.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">2</span><span><strong>Add your business and service.</strong><br /><span className="text-[#687970]">Set your location, price, duration, photos, and availability.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">3</span><span><strong>Receive real customer requests.</strong><br /><span className="text-[#687970]">Ask questions, send quotes, and accept work that fits.</span></span></li></ol>
           <Link href={`/signup?redirect=${encodeURIComponent(returnPath)}`} className="mt-7 flex w-full items-center justify-center rounded-full bg-[#eee25a] px-6 py-3.5 font-bold text-[#183126]">Create provider account</Link>
           <p className="mt-4 text-center text-sm text-[#687970]">Already have an account? <Link href={`/login?redirect=${encodeURIComponent(returnPath)}`} className="font-bold text-[#183126] underline decoration-[#c9be45] decoration-2 underline-offset-4">Log in</Link></p>
-          <div className="mt-7 border-t border-[#183126]/10 pt-6"><h3 className="font-bold">Common questions</h3><dl className="mt-4 space-y-4 text-sm"><div><dt className="font-bold">Do I pay for a lead?</dt><dd className="mt-1 leading-6 text-[#687970]">No. Customer inquiries, replies, and quotes do not create a charge.</dd></div><div><dt className="font-bold">When does a booking fee apply?</dt><dd className="mt-1 leading-6 text-[#687970]">Your plan&apos;s percentage fee applies when a paid marketplace booking is completed.</dd></div><div><dt className="font-bold">Can I choose where and when I work?</dt><dd className="mt-1 leading-6 text-[#687970]">Yes. You control your service area, schedule, offerings, and starting prices.</dd></div></dl></div>
         </aside>}
+      </section>
+
+      <section className="border-y border-[#183126]/10 bg-white/65">
+        <div className="mx-auto max-w-6xl px-6 py-14 sm:py-18">
+          <p className="text-xs font-bold uppercase tracking-[.16em] text-[#61756a]">From profile to payout</p>
+          <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-[-.04em] sm:text-4xl">A clear path from first listing to completed work.</h2>
+          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {providerWorkflow.map(([title, description], index) => <li key={title} className="rounded-[1.5rem] border border-[#183126]/10 bg-white p-5"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#eee25a] text-xs font-bold">{index + 1}</span><h3 className="mt-4 font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-[#687970]">{description}</p></li>)}
+          </ol>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-[1.05fr_.95fr] lg:py-18">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[.16em] text-[#61756a]">Transparent provider pricing</p>
+          <h2 className="mt-3 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Choose the fee structure that fits your business.</h2>
+          <p className="mt-4 max-w-xl text-base leading-7 text-[#617169]">Both plans include a business profile, customer messaging, quotes, scheduling, reviews, and Stripe-powered payments. Neither plan charges for leads or conversations.</p>
+          <div className="mt-7 grid gap-4 sm:grid-cols-2">
+            <article className="rounded-[1.5rem] border border-[#183126]/10 bg-white p-5"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#687970]">Starter</p><p className="mt-2 text-3xl font-bold">$0 <span className="text-sm font-semibold text-[#687970]">per month</span></p><p className="mt-3 text-sm leading-6 text-[#617169]">10% provider booking fee on paid bookings. No charge for inquiries, messages, or quotes.</p></article>
+            <article className="rounded-[1.5rem] bg-[#183126] p-5 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#c0d0c7]">Pro</p><p className="mt-2 text-3xl font-bold">$9.99 <span className="text-sm font-semibold text-[#c0d0c7]">per month</span></p><p className="mt-3 text-sm leading-6 text-[#c8d7cf]">6% provider booking fee on paid bookings after any eligible trial. No charge for inquiries, messages, or quotes.</p></article>
+          </div>
+          <Link href="/pricing#plans" className="mt-6 inline-flex rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126]">Compare every plan feature</Link>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[.16em] text-[#61756a]">Provider questions</p>
+          <dl className="mt-4 divide-y divide-[#183126]/10 rounded-[1.75rem] border border-[#183126]/10 bg-white px-6">
+            {providerFaqs.map(([question, answer]) => <div key={question} className="py-5"><dt className="font-bold">{question}</dt><dd className="mt-2 text-sm leading-6 text-[#687970]">{answer}</dd></div>)}
+          </dl>
+        </div>
       </section>
     </main>
   );

@@ -5,7 +5,7 @@ import { recordAnalytics } from "@/lib/analytics";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
 
-const allowedEvents = new Set(["page_view", "service_view", "search_results", "checkout_abandoned"]);
+const allowedEvents = new Set(["page_view", "service_view", "search_results", "zero_result_search", "checkout_abandoned"]);
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null) as { eventName?: unknown; anonymousId?: unknown; path?: unknown; metadata?: unknown } | null;

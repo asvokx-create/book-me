@@ -45,7 +45,7 @@ export default function SiteFooter() {
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#a9c3b4]">Your neighborhood marketplace</p>
               <h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-[-.045em] sm:text-4xl">Good help should never feel far away.</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-[#aec3b8]">Find trusted local professionals, compare your options clearly, and keep every booking in one secure place.</p>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-[#aec3b8]">Find local service providers, compare your options clearly, and keep every booking in one secure place.</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link href="/services" className="rounded-full bg-[#f1e45c] px-6 py-3.5 text-sm font-bold text-[#173d2e] hover:bg-[#fff47c]">Find local help</Link>

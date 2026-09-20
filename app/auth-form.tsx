@@ -111,7 +111,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       <div className="text-center">
         <p className="text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{isLogin ? "Welcome back" : "Join BubsBookings"}</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-.04em]">{isLogin ? "Log in to your account" : "Create your account"}</h1>
-        <p className="mt-3 text-sm leading-6 text-[#718078]">{isLogin ? "Manage bookings and connect with your favorite local pros." : "Find trusted local help and keep every booking in one place."}</p>
+        <p className="mt-3 text-sm leading-6 text-[#718078]">{isLogin ? "Manage bookings and connect with your favorite local pros." : "Find local service providers and keep every booking in one place."}</p>
       </div>
 
       <div className="mt-7">
