@@ -79,7 +79,11 @@ async function loadDashboard() {
        LIMIT 75`,
     ),
     database.query(
-      `SELECT b.id::text, b.payment_release_status, b.payment_status, b.provider_payout_cents,
+      `SELECT b.id::text, b.payment_release_status, b.payment_status, b.price_cents,
+              b.customer_service_fee_cents, b.customer_total_cents, b.platform_fee_cents,
+              b.provider_payout_cents, b.provider_plan_snapshot, b.provider_fee_basis_points,
+              b.stripe_payment_intent_id, b.stripe_charge_id, b.stripe_transfer_id,
+              b.refunded_amount_cents, b.stripe_refund_id, b.completed_at, b.customer_confirmed_at,
               b.completion_confirmation_due_at, b.payout_released_at, b.payout_freeze_reason,
               b.payout_failure_reason, b.status AS booking_status, b.created_at,
               customer.name AS customer_name, s.business_name AS provider_name, s.title AS service_title

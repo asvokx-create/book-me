@@ -6,6 +6,7 @@ import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { recordAnalytics } from "@/lib/analytics";
+import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "@/lib/booking-financials";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -69,14 +70,14 @@ export async function POST(request: Request) {
   }
   const serviceResult = await database.query<{
     id: string; provider_id: string; duration_minutes: number; price_cents: number;
-    timezone: string; provider_user_id: string; title: string; booking_questions: unknown;
+    timezone: string; provider_user_id: string; title: string; booking_questions: unknown; plan: BookingFinancialPlan;
   }>(
     `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions,
             COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id AND (service_id = s.id OR service_id IS NULL) ORDER BY (service_id = s.id) DESC LIMIT 1),
                      (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id WHERE member.provider_id = p.id AND assigned_location.location_id = s.location_id LIMIT 1),
                      'America/Los_Angeles') AS timezone,
-            p.user_id AS provider_user_id
+            p.user_id AS provider_user_id, p.plan
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id AND p.is_active = true
      WHERE s.id::text = $1 AND s.is_active = true
@@ -85,6 +86,7 @@ export async function POST(request: Request) {
   );
   const service = serviceResult.rows[0];
   if (!service) return NextResponse.json({ error: "This provider is not available on that day." }, { status: 409 });
+  const financialSnapshot = calculateBookingFinancialSnapshot(service.price_cents, service.plan);
   const questions = Array.isArray(service.booking_questions) ? service.booking_questions.filter((question): question is string => typeof question === "string") : [];
   const answers: Record<string, string> = {};
   for (const question of questions) {
@@ -147,10 +149,15 @@ export async function POST(request: Request) {
     const created = await client.query<{ id: string }>(
       `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address,
           service_address_line1, service_address_line2, service_city, service_state, service_postal_code,
-          access_instructions, notes, price_cents, assigned_team_member_id, booking_answers)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, $10, $11, NULLIF($12, ''), $13, $14, $15::uuid, $16::jsonb)
+          access_instructions, notes, price_cents, assigned_team_member_id, booking_answers,
+          provider_plan_snapshot, provider_fee_basis_points, platform_fee_cents, provider_payout_cents,
+          customer_service_fee_cents, customer_total_cents)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, $10, $11, NULLIF($12, ''), $13, $14, $15::uuid, $16::jsonb,
+          $17, $18, $19, $20, $21, $22)
        RETURNING id::text`,
-      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, service.price_cents, candidate.rows[0].member_id, JSON.stringify(answers)],
+      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, service.price_cents, candidate.rows[0].member_id, JSON.stringify(answers),
+        financialSnapshot.providerPlan, financialSnapshot.providerFeeBasisPoints, financialSnapshot.providerFeeCents,
+        financialSnapshot.providerNetCents, financialSnapshot.customerServiceFeeCents, financialSnapshot.customerTotalCents],
     );
     const bookingId = created.rows[0].id;
     await client.query(

@@ -22,14 +22,14 @@ type Issue = {
   booking_id?: string;
   against_name?: string;
   against_email?: string;
-  resolution_outcome?: "provider" | "customer" | null;
+  resolution_outcome?: "provider" | "customer" | "partial" | null;
   resolved_at?: string | null;
 };
 
 type UpdateIssue = (
   issue: Issue,
   status: "reviewing" | "resolved" | "dismissed",
-  outcome?: "provider" | "customer",
+  outcome?: "provider" | "customer" | "partial",
 ) => Promise<void>;
 
 function statusStyle(status: string) {
@@ -77,6 +77,9 @@ function IssueCard({ issue, busy, update, closed = false }: {
                 </button>
                 <button type="button" disabled={busy === issue.id} onClick={() => void update(issue, "resolved", "customer")} className="rounded-full bg-[#eee25a] px-4 py-2 text-sm font-bold text-[#183126] disabled:opacity-50">
                   Customer wins · Refund
+                </button>
+                <button type="button" disabled={busy === issue.id} onClick={() => void update(issue, "resolved", "partial")} className="rounded-full border border-[#183126]/15 px-4 py-2 text-sm font-bold text-[#183126] disabled:opacity-50">
+                  Split outcome · Partial refund
                 </button>
               </>
             ) : (
@@ -201,9 +204,16 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
     return () => window.clearTimeout(timer);
   }, [load]);
 
-  async function update(issue: Issue, status: "reviewing" | "resolved" | "dismissed", outcome?: "provider" | "customer") {
+  async function update(issue: Issue, status: "reviewing" | "resolved" | "dismissed", outcome?: "provider" | "customer" | "partial") {
+    let amount: number | undefined;
+    if (outcome === "partial") {
+      const entered = window.prompt("Partial customer refund amount in dollars:");
+      if (entered === null) return;
+      amount = Number(entered);
+      if (!Number.isFinite(amount) || amount <= 0) { setError("Enter a valid partial refund amount."); return; }
+    }
     if (outcome) {
-      const action = outcome === "provider" ? "release the held payout to the provider" : "refund the held payment to the customer";
+      const action = outcome === "provider" ? "release the held payout to the provider" : outcome === "partial" ? `issue a $${amount?.toFixed(2)} partial refund and adjust the provider share` : "refund the held payment to the customer";
       if (!window.confirm(`This will ${action}. This financial decision cannot be undone from this screen. Continue?`)) return;
     }
     const note = window.prompt(status === "reviewing" ? "Optional internal note:" : "Explain why this decision was made:", issue.admin_note)?.trim();
@@ -217,7 +227,7 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
     const response = await fetch("/api/admin/issues", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, id: issue.id, status, note, outcome }),
+      body: JSON.stringify({ type, id: issue.id, status, note, outcome, amount }),
     }).catch(() => null);
     setBusy("");
 

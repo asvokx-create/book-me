@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "node scripts/setup-marketplace-db.mjs && next start",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
     "lint": "eslint",
     "db:auth": "npx auth@latest migrate --yes --config ./lib/auth.ts",
     "db:marketplace": "node scripts/setup-marketplace-db.mjs",

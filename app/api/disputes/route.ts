@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     // Payout release takes the same booking-scoped lock. This makes freezing
     // and releasing mutually exclusive instead of leaving a small timing gap.
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`booking-payout:${bookingId}`]);
-    const result = await client.query<{ id: string }>(
+    const result = await client.query<{ id: string; against_user_id: string }>(
       `WITH opened AS (
          INSERT INTO booking_disputes (booking_id, opened_by, against_user_id, category, details, requested_resolution)
          SELECT b.id, $2, CASE WHEN b.customer_id = $2 THEN p.user_id ELSE b.customer_id END, $3, $4, $5
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
          WHERE b.id::text = $1
            AND (b.customer_id = $2 OR p.user_id = $2)
            AND b.status IN ('confirmed', 'completed', 'cancelled')
-         RETURNING id, booking_id
+         RETURNING id, booking_id, against_user_id
        ), frozen AS (
          UPDATE bookings b SET
            payout_frozen_at = CASE WHEN payment_release_status IN ('secured', 'awaiting_customer', 'failed') THEN now() ELSE payout_frozen_at END,
@@ -79,13 +79,26 @@ export async function POST(request: Request) {
            payout_freeze_reason = CASE WHEN payment_release_status IN ('secured', 'awaiting_customer', 'failed') THEN 'Open booking dispute' ELSE payout_freeze_reason END,
            payment_release_status = CASE WHEN payment_release_status IN ('secured', 'awaiting_customer', 'failed') THEN 'frozen' ELSE payment_release_status END
          FROM opened WHERE b.id = opened.booking_id RETURNING b.id
-       ) SELECT opened.id::text FROM opened JOIN frozen ON frozen.id = opened.booking_id`,
+       ) SELECT opened.id::text, opened.against_user_id FROM opened JOIN frozen ON frozen.id = opened.booking_id`,
       [bookingId, session.user.id, category, details, requestedResolution],
     );
     if (!result.rows[0]) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "That booking is not eligible for a dispute." }, { status: 404 });
     }
+    await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message, metadata)
+      VALUES ($1::uuid, $2, 'dispute_opened', 'A booking dispute was opened and any unreleased payout was frozen.',
+        jsonb_build_object('disputeId', $3, 'category', $4))`, [bookingId, session.user.id, result.rows[0].id, category]);
+    await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+      VALUES ($1, $2::uuid, 'booking_dispute', 'Booking dispute opened',
+        'A dispute was opened for this booking. Any unreleased payout is on hold while the case is reviewed.',
+        '/disputes',
+        'booking-dispute-' || $3 || '-party') ON CONFLICT (dedupe_key) DO NOTHING`,
+      [result.rows[0].against_user_id, bookingId, result.rows[0].id]);
+    await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+      SELECT admin.user_id, $1::uuid, 'booking_dispute', 'New booking dispute',
+        'A booking dispute needs administrator review.', '/admin/disputes', 'booking-dispute-' || $2 || '-admin-' || admin.user_id
+      FROM bookme_admins admin ON CONFLICT (dedupe_key) DO NOTHING`, [bookingId, result.rows[0].id]);
     await client.query("COMMIT");
     return NextResponse.json({ ok: true, disputeId: result.rows[0].id }, { status: 201 });
   } catch (error) {

@@ -198,6 +198,10 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         action === "approve_reschedule" ? `${booking.service_title} has been moved to your requested time.` : `${booking.service_title}: ${reason}`,
         action]);
     } else if (action === "completed") {
+      if (booking.status === "completed") {
+        await client.query("COMMIT");
+        return NextResponse.json({ ok: true, duplicate: true });
+      }
       if (booking.status !== "confirmed") {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Only accepted bookings can be completed." }, { status: 409 });
@@ -206,13 +210,13 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "This job can be completed after its scheduled start time." }, { status: 409 });
       }
+      if (booking.payment_status !== "paid" || booking.payment_flow !== "held_transfer_v1") {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "The customer must complete secure payment before this job can be marked complete." }, { status: 409 });
+      }
       await client.query(`UPDATE bookings SET status = 'completed', completed_at = now(),
-        payment_release_status = CASE
-          WHEN payment_status = 'paid' AND payment_flow = 'held_transfer_v1' AND payout_frozen_at IS NULL THEN 'awaiting_customer'
-          ELSE payment_release_status END,
-        completion_confirmation_due_at = CASE
-          WHEN payment_status = 'paid' AND payment_flow = 'held_transfer_v1' THEN now() + interval '48 hours'
-          ELSE completion_confirmation_due_at END
+        payment_release_status = CASE WHEN payout_frozen_at IS NULL THEN 'awaiting_customer' ELSE 'frozen' END,
+        completion_confirmation_due_at = now() + interval '48 hours'
         WHERE id::text = $1`, [bookingId]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
         VALUES ($1::uuid, $2, 'completed', 'Provider marked the service complete.')`, [bookingId, session.user.id]);
@@ -220,9 +224,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
          VALUES ($1, $2::uuid, 'booking_completed', 'Service completed', $3, '/account/bookings/' || $2::uuid::text, 'booking-completed-' || $2::uuid::text || '-customer')
          ON CONFLICT (dedupe_key) DO NOTHING`,
-        [booking.customer_id, bookingId, booking.payment_status === "paid" && booking.payment_flow === "held_transfer_v1"
-          ? `${booking.service_title} was marked complete. Confirm the work or open a dispute within 48 hours; otherwise the provider payout releases automatically.`
-          : `${booking.service_title} was marked complete. Payment is now due—open this booking to pay securely.`],
+        [booking.customer_id, bookingId, `${booking.service_title} was marked complete. Confirm the work or report a problem within 48 hours; otherwise the provider payout releases automatically.`],
       );
     } else if (action === "declined" || action === "cancel") {
       const allowedStatus = action === "declined" ? "requested" : "confirmed";

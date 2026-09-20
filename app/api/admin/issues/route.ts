@@ -3,6 +3,7 @@ import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { refundUnreleasedBooking, releaseBookingPayout } from "@/lib/payment-release";
 import { enforceRateLimit } from "@/lib/request-security";
+import { getStripe, getStripeMode, isStripeReady } from "@/lib/stripe";
 
 const statuses = new Set(["reviewing", "resolved", "dismissed"]);
 
@@ -49,7 +50,8 @@ export async function PATCH(request: Request) {
   const id = typeof body.id === "string" ? body.id : "";
   const status = typeof body.status === "string" ? body.status : "";
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 1000) : "";
-  const outcome = body.outcome === "provider" || body.outcome === "customer" ? body.outcome : "";
+  const outcome = body.outcome === "provider" || body.outcome === "customer" || body.outcome === "partial" ? body.outcome : "";
+  const partialAmountCents = Number.isFinite(Number(body.amount)) ? Math.round(Number(body.amount) * 100) : 0;
   if (!type || !id || !statuses.has(status)) return NextResponse.json({ error: "Choose a valid case update." }, { status: 400 });
   if (type === "disputes" && (status === "resolved" || status === "dismissed")) {
     if (status !== "resolved" || !outcome) return NextResponse.json({ error: "Choose whether the provider or customer won the dispute." }, { status: 400 });
@@ -96,7 +98,59 @@ export async function PATCH(request: Request) {
   };
 
   let financialResult: Record<string, unknown> = {};
-  if (outcome === "customer") {
+  if (outcome === "partial") {
+    if (!isStripeReady()) { await restoreDispute(); return NextResponse.json({ error: "Stripe is not configured." }, { status: 503 }); }
+    const payment = await database.query<{
+      price_cents: number; refunded_amount_cents: number; platform_fee_cents: number; provider_payout_cents: number;
+      stripe_payment_intent_id: string | null; stripe_transfer_id: string | null; stripe_transfer_reversed_cents: number;
+      stripe_mode: "test" | "live" | null;
+    }>(`SELECT price_cents, refunded_amount_cents, platform_fee_cents, provider_payout_cents,
+        stripe_payment_intent_id, stripe_transfer_id, stripe_transfer_reversed_cents, stripe_mode
+      FROM bookings WHERE id::text = $1`, [dispute.booking_id]);
+    const booking = payment.rows[0];
+    const remaining = booking ? booking.price_cents - booking.refunded_amount_cents : 0;
+    if (!booking?.stripe_payment_intent_id || booking.stripe_mode !== getStripeMode() || partialAmountCents < 1 || partialAmountCents >= remaining) {
+      await restoreDispute();
+      return NextResponse.json({ error: `Enter a partial refund between $0.01 and $${Math.max(0, (remaining - 1) / 100).toFixed(2)}.` }, { status: 400 });
+    }
+    try {
+      const totalRefunded = booking.refunded_amount_cents + partialAmountCents;
+      const refund = await getStripe().refunds.create({
+        payment_intent: booking.stripe_payment_intent_id,
+        amount: partialAmountCents,
+        metadata: { bookingId: dispute.booking_id, kind: "dispute_partial_refund", disputeId: id },
+      }, { idempotencyKey: `dispute-partial-refund-${id}-${totalRefunded}` });
+      const originalProviderShare = booking.price_cents - booking.platform_fee_cents;
+      const adjustedProviderShare = Math.max(0, Math.round(originalProviderShare * (booking.price_cents - totalRefunded) / booking.price_cents));
+      let reversedCents = booking.stripe_transfer_reversed_cents;
+      if (booking.stripe_transfer_id) {
+        const targetReversal = Math.max(0, originalProviderShare - adjustedProviderShare);
+        const reversalAmount = Math.max(0, targetReversal - reversedCents);
+        if (reversalAmount > 0) {
+          await getStripe().transfers.createReversal(booking.stripe_transfer_id, {
+            amount: reversalAmount,
+            metadata: { bookingId: dispute.booking_id, kind: "dispute_partial_reversal", disputeId: id, stripeRefundId: refund.id },
+          }, { idempotencyKey: `dispute-partial-reversal-${id}-${targetReversal}` });
+          reversedCents += reversalAmount;
+        }
+      }
+      await database.query(`UPDATE bookings SET refund_status = 'refunded', stripe_refund_id = $2,
+        refunded_amount_cents = $3, refunded_at = now(), provider_payout_cents = $4,
+        stripe_transfer_reversed_cents = $5, payment_release_status = CASE
+          WHEN stripe_transfer_id IS NOT NULL THEN 'partially_released'
+          WHEN status = 'completed' THEN 'awaiting_customer' ELSE 'secured' END,
+        payout_frozen_at = NULL, payout_frozen_by = NULL, payout_freeze_reason = NULL, payout_failure_reason = NULL
+        WHERE id::text = $1`, [dispute.booking_id, refund.id, totalRefunded, adjustedProviderShare, reversedCents]);
+      await database.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message, metadata)
+        VALUES ($1::uuid, $2, 'refunded', $3, jsonb_build_object('amountCents', $4::integer, 'stripeRefundId', $5, 'disputeId', $6))`,
+        [dispute.booking_id, session.user.id, `$${(partialAmountCents / 100).toFixed(2)} partial dispute refund issued through Stripe.`, partialAmountCents, refund.id, id]);
+      financialResult = { partialRefunded: true, amountCents: partialAmountCents, providerShareCents: adjustedProviderShare };
+    } catch (error) {
+      console.error("Partial dispute resolution failed", error);
+      await restoreDispute();
+      return NextResponse.json({ error: "Stripe could not complete the partial refund and transfer adjustment. The dispute remains open." }, { status: 502 });
+    }
+  } else if (outcome === "customer") {
     const refund = await refundUnreleasedBooking(dispute.booking_id, `Dispute resolved in the customer's favor: ${note}`);
     if (!refund.ok) {
       await restoreDispute();
@@ -145,7 +199,9 @@ export async function PATCH(request: Request) {
   );
   const decisionMessage = outcome === "provider"
     ? "The dispute was decided in the provider's favor. Any eligible held payout was released or returned to the normal payout queue."
-    : "The dispute was decided in the customer's favor. The held payment was refunded.";
+    : outcome === "partial"
+      ? `The dispute was resolved with a $${(partialAmountCents / 100).toFixed(2)} partial refund. The provider share was adjusted to match.`
+      : "The dispute was decided in the customer's favor. The held payment was refunded.";
   await database.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
     SELECT participant.user_id, $3::uuid, 'dispute_resolved', 'Dispute decision', $4, '/disputes',
       'dispute-resolution-' || $1 || '-' || participant.user_id

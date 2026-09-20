@@ -2,6 +2,7 @@ import "server-only";
 
 import { database } from "./database";
 import { getStripe, getStripeMode, isStripeReady } from "./stripe";
+import { stripeOperationKey } from "./booking-financials";
 
 export const CUSTOMER_CONFIRMATION_HOURS = 48;
 
@@ -40,7 +41,12 @@ export async function releaseBookingPayout(bookingId: string, trigger: "customer
       [bookingId, getStripeMode()]);
     const booking = claimed.rows[0];
     if (!booking) {
+      const current = await client.query<{ payment_release_status: string; stripe_transfer_id: string | null }>(
+        "SELECT payment_release_status, stripe_transfer_id FROM bookings WHERE id::text = $1", [bookingId]);
       await client.query("ROLLBACK");
+      if (current.rows[0]?.payment_release_status === "paid_out" || current.rows[0]?.stripe_transfer_id) {
+        return { ok: true, released: false, transferId: current.rows[0].stripe_transfer_id ?? undefined };
+      }
       return { ok: false, error: "This payout is not ready, is frozen, or has an open refund or dispute." };
     }
     if (!booking.stripe_account_id || !booking.stripe_charge_id || booking.provider_payout_cents < 1) {
@@ -58,7 +64,7 @@ export async function releaseBookingPayout(bookingId: string, trigger: "customer
         source_transaction: booking.stripe_charge_id,
         transfer_group: `booking_${booking.id}`,
         metadata: { bookingId: booking.id, kind: "provider_payout", releaseTrigger: trigger },
-      }, { idempotencyKey: `booking-payout-${getStripeMode()}-${booking.id}` });
+      }, { idempotencyKey: stripeOperationKey("payout", getStripeMode(), booking.id) });
     } catch (error) {
       console.error("Provider payout release failed", bookingId, error);
       await client.query("UPDATE bookings SET payment_release_status = 'failed', payout_failure_reason = $2 WHERE id::text = $1", [bookingId, "Stripe could not release this payout. An administrator can retry it."]);
@@ -71,6 +77,16 @@ export async function releaseBookingPayout(bookingId: string, trigger: "customer
     await client.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
       VALUES ($1::uuid, 'payout_released', $2, jsonb_build_object('transferId', $3, 'trigger', $4))`,
       [bookingId, `Provider payout of $${(booking.provider_payout_cents / 100).toFixed(2)} was released through Stripe.`, transfer.id, trigger]);
+    if (trigger === "automatic") {
+      await client.query(`INSERT INTO booking_events (booking_id, event_type, message)
+        SELECT $1::uuid, 'customer_review_expired', 'The 48-hour customer review window ended without a reported problem.'
+        WHERE NOT EXISTS (SELECT 1 FROM booking_events WHERE booking_id = $1::uuid AND event_type = 'customer_review_expired')`, [bookingId]);
+      await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+        VALUES ($1, $2::uuid, 'review_window_closed', 'Review window closed', $3,
+          '/account/bookings/' || $2::uuid::text, 'review-window-closed-' || $2::uuid::text)
+        ON CONFLICT (dedupe_key) DO NOTHING`, [booking.customer_id, bookingId,
+        `The 48-hour review window for ${booking.service_title} ended and the provider payout was released.`]);
+    }
     await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
       VALUES ($1, $2::uuid, 'payout_released', 'Payout released', $3,
       '/provider/dashboard/bookings/' || $2::uuid::text, 'payout-released-' || $2::uuid::text)

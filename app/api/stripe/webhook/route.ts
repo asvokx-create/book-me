@@ -84,10 +84,8 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
     chargeId = idOf(paymentIntent.latest_charge);
   }
   const heldTransfer = checkout.metadata.paymentFlow === "held_transfer_v1";
-  const customerServiceFeeCents = Math.max(0, Number.parseInt(checkout.metadata.customerServiceFeeCents ?? "0", 10) || 0);
   const updated = await database.query(`UPDATE bookings SET payment_status = 'paid', stripe_payment_intent_id = $2,
       stripe_charge_id = $5, stripe_mode = $4, paid_at = now(),
-      customer_service_fee_cents = $7,
       payment_release_status = CASE
         WHEN $6 AND payout_frozen_at IS NOT NULL THEN 'frozen'
         WHEN $6 AND status = 'completed' THEN 'awaiting_customer'
@@ -98,7 +96,8 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
         ELSE completion_confirmation_due_at END,
       payout_released_at = CASE WHEN $6 THEN NULL ELSE now() END
     WHERE id::text = $1 AND stripe_checkout_session_id = $3 AND stripe_mode = $4 AND payment_status <> 'paid'
-    RETURNING id`, [checkout.metadata.bookingId, paymentIntentId, checkout.id, getStripeMode(), chargeId, heldTransfer, customerServiceFeeCents]);
+      AND customer_total_cents = $7
+    RETURNING id`, [checkout.metadata.bookingId, paymentIntentId, checkout.id, getStripeMode(), chargeId, heldTransfer, checkout.amount_total]);
   if (!updated.rowCount) return;
   await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
     VALUES ($1::uuid, 'payment_received', 'Secure payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);
@@ -108,7 +107,54 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
       '/provider/dashboard/bookings/' || b.id::text, 'payment-received-' || b.id::text || '-provider'
     FROM bookings b JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
     WHERE b.id::text = $1 ON CONFLICT (dedupe_key) DO NOTHING`, [checkout.metadata.bookingId]);
+  await database.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+    SELECT b.customer_id, b.id, 'booking_payment', 'Payment received',
+      '$' || to_char(b.customer_total_cents::numeric / 100, 'FM999999990.00') || ' was paid securely for ' || s.title || '.',
+      '/account/bookings/' || b.id::text, 'payment-received-' || b.id::text || '-customer'
+    FROM bookings b JOIN services s ON s.id = b.service_id
+    WHERE b.id::text = $1 ON CONFLICT (dedupe_key) DO NOTHING`, [checkout.metadata.bookingId]);
   await recordAnalytics({ eventName: "payment_completed", targetType: "booking", targetId: checkout.metadata.bookingId, metadata: { amountTotal: checkout.amount_total } });
+}
+
+async function recordTransferCreated(transfer: Stripe.Transfer) {
+  const bookingId = transfer.metadata?.bookingId;
+  if (!bookingId) return;
+  await database.query(`UPDATE bookings SET stripe_transfer_id = COALESCE(stripe_transfer_id, $2),
+      payment_release_status = CASE WHEN payment_release_status = 'processing' THEN 'paid_out' ELSE payment_release_status END,
+      payout_released_at = CASE WHEN payment_release_status = 'processing' THEN COALESCE(payout_released_at, now()) ELSE payout_released_at END
+    WHERE id::text = $1 AND stripe_mode = $3`, [bookingId, transfer.id, getStripeMode()]);
+}
+
+async function recordTransferReversed(transfer: Stripe.Transfer) {
+  const bookingId = transfer.metadata?.bookingId;
+  if (!bookingId) return;
+  const fullyReversed = transfer.amount_reversed >= transfer.amount;
+  await database.query(`UPDATE bookings SET
+      payment_release_status = CASE WHEN $3 THEN 'reversed' ELSE 'partially_released' END,
+      provider_payout_cents = GREATEST(0, $4 - $5),
+      payout_failure_reason = CASE WHEN $3 THEN 'The provider transfer was reversed through Stripe.'
+        ELSE 'Part of the provider transfer was reversed through Stripe.' END
+    WHERE id::text = $1 AND stripe_transfer_id = $2 AND stripe_mode = $6`,
+    [bookingId, transfer.id, fullyReversed, transfer.amount, transfer.amount_reversed, getStripeMode()]);
+  await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
+    SELECT $1::uuid, 'transfer_reversed', $2, jsonb_build_object('transferId', $3, 'amountReversed', $4::integer)
+    WHERE NOT EXISTS (SELECT 1 FROM booking_events WHERE booking_id = $1::uuid AND event_type = 'transfer_reversed'
+      AND metadata->>'transferId' = $3 AND (metadata->>'amountReversed')::integer = $4::integer)`,
+    [bookingId, fullyReversed ? "The provider transfer was fully reversed." : "The provider transfer was partially reversed.", transfer.id, transfer.amount_reversed]);
+}
+
+async function recordPayoutFailed(event: Stripe.Event, payout: Stripe.Payout) {
+  const connectedAccountId = typeof event.account === "string" ? event.account : null;
+  if (!connectedAccountId) return;
+  await database.query(`INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+    SELECT p.user_id, 'payout_failed', 'Stripe bank payout failed', $3,
+      '/provider/dashboard/billing', 'stripe-payout-failed-' || $2
+    FROM provider_profiles p WHERE p.stripe_account_id = $1 AND p.stripe_connect_mode = $4
+    ON CONFLICT (dedupe_key) DO NOTHING`, [connectedAccountId, payout.id,
+      `Stripe could not send payout ${payout.id} to your bank. Update your payout account or contact support.`, getStripeMode()]);
+  await database.query(`INSERT INTO operations_checks (check_type, status, details)
+    VALUES ('stripe_connected_payout', 'warning', $1::jsonb)`,
+    [JSON.stringify({ payoutId: payout.id, accountId: connectedAccountId, failureCode: payout.failure_code, failureMessage: payout.failure_message })]);
 }
 
 async function recordStripeDisputeOpened(dispute: Stripe.Dispute) {
@@ -362,6 +408,18 @@ async function processEvent(event: Stripe.Event) {
     }
     case "charge.dispute.closed": {
       await recordStripeDisputeClosed(event.data.object);
+      break;
+    }
+    case "transfer.created": {
+      await recordTransferCreated(event.data.object);
+      break;
+    }
+    case "transfer.reversed": {
+      await recordTransferReversed(event.data.object);
+      break;
+    }
+    case "payout.failed": {
+      await recordPayoutFailed(event, event.data.object);
       break;
     }
     case "payment_intent.payment_failed": {
