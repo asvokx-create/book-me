@@ -2,6 +2,7 @@
 
 import type { ReactNode, TouchEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type ListingPhotoGalleryProps = {
   images: string[];
@@ -71,6 +72,14 @@ export default function ListingPhotoGallery({ images, title, fallbackGradient, f
 
   const selectedImage = images[selectedIndex];
   const mainImageStyle = { backgroundImage: `url("${selectedImage}")` };
+  const photoViewer = viewerOpen ? (
+    <div role="dialog" aria-modal="true" aria-label={`${title} full-screen photo viewer`} className="fixed inset-0 z-[120] flex h-dvh w-screen items-center justify-center overflow-hidden bg-[#06140e]/95 p-3 backdrop-blur-md sm:p-8" onMouseDown={(event) => { if (event.target === event.currentTarget) setViewerOpen(false); }} onTouchStart={startSwipe} onTouchEnd={finishSwipe}>
+      <button type="button" onClick={() => setViewerOpen(false)} aria-label="Close photo viewer" className="absolute right-4 top-4 z-20 grid h-12 w-12 place-items-center rounded-full border border-white/20 bg-white/10 text-2xl text-white hover:bg-white/20 sm:right-7 sm:top-7">×</button>
+      {hasMultiple && <><button type="button" onClick={previous} aria-label="Previous photo" className="absolute left-3 top-1/2 z-20 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-2xl font-bold text-[#183126] shadow-xl hover:bg-white sm:left-7">‹</button><button type="button" onClick={next} aria-label="Next photo" className="absolute right-3 top-1/2 z-20 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-2xl font-bold text-[#183126] shadow-xl hover:bg-white sm:right-7">›</button></>}
+      <div role="img" aria-label={`${title} photo ${selectedIndex + 1} of ${images.length}`} style={{ backgroundImage: `url("${selectedImage}")` }} className="h-[calc(100dvh-6rem)] w-[calc(100vw-1.5rem)] max-w-7xl bg-contain bg-center bg-no-repeat sm:h-[calc(100dvh-8rem)] sm:w-[calc(100vw-4rem)]" />
+      <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-4 py-2 text-sm font-bold text-white sm:bottom-5">{selectedIndex + 1} / {images.length}</span>
+    </div>
+  ) : null;
 
   return (
     <section aria-label={`${title} photo gallery`}>
@@ -95,12 +104,7 @@ export default function ListingPhotoGallery({ images, title, fallbackGradient, f
       </div>}
       <p aria-live="polite" className="sr-only">Showing photo {selectedIndex + 1} of {images.length}</p>
 
-      {viewerOpen && <div role="dialog" aria-modal="true" aria-label={`${title} full-screen photo viewer`} className="fixed inset-0 z-[120] flex items-center justify-center bg-[#06140e]/95 p-3 backdrop-blur-md sm:p-8" onMouseDown={(event) => { if (event.target === event.currentTarget) setViewerOpen(false); }} onTouchStart={startSwipe} onTouchEnd={finishSwipe}>
-        <button type="button" onClick={() => setViewerOpen(false)} aria-label="Close photo viewer" className="absolute right-4 top-4 z-20 grid h-12 w-12 place-items-center rounded-full border border-white/20 bg-white/10 text-2xl text-white hover:bg-white/20 sm:right-7 sm:top-7">×</button>
-        {hasMultiple && <><button type="button" onClick={previous} aria-label="Previous photo" className="absolute left-3 top-1/2 z-20 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-2xl font-bold text-[#183126] shadow-xl hover:bg-white sm:left-7">‹</button><button type="button" onClick={next} aria-label="Next photo" className="absolute right-3 top-1/2 z-20 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-2xl font-bold text-[#183126] shadow-xl hover:bg-white sm:right-7">›</button></>}
-        <div role="img" aria-label={`${title} photo ${selectedIndex + 1} of ${images.length}`} style={{ backgroundImage: `url("${selectedImage}")` }} className="h-[82vh] w-full max-w-7xl bg-contain bg-center bg-no-repeat" />
-        <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-4 py-2 text-sm font-bold text-white">{selectedIndex + 1} / {images.length}</span>
-      </div>}
+      {photoViewer && createPortal(photoViewer, document.body)}
     </section>
   );
 }
