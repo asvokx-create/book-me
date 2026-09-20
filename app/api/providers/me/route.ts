@@ -47,6 +47,10 @@ export async function GET() {
   }
 
   const provider = providerResult.rows[0];
+  const verificationResult = await database.query<{ results: Array<{ key: string; label: string; passed: boolean; detail: string }> }>(
+    `SELECT results FROM provider_verification_checks WHERE provider_id::text = $1 ORDER BY created_at DESC LIMIT 1`,
+    [provider.id],
+  );
   const isAdmin = access.isOwner && await hasAdminAccess(session.user.id, session.user.email);
   const serviceResult = await database.query<{
     id: string;
@@ -147,6 +151,7 @@ export async function GET() {
     screeningScore: provider.screening_score,
     screeningSummary: provider.screening_summary,
     screeningCheckedAt: provider.screening_checked_at,
+    automaticVerificationChecks: verificationResult.rows[0]?.results ?? null,
     cancellationWindowHours: provider.cancellation_window_hours,
     cancellationPolicy: provider.cancellation_policy,
     noShowPolicy: provider.no_show_policy,
