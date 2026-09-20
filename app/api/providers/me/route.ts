@@ -13,6 +13,7 @@ export async function GET() {
 
   const providerResult = await database.query<{
     id: string;
+    user_id: string;
     business_name: string;
     city: string;
     state: string;
@@ -30,7 +31,7 @@ export async function GET() {
     no_show_policy: string;
     service_radius_miles: number;
   }>(
-    `SELECT p.id::text, p.business_name, p.city, p.state, p.plan,
+    `SELECT p.id::text, p.user_id, p.business_name, p.city, p.state, p.plan,
             u."emailVerified" AS email_verified, p.phone_verified, p.identity_verified,
             p.business_verified, p.screening_status, p.screening_score, p.screening_summary,
             p.screening_checked_at, p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
@@ -62,10 +63,23 @@ export async function GET() {
     location_name: string;
     city: string;
     state: string;
+    created_at: Date;
+    view_count: number;
   }>(
     `SELECT s.id::text, s.company_id::text, company.slug AS company_slug, company.name AS business_name,
-            s.slug, s.title, s.category, s.price_cents, s.duration_minutes,
+            s.slug, s.title, s.category, s.price_cents, s.duration_minutes, s.created_at,
             location.id::text AS location_id, location.name AS location_name, location.city, location.state,
+            COALESCE((
+              SELECT count(*)::int
+              FROM analytics_events event
+              WHERE event.event_name = 'service_view'
+                AND event.created_at >= s.created_at
+                AND event.user_id IS DISTINCT FROM $3::text
+                AND (
+                  (event.target_type = 'service' AND event.target_id = s.id::text)
+                  OR (event.target_id IS NULL AND event.metadata->>'slug' = s.slug)
+                )
+            ), 0) AS view_count,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
@@ -76,7 +90,7 @@ export async function GET() {
      WHERE s.provider_id::text = $1 AND s.is_active = true
        AND ($2::text IS NULL OR company.name = $2)
      ORDER BY s.created_at DESC`,
-    [provider.id, access.memberCompanyName],
+    [provider.id, access.memberCompanyName, provider.user_id],
   );
   const services = serviceResult.rows.map((service) => ({
     id: service.id,
@@ -88,6 +102,8 @@ export async function GET() {
     category: service.category,
     price: service.price_cents / 100,
     durationMinutes: service.duration_minutes,
+    createdAt: service.created_at,
+    viewCount: service.view_count,
     imageUrls: service.image_urls ?? [],
     locationId: service.location_id,
     locationName: service.location_name,

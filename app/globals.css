@@ -425,7 +425,7 @@ html:not([data-theme="dark"]) .pricing-hero {
 }
 
 html:not([data-theme="dark"]) .home-hero {
-  overflow: hidden;
+  overflow: visible;
   margin: 1rem;
   border: 1px solid rgba(72, 103, 84, .13) !important;
   border-radius: 2.5rem;
@@ -1065,7 +1065,7 @@ html[data-theme="dark"] .brand-wordmark-bookings {
 }
 
 html[data-theme="dark"] .home-hero {
-  overflow: hidden;
+  overflow: visible;
   margin: 1rem;
   border-radius: 2.5rem;
   border-bottom: 1px solid rgba(231, 243, 235, 0.06);

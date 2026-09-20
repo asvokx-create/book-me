@@ -61,7 +61,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </header>
 
       <section className="home-hero relative z-10 isolate">
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"><div className="home-hero-glow absolute -right-48 top-8 h-[620px] w-[620px] rounded-full bg-[#d8e7d3] blur-2xl sm:right-[-8rem] sm:top-4" /></div>
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[inherit]"><div className="home-hero-glow absolute -right-48 top-8 h-[620px] w-[620px] rounded-full bg-[#d8e7d3] blur-2xl sm:right-[-8rem] sm:top-4" /></div>
         <div className="relative z-10 mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20 lg:py-24">
         <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_.65fr] lg:gap-14">
         <div className="max-w-3xl">
