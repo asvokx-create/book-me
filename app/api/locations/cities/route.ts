@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { nearbyUsCities, nearestUsCities, searchUsCities } from "@/lib/us-cities";
+import { normalizeUsZipCode, resolveUsZipCode } from "@/lib/us-zip-codes";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -8,12 +9,17 @@ export async function GET(request: Request) {
   const latitude = Number(url.searchParams.get("lat"));
   const longitude = Number(url.searchParams.get("lng"));
   const requestedLimit = Number(url.searchParams.get("limit"));
-  const limit = Number.isInteger(requestedLimit) ? requestedLimit : 12;
-  const cities = Number.isFinite(latitude) && Number.isFinite(longitude)
-    ? nearestUsCities(latitude, longitude, limit)
-    : near ? nearbyUsCities(near, limit) : searchUsCities(query);
+  const limit = Number.isInteger(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 30) : 12;
+  const zipCode = normalizeUsZipCode(near || query);
+  const zipCity = zipCode ? await resolveUsZipCode(zipCode) : undefined;
+  const resolvedLocation = zipCity ? `${zipCity.city}, ${zipCity.state}` : undefined;
+  const cities = zipCity
+    ? [zipCity, ...nearbyUsCities(resolvedLocation!, limit)].slice(0, limit)
+    : Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? nearestUsCities(latitude, longitude, limit)
+      : near ? nearbyUsCities(near, limit) : searchUsCities(query, limit);
   return NextResponse.json(
-    { cities: cities.map((city) => ({ city: city.city, state: city.state, latitude: city.latitude, longitude: city.longitude, ...("distance" in city && typeof city.distance === "number" ? { distance: city.distance } : {}), label: `${city.city}, ${city.state}` })) },
+    { resolvedLocation, cities: cities.map((city) => ({ city: city.city, state: city.state, latitude: city.latitude, longitude: city.longitude, ...("distance" in city && typeof city.distance === "number" ? { distance: city.distance } : {}), label: `${city.city}, ${city.state}` })) },
     { headers: { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" } },
   );
 }

@@ -2,9 +2,15 @@ import "server-only";
 
 import { headers } from "next/headers";
 import { findUsCity } from "@/lib/us-cities";
+import { normalizeUsZipCode, resolveUsZipCode } from "@/lib/us-zip-codes";
 
 export async function getContextualLocation(explicitLocation?: string) {
-  if (explicitLocation?.trim()) return explicitLocation.trim();
+  if (explicitLocation?.trim()) {
+    const requestedLocation = explicitLocation.trim();
+    if (!normalizeUsZipCode(requestedLocation)) return requestedLocation;
+    const city = await resolveUsZipCode(requestedLocation);
+    return city ? `${city.city}, ${city.state}` : "";
+  }
 
   const requestHeaders = await headers();
   const encodedCity = requestHeaders.get("x-vercel-ip-city")?.trim();

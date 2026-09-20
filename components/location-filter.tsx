@@ -24,6 +24,7 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
   const [location, setLocation] = useState(initialLocation);
   const [radius, setRadius] = useState(initialRadius);
   const [locating, setLocating] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [message, setMessage] = useState("");
   const [nearby, setNearby] = useState<CityChoice[]>([]);
   const detailsRef = useRef<HTMLDetailsElement>(null);
@@ -157,6 +158,32 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
     navigateToLocation(nextLocation, radius);
   }
 
+  async function applyTypedLocation() {
+    const typedLocation = location.trim();
+    if (!typedLocation) return;
+    if (!/^\d{5}(?:-\d{4})?$/.test(typedLocation)) {
+      chooseLocation(typedLocation);
+      return;
+    }
+
+    setResolving(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/locations/cities?q=${encodeURIComponent(typedLocation)}&limit=1`);
+      const data = await response.json() as { resolvedLocation?: string };
+      if (!response.ok || !data.resolvedLocation) {
+        setMessage("We could not find that ZIP code. Check it and try again.");
+        return;
+      }
+      chooseLocation(data.resolvedLocation);
+      setMessage(`ZIP ${typedLocation.slice(0, 5)} matched to ${data.resolvedLocation}.`);
+    } catch {
+      setMessage("ZIP code lookup is temporarily unavailable. Try entering your city and state.");
+    } finally {
+      setResolving(false);
+    }
+  }
+
   function useCurrentLocation() {
     localStorage.setItem(LOCATION_PROMPTED_KEY, "true");
     requestCurrentLocation();
@@ -171,12 +198,12 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
         </summary>
         <div className="absolute left-0 top-full z-30 mt-3 w-[min(360px,calc(100vw-2.5rem))] rounded-[1.5rem] border border-[#183126]/10 bg-white p-5 shadow-[0_20px_55px_rgba(24,49,38,.18)]">
           <p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Choose your area</p>
-          <label className="mt-4 block"><span className="sr-only">Enter city and state</span><input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Enter city, state" className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 text-sm outline-none focus:border-[#4d725d]" /></label>
+          <label className="mt-4 block"><span className="sr-only">Enter city, state, or ZIP code</span><input value={location} onChange={(event) => { setLocation(event.target.value); setMessage(""); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void applyTypedLocation(); } }} placeholder="City, state, or ZIP code" inputMode="text" autoComplete="postal-code" className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 text-sm outline-none focus:border-[#4d725d]" /></label>
           <button type="button" onClick={useCurrentLocation} disabled={locating} className="mt-3 w-full rounded-xl border border-[#183126]/12 px-4 py-2.5 text-left text-sm font-bold transition hover:bg-[#edf3e7] disabled:opacity-60">◎ {locating ? "Finding your city…" : "Use my current location"}</button>
           {message && <p className="mt-2 text-xs leading-5 text-[#6c7d74]">{message}</p>}
           <p className="mt-5 text-xs font-bold text-[#718078]">Nearby cities</p>
           <div className="mt-2 grid grid-cols-2 gap-2">{location.trim() && nearby.map((area) => <button key={area.label} type="button" onClick={() => chooseLocation(area.label)} className="rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[#edf3e7]"><span className="block font-semibold">{area.city}</span><span className="text-[11px] text-[#7a8881]">{typeof area.distance === "number" ? `${Math.round(area.distance)} mi away` : area.state}</span></button>)}</div>
-          <button type="button" disabled={!location.trim()} onClick={() => chooseLocation(location.trim())} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c] disabled:opacity-45">Use this city</button>
+          <button type="button" disabled={!location.trim() || resolving} onClick={() => void applyTypedLocation()} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c] disabled:opacity-45">{resolving ? "Finding your area…" : "Use this area"}</button>
         </div>
       </details>
       <div className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={changeRadius} compact /></div>
