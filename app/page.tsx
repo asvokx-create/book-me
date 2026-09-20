@@ -33,9 +33,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const cityServiceIds = new Set(cityServices.map((service) => service.id));
   const otherServices = servicesWithinRange.filter((service) => !cityServiceIds.has(service.id));
   const categoryCounts = new Map(FEATURED_SERVICE_CATEGORIES.map((category) => [category, servicesWithinRange.filter((service) => service.category === category).length]));
-  const homeCategories = FEATURED_SERVICE_CATEGORIES.filter((category) => (categoryCounts.get(category) ?? 0) > 0)
+  const homeCategories = [...FEATURED_SERVICE_CATEGORIES]
     .sort((left, right) => (categoryCounts.get(right) ?? 0) - (categoryCounts.get(left) ?? 0));
-  const comingSoonCategories = FEATURED_SERVICE_CATEGORIES.filter((category) => (categoryCounts.get(category) ?? 0) === 0);
   const nearbyParams = new URLSearchParams({ radius: String(radius) });
   if (location) nearbyParams.set("location", location);
   const nearbyServicesHref = `/services?${nearbyParams.toString()}#service-listings`;
@@ -128,7 +127,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">{location ? "Explore nearby" : "Explore services"}</p>
         <div className="mb-7 mt-2 flex items-end justify-between gap-4"><h3 className="text-3xl font-bold tracking-[-.04em]">What can we take off your plate?</h3><Link href="/services?showFilters=1#all-filters" className="home-section-action shrink-0 rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a]">View all</Link></div>
 
-        {homeCategories.length > 0 ? <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {homeCategories.map((category) => {
             const count = categoryCounts.get(category) ?? 0;
             const card = <>
@@ -144,17 +143,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             if (location) categoryParams.set("location", location);
             return <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} aria-label={count > 0 ? `Browse ${category}` : `Join the availability list for ${category}`} className={`home-category-card group relative overflow-hidden rounded-[1.75rem] border p-5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60 ${count > 0 ? "border-[#183126]/10 bg-white shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:-translate-y-1.5 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)]" : "home-category-card--empty border-dashed border-[#183126]/10 bg-white/55 transition hover:border-[#6d8d78] hover:bg-white/80"}`}>{card}</Link>;
           })}
-        </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-10 text-center"><span className="text-3xl">🌱</span><h4 className="mt-3 text-xl font-bold">We&apos;re building local supply</h4><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[#687970]">Search for the service you need and join its availability list. Your request helps us recruit providers where demand is real.</p><Link href="/services" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Search and request a service</Link></div>}
-
-        {comingSoonCategories.length > 0 && <details className="mt-6 rounded-[1.5rem] border border-dashed border-[#183126]/15 bg-white/55 p-5">
-          <summary className="cursor-pointer list-none font-bold marker:hidden">More services coming soon <span className="ml-2 text-sm font-semibold text-[#718078]">({comingSoonCategories.length})</span></summary>
-          <p className="mt-2 text-sm leading-6 text-[#687970]">Choose a category to search your area and tell us what you need. We use those requests to decide which providers to recruit next.</p>
-          <div className="mt-4 flex flex-wrap gap-2">{comingSoonCategories.map((category) => {
-            const categoryParams = new URLSearchParams({ category, radius: String(radius) });
-            if (location) categoryParams.set("location", location);
-            return <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} className="rounded-full border border-[#183126]/10 bg-white px-4 py-2 text-sm font-semibold transition hover:border-[#5f806d] hover:bg-[#edf3e7]">{category}</Link>;
-          })}</div>
-        </details>}
+        </div>
       </section>
 
       {location && <section id="nearby-listings" className="home-marketplace scroll-mt-24 mx-auto max-w-6xl px-4 pb-2 sm:px-6 sm:pb-3">
