@@ -2,13 +2,12 @@ import BrandLockup from "@/components/brand-lockup";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { auth, isAuthConfigured } from "@/lib/auth";
 import OnboardingForm from "./onboarding-form";
 
 export const metadata: Metadata = {
   title: "Become a provider",
-  description: "Grow your local service business with BubsBookings.",
+  description: "List your services, message customers, and send quotes without paying for leads. Compare transparent BubsBookings provider plans.",
   alternates: { canonical: "/providers/join" },
 };
 
@@ -19,13 +18,8 @@ function getParam(value: string | string[] | undefined) {
 export default async function ProviderJoinPage({ searchParams }: PageProps<"/providers/join">) {
   const requestedPlan = getParam((await searchParams).plan).toLowerCase();
   const planName = requestedPlan === "pro" ? "Pro" : requestedPlan === "starter" ? "Starter" : "";
-  if (isAuthConfigured()) {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) {
-      const returnPath = `/providers/join${requestedPlan ? `?plan=${encodeURIComponent(requestedPlan)}` : ""}`;
-      redirect(`/login?redirect=${encodeURIComponent(returnPath)}`);
-    }
-  }
+  const session = isAuthConfigured() ? await auth.api.getSession({ headers: await headers() }) : null;
+  const returnPath = `/providers/join${requestedPlan ? `?plan=${encodeURIComponent(requestedPlan)}` : ""}`;
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="provider-join-header border-b border-[#183126]/10 bg-[#f8f7f3]">
@@ -48,7 +42,15 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
             {["Message customers and send quotes for free", "Keep control of your pricing", "Choose when and where you work", "Build trust with verified reviews"].map((benefit) => <div key={benefit} className="flex items-center gap-3 text-sm font-semibold"><span className="grid h-7 w-7 place-items-center rounded-full bg-[#dfeee2] text-[#37724c]">✓</span>{benefit}</div>)}
           </div>
         </div>
-        <OnboardingForm plan={requestedPlan === "pro" ? "pro" : "starter"} />
+        {session || !isAuthConfigured() ? <OnboardingForm plan={requestedPlan === "pro" ? "pro" : "starter"} /> : <aside className="self-start rounded-[2rem] border border-[#183126]/10 bg-white p-7 shadow-[0_20px_60px_rgba(24,49,38,.08)] sm:p-9">
+          <p className="text-xs font-bold uppercase tracking-[.15em] text-[#687970]">Start your provider profile</p>
+          <h2 className="mt-3 text-3xl font-bold tracking-[-.04em]">Create an account, then publish your first service.</h2>
+          <p className="mt-4 text-sm leading-7 text-[#617169]">Choose Starter at $0 per month with a 10% fee on paid bookings, or Pro at $9.99 per month after any eligible trial with a 6% fee on paid bookings. Inquiries, messages, and quotes are free on both plans.</p>
+          <ol className="mt-6 space-y-4 text-sm"><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">1</span><span><strong>Create your account.</strong><br /><span className="text-[#687970]">Use email or an available sign-in option.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">2</span><span><strong>Add your business and service.</strong><br /><span className="text-[#687970]">Set your location, price, duration, photos, and availability.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">3</span><span><strong>Receive real customer requests.</strong><br /><span className="text-[#687970]">Ask questions, send quotes, and accept work that fits.</span></span></li></ol>
+          <Link href={`/signup?redirect=${encodeURIComponent(returnPath)}`} className="mt-7 flex w-full items-center justify-center rounded-full bg-[#eee25a] px-6 py-3.5 font-bold text-[#183126]">Create provider account</Link>
+          <p className="mt-4 text-center text-sm text-[#687970]">Already have an account? <Link href={`/login?redirect=${encodeURIComponent(returnPath)}`} className="font-bold text-[#183126] underline decoration-[#c9be45] decoration-2 underline-offset-4">Log in</Link></p>
+          <div className="mt-7 border-t border-[#183126]/10 pt-6"><h3 className="font-bold">Common questions</h3><dl className="mt-4 space-y-4 text-sm"><div><dt className="font-bold">Do I pay for a lead?</dt><dd className="mt-1 leading-6 text-[#687970]">No. Customer inquiries, replies, and quotes do not create a charge.</dd></div><div><dt className="font-bold">When does a booking fee apply?</dt><dd className="mt-1 leading-6 text-[#687970]">Your plan&apos;s percentage fee applies when a paid marketplace booking is completed.</dd></div><div><dt className="font-bold">Can I choose where and when I work?</dt><dd className="mt-1 leading-6 text-[#687970]">Yes. You control your service area, schedule, offerings, and starting prices.</dd></div></dl></div>
+        </aside>}
       </section>
     </main>
   );

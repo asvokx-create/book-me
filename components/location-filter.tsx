@@ -17,7 +17,7 @@ const STORAGE_KEY = "bookme-service-area";
 const LOCATION_PROMPTED_KEY = "bookme-location-permission-asked";
 type CityChoice = { city: string; state: string; label: string; distance?: number };
 
-export default function LocationFilter({ initialLocation = "Seattle, WA", initialRadius = 25, restoreRemembered = false, autoSubmitRadius = false, autoSubmitLocation = false, requestLocationOnFirstVisit = false }: LocationFilterProps) {
+export default function LocationFilter({ initialLocation = "", initialRadius = 25, restoreRemembered = false, autoSubmitRadius = false, autoSubmitLocation = false, requestLocationOnFirstVisit = false }: LocationFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -31,6 +31,9 @@ export default function LocationFilter({ initialLocation = "Seattle, WA", initia
   const currentSearch = searchParams.toString();
 
   useEffect(() => {
+    if (!location.trim()) {
+      return;
+    }
     const controller = new AbortController();
     fetch(`/api/locations/cities?near=${encodeURIComponent(location)}&limit=8`, { signal: controller.signal })
       .then((response) => response.json())
@@ -42,7 +45,8 @@ export default function LocationFilter({ initialLocation = "Seattle, WA", initia
   const navigateToLocation = useCallback((nextLocation: string, nextRadius: number, replace = false) => {
     if (!autoSubmitLocation && !autoSubmitRadius) return;
     const params = new URLSearchParams(currentSearch);
-    params.set("location", nextLocation);
+    if (nextLocation) params.set("location", nextLocation);
+    else params.delete("location");
     params.set("radius", String(nextRadius));
     params.delete("showFilters");
     const anchor = pathname === "/" ? "#nearby-listings" : pathname === "/services" ? "#service-listings" : "";
@@ -163,7 +167,7 @@ export default function LocationFilter({ initialLocation = "Seattle, WA", initia
       <input type="hidden" name="location" value={location} />
       <details ref={detailsRef} className="group relative min-w-0 flex-1">
         <summary className="flex min-h-12 list-none items-center gap-2 rounded-full px-4 text-left text-sm font-semibold transition hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">
-          <span aria-hidden="true">📍</span><span className="min-w-0 flex-1 truncate">{location}</span><span className="text-[#76857d] transition group-open:rotate-180">⌄</span>
+          <span aria-hidden="true">📍</span><span className="min-w-0 flex-1 truncate">{location || "Choose your city"}</span><span className="text-[#76857d] transition group-open:rotate-180">⌄</span>
         </summary>
         <div className="absolute left-0 top-full z-30 mt-3 w-[min(360px,calc(100vw-2.5rem))] rounded-[1.5rem] border border-[#183126]/10 bg-white p-5 shadow-[0_20px_55px_rgba(24,49,38,.18)]">
           <p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Choose your area</p>
@@ -171,8 +175,8 @@ export default function LocationFilter({ initialLocation = "Seattle, WA", initia
           <button type="button" onClick={useCurrentLocation} disabled={locating} className="mt-3 w-full rounded-xl border border-[#183126]/12 px-4 py-2.5 text-left text-sm font-bold transition hover:bg-[#edf3e7] disabled:opacity-60">◎ {locating ? "Finding your city…" : "Use my current location"}</button>
           {message && <p className="mt-2 text-xs leading-5 text-[#6c7d74]">{message}</p>}
           <p className="mt-5 text-xs font-bold text-[#718078]">Nearby cities</p>
-          <div className="mt-2 grid grid-cols-2 gap-2">{nearby.map((area) => <button key={area.label} type="button" onClick={() => chooseLocation(area.label)} className="rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[#edf3e7]"><span className="block font-semibold">{area.city}</span><span className="text-[11px] text-[#7a8881]">{typeof area.distance === "number" ? `${Math.round(area.distance)} mi away` : area.state}</span></button>)}</div>
-          <button type="button" onClick={() => chooseLocation(location.trim() || initialLocation)} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">Use this city</button>
+          <div className="mt-2 grid grid-cols-2 gap-2">{location.trim() && nearby.map((area) => <button key={area.label} type="button" onClick={() => chooseLocation(area.label)} className="rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[#edf3e7]"><span className="block font-semibold">{area.city}</span><span className="text-[11px] text-[#7a8881]">{typeof area.distance === "number" ? `${Math.round(area.distance)} mi away` : area.state}</span></button>)}</div>
+          <button type="button" disabled={!location.trim()} onClick={() => chooseLocation(location.trim())} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c] disabled:opacity-45">Use this city</button>
         </div>
       </details>
       <div className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={changeRadius} compact /></div>
