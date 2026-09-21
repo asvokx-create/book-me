@@ -40,7 +40,7 @@ export default function PostJobForm({ initialCategory = "", initialTitle = "" }:
     <div className="mt-7 grid gap-5 sm:grid-cols-2">
       <label className="text-sm font-bold">Service category<select required name="category" defaultValue={initialCategory} className={input}><option value="">Choose a category</option>{SERVICE_CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label>
       <label className="text-sm font-bold">Short title<input required minLength={3} maxLength={120} name="title" defaultValue={initialTitle} placeholder="e.g. Deep clean a two-bedroom home" className={input} /></label>
-      <label className="text-sm font-bold sm:col-span-2">Describe the job<textarea required minLength={20} maxLength={3000} name="description" rows={5} placeholder="Share the scope, size, condition, and anything the provider should know." className={`${input} resize-y`} /></label>
+      <label className="text-sm font-bold sm:col-span-2">Describe what you need<textarea required minLength={20} maxLength={3000} name="description" rows={5} placeholder="Share the details, size, condition, and anything the provider should know." className={`${input} resize-y`} /></label>
       <label className="text-sm font-bold sm:col-span-2">Service address<input required autoComplete="street-address" name="addressLine1" placeholder="Street address" className={input} /></label>
       <label className="text-sm font-bold sm:col-span-2">Apartment, suite, or unit <span className="font-normal text-[#78877f]">(optional)</span><input autoComplete="address-line2" name="addressLine2" className={input} /></label>
       <label className="text-sm font-bold">City<input required autoComplete="address-level2" name="city" className={input} /></label>
