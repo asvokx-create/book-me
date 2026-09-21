@@ -8,6 +8,7 @@ import { FEATURED_SERVICE_CATEGORIES } from "@/lib/service-categories";
 import LocationFilter from "@/components/location-filter";
 import ServiceCategoryIcon from "@/components/service-category-icon";
 import { getContextualLocation } from "@/lib/request-location";
+import MobileSiteNav from "@/components/mobile-site-nav";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Find and book local services", description: "Compare local service listings, message providers, and request bookings across the United States.", alternates: { canonical: "/" } };
@@ -56,6 +57,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <Link href="/providers/join" className="hidden rounded-full border border-[#183126]/10 bg-white/60 px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:border-[#183126]/20 hover:bg-white sm:block">
               List your service
             </Link>
+            <MobileSiteNav />
             <AccountNav />
           </div>
         </div>

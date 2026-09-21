@@ -8,6 +8,7 @@ import { isOwnerEmail } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getStripeMode } from "@/lib/stripe";
+import MobileSiteNav from "@/components/mobile-site-nav";
 
 export const metadata: Metadata = {
   title: "Provider pricing",
@@ -78,7 +79,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
       <header className="border-b border-[#183126]/10 bg-[#f8f7f3]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><BrandLockup /></Link>
-          <div className="flex items-center gap-2 sm:gap-3"><nav aria-label="Primary navigation" className="hidden items-center gap-1 md:flex"><Link href="/services" className="site-nav-link">Find services</Link><Link href="/guides" className="site-nav-link">Guides</Link></nav><AccountNav /></div>
+          <div className="flex items-center gap-2 sm:gap-3"><nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex"><Link href="/services" className="site-nav-link">Find services</Link><Link href="/guides" className="site-nav-link">Guides</Link></nav><MobileSiteNav /><AccountNav /></div>
         </div>
       </header>
 

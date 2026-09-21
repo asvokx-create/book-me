@@ -32,6 +32,7 @@ export default function MessagingCenter({
   const timeZone = useUserTimeZone();
   const [data, setData] = useState<MessageData>({ conversations: [], selectedConversation: null, messages: [] });
   const [selectedId, setSelectedId] = useState(initialConversationId);
+  const [showMobileInbox, setShowMobileInbox] = useState(!(initialConversationId || initialProviderId));
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -89,6 +90,7 @@ export default function MessagingCenter({
 
   async function chooseConversation(conversationId: string) {
     lastScrolledMessageIdRef.current = "";
+    setShowMobileInbox(false);
     selectedIdRef.current = conversationId;
     setSelectedId(conversationId);
     setLoading(true);
@@ -115,6 +117,7 @@ export default function MessagingCenter({
       return;
     }
     setMessage("");
+    setShowMobileInbox(false);
     selectedIdRef.current = result.conversationId;
     setSelectedId(result.conversationId);
     await loadMessages(result.conversationId);
@@ -155,6 +158,7 @@ export default function MessagingCenter({
     }
     const remaining = data.conversations.filter((conversation) => conversation.id !== selectedId);
     const nextId = remaining[0]?.id ?? "";
+    setShowMobileInbox(true);
     selectedIdRef.current = nextId;
     setSelectedId(nextId);
     setData((current) => ({ ...current, conversations: remaining, selectedConversation: null, messages: [] }));
@@ -191,7 +195,7 @@ export default function MessagingCenter({
   return (
     <section className="overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_8px_30px_rgba(24,49,38,.06)]">
       <div className="grid min-h-[70dvh] lg:min-h-[620px] lg:grid-cols-[300px_1fr]">
-        <aside className="border-b border-[#183126]/10 bg-[#f7f7f2] lg:border-b-0 lg:border-r">
+        <aside className={`${showMobileInbox ? "block" : "hidden lg:block"} border-b border-[#183126]/10 bg-[#f7f7f2] lg:border-b-0 lg:border-r`}>
           <div className="border-b border-[#183126]/10 p-5"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Inbox</p><h2 className="mt-2 text-2xl font-bold">Messages</h2></div>
           <div className="max-h-64 overflow-y-auto lg:max-h-[540px]">
             {loading && data.conversations.length === 0 ? <p className="p-5 text-sm text-[#718078]">Loading conversations…</p> : data.conversations.length === 0 ? <div className="p-6 text-center"><p className="text-3xl">✉</p><p className="mt-3 font-bold">No conversations yet</p><p className="mt-1 text-sm leading-6 text-[#718078]">{mode === "provider" ? "Customer questions will appear here." : "Contact a provider from one of their listings."}</p></div> : data.conversations.map((conversation) => {
@@ -202,17 +206,17 @@ export default function MessagingCenter({
           </div>
         </aside>
 
-        <div className="flex min-h-[55dvh] flex-col lg:min-h-[480px]">
+        <div className={`${!showMobileInbox && (selected || canStartConversation) ? "flex" : "hidden lg:flex"} min-h-[calc(100dvh-10rem)] flex-col lg:min-h-[480px]`}>
           {(selected || canStartConversation) ? <>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#183126]/10 px-4 py-4 sm:px-5"><div className="flex min-w-0 flex-1 items-center gap-3"><ProfileAvatar name={contactName || "BubsBookings user"} imageUrl={contactImage} className="h-10 w-10 shrink-0 text-xs" /><div className="min-w-0"><p className="truncate font-bold">{contactName}</p>{serviceTitle && <p className="mt-1 truncate text-xs text-[#728179]">About {serviceTitle}</p>}</div></div>{selected && <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={() => { setReportNotice(""); setReportOpen(true); }} className="rounded-full px-3 py-2 text-xs font-bold text-[#7a681d] transition hover:bg-[#fff3b0]">Report</button><button type="button" onClick={deleteConversation} aria-label="Delete conversation" className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]"><span className="sm:hidden">Delete</span><span className="hidden sm:inline">Delete conversation</span></button></div>}</div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#183126]/10 px-4 py-3 sm:px-5 sm:py-4"><div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">{selected && <button type="button" onClick={() => setShowMobileInbox(true)} aria-label="Back to conversations" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/10 bg-white text-lg lg:hidden">←</button>}<ProfileAvatar name={contactName || "BubsBookings user"} imageUrl={contactImage} className="h-10 w-10 shrink-0 text-xs" /><div className="min-w-0"><p className="truncate font-bold">{contactName}</p>{serviceTitle && <p className="mt-1 truncate text-xs text-[#728179]">About {serviceTitle}</p>}</div></div>{selected && <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={() => { setReportNotice(""); setReportOpen(true); }} className="rounded-full px-3 py-2 text-xs font-bold text-[#7a681d] transition hover:bg-[#fff3b0]">Report</button><button type="button" onClick={deleteConversation} aria-label="Delete conversation" className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc]"><span className="sm:hidden">Delete</span><span className="hidden sm:inline">Delete conversation</span></button></div>}</div>
             <div className="flex-1 space-y-4 overflow-y-auto bg-[#fcfcf8] p-5 sm:p-7">
               {!selected && <div className="mx-auto max-w-sm rounded-2xl bg-[#edf2e9] p-4 text-center text-sm leading-6 text-[#5e7067]">Ask about availability, pricing, or anything you want to know before booking.</div>}
               {data.messages.map((item) => <div key={item.id} className={`flex ${item.isMine ? "justify-end" : "justify-start"}`}><div className={`group max-w-[82%] rounded-2xl px-4 py-3 ${item.isMine ? "rounded-br-md bg-[#183126] text-white" : "rounded-bl-md border border-[#183126]/10 bg-white"}`}><p className={`whitespace-pre-wrap break-words text-sm leading-6 ${item.deleted ? "italic opacity-60" : ""}`}>{item.body}</p><div className="mt-1.5 flex items-center justify-between gap-4"><p className={`text-[10px] ${item.isMine ? "text-white/55" : "text-[#8a9690]"}`}>{formatInUserTimeZone(item.createdAt, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }, timeZone)}</p>{item.isMine && !item.deleted && <button type="button" onClick={() => deleteMessage(item.id)} className="rounded px-1.5 py-0.5 text-[10px] font-bold text-white/55 opacity-0 transition hover:bg-white/15 hover:text-white group-hover:opacity-100 focus:opacity-100">Delete</button>}</div></div></div>)}
               <div ref={messageEndRef} />
             </div>
-            <form onSubmit={sendMessage} className="border-t border-[#183126]/10 bg-white p-4 sm:p-5">
+            <form onSubmit={sendMessage} className="sticky bottom-0 border-t border-[#183126]/10 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
               {error && <p role="alert" className="mb-3 rounded-xl bg-[#fff0e8] px-3 py-2 text-xs font-semibold text-[#964f2c]">{error}</p>}{reportNotice && <p role="status" className="mb-3 rounded-xl bg-[#e4f1e5] px-3 py-2 text-xs font-semibold text-[#35704a]">{reportNotice}</p>}
-              <div className="flex items-end gap-3"><label className="sr-only" htmlFor="message-body">Message</label><textarea id="message-body" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000} rows={2} placeholder={`Message ${contactName || "provider"}…`} className="min-h-12 flex-1 resize-none rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none transition focus:border-[#6f7f4c] focus:ring-2 focus:ring-[#eee25a]/50" /><button type="submit" disabled={!message.trim() || sending} className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:bg-[#e1d43d] disabled:cursor-not-allowed disabled:opacity-50">{sending ? "Sending…" : "Send"}</button></div><p className="mt-2 text-[10px] leading-4 text-[#859088]">Messages are automatically checked for unsafe or unprofessional content. <Link href="/ai-transparency" className="font-bold underline">How it works</Link></p>
+              <div className="flex items-end gap-2 sm:gap-3"><label className="sr-only" htmlFor="message-body">Message</label><textarea id="message-body" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000} rows={2} placeholder={`Message ${contactName || "provider"}…`} className="min-h-12 min-w-0 flex-1 resize-none rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-base outline-none transition focus:border-[#6f7f4c] focus:ring-2 focus:ring-[#eee25a]/50" /><button type="submit" disabled={!message.trim() || sending} className="h-12 shrink-0 rounded-full bg-[#eee25a] px-4 text-sm font-bold text-[#183126] transition hover:bg-[#e1d43d] disabled:cursor-not-allowed disabled:opacity-50 sm:px-5">{sending ? "Sending…" : "Send"}</button></div><p className="mt-2 text-[10px] leading-4 text-[#859088]">Messages are automatically checked for unsafe or unprofessional content. <Link href="/ai-transparency" className="font-bold underline">How it works</Link></p>
             </form>
           </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="text-5xl">💬</p><h2 className="mt-4 text-xl font-bold">Choose a conversation</h2><p className="mt-2 text-sm text-[#718078]">Select someone from your inbox to read and reply.</p></div></div>}
         </div>

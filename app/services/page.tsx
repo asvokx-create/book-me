@@ -10,6 +10,7 @@ import SortSelect from "@/components/sort-select";
 import ServiceFiltersMenu from "@/components/service-filters-menu";
 import { getContextualLocation } from "@/lib/request-location";
 import ServiceDemandCapture from "@/components/service-demand-capture";
+import MobileSiteNav from "@/components/mobile-site-nav";
 import SearchResultsAnalytics from "@/components/search-results-analytics";
 
 export const dynamic = "force-dynamic";
@@ -89,6 +90,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             <nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex"><Link href="/guides" className="site-nav-link">Guides</Link><Link href="/pricing" className="site-nav-link">Pricing</Link></nav>
             <Link href="/pricing" className="hidden min-h-10 items-center justify-center rounded-full px-2.5 py-2 text-xs font-bold hover:bg-[#183126]/5 min-[430px]:inline-flex sm:px-3 sm:text-sm lg:hidden">Pricing</Link>
             <Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link>
+            <MobileSiteNav />
             <AccountNav />
           </div>
         </div>
@@ -127,7 +129,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           })}
           <ServiceFiltersMenu initiallyOpen={showFilters}>
             <summary className="list-none rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-sm font-semibold transition hover:border-[#496958] hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">More filters <span className="inline-block transition group-open:rotate-180">⌄</span></summary>
-            <div className="absolute left-5 right-5 z-20 mt-3 rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 shadow-[0_20px_55px_rgba(24,49,38,.15)] sm:left-auto sm:right-8 sm:w-[620px] sm:p-6">
+            <div className="fixed inset-x-3 bottom-3 z-[80] max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_20px_55px_rgba(24,49,38,.15)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-8 sm:mt-3 sm:max-h-[min(40rem,calc(100dvh-7rem))] sm:w-[620px] sm:p-6">
               <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={serviceHref(category)} className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><span>{SERVICE_CATEGORY_ICONS[category] ?? "✨"}</span>{category}</Link>)}</div>
               <form action={`/services${resultsAnchor}`} className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">

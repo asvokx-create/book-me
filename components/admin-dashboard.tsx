@@ -266,17 +266,17 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
       </header>
 
       <div className="mx-auto grid max-w-[1440px] gap-6 px-5 py-7 lg:grid-cols-[240px_1fr] lg:px-8">
-        <aside className="rounded-[1.5rem] bg-[#183126] p-3 text-white lg:min-h-[calc(100vh-8rem)]">
-          <div className="px-4 pb-5 pt-3">
+        <aside className="admin-nav-shell -mx-5 bg-[#183126] py-3 text-white lg:mx-0 lg:min-h-[calc(100vh-8rem)] lg:rounded-[1.5rem] lg:p-3">
+          <div className="hidden px-4 pb-5 pt-3 lg:block">
             <p className="text-xs font-bold uppercase tracking-[.16em] text-[#aabdb3]">Admin console</p>
             <p className="mt-2 text-lg font-bold">Hi, {firstName}</p>
           </div>
-          <nav className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-1" aria-label="Admin sections">
+          <nav className="mobile-scroll-row flex snap-x gap-2 overflow-x-auto px-5 pb-1 lg:grid lg:grid-cols-1 lg:gap-1 lg:overflow-visible lg:px-0 lg:pb-0" aria-label="Admin sections">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setSection(item.id)}
-                className={"flex items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition " + (section === item.id ? "bg-[#eee25a] text-[#183126]" : "text-white/80 hover:bg-white/10 hover:text-white")}
+                className={"flex shrink-0 snap-start items-center gap-2 rounded-full px-4 py-2.5 text-left text-sm font-bold transition lg:rounded-2xl lg:py-3 " + (section === item.id ? "bg-[#eee25a] text-[#183126]" : "border border-white/10 text-white/80 hover:bg-white/10 hover:text-white lg:border-0")}
               >
                 <span className="w-5 text-center">{item.icon}</span>{item.label}
                 {item.id === "reports" && openReports.length > 0 && <span className="ml-auto rounded-full bg-[#fff0e7] px-2 py-0.5 text-[10px] text-[#9a4e25]">{openReports.length}</span>}

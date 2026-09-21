@@ -15,6 +15,12 @@ export default function BookingCalendar({ role }: { role: "customer" | "provider
   const [loading, setLoading] = useState(true);
   const [staff, setStaff] = useState<Array<{ id: string; name: string }>>([]);
   const [staffFilter, setStaffFilter] = useState("all");
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (window.matchMedia("(max-width: 640px)").matches) setView("day");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   useEffect(() => { fetch(`/api/calendar?role=${role}`, { cache: "no-store" }).then(async (response) => {
     const data = response.ok ? await response.json() as { events: Event[]; staff?: Array<{ id: string; name: string }> } : { events: [], staff: [] }; setEvents(data.events); setStaff(data.staff ?? []); setLoading(false);
   }).catch(() => setLoading(false)); }, [role]);
@@ -35,7 +41,7 @@ export default function BookingCalendar({ role }: { role: "customer" | "provider
 
   return <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-5 sm:p-7">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Schedule</p><h1 className="mt-2 text-3xl font-bold">Booking calendar</h1></div>
-      <div className="flex flex-wrap gap-2">{role === "provider" && <select aria-label="Filter calendar by worker" value={staffFilter} onChange={(event) => setStaffFilter(event.target.value)} className="rounded-full border border-[#183126]/15 bg-white px-4 py-2 text-xs font-bold"><option value="all">All staff</option><option value="owner">Company owner</option>{staff.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select>}<div className="flex rounded-full bg-[#eef1eb] p-1">{(["day", "week", "month"] as View[]).map((item) => <button key={item} onClick={() => setView(item)} className={`rounded-full px-4 py-2 text-xs font-bold capitalize ${view === item ? "bg-[#183126] text-white" : "hover:bg-white"}`}>{item}</button>)}</div></div></div>
+      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">{role === "provider" && <select aria-label="Filter calendar by worker" value={staffFilter} onChange={(event) => setStaffFilter(event.target.value)} className="w-full rounded-full border border-[#183126]/15 bg-white px-4 py-2 text-sm font-bold sm:w-auto sm:text-xs"><option value="all">All staff</option><option value="owner">Company owner</option>{staff.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select>}<div className="grid grid-cols-3 rounded-full bg-[#eef1eb] p-1">{(["day", "week", "month"] as View[]).map((item) => <button key={item} onClick={() => setView(item)} className={`rounded-full px-3 py-2 text-xs font-bold capitalize sm:px-4 ${view === item ? "bg-[#183126] text-white" : "hover:bg-white"}`}>{item}</button>)}</div></div></div>
     <div className="mt-7 flex items-center justify-between gap-3"><button onClick={() => move(-1)} aria-label="Previous period" className="rounded-full border px-4 py-2 font-bold hover:bg-[#eee25a]">←</button><h2 className="text-center text-lg font-bold">{title}</h2><button onClick={() => move(1)} aria-label="Next period" className="rounded-full border px-4 py-2 font-bold hover:bg-[#eee25a]">→</button></div>
     <div className="mt-6 space-y-3">{loading ? <p className="rounded-2xl bg-[#f5f5ef] p-6 text-sm text-[#718078]">Loading your calendar…</p> : visible.length ? visible.map((event) => <Link key={`${event.kind}-${event.id}`} href={href(event)} className={`flex flex-col gap-3 rounded-2xl border p-4 transition hover:border-[#66816f] sm:flex-row sm:items-center ${event.kind === "time_off" ? "border-[#d9b6a8] bg-[#fff5ef]" : "border-[#183126]/10 hover:bg-[#f7f8f3]"}`}>
       <div className="w-24 shrink-0"><p className="text-xs font-bold uppercase text-[#6f7e76]">{formatInUserTimeZone(event.startsAt, { month: "short", day: "numeric" }, timeZone)}</p><p className="mt-1 font-bold">{formatInUserTimeZone(event.startsAt, { hour: "numeric", minute: "2-digit" }, timeZone)}</p></div>

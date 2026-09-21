@@ -1227,3 +1227,74 @@ html[data-theme="dark"] .home-promise-card {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Mobile application ergonomics shared across the marketplace and dashboards. */
+@media (max-width: 640px) {
+  body {
+    overflow-wrap: anywhere;
+  }
+
+  main > header > div {
+    min-height: 3.75rem;
+  }
+
+  :where(main, footer) :where(a, button)[class*="rounded-full"] {
+    max-width: 100%;
+  }
+
+  :where(main) :where(section, article, aside)[class~="p-6"] {
+    padding: 1.25rem;
+  }
+
+  :where(main) :where(section, article, aside)[class~="p-10"],
+  :where(main) :where(section, article, aside)[class~="p-12"] {
+    padding: 1.5rem;
+  }
+
+  [role="dialog"] {
+    align-items: end;
+    overscroll-behavior: contain;
+  }
+
+  [role="dialog"] > :where(form, div, section) {
+    width: 100%;
+    max-width: none;
+  }
+
+  [role="dialog"] :where(.flex.justify-end, .flex.justify-between):has(> button) {
+    flex-wrap: wrap;
+  }
+
+  [role="dialog"] :where(.flex.justify-end, .flex.justify-between):has(> button) > button {
+    flex: 1 1 9rem;
+  }
+
+  .services-search-query,
+  .services-search-location,
+  .services-search-panel > button[type="submit"],
+  .home-search-input,
+  .home-search-submit {
+    min-height: 3.75rem !important;
+  }
+
+  .pricing-plan-card {
+    padding: 1.4rem !important;
+  }
+
+  .site-footer :where(a, button) {
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .site-footer nav > div {
+    gap: .35rem;
+  }
+}
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}

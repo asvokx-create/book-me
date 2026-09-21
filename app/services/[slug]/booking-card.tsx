@@ -107,7 +107,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
 
   if (step === "confirmed") {
     return (
-      <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)]">
+      <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)] lg:sticky lg:top-8">
         <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#e5f1e7] text-3xl text-[#33704a]">✓</span>
         <p className="mt-6 text-xs font-bold uppercase tracking-[.16em] text-[#6a7c72]">Request sent</p>
         <h2 className="mt-2 text-2xl font-bold tracking-tight">Your request is on its way to {provider}.</h2>
@@ -129,7 +129,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
   }
 
   return (
-    <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7">
+    <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7 lg:sticky lg:top-8">
       <div className="flex items-end justify-between">
         <div><p className="text-sm text-[#6f7f77]">Starting at</p><p className="mt-1 text-3xl font-bold tracking-tight">${price}</p></div>
         <p className="rounded-full bg-[#f1f0eb] px-3 py-1.5 text-xs font-semibold text-[#5f7067]">Estimated time: {duration}</p>
