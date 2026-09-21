@@ -9,6 +9,7 @@ import { getMobileNavigationState } from "@/lib/mobile-navigation-state";
 
 const links = [
   ["Find services", "/services"],
+  ["Request a service", "/requests"],
   ["Guides", "/guides"],
   ["Provider pricing", "/pricing"],
   ["Service areas", "/locations"],

@@ -18,6 +18,8 @@ type BookingCardProps = {
   noShowPolicy: string;
   bookingQuestions: string[];
   bookingDisabled?: boolean;
+  parentBookingId?: string;
+  requestAnotherTimeHref: string;
 };
 
 function formatTime(time: string) {
@@ -26,7 +28,7 @@ function formatTime(time: string) {
   return `${hours % 12 || 12}:${minutes} ${hours >= 12 ? "PM" : "AM"}`;
 }
 
-export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, serviceCity, serviceState, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false }: BookingCardProps) {
+export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, serviceCity, serviceState, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false, parentBookingId = "", requestAnotherTimeHref }: BookingCardProps) {
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
   const [city, setCity] = useState(serviceCity);
@@ -84,7 +86,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serviceId, date, time, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, answers }),
+      body: JSON.stringify({ serviceId, date, time, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, answers, parentBookingId }),
     }).catch(() => null);
     if (!response) {
       setLoading(false);
@@ -160,7 +162,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
                 <button key={slot} type="button" onClick={() => { setTime(slot); setError(""); }} className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${time === slot ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/15 bg-white hover:border-[#8f8421] hover:bg-[#fff7ad]"}`}>{formatTime(slot)}</button>
               ))}
             </div>
-            {timeSlots.length === 0 && <p className="rounded-xl bg-[#f5f5ef] p-4 text-center text-sm text-[#708078]">No times are available on this date. Try another day.</p>}
+            {timeSlots.length === 0 && <div className="rounded-xl bg-[#f5f5ef] p-4 text-center text-sm text-[#708078]"><p>No times are available on this date.</p><Link href={requestAnotherTimeHref} className="mt-3 inline-flex rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white">Request another time</Link></div>}
           </fieldset>
         )}
 

@@ -16,13 +16,14 @@ import BookingCalendar from "@/components/booking-calendar";
 import ProfileAvatar from "@/components/profile-avatar";
 import LocationManager from "@/components/location-manager";
 import ProviderMarketingTools from "@/components/provider-marketing-tools";
+import JobRequestCenter from "@/components/job-request-center";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { isAllDayAvailability } from "@/lib/availability-hours";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 import { dashboardWidgetDetails, ownerDashboardWidgets, workerDashboardWidgets, type DashboardWidgetId } from "@/lib/provider-dashboard-widgets";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
-export type DashboardSection = "overview" | "bookings" | "calendar" | "messages" | "revenue" | "services" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
+export type DashboardSection = "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "revenue" | "services" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
 
 type ProviderBooking = { id: string; customer: string; customerImage: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus; assigneeName: string; repeatBookings: number };
 const initialRequests: ProviderBooking[] = [];
@@ -112,6 +113,7 @@ function formatBookingTime(startsAt: string, timeZone?: string) {
 const dashboardNav: Array<{ section: DashboardSection; href: string; icon: string; label: string }> = [
   { section: "overview", href: "/provider/dashboard", icon: "▦", label: "Overview" },
   { section: "bookings", href: "/provider/dashboard/bookings", icon: "◷", label: "Bookings" },
+  { section: "opportunities", href: "/provider/dashboard/opportunities", icon: "⌁", label: "Opportunities" },
   { section: "calendar", href: "/provider/dashboard/calendar", icon: "▣", label: "Calendar" },
   { section: "messages", href: "/provider/dashboard/messages", icon: "✉", label: "Messages" },
   { section: "revenue", href: "/provider/dashboard/revenue", icon: "$", label: "Revenue" },
@@ -127,6 +129,7 @@ const dashboardNav: Array<{ section: DashboardSection; href: string; icon: strin
 
 const sectionsNeedingPageHeading: Partial<Record<DashboardSection, string>> = {
   bookings: "Booking requests",
+  opportunities: "Customer opportunities",
   messages: "Provider messages",
   services: "Company listings",
   availability: "Service availability",
@@ -329,7 +332,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   const isWorker = provider?.accessRole === "worker";
   const availableWidgets: readonly DashboardWidgetId[] = isWorker ? workerDashboardWidgets : ownerDashboardWidgets;
   const visibleNav = isWorker ? dashboardNav.filter((item) => ["overview", "bookings", "locations", "team", "settings"].includes(item.section)) : dashboardNav;
-  const ownerOnlySection = isWorker && ["calendar", "messages", "revenue", "services", "marketing", "availability", "reviews", "billing"].includes(section);
+  const ownerOnlySection = isWorker && ["opportunities", "calendar", "messages", "revenue", "services", "marketing", "availability", "reviews", "billing"].includes(section);
 
   return (
     <main className="dashboard-page min-h-screen scroll-smooth bg-[#f4f4ef] text-[#183126]">
@@ -414,6 +417,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           </section>}
 
           {section === "messages" && !isWorker && <><section className="mb-5 flex flex-col justify-between gap-3 rounded-2xl border border-[#d7ca4d]/45 bg-[#fff9cf] px-5 py-4 sm:flex-row sm:items-center"><div><p className="text-xs font-extrabold uppercase tracking-[.13em] text-[#716a31]">No pay-to-chat fees</p><p className="mt-1 font-bold">Reply to every genuine customer inquiry for free.</p><p className="mt-1 text-xs leading-5 text-[#647064]">BubsBookings never charges you to receive a lead, send a message, or provide a quote.</p></div><Link href="/guides/why-bubsbookings-does-not-charge-for-leads" className="shrink-0 text-sm font-bold underline decoration-[#ad9e25] decoration-2 underline-offset-4">Learn how fees work →</Link></section><MessagingCenter mode="provider" initialConversationId={initialConversationId} /></>}
+
+          {section === "opportunities" && !isWorker && <JobRequestCenter mode="provider" />}
 
           {section === "calendar" && !isWorker && <BookingCalendar role="provider" />}
 

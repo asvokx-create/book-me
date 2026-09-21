@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many booking requests. Please wait a minute and try again." }, { status: 429 });
   }
 
-  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; addressLine1?: unknown; addressLine2?: unknown; city?: unknown; state?: unknown; postalCode?: unknown; accessInstructions?: unknown; notes?: unknown; answers?: unknown };
+  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; addressLine1?: unknown; addressLine2?: unknown; city?: unknown; state?: unknown; postalCode?: unknown; accessInstructions?: unknown; notes?: unknown; answers?: unknown; parentBookingId?: unknown };
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const date = typeof body.date === "string" ? body.date : "";
   const time = typeof body.time === "string" ? body.time : "";
@@ -65,6 +65,7 @@ export async function POST(request: Request) {
   const location = [addressLine1, addressLine2, `${city}, ${state} ${postalCode}`].filter(Boolean).join(", ");
   const notes = typeof body.notes === "string" ? body.notes.trim() : "";
   const submittedAnswers = body.answers && typeof body.answers === "object" && !Array.isArray(body.answers) ? body.answers as Record<string, unknown> : {};
+  const parentBookingId = typeof body.parentBookingId === "string" ? body.parentBookingId : "";
   if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !addressLine1 || addressLine1.length > 120 || addressLine2.length > 80 || !city || city.length > 80 || !usStateCodes.has(state) || !/^\d{5}(?:-\d{4})?$/.test(postalCode) || accessInstructions.length > 500 || location.length > 320 || notes.length > 1000) {
     return NextResponse.json({ error: "Complete the service address, date, and time fields." }, { status: 400 });
   }
@@ -86,6 +87,10 @@ export async function POST(request: Request) {
   );
   const service = serviceResult.rows[0];
   if (!service) return NextResponse.json({ error: "This provider is not available on that day." }, { status: 409 });
+  if (parentBookingId) {
+    const prior = await database.query(`SELECT 1 FROM bookings WHERE id::text = $1 AND customer_id = $2 AND service_id::text = $3 AND status = 'completed'`, [parentBookingId, session.user.id, serviceId]);
+    if (!prior.rows[0]) return NextResponse.json({ error: "That completed booking cannot be repeated." }, { status: 400 });
+  }
   const financialSnapshot = calculateBookingFinancialSnapshot(service.price_cents, service.plan);
   const questions = Array.isArray(service.booking_questions) ? service.booking_questions.filter((question): question is string => typeof question === "string") : [];
   const answers: Record<string, string> = {};
@@ -151,13 +156,13 @@ export async function POST(request: Request) {
           service_address_line1, service_address_line2, service_city, service_state, service_postal_code,
           access_instructions, notes, price_cents, assigned_team_member_id, booking_answers,
           provider_plan_snapshot, provider_fee_basis_points, platform_fee_cents, provider_payout_cents,
-          customer_service_fee_cents, customer_total_cents)
+          customer_service_fee_cents, customer_total_cents, parent_booking_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, $10, $11, NULLIF($12, ''), $13, $14, $15::uuid, $16::jsonb,
-          $17, $18, $19, $20, $21, $22)
+          $17, $18, $19, $20, $21, $22, NULLIF($23, '')::uuid)
        RETURNING id::text`,
       [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, service.price_cents, candidate.rows[0].member_id, JSON.stringify(answers),
         financialSnapshot.providerPlan, financialSnapshot.providerFeeBasisPoints, financialSnapshot.providerFeeCents,
-        financialSnapshot.providerNetCents, financialSnapshot.customerServiceFeeCents, financialSnapshot.customerTotalCents],
+        financialSnapshot.providerNetCents, financialSnapshot.customerServiceFeeCents, financialSnapshot.customerTotalCents, parentBookingId],
     );
     const bookingId = created.rows[0].id;
     await client.query(

@@ -5,8 +5,9 @@ import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { findUsCity } from "@/lib/us-cities";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { enforceRateLimit } from "@/lib/request-security";
+import { normalizeProviderServiceAreas, replaceProviderServiceAreas } from "@/lib/provider-service-areas";
 
-type LocationInput = { companyId?: unknown; locationId?: unknown; name?: unknown; location?: unknown; serviceRadiusMiles?: unknown; workerIds?: unknown };
+type LocationInput = { companyId?: unknown; locationId?: unknown; name?: unknown; location?: unknown; serviceRadiusMiles?: unknown; workerIds?: unknown; serviceAreas?: unknown };
 
 function parseLocation(value: unknown) {
   const label = typeof value === "string" ? value.trim() : "";
@@ -29,11 +30,13 @@ export async function GET() {
   if (!access) return NextResponse.json({ error: "Provider access not found." }, { status: 404 });
   const result = await database.query<{
     id: string; company_id: string; company_name: string; name: string; city: string; state: string;
-    service_radius_miles: number; is_primary: boolean; listing_count: number; worker_ids: string[];
+    service_radius_miles: number; is_primary: boolean; listing_count: number; worker_ids: string[]; service_areas: Array<{ label: string }> | null;
   }>(
     `SELECT location.id::text, company.id::text AS company_id, company.name AS company_name,
             location.name, location.city, location.state, location.service_radius_miles, location.is_primary,
             count(DISTINCT service.id) FILTER (WHERE service.is_active = true)::int AS listing_count,
+            (SELECT jsonb_agg(jsonb_build_object('label', CASE WHEN area.area_type = 'zip' THEN area.postal_code || ' · ' || area.city || ', ' || area.state ELSE area.city || ', ' || area.state END) ORDER BY area.area_type, area.normalized_value)
+             FROM provider_location_service_areas area WHERE area.location_id = location.id) AS service_areas,
             COALESCE(array_agg(DISTINCT assignment.team_member_id::text)
               FILTER (WHERE assignment.team_member_id IS NOT NULL), ARRAY[]::text[]) AS worker_ids
      FROM provider_locations location
@@ -52,7 +55,7 @@ export async function GET() {
   ) : { rows: [] };
   const planResult = await database.query<{ plan: ProviderPlan }>("SELECT plan FROM provider_profiles WHERE id::text = $1", [access.providerId]);
   return NextResponse.json({
-    locations: result.rows.map((row) => ({ id: row.id, companyId: row.company_id, companyName: row.company_name, name: row.name, location: `${row.city}, ${row.state}`, serviceRadiusMiles: row.service_radius_miles, isPrimary: row.is_primary, listingCount: row.listing_count, workerIds: row.worker_ids })),
+    locations: result.rows.map((row) => ({ id: row.id, companyId: row.company_id, companyName: row.company_name, name: row.name, location: `${row.city}, ${row.state}`, serviceRadiusMiles: row.service_radius_miles, isPrimary: row.is_primary, listingCount: row.listing_count, workerIds: row.worker_ids, serviceAreas: row.service_areas?.map((area) => area.label) ?? [] })),
     members: members.rows.map((row) => ({ id: row.id, name: row.name, companyId: row.company_id })),
     isOwner: access.isOwner,
     plan: planResult.rows[0]?.plan ?? "starter",
@@ -68,6 +71,8 @@ export async function POST(request: Request) {
   const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
   const parsed = parseLocation(body.location);
   const radius = Number(body.serviceRadiusMiles);
+  let serviceAreas;
+  try { serviceAreas = await normalizeProviderServiceAreas(body.serviceAreas); } catch (error) { return NextResponse.json({ error: (error as Error).message }, { status: 400 }); }
   if (!companyId || name.length < 2 || name.length > 80 || !parsed.coordinates || !Number.isInteger(radius) || radius < 1 || radius > 250) {
     return NextResponse.json({ error: "Enter a location name, supported city, and service radius." }, { status: 400 });
   }
@@ -80,12 +85,21 @@ export async function POST(request: Request) {
   if (!count.rows[0]?.company_exists) return NextResponse.json({ error: "Company page not found." }, { status: 404 });
   if (!PLAN_ENTITLEMENTS[provider.plan].multipleLocations) return NextResponse.json({ error: "Multiple locations require Pro.", upgradeRequired: true }, { status: 403 });
   try {
-    const result = await database.query<{ id: string }>(
+    const client = await database.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query<{ id: string }>(
       `INSERT INTO provider_locations (company_id, name, city, state, latitude, longitude, service_radius_miles)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id::text`,
       [companyId, name, parsed.city, parsed.state, parsed.coordinates.latitude, parsed.coordinates.longitude, radius],
-    );
-    return NextResponse.json({ ok: true, id: result.rows[0].id });
+      );
+      await replaceProviderServiceAreas(client, result.rows[0].id, serviceAreas);
+      await client.query("COMMIT");
+      return NextResponse.json({ ok: true, id: result.rows[0].id });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
   } catch (error) {
     if ((error as { code?: string }).code === "23505") return NextResponse.json({ error: "That company already has a location with this name." }, { status: 409 });
     console.error("Location creation failed", error);
@@ -103,6 +117,8 @@ export async function PATCH(request: Request) {
   const parsed = parseLocation(body.location);
   const radius = Number(body.serviceRadiusMiles);
   const workerIds = Array.isArray(body.workerIds) ? body.workerIds.filter((id): id is string => typeof id === "string") : [];
+  let serviceAreas;
+  try { serviceAreas = await normalizeProviderServiceAreas(body.serviceAreas); } catch (error) { return NextResponse.json({ error: (error as Error).message }, { status: 400 }); }
   if (!locationId || name.length < 2 || name.length > 80 || !parsed.coordinates || !Number.isInteger(radius) || radius < 1 || radius > 250) {
     return NextResponse.json({ error: "Enter a location name, supported city, and service radius." }, { status: 400 });
   }
@@ -130,6 +146,7 @@ export async function PATCH(request: Request) {
     );
     await client.query("DELETE FROM provider_team_member_locations WHERE location_id::text = $1", [locationId]);
     for (const worker of validWorkers.rows) await client.query("INSERT INTO provider_team_member_locations (team_member_id, location_id) VALUES ($1, $2)", [worker.id, locationId]);
+    await replaceProviderServiceAreas(client, locationId, serviceAreas);
     await client.query("COMMIT");
     return NextResponse.json({ ok: true });
   } catch (error) {

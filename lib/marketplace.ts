@@ -28,6 +28,7 @@ export type ServiceListing = {
   cancellationPolicy: string;
   noShowPolicy: string;
   serviceRadiusMiles: number;
+  serviceAreaCities: string[];
   bookingQuestions: string[];
   distanceMiles?: number;
 };
@@ -63,6 +64,7 @@ type ServiceRow = {
   service_radius_miles: number;
   image_urls: string[] | null;
   booking_questions: unknown;
+  service_area_cities?: string[] | null;
 };
 
 function mapService(row: ServiceRow): ServiceListing {
@@ -90,6 +92,7 @@ function mapService(row: ServiceRow): ServiceListing {
     serviceRadiusMiles: row.service_radius_miles,
     imageUrls: row.image_urls ?? [],
     bookingQuestions: Array.isArray(row.booking_questions) ? row.booking_questions.filter((question): question is string => typeof question === "string") : [],
+    serviceAreaCities: row.service_area_cities ?? [],
   };
 }
 
@@ -144,6 +147,7 @@ export async function getServices(options: { query?: string; category?: string; 
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
             p.is_verified, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
+            COALESCE((SELECT array_agg(lower(area.city || ', ' || area.state)) FROM provider_location_service_areas area WHERE area.location_id = s.location_id), ARRAY[]::text[]) AS service_area_cities,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
@@ -163,7 +167,8 @@ export async function getServices(options: { query?: string; category?: string; 
     const serviceArea = findUsCity(`${service.city}, ${service.state}`);
     if (!serviceArea) return [];
     const distance = distanceMiles(searchOrigin, serviceArea);
-    return distance <= radiusMiles && distance <= service.serviceRadiusMiles ? [{ ...service, distanceMiles: distance }] : [];
+    const explicitAreaMatch = service.serviceAreaCities.includes(`${searchOrigin.city}, ${searchOrigin.state}`.toLowerCase());
+    return ((distance <= radiusMiles && distance <= service.serviceRadiusMiles) || explicitAreaMatch) ? [{ ...service, distanceMiles: distance }] : [];
   });
   if (options.sort === "nearest" || !options.sort) nearbyServices.sort((left, right) => (left.distanceMiles ?? 0) - (right.distanceMiles ?? 0));
   return nearbyServices.slice(0, requestedLimit);

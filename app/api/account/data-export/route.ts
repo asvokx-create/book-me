@@ -28,10 +28,12 @@ export async function GET(request: Request) {
       return (await client.query(query, values)).rows;
     }
 
-    const [settings, signInMethods, bookings, conversations, messages, favorites, notifications, reviewsWritten, providerReviews, teamMemberships, safetyReports, disputes, bugReports, supportRequests, demandRequests, moderationEvents, activityEvents, analyticsEvents] = await Promise.all([
+    const [settings, signInMethods, bookings, jobRequests, quotes, conversations, messages, favorites, notifications, reviewsWritten, providerReviews, teamMemberships, safetyReports, disputes, bugReports, supportRequests, demandRequests, moderationEvents, activityEvents, analyticsEvents] = await Promise.all([
       rows("SELECT * FROM user_settings WHERE user_id = $1", [userId]),
       rows('SELECT id, "accountId", "providerId", "createdAt", "updatedAt" FROM "account" WHERE "userId" = $1', [userId]),
       rows(`SELECT * FROM bookings WHERE customer_id = $1 OR provider_id IN (SELECT id FROM provider_profiles WHERE user_id = $1) ORDER BY created_at`, [userId]),
+      rows(`SELECT * FROM job_requests WHERE customer_id = $1 ORDER BY created_at`, [userId]),
+      rows(`SELECT * FROM quotes WHERE customer_id = $1 OR provider_id IN (SELECT id FROM provider_profiles WHERE user_id = $1) ORDER BY created_at`, [userId]),
       rows(`SELECT * FROM conversations WHERE customer_id = $1 OR provider_id IN (SELECT id FROM provider_profiles WHERE user_id = $1) ORDER BY created_at`, [userId]),
       rows(`SELECT message.* FROM messages message JOIN conversations conversation ON conversation.id = message.conversation_id WHERE conversation.customer_id = $1 OR conversation.provider_id IN (SELECT id FROM provider_profiles WHERE user_id = $1) ORDER BY message.created_at`, [userId]),
       rows("SELECT * FROM favorites WHERE customer_id = $1 ORDER BY created_at", [userId]),
@@ -59,6 +61,7 @@ export async function GET(request: Request) {
       profile: providerResult.rows[0],
       companies: await rows("SELECT * FROM provider_companies WHERE provider_id = $1 ORDER BY created_at", [providerId]),
       locations: await rows("SELECT location.* FROM provider_locations location JOIN provider_companies company ON company.id = location.company_id WHERE company.provider_id = $1 ORDER BY location.created_at", [providerId]),
+      serviceAreas: await rows("SELECT area.* FROM provider_location_service_areas area JOIN provider_locations location ON location.id = area.location_id JOIN provider_companies company ON company.id = location.company_id WHERE company.provider_id = $1 ORDER BY area.created_at", [providerId]),
       services: await rows("SELECT * FROM services WHERE provider_id = $1 ORDER BY created_at", [providerId]),
       serviceImages: await rows("SELECT image.* FROM service_images image JOIN services service ON service.id = image.service_id WHERE service.provider_id = $1 ORDER BY image.created_at", [providerId]),
       availability: await rows("SELECT * FROM availability WHERE provider_id = $1 ORDER BY weekday, start_time", [providerId]),
@@ -78,6 +81,8 @@ export async function GET(request: Request) {
       settings,
       signInMethods,
       bookings,
+      jobRequests,
+      quotes,
       conversations,
       messages,
       favorites,

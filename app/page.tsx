@@ -122,6 +122,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             Find a pro
           </button>
         </form>
+        <div className="mt-4 flex max-w-5xl flex-col items-center justify-between gap-3 rounded-2xl border border-[#183126]/10 bg-white/65 px-5 py-4 text-center backdrop-blur sm:flex-row sm:text-left"><div><p className="text-sm font-bold">Not sure which listing fits?</p><p className="mt-1 text-xs text-[#63756b]">Share what you need once and receive free quotes from local providers.</p></div><Link href="/requests" className="min-h-11 shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>
         </div>
       </section>
 
