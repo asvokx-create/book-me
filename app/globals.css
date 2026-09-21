@@ -15,8 +15,19 @@
   --shadow-md: 0 2px 5px rgba(16, 41, 31, 0.035), 0 18px 48px rgba(16, 41, 31, 0.085);
   --shadow-lg: 0 4px 10px rgba(16, 41, 31, 0.045), 0 32px 90px rgba(16, 41, 31, 0.13);
   --radius-card: 1.5rem;
-  --font-site-sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --font-site-sans: var(--font-manrope);
   --font-site-mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --type-hero: clamp(2.6rem, 6vw, 5rem);
+  --type-page-title: clamp(2.15rem, 4vw, 3.75rem);
+  --type-section-title: clamp(1.55rem, 2.4vw, 2.35rem);
+  --type-card-title: clamp(1.05rem, 1.3vw, 1.25rem);
+  --weight-body: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-heading: 700;
+  --weight-display: 800;
+  --leading-heading: 1.08;
+  --leading-body: 1.6;
 }
 
 html {
@@ -42,9 +53,10 @@ body {
     radial-gradient(circle at 2% 58%, rgba(241, 228, 92, 0.055), transparent 24rem);
   background-attachment: fixed;
   font-family: var(--font-site-sans);
+  font-weight: var(--weight-body);
   min-width: 0;
   overflow-x: clip;
-  line-height: 1.55;
+  line-height: var(--leading-body);
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
   font-optical-sizing: auto;
   text-rendering: optimizeLegibility;
@@ -53,14 +65,38 @@ body {
 main { isolation: isolate; position: relative; flex: 1 0 auto; }
 h1, h2, h3, h4 {
   text-wrap: balance;
-  letter-spacing: -0.026em;
-  line-height: 1.1;
-  font-variation-settings: "wght" 710;
+  overflow-wrap: break-word;
+  font-weight: var(--weight-heading);
+  letter-spacing: -0.024em;
+  line-height: var(--leading-heading);
 }
-h1 { letter-spacing: -0.042em; }
-h1[class*="tracking-"] { letter-spacing: -0.042em; }
+h1 { letter-spacing: -0.036em; }
+h1[class*="tracking-"] { letter-spacing: -0.036em; }
 h2[class*="tracking-"], h3[class*="tracking-"], h4[class*="tracking-"] { letter-spacing: -0.026em; }
 p { text-wrap: pretty; }
+
+.type-hero {
+  font-size: var(--type-hero);
+  font-weight: var(--weight-display);
+  letter-spacing: -.045em;
+  line-height: 1.02;
+}
+
+.type-page-title {
+  font-size: var(--type-page-title);
+  font-weight: var(--weight-heading);
+  letter-spacing: -.038em;
+  line-height: 1.06;
+}
+
+.type-section-title {
+  font-size: var(--type-section-title);
+  font-weight: var(--weight-heading);
+}
+
+.type-card-title { font-size: var(--type-card-title); font-weight: var(--weight-semibold); }
+.type-label { font-size: .875rem; font-weight: var(--weight-medium); }
+.type-meta { font-size: .8125rem; font-weight: var(--weight-body); color: var(--muted); }
 
 button, a, input, select, textarea { font: inherit; }
 button, a {
@@ -149,7 +185,7 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
   color: #183126;
   padding: .75rem 1rem;
   font-size: .875rem;
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   box-shadow: var(--shadow-md);
 }
 
@@ -168,7 +204,7 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
   padding: .68rem 1.1rem;
   color: inherit;
   font-size: 1rem;
-  font-weight: 760;
+  font-weight: var(--weight-semibold);
   white-space: nowrap;
 }
 
@@ -276,8 +312,8 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
 :where(main) th {
   color: var(--muted);
   font-size: .72rem;
-  font-weight: 800;
-  letter-spacing: .08em;
+  font-weight: var(--weight-semibold);
+  letter-spacing: .055em;
   text-align: left;
   text-transform: uppercase;
 }
@@ -300,7 +336,7 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
 
 :where(main) details > summary {
   cursor: pointer;
-  font-weight: 750;
+  font-weight: var(--weight-semibold);
 }
 
 :where(main) details[class*="rounded"] > summary {
@@ -718,7 +754,7 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
 
 @media (max-width: 640px) {
   html {
-    font-size: 15px;
+    font-size: 16px;
     scroll-padding-top: 1.5rem;
   }
 
@@ -784,6 +820,66 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
   .site-nav-link { padding-inline: .65rem; }
   .legal-hero { border-radius: 1.65rem; }
   .legal-toc nav { max-height: 13rem; }
+
+  .type-hero {
+    font-size: clamp(2.35rem, 12vw, 3.35rem);
+    letter-spacing: -.04em;
+  }
+
+  .type-page-title {
+    font-size: clamp(2rem, 9.5vw, 2.75rem);
+  }
+
+  .type-section-title {
+    font-size: clamp(1.45rem, 7vw, 2rem);
+  }
+
+  :where(main, footer) :where(p, li, label, legend, td, th, a, button, span) {
+    overflow-wrap: break-word;
+  }
+
+  :where(main) :where(pre, code) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 430px) {
+  :root {
+    --radius-card: 1.25rem;
+  }
+
+  main > header {
+    width: calc(100% - .5rem) !important;
+    margin-top: .25rem !important;
+  }
+
+  .home-hero,
+  .services-hero,
+  .pricing-hero {
+    margin: .25rem;
+    border-radius: 1.4rem !important;
+  }
+
+  :where(main section, main article, main aside)[class~="p-5"],
+  :where(main section, main article, main aside)[class~="p-6"] {
+    padding: 1.1rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .type-hero { font-size: 2.25rem; }
+  .type-page-title { font-size: 1.9rem; }
+
+  :where(main, footer) :where(a, button)[class*="px-6"],
+  :where(main, footer) :where(a, button)[class*="px-7"],
+  :where(main, footer) :where(a, button)[class*="px-8"] {
+    padding-inline: 1rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .narrow-mobile-header .brand-wordmark-text { display: none; }
 }
 
 @media (min-width: 641px) and (max-width: 1023px) {

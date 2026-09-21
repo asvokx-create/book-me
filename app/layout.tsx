@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Manrope } from "next/font/google";
 import SiteFooter from "@/components/site-footer";
 import AnalyticsTracker from "@/components/analytics-tracker";
 import GoogleAnalytics from "@/components/google-analytics";
@@ -6,6 +7,13 @@ import { Suspense } from "react";
 import Script from "next/script";
 import { PreferencesProvider } from "@/components/preferences-provider";
 import "./globals.css";
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-manrope",
+  fallback: ["Segoe UI", "Arial", "sans-serif"],
+});
 
 const googleSiteVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 
@@ -43,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className="h-full antialiased"
+      className={`${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <a href="#site-content" className="skip-link">Skip to main content</a>

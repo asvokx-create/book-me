@@ -100,7 +100,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         <div className="mx-auto max-w-7xl px-4 py-9 sm:px-8 sm:py-16">
           <Link href="/" className="text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
           <p className="mt-8 text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{location ? "Explore nearby" : "Explore services"}</p>
-          <h1 className="mt-2 text-[clamp(2.25rem,7vw,3rem)] font-bold leading-tight tracking-[-.05em]">Find the right help for the job.</h1>
+          <h1 className="type-page-title mt-2">Find the right help for the job.</h1>
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">{location ? `Compare local providers, prices, and availability around ${location}.` : "Browse active service listings, or choose your city for distance-based local results."}</p>
 
           <form action={`/services${resultsAnchor}`} className="services-search-panel relative z-30 mt-8 flex max-w-5xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 sm:flex-row sm:items-center sm:rounded-full">

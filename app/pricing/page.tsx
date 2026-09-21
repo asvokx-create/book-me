@@ -89,7 +89,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-12 text-left sm:px-8 sm:py-16 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.18em] text-[#d2dfd7]"><span className="h-2 w-2 rounded-full bg-[#eee25a]" />Simple, fair provider pricing</p>
-            <h1 className="mt-6 max-w-3xl text-[clamp(2.7rem,7vw,4.5rem)] font-bold leading-[.98] tracking-[-.055em]">Start free.<br /><span className="text-[#eee25a]">Grow on your terms.</span></h1>
+            <h1 className="type-hero mt-6 max-w-3xl">Start free.<br /><span className="text-[#eee25a]">Grow on your terms.</span></h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-[#d1ddd6] sm:text-lg sm:leading-8">Build your profile, talk with customers, and send quotes without paying for leads. Upgrade only when the extra tools make sense for your business.</p>
             <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
               <Link href={currentPlan === "pro" ? "/provider/dashboard/billing" : "/pricing?plan=pro#plans"} className="inline-flex rounded-full bg-[#eee25a] px-7 py-4 text-base font-bold text-[#183126] shadow-[0_14px_34px_rgba(0,0,0,.18)] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">{currentPlan === "owner" ? "View the 30-day Pro trial" : currentPlan === "pro" ? "Manage your Pro plan" : "Start 30-day Pro trial"}</Link>

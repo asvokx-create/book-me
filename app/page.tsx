@@ -72,7 +72,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <span className="h-2 w-2 rounded-full bg-[#69a67e]" /> Local help, one simple booking
           </p>
 
-          <h1 className="text-[clamp(2.6rem,8vw,3.75rem)] font-bold leading-[1.04] tracking-[-0.05em]">
+          <h1 className="type-hero">
             Your to-do list just got <span className="underline decoration-[#eee25a] decoration-[10px] underline-offset-[-4px]">a lot lighter.</span>
           </h1>
 
