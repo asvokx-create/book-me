@@ -17,6 +17,7 @@ export default function PostJobForm({ initialCategory = "", initialTitle = "" }:
     const form = new FormData(event.currentTarget);
     const values = Object.fromEntries(form.entries()) as Record<string, FormDataEntryValue | boolean>;
     values.flexible = form.get("flexible") === "true";
+    values.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
     const response = await fetch("/api/job-requests", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),

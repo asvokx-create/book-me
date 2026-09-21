@@ -10,10 +10,11 @@ import { distanceMiles } from "@/lib/service-areas";
 import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 import { findUsCity } from "@/lib/us-cities";
 import { normalizeUsZipCode, resolveUsZipCode } from "@/lib/us-zip-codes";
+import { zonedDateTimeToUtc } from "@/lib/zoned-date-time";
 
 type RequestRow = {
   id: string; customer_id: string; category: string; title: string; description: string;
-  city: string; state: string; postal_code: string; preferred_starts_at: Date; is_flexible: boolean;
+  city: string; state: string; postal_code: string; preferred_starts_at: Date; preferred_time_zone: string | null; is_flexible: boolean;
   budget_min_cents: number | null; budget_max_cents: number | null; status: string; expires_at: Date;
   created_at: Date; service_address_line1?: string; service_address_line2?: string | null;
   matched_service_id?: string; matched_service_title?: string; distance_miles?: number;
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
     if (!access) return NextResponse.json({ error: "Provider access not found." }, { status: 403 });
     const result = await database.query<RequestRow>(
       `SELECT request.id::text, request.customer_id, request.category, request.title, request.description,
-              request.city, request.state, request.postal_code, request.preferred_starts_at, request.is_flexible,
+              request.city, request.state, request.postal_code, request.preferred_starts_at, request.preferred_time_zone, request.is_flexible,
               request.budget_min_cents, request.budget_max_cents, request.status, request.expires_at, request.created_at,
               match.service_id::text AS matched_service_id, service.title AS matched_service_title, match.distance_miles
        FROM job_request_matches match
@@ -84,19 +85,19 @@ export async function GET(request: Request) {
     const metrics = metricResult.rows[0] ?? { opportunities: 0, responded: 0, accepted: 0, average_response_minutes: null };
     return NextResponse.json({
       metrics: { opportunities: metrics.opportunities, responded: metrics.responded, accepted: metrics.accepted, responseRate: metrics.opportunities >= 5 ? Math.round((metrics.responded / metrics.opportunities) * 100) : null, averageResponseMinutes: metrics.responded >= 3 ? Math.round(metrics.average_response_minutes ?? 0) : null, sampleProtected: metrics.opportunities < 5 },
-      requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, city: item.city, state: item.state, postalCode: item.postal_code, preferredStartsAt: item.preferred_starts_at, flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, matchedServiceId: item.matched_service_id, matchedServiceTitle: item.matched_service_title, distanceMiles: item.distance_miles, quotes: groupedQuotes.get(item.id) ?? [] })),
+      requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, city: item.city, state: item.state, postalCode: item.postal_code, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, matchedServiceId: item.matched_service_id, matchedServiceTitle: item.matched_service_title, distanceMiles: item.distance_miles, quotes: groupedQuotes.get(item.id) ?? [] })),
     });
   }
 
   const result = await database.query<RequestRow>(
     `SELECT id::text, customer_id, category, title, description, city, state, postal_code,
-            service_address_line1, service_address_line2, preferred_starts_at, is_flexible,
+            service_address_line1, service_address_line2, preferred_starts_at, preferred_time_zone, is_flexible,
             budget_min_cents, budget_max_cents, status, expires_at, created_at
      FROM job_requests WHERE customer_id = $1 ORDER BY created_at DESC`,
     [session.user.id],
   );
   const groupedQuotes = await quotesFor(result.rows.map((item) => item.id));
-  return NextResponse.json({ requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, addressLine1: item.service_address_line1, addressLine2: item.service_address_line2 ?? "", city: item.city, state: item.state, postalCode: item.postal_code, preferredStartsAt: item.preferred_starts_at, flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, quotes: groupedQuotes.get(item.id) ?? [] })) });
+  return NextResponse.json({ requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, addressLine1: item.service_address_line1, addressLine2: item.service_address_line2 ?? "", city: item.city, state: item.state, postalCode: item.postal_code, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, quotes: groupedQuotes.get(item.id) ?? [] })) });
 }
 
 export async function POST(request: Request) {
@@ -114,13 +115,14 @@ export async function POST(request: Request) {
   const postalCode = normalizeUsZipCode(typeof body.postalCode === "string" ? body.postalCode : "");
   const date = typeof body.date === "string" ? body.date : "";
   const time = typeof body.time === "string" ? body.time : "";
+  const timeZone = typeof body.timeZone === "string" ? body.timeZone : "";
   const flexible = body.flexible === true;
   const budgetMin = body.budgetMin === "" || body.budgetMin == null ? null : Number(body.budgetMin);
   const budgetMax = body.budgetMax === "" || body.budgetMax == null ? null : Number(body.budgetMax);
-  const preferredStartsAt = new Date(`${date}T${time}:00`);
+  const preferredStartsAt = zonedDateTimeToUtc(date, time, timeZone);
   const zipPlace = postalCode ? await resolveUsZipCode(postalCode) : undefined;
   const place = zipPlace ?? findUsCity(`${cityInput}, ${stateInput}`);
-  if (!category || title.length < 3 || title.length > 120 || description.length < 20 || description.length > 3000 || !addressLine1 || addressLine1.length > 120 || addressLine2.length > 80 || !postalCode || !place || Number.isNaN(preferredStartsAt.getTime()) || preferredStartsAt.getTime() < Date.now() || (budgetMin !== null && (!Number.isFinite(budgetMin) || budgetMin < 0)) || (budgetMax !== null && (!Number.isFinite(budgetMax) || budgetMax < (budgetMin ?? 0)))) return NextResponse.json({ error: "Complete the service, location, schedule, and optional budget with valid information." }, { status: 400 });
+  if (!category || title.length < 3 || title.length > 120 || description.length < 20 || description.length > 3000 || !addressLine1 || addressLine1.length > 120 || addressLine2.length > 80 || !postalCode || !place || !preferredStartsAt || preferredStartsAt.getTime() < Date.now() || (budgetMin !== null && (!Number.isFinite(budgetMin) || budgetMin < 0)) || (budgetMax !== null && (!Number.isFinite(budgetMax) || budgetMax < (budgetMin ?? 0)))) return NextResponse.json({ error: "Complete the service, location, schedule, and optional budget with valid information." }, { status: 400 });
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "job_request", fields: [title, description, addressLine1, addressLine2] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
@@ -152,9 +154,9 @@ export async function POST(request: Request) {
     await client.query("BEGIN");
     const created = await client.query<{ id: string }>(
       `INSERT INTO job_requests (customer_id, category, title, description, service_address_line1, service_address_line2,
-         city, state, postal_code, latitude, longitude, preferred_starts_at, is_flexible, budget_min_cents, budget_max_cents)
-       VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id::text`,
-      [session.user.id, category, title, description, addressLine1, addressLine2, place.city, place.state, postalCode, place.latitude, place.longitude, preferredStartsAt, flexible, budgetMin === null ? null : Math.round(budgetMin * 100), budgetMax === null ? null : Math.round(budgetMax * 100)],
+         city, state, postal_code, latitude, longitude, preferred_starts_at, preferred_time_zone, is_flexible, budget_min_cents, budget_max_cents)
+       VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id::text`,
+      [session.user.id, category, title, description, addressLine1, addressLine2, place.city, place.state, postalCode, place.latitude, place.longitude, preferredStartsAt, timeZone, flexible, budgetMin === null ? null : Math.round(budgetMin * 100), budgetMax === null ? null : Math.round(budgetMax * 100)],
     );
     const requestId = created.rows[0].id;
     for (const item of matched.values()) {
