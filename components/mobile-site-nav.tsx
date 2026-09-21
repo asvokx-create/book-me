@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { authClient } from "@/lib/auth-client";
+import { getMobileNavigationState } from "@/lib/mobile-navigation-state";
 
 const links = [
   ["Find services", "/services"],
@@ -13,8 +16,28 @@ const links = [
 ] as const;
 
 export default function MobileSiteNav() {
+  const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
   const [open, setOpen] = useState(false);
+  const [adminAccess, setAdminAccess] = useState<{ userId: string; isAdmin: boolean } | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!session?.user.id) return;
+
+    let active = true;
+    const userId = session.user.id;
+    void fetch("/api/account/navigation", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() as Promise<{ authenticated: boolean; isAdmin: boolean }> : null)
+      .then((result) => {
+        if (active) setAdminAccess({ userId, isAdmin: Boolean(result?.authenticated && result.isAdmin) });
+      })
+      .catch(() => {
+        if (active) setAdminAccess({ userId, isAdmin: false });
+      });
+    return () => { active = false; };
+  }, [session?.user.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -31,6 +54,23 @@ export default function MobileSiteNav() {
     };
   }, [open]);
 
+  const navigationState = getMobileNavigationState({
+    isPending,
+    authenticated: Boolean(session),
+    role: session?.user.role,
+    isAdmin: Boolean(session?.user.id && adminAccess?.userId === session.user.id && adminAccess.isAdmin),
+  });
+
+  async function signOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    await authClient.signOut();
+    setOpen(false);
+    setSigningOut(false);
+    router.push("/");
+    router.refresh();
+  }
+
   return <>
     <button type="button" aria-label="Open navigation menu" aria-expanded={open} onClick={() => setOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/10 bg-white/75 text-xl font-bold shadow-sm lg:hidden">☰</button>
     {open && createPortal(<div className="fixed inset-0 z-[200] bg-[#10251c]/55 backdrop-blur-sm lg:hidden" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
@@ -43,8 +83,13 @@ export default function MobileSiteNav() {
           {links.map(([label, href]) => <Link key={href} href={href} onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-between rounded-2xl px-4 py-3 text-base font-bold hover:bg-[#e5eddf]">{label}<span aria-hidden="true">→</span></Link>)}
         </div>
         <div className="mt-auto grid gap-3 border-t border-[#183126]/10 pt-5">
-          <Link href="/login" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Log in</Link>
-          <Link href="/providers/join" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full bg-[#eee25a] px-5 py-3 font-bold">List your service</Link>
+          {navigationState.status === "loading" && <div aria-label="Loading account" className="grid gap-3" aria-live="polite"><span className="h-12 animate-pulse rounded-full bg-[#183126]/8" /><span className="h-12 animate-pulse rounded-full bg-[#183126]/8" /></div>}
+          {navigationState.showAccount && <Link href="/account" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Account</Link>}
+          {navigationState.showProviderDashboard && <Link href="/provider/dashboard" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Provider dashboard</Link>}
+          {navigationState.showAdminDashboard && <Link href="/admin" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Admin dashboard</Link>}
+          {navigationState.showLogout && <button type="button" disabled={signingOut} onClick={() => void signOut()} className="flex min-h-12 items-center justify-center rounded-full bg-[#eee25a] px-5 py-3 font-bold disabled:cursor-wait disabled:opacity-60">{signingOut ? "Logging out…" : "Log out"}</button>}
+          {navigationState.showLogin && <Link href="/login" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Log in</Link>}
+          {navigationState.showCreateAccount && <Link href="/signup" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full bg-[#eee25a] px-5 py-3 font-bold">Create account</Link>}
         </div>
       </nav>
     </div>, document.body)}
