@@ -6,7 +6,7 @@ import { getSocialProviderAvailability } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Log in", robots: { index: false, follow: false } };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ redirect?: string; oauthError?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ redirect?: string; oauthError?: string; error?: string; error_description?: string }> }) {
   const query = await searchParams;
   const redirectTo = query.redirect?.startsWith("/") && !query.redirect.startsWith("//") ? query.redirect : "/account";
   const socialProviders = getSocialProviderAvailability();
@@ -16,7 +16,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="pointer-events-none absolute -bottom-52 -left-40 h-[500px] w-[500px] rounded-full bg-[#f3eca0]/60 blur-3xl" />
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col">
         <Link href="/" className="flex items-center gap-2.5 self-start text-xl font-bold tracking-tight"><BrandLockup /></Link>
-        <div className="flex flex-1 items-center justify-center py-10"><AuthForm mode="login" redirectTo={redirectTo} socialProviders={socialProviders} oauthError={Boolean(query.oauthError)} /></div>
+        <div className="flex flex-1 items-center justify-center py-10"><AuthForm mode="login" redirectTo={redirectTo} socialProviders={socialProviders} oauthError={query.error ?? (query.oauthError ? "unknown" : undefined)} oauthErrorDescription={query.error_description} /></div>
       </div>
     </main>
   );

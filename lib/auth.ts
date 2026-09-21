@@ -50,6 +50,15 @@ export const auth = betterAuth({
         }
       : {}),
   },
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google"],
+      // A verified Google address can safely reconnect older accounts that
+      // were created before email verification was required.
+      requireLocalEmailVerified: false,
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 12,

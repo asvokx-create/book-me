@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
 import { createPolicyConsentFields } from "../lib/policy-consent";
 import { formatUsPhone } from "../lib/phone";
+import { getGoogleSignInErrorMessage } from "../lib/oauth-error";
 
 type SocialProvider = "google";
 
-export default function AuthForm({ mode, redirectTo = "/account", socialProviders, oauthError = false }: { mode: "login" | "signup"; redirectTo?: string; socialProviders: Record<SocialProvider, boolean>; oauthError?: boolean }) {
+export default function AuthForm({ mode, redirectTo = "/account", socialProviders, oauthError, oauthErrorDescription }: { mode: "login" | "signup"; redirectTo?: string; socialProviders: Record<SocialProvider, boolean>; oauthError?: string; oauthErrorDescription?: string }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -127,7 +128,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
         <label className="block"><span className="mb-2 flex items-center justify-between text-sm font-bold">Password {isLogin && <Link href="/forgot-password" className="rounded-full px-2 py-1 text-xs text-[#5a7563] underline decoration-[#c7bb41] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Forgot password?</Link>}</span><input type="password" minLength={isLogin ? 1 : 12} maxLength={128} autoComplete={isLogin ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isLogin ? "Your password" : "At least 12 characters"} className={inputClass} /></label>
         <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#183126]" /><span className="text-sm font-semibold">Keep me signed in on this device</span></label>
         {!isLogin && <div className="space-y-2 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#687b70]">Required agreements</p><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={confirmedAge} onChange={(event) => setConfirmedAge(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I confirm that I am at least 18 years old and can enter a binding agreement.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I have read and agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms of Service</Link>.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acknowledgedPrivacy} onChange={(event) => setAcknowledgedPrivacy(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link> and <Link href="/ai-transparency" target="_blank" className="font-bold underline">AI &amp; Safety disclosure</Link>.</span></label></div>}
-        {(error || oauthError) && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error || "That social sign-in could not be completed. If you are new, use Create account first."}</p>}
+        {(error || oauthError) && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold leading-5 text-[#9a4e25]">{error || getGoogleSignInErrorMessage(oauthError, oauthErrorDescription)}</p>}
         <button type="submit" disabled={loading || (!isLogin && !hasRequiredConsents)} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
       </form>
 
@@ -139,7 +140,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
 
 function SocialButton({ enabled, loading, disabled, onClick }: { enabled: boolean; loading: boolean; disabled: boolean; onClick: () => void }) {
   const name = "Google";
-  return <button type="button" onClick={onClick} disabled={!enabled || disabled} title={enabled ? `Continue with ${name}` : `${name} sign-in is being configured`} className="flex w-full items-center justify-center rounded-2xl border border-[#183126]/15 px-4 py-3 text-sm font-bold transition hover:border-[#4d725d] hover:bg-[#e5eddf] disabled:cursor-not-allowed disabled:opacity-55"><GoogleIcon /><span className="ml-2">{loading ? "Opening…" : name}</span></button>;
+  return <button type="button" onClick={onClick} disabled={!enabled || disabled} title={enabled ? `Continue with ${name}` : `${name} sign-in is being configured`} className="flex w-full items-center justify-center rounded-2xl border border-[#183126]/15 px-4 py-3 text-sm font-bold transition hover:border-[#4d725d] hover:bg-[#e5eddf] disabled:cursor-not-allowed disabled:opacity-55"><GoogleIcon /><span className="ml-2">{loading ? "Opening…" : `Continue with ${name}`}</span></button>;
 }
 
 function GoogleIcon() {
