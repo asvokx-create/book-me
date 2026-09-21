@@ -14,6 +14,7 @@ const trustLinks = [
   ["AI & safety", "/ai-transparency"],
   ["Disputes", "/disputes"],
   ["Accessibility", "/accessibility"],
+  ["Contact support", "mailto:christian@bubsbookings.com"],
 ] as const;
 
 const legalLinks = [
