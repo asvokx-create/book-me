@@ -23,8 +23,9 @@ test("hover styles do not move interactive hit areas", () => {
 
 test("the shared hover guard keeps controls stationary while retaining visual feedback", () => {
   const css = readFileSync(join(projectRoot, "app", "globals.css"), "utf8");
+  const hoverBlocks = css.match(/[^{}]*:hover[^{}]*\{[^{}]*\}/g) ?? [];
 
   assert.match(css, /transition-property: color, background-color, border-color, box-shadow, opacity, filter !important/);
-  assert.doesNotMatch(css, /:hover\s*\{[^}]*\b(?:transform|translate|scale)\s*:/s);
+  assert.deepEqual(hoverBlocks.filter((block) => /\b(?:transform|translate|scale)\s*:/.test(block)), []);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
