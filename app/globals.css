@@ -1313,30 +1313,15 @@ html[data-theme="dark"] .home-promise-card {
   border-color: rgba(232, 244, 236, 0.14) !important;
 }
 
-/* Keep the listing booking controls in reach on desktop without letting the
-   panel escape its listing column. Short viewports scroll inside the panel;
-   phones keep the normal document flow. */
-@media (min-width: 1024px) {
+/* Keep the actionable listing controls stationary on roomy desktop screens.
+   Short screens and phones use normal document flow instead of a nested scroll. */
+@media (min-width: 1024px) and (min-height: 790px) {
   .service-booking-panel {
     position: sticky;
     top: 1rem;
-    max-height: calc(100dvh - 2rem);
     margin: -.25rem;
     padding: .25rem;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(24, 49, 38, .24) transparent;
-  }
-
-  .service-booking-panel::-webkit-scrollbar {
-    width: .45rem;
-  }
-
-  .service-booking-panel::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: rgba(24, 49, 38, .24);
+    overflow: visible;
   }
 }
 

@@ -178,9 +178,9 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         {showFullyBooked && <div role="alert" className="rounded-2xl border border-[#e5d45a] bg-[#fff5cf] p-4 text-sm text-[#6d5d16]"><p className="font-bold text-[#183126]">This service is fully booked</p><p className="mt-1 leading-6">There are no appointments available right now. Please come back later to check for new availability.</p></div>}
       </form>
 
-      <p className="mt-4 text-center text-xs leading-5 text-[#7c8a83]">No charge yet. The provider will confirm your request before the time is reserved. Text is checked by the BubsBookings Safety Bot.</p>
-      <div className="mt-4 rounded-2xl bg-[#f5f5ef] p-4"><p className="text-xs font-bold">Cancellation policy · {cancellationWindowHours}h notice</p><p className="mt-1 text-xs leading-5 text-[#718078]">{cancellationPolicy}</p><p className="mt-3 text-xs font-bold">No-show policy</p><p className="mt-1 text-xs leading-5 text-[#718078]">{noShowPolicy}</p></div>
-      <div className="mt-6 border-t border-[#183126]/10 pt-6">
+      <p className="mt-4 text-center text-xs leading-5 text-[#7c8a83] lg:hidden">No charge yet. The provider will confirm your request before the time is reserved. Text is checked by the BubsBookings Safety Bot.</p>
+      <div className="mt-4 rounded-2xl bg-[#f5f5ef] p-4 lg:hidden"><p className="text-xs font-bold">Cancellation policy · {cancellationWindowHours}h notice</p><p className="mt-1 text-xs leading-5 text-[#718078]">{cancellationPolicy}</p><p className="mt-3 text-xs font-bold">No-show policy</p><p className="mt-1 text-xs leading-5 text-[#718078]">{noShowPolicy}</p></div>
+      <div className="mt-6 border-t border-[#183126]/10 pt-6 lg:hidden">
         <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e8f2e9] text-xl">✓</span><div><p className="text-sm font-bold">BubsBookings Promise</p><p className="text-xs text-[#76847d]">Clear provider details and secure payment tools</p></div></div>
       </div>
     </div>
