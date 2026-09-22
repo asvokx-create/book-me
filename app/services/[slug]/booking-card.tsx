@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import BookingDatePicker from "@/components/booking-date-picker";
 
 type BookingCardProps = {
   serviceId: string;
@@ -109,7 +110,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
 
   if (step === "confirmed") {
     return (
-      <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)] lg:sticky lg:top-8">
+      <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)]">
         <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#e5f1e7] text-3xl text-[#33704a]">✓</span>
         <p className="mt-6 text-xs font-bold uppercase tracking-[.16em] text-[#6a7c72]">Request sent</p>
         <h2 className="mt-2 text-2xl font-bold tracking-tight">Your request is on its way to {provider}.</h2>
@@ -127,11 +128,11 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
 
   if (!isSignedIn) {
     const redirect = encodeURIComponent(returnPath);
-    return <div className="sticky top-8 rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)]"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7eee2] text-2xl">🔒</span><p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-[#6a7c72]">Account required</p><h2 className="mt-2 text-2xl font-bold">Log in to book this service</h2><p className="mt-3 text-sm leading-6 text-[#6c7b74]">Every customer needs their own BubsBookings account so bookings, messages, and safety records stay with the right person.</p><div className="mt-6 grid gap-3"><Link href={`/login?redirect=${redirect}`} className="rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#315846]">Log in</Link><Link href={`/signup?redirect=${redirect}`} className="rounded-full bg-[#eee25a] px-6 py-3.5 text-sm font-bold transition hover:bg-[#e1d43d]">Create an account</Link></div></div>;
+    return <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-7 text-center shadow-[0_20px_50px_rgba(24,49,38,.12)]"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7eee2] text-2xl">🔒</span><p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-[#6a7c72]">Account required</p><h2 className="mt-2 text-2xl font-bold">Log in to book this service</h2><p className="mt-3 text-sm leading-6 text-[#6c7b74]">Every customer needs their own BubsBookings account so bookings, messages, and safety records stay with the right person.</p><div className="mt-6 grid gap-3"><Link href={`/login?redirect=${redirect}`} className="rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#315846]">Log in</Link><Link href={`/signup?redirect=${redirect}`} className="rounded-full bg-[#eee25a] px-6 py-3.5 text-sm font-bold transition hover:bg-[#e1d43d]">Create an account</Link></div></div>;
   }
 
   return (
-    <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7 lg:sticky lg:top-8">
+    <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7">
       <div className="flex items-end justify-between">
         <div><p className="text-sm text-[#6f7f77]">Starting at</p><p className="mt-1 text-3xl font-bold tracking-tight">${price}</p></div>
         <p className="rounded-full bg-[#f1f0eb] px-3 py-1.5 text-xs font-semibold text-[#5f7067]">Estimated time: {duration}</p>
@@ -149,10 +150,10 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
           </div>
         </section>
         <details className="rounded-2xl border border-[#183126]/10 bg-white"><summary className="booking-detail-toggle cursor-pointer list-none font-bold text-[#52665b] marker:hidden">+ Add booking notes</summary><div className="border-t border-[#183126]/8 p-3"><label className="block"><span className="sr-only">Booking notes</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={3} placeholder="Describe what you need or anything the provider should know. Keep addresses, passwords, and payment information out of this box." className="w-full resize-none rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label></div></details>
-        <label className="block">
+        <div className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Preferred date</span>
-          <input type="date" value={date} onChange={(event) => { setDate(event.target.value); setTime(""); setTimeSlots([]); setStep("details"); }} className="w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" />
-        </label>
+          <BookingDatePicker serviceId={serviceId} value={date} disabled={bookingDisabled} onChange={(nextDate) => { setDate(nextDate); setTime(""); setTimeSlots([]); setStep("details"); setError(""); }} />
+        </div>
 
         {step === "times" && (
           <fieldset className="pt-2">

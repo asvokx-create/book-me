@@ -2,10 +2,74 @@ import { NextResponse } from "next/server";
 import { database } from "@/lib/database";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export async function GET(request: Request, context: RouteContext<"/api/services/[serviceId]/availability">) {
   const { serviceId } = await context.params;
-  const date = new URL(request.url).searchParams.get("date") ?? "";
+  const searchParams = new URL(request.url).searchParams;
+  const month = searchParams.get("month") ?? "";
+  if (month) {
+    if (!monthPattern.test(month)) return NextResponse.json({ error: "Choose a valid month." }, { status: 400 });
+    const result = await database.query<{ date: string }>(
+      `WITH service_info AS (
+         SELECT s.id, s.provider_id, s.duration_minutes, s.location_id
+         FROM services s
+         JOIN provider_profiles p ON p.id = s.provider_id
+         WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true
+       ), staff_hours AS (
+         SELECT si.provider_id, NULL::uuid AS member_id, si.duration_minutes,
+                a.weekday, a.start_time, a.end_time, a.timezone
+         FROM service_info si JOIN availability a ON a.provider_id = si.provider_id
+         WHERE a.service_id = si.id OR (a.service_id IS NULL AND NOT EXISTS (
+           SELECT 1 FROM availability configured WHERE configured.provider_id = si.provider_id AND configured.service_id = si.id
+         ))
+         UNION ALL
+         SELECT si.provider_id, member.id AS member_id, si.duration_minutes,
+                hours.weekday, hours.start_time, hours.end_time, hours.timezone
+         FROM service_info si JOIN provider_team_member_locations assigned_location ON assigned_location.location_id = si.location_id
+         JOIN provider_team_members member ON member.id = assigned_location.team_member_id
+           AND member.provider_id = si.provider_id AND member.status = 'active'
+         JOIN team_member_availability hours ON hours.team_member_id = member.id
+       ), days AS (
+         SELECT generated::date AS date
+         FROM generate_series($2::date, (($2::date + interval '1 month') - interval '1 day')::date, interval '1 day') generated
+       ), generated_slots AS (
+         SELECT days.date, sh.provider_id, sh.member_id, sh.duration_minutes, sh.timezone,
+                generated.starts_at
+         FROM staff_hours sh
+         JOIN days ON sh.weekday = EXTRACT(DOW FROM days.date)
+         CROSS JOIN LATERAL generate_series(
+           (days.date + sh.start_time) AT TIME ZONE sh.timezone,
+           ((days.date + sh.end_time) AT TIME ZONE sh.timezone) - make_interval(mins => sh.duration_minutes),
+           interval '30 minutes'
+         ) AS generated(starts_at)
+       )
+       SELECT DISTINCT to_char(gs.date, 'YYYY-MM-DD') AS date
+       FROM generated_slots gs
+       WHERE gs.starts_at > CURRENT_TIMESTAMP
+         AND NOT EXISTS (
+           SELECT 1 FROM provider_time_off blocked
+           WHERE blocked.provider_id = gs.provider_id
+             AND blocked.team_member_id IS NOT DISTINCT FROM gs.member_id
+             AND blocked.starts_at < gs.starts_at + make_interval(mins => gs.duration_minutes)
+             AND blocked.ends_at > gs.starts_at
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM bookings b
+           JOIN booking_assignees assigned ON assigned.booking_id = b.id
+           WHERE b.provider_id = gs.provider_id
+             AND b.status = 'confirmed'
+             AND ((gs.member_id IS NULL AND assigned.is_owner = true) OR assigned.team_member_id = gs.member_id)
+             AND b.starts_at < gs.starts_at + make_interval(mins => gs.duration_minutes)
+             AND b.ends_at > gs.starts_at
+         )
+       ORDER BY date`,
+      [serviceId, `${month}-01`],
+    );
+    return NextResponse.json({ dates: result.rows.map((row) => row.date) });
+  }
+
+  const date = searchParams.get("date") ?? "";
   if (!datePattern.test(date)) return NextResponse.json({ error: "Choose a valid date." }, { status: 400 });
 
   const result = await database.query<{ time: string }>(
