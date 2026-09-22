@@ -169,9 +169,9 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         {error && <div role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}{requiresLogin && <Link href={`/login?redirect=${encodeURIComponent(returnPath)}`} className="ml-1 underline">Log in here.</Link>}</div>}
 
         {step === "details" ? (
-          <button type="submit" disabled={loading} className="mt-3 w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{loading ? "Checking…" : "Check availability"}</button>
+          <button type="submit" disabled={loading} className="mt-3 w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{loading ? "Checking…" : "Check availability"}</button>
         ) : (
-          <button type="button" onClick={confirmRequest} disabled={loading || !time} className="mt-3 w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-55">{loading ? "Sending request…" : "Request this time"}</button>
+          <button type="button" onClick={confirmRequest} disabled={loading || !time} className="mt-3 w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-55">{loading ? "Sending request…" : "Request this time"}</button>
         )}
 
         {showFullyBooked && <div role="alert" className="rounded-2xl border border-[#e5d45a] bg-[#fff5cf] p-4 text-sm text-[#6d5d16]"><p className="font-bold text-[#183126]">This service is fully booked</p><p className="mt-1 leading-6">There are no appointments available right now. Please come back later to check for new availability.</p></div>}

@@ -114,7 +114,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}
             {maxDuration && <input type="hidden" name="maxDuration" value={maxDuration} />}
             {sort !== "nearest" && <input type="hidden" name="sort" value={sort} />}
-            <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">Search</button>
+            <button type="submit" className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:bg-[#f5ea6b]">Search</button>
           </form>
         </div>
       </section>

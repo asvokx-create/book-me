@@ -54,7 +54,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <Link href="/pricing" className="site-nav-link">Pricing</Link>
             </nav>
             <Link href="/pricing" className="hidden min-h-10 items-center justify-center rounded-full px-2.5 py-2 text-xs font-bold hover:bg-[#183126]/5 min-[430px]:inline-flex sm:px-3 sm:text-sm lg:hidden">Pricing</Link>
-            <Link href="/providers/join" className="hidden rounded-full border border-[#183126]/10 bg-white/60 px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:border-[#183126]/20 hover:bg-white sm:block">
+            <Link href="/providers/join" className="hidden rounded-full border border-[#183126]/10 bg-white/60 px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:border-[#183126]/20 hover:bg-white sm:block">
               List your service
             </Link>
             <MobileSiteNav />
@@ -88,7 +88,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
         <div className="relative hidden lg:block">
           <div className="absolute -inset-8 rounded-full bg-[#bcd6b8]/35 blur-3xl" />
-          <Link href={nearbyServicesHref} aria-label={location ? `Browse services near ${city}` : "Browse available services"} className="home-preview-card relative block rotate-[2deg] rounded-[2.25rem] border border-white/80 bg-white/88 p-5 shadow-[0_30px_80px_rgba(24,49,38,.18)] backdrop-blur-xl transition hover:-translate-y-1 hover:shadow-[0_34px_85px_rgba(24,49,38,.22)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]">
+          <Link href={nearbyServicesHref} aria-label={location ? `Browse services near ${city}` : "Browse available services"} className="home-preview-card relative block rotate-[2deg] rounded-[2.25rem] border border-white/80 bg-white/88 p-5 shadow-[0_30px_80px_rgba(24,49,38,.18)] backdrop-blur-xl transition hover:shadow-[0_34px_85px_rgba(24,49,38,.22)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]">
             <div className="relative h-56 overflow-hidden rounded-[1.65rem] bg-gradient-to-br from-[#143d2c] via-[#2f7652] to-[#b8dc62]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(255,255,255,.4),transparent_27%)]" />
               <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold">{location ? "Popular nearby" : "Available services"}</span>
@@ -118,7 +118,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
           <div className="home-search-location md:min-w-[330px]"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
 
-          <button type="submit" className="home-search-submit rounded-full bg-[#eee25a] px-8 py-4 font-bold text-[#183126] transition hover:-translate-y-0.5 hover:bg-[#f5ea6b]">
+          <button type="submit" className="home-search-submit rounded-full bg-[#eee25a] px-8 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b]">
             Find a pro
           </button>
         </form>
@@ -144,7 +144,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             </>;
             const categoryParams = new URLSearchParams({ category, radius: String(radius) });
             if (location) categoryParams.set("location", location);
-            return <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} aria-label={count > 0 ? `Browse ${category}` : `Join the availability list for ${category}`} className={`home-category-card group relative overflow-hidden rounded-[1.75rem] border p-5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60 ${count > 0 ? "border-[#183126]/10 bg-white shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:-translate-y-1.5 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)]" : "home-category-card--empty border-dashed border-[#183126]/10 bg-white/55 transition hover:border-[#6d8d78] hover:bg-white/80"}`}>{card}</Link>;
+            return <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} aria-label={count > 0 ? `Browse ${category}` : `Join the availability list for ${category}`} className={`home-category-card group relative overflow-hidden rounded-[1.75rem] border p-5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60 ${count > 0 ? "border-[#183126]/10 bg-white shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)]" : "home-category-card--empty border-dashed border-[#183126]/10 bg-white/55 transition hover:border-[#6d8d78] hover:bg-white/80"}`}>{card}</Link>;
           })}
         </div>
       </section>

@@ -203,7 +203,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
         {error && <p role="alert" className="mt-5 rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">{error}</p>}
         <div className="mt-8 flex items-center justify-between gap-4">
           {step > 1 ? <button type="button" onClick={() => { setStep(step - 1); setError(""); }} className="rounded-full px-5 py-3 text-sm font-bold hover:bg-[#183126]/5">← Back</button> : <span />}
-          <button type="submit" disabled={saving} className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:-translate-y-0.5 hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{saving ? photos.length > 0 ? "Saving & uploading…" : "Saving…" : step === 3 ? "Finish setup" : "Continue →"}</button>
+          <button type="submit" disabled={saving} className="rounded-full bg-[#eee25a] px-7 py-3.5 text-sm font-bold transition hover:bg-[#f5ea6b] disabled:cursor-wait disabled:opacity-60">{saving ? photos.length > 0 ? "Saving & uploading…" : "Saving…" : step === 3 ? "Finish setup" : "Continue →"}</button>
         </div>
       </form>
     </div>

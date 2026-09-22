@@ -255,7 +255,7 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
 }
 
 :where(main article, main section):has(> a)[class*="bg-white"][class*="rounded"] {
-  transition: transform 220ms cubic-bezier(.2,.8,.2,1), border-color 220ms ease, box-shadow 220ms ease;
+  transition: border-color 220ms ease, box-shadow 220ms ease;
 }
 
 :where(main article, main section):has(> a)[class*="bg-white"][class*="rounded"]:hover {
@@ -283,12 +283,10 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
   box-shadow: 0 12px 28px rgba(19, 46, 35, .14);
 }
 
-/* Keep every interactive hit area stationary. Moving a control on hover makes
-   the pointer repeatedly leave and re-enter along its lower edge. */
-:where(a, button):not([class*="-translate-y-1/2"]):hover {
-  transform: none !important;
-  translate: none !important;
-  scale: none !important;
+/* Interactive hit areas stay stationary: transitions are limited to visual
+   feedback and never animate geometry under the pointer. */
+:where(a, button, summary, [role="button"]) {
+  transition-property: color, background-color, border-color, box-shadow, opacity, filter !important;
 }
 
 :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
