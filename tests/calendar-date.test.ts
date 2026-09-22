@@ -47,10 +47,11 @@ test("booking calendar retains the existing date-only booking contract", () => {
 test("the desktop booking panel stays stationary without nested scrolling", () => {
   const css = readFileSync(join(projectRoot, "app", "globals.css"), "utf8");
   const bookingCard = readFileSync(join(projectRoot, "app", "services", "[slug]", "booking-card.tsx"), "utf8");
-  const stickyRule = css.match(/@media \(min-width: 1024px\) and \(min-height: 790px\) \{[\s\S]*?\.service-booking-panel \{([\s\S]*?)\n  \}/)?.[1] ?? "";
+  const stationaryPanel = readFileSync(join(projectRoot, "components", "stationary-booking-panel.tsx"), "utf8");
 
-  assert.match(stickyRule, /position: sticky/);
-  assert.match(stickyRule, /overflow: visible/);
-  assert.doesNotMatch(stickyRule, /overflow-y: auto|max-height|scrollbar/);
+  assert.match(stationaryPanel, /panelElement\.style\.position = "fixed"/);
+  assert.match(stationaryPanel, /window\.scrollY >= anchorTop - 16/);
+  assert.match(stationaryPanel, /panelHeight \+ 32 <= window\.innerHeight/);
+  assert.doesNotMatch(css, /\.service-booking-panel[\s\S]{0,300}overflow-y: auto/);
   assert.ok((bookingCard.match(/lg:hidden/g) ?? []).length >= 3);
 });

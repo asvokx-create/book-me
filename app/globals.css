@@ -1313,18 +1313,6 @@ html[data-theme="dark"] .home-promise-card {
   border-color: rgba(232, 244, 236, 0.14) !important;
 }
 
-/* Keep the actionable listing controls stationary on roomy desktop screens.
-   Short screens and phones use normal document flow instead of a nested scroll. */
-@media (min-width: 1024px) and (min-height: 790px) {
-  .service-booking-panel {
-    position: sticky;
-    top: 1rem;
-    margin: -.25rem;
-    padding: .25rem;
-    overflow: visible;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
