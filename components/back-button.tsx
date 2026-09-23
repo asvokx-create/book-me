@@ -28,11 +28,11 @@ export default function BackButton({ label = "Back", fallbackHref, preserveInter
     <button
       type="button"
       onClick={goBack}
-      className={`inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-left text-sm font-bold text-[#52695d] shadow-[0_3px_12px_rgba(24,49,38,.04)] transition-colors hover:border-[#557463] hover:bg-[#e7efe3] hover:text-[#183126] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#34704a] ${className}`}
+      className={`back-button inline-flex min-h-11 min-w-11 max-w-full shrink-0 items-center justify-center gap-2 rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-left text-sm font-bold text-[#52695d] shadow-[0_3px_12px_rgba(24,49,38,.04)] transition-colors hover:border-[#557463] hover:bg-[#e7efe3] hover:text-[#183126] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#34704a] ${className}`}
       aria-label={label}
     >
       <span aria-hidden="true" className="shrink-0 text-base">←</span>
-      <span>{label}</span>
+      <span className="back-button-label min-w-0">{label}</span>
     </button>
   );
 }

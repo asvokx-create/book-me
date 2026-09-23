@@ -900,6 +900,17 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
   .narrow-mobile-header .brand-wordmark-text { display: none; }
 }
 
+@media (max-width: 430px) {
+  .back-button {
+    width: 2.75rem;
+    padding-inline: 0.75rem;
+  }
+
+  .back-button-label {
+    display: none;
+  }
+}
+
 @media (min-width: 641px) and (max-width: 1023px) {
   .legal-toc nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -31,15 +31,20 @@ test("rewinding removes the current page and exposes the prior internal destinat
 
 test("the reusable back control is accessible, mobile friendly, and has a safe fallback", () => {
   const button = read("components", "back-button.tsx");
+  const css = read("app", "globals.css");
 
   assert.match(button, /type="button"/);
   assert.match(button, /aria-label=\{label\}/);
   assert.match(button, /min-h-11/);
+  assert.match(button, /min-w-11/);
+  assert.match(button, /shrink-0/);
   assert.match(button, /focus-visible:outline/);
   assert.match(button, /transition-colors/);
   assert.doesNotMatch(button, /hover:(?:scale|translate|rotate)/);
   assert.match(button, /router\.back\(\)/);
   assert.match(button, /isSafeInternalPath\(fallbackHref\)/);
+  assert.match(css, /@media \(max-width: 430px\)[\s\S]*?\.back-button[\s\S]*?width: 2\.75rem/);
+  assert.match(css, /\.back-button-label[\s\S]*?display: none/);
 });
 
 test("service detail navigation retains marketplace filters and names the destination", () => {
@@ -85,7 +90,7 @@ test("mobile conversation view exposes a full-size contextual return control", (
   const messaging = read("components", "messaging-center.tsx");
 
   assert.match(messaging, /aria-label="Back to messages"/);
-  assert.match(messaging, /<span>Messages<\/span>/);
+  assert.match(messaging, /<span className="back-button-label">Messages<\/span>/);
   assert.match(messaging, /min-h-11/);
   assert.match(messaging, /lg:hidden/);
 });
