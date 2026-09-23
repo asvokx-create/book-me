@@ -24,6 +24,8 @@ export async function GET(
       `SELECT u.id, u.name, u.email, u."emailVerified" AS email_verified, u.image, u.phone,
               u.role, u."twoFactorEnabled" AS two_factor_enabled, u.terms_accepted_at,
               u.privacy_acknowledged_at, u.ai_safety_acknowledged_at, u.policy_version,
+              u.location_city, u.location_state, u.location_postal_code, u.location_country,
+              u.location_source, u.location_updated_at,
               u."createdAt" AS created_at, u."updatedAt" AS updated_at,
               ar.status AS restriction_status, ar.reason AS restriction_reason,
               ar.expires_at AS restriction_expires_at, ar.created_at AS restriction_created_at

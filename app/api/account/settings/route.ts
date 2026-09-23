@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
+import { isAccountLocationSource, normalizeAccountLocation } from "@/lib/account-location";
 
 type SettingsRow = {
   name: string;
@@ -11,6 +12,10 @@ type SettingsRow = {
   phone: string | null;
   city: string;
   state: string;
+  postal_code: string;
+  country: string;
+  location_source: string | null;
+  location_updated_at: string | null;
   search_radius_miles: number;
   booking_notifications: boolean;
   message_notifications: boolean;
@@ -25,8 +30,12 @@ export async function GET() {
 
   const result = await database.query<SettingsRow>(
     `SELECT u.name, u.email, u.image, u.phone,
-            COALESCE(us.city, p.city, '') AS city,
-            COALESCE(us.state, p.state, 'WA') AS state,
+            COALESCE(NULLIF(u.location_city, ''), NULLIF(us.city, ''), NULLIF(p.city, ''), '') AS city,
+            COALESCE(NULLIF(u.location_state, ''), NULLIF(us.state, ''), NULLIF(p.state, ''), '') AS state,
+            COALESCE(u.location_postal_code, '') AS postal_code,
+            COALESCE(NULLIF(u.location_country, ''), 'United States') AS country,
+            COALESCE(u.location_source, CASE WHEN COALESCE(NULLIF(us.city, ''), NULLIF(p.city, '')) IS NOT NULL THEN 'EXISTING_PROFILE' END) AS location_source,
+            u.location_updated_at,
             COALESCE(us.search_radius_miles, 25)::int AS search_radius_miles,
             COALESCE(us.booking_notifications, true) AS booking_notifications,
             COALESCE(us.message_notifications, true) AS message_notifications,
@@ -54,6 +63,11 @@ export async function GET() {
     phone: row.phone ?? "",
     city: row.city,
     state: row.state,
+    postalCode: row.postal_code,
+    country: row.country,
+    locationSource: row.location_source,
+    locationUpdatedAt: row.location_updated_at,
+    locationComplete: Boolean(row.city && row.state && row.postal_code && row.country),
     radius: row.search_radius_miles,
     bookingNotifications: row.booking_notifications,
     messageNotifications: row.message_notifications,
@@ -70,8 +84,7 @@ export async function PATCH(request: Request) {
   const body = (await request.json()) as Record<string, unknown>;
   const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
   const phone = typeof body.phone === "string" ? body.phone.replace(/\D/g, "") : "";
-  const city = typeof body.city === "string" ? body.city.trim().replace(/\s+/g, " ") : "";
-  const state = typeof body.state === "string" ? body.state.trim().toUpperCase() : "";
+  const location = normalizeAccountLocation({ city: body.city, state: body.state, postalCode: body.postalCode, country: body.country });
   const radius = Number(body.radius);
   const bookingNotifications = body.bookingNotifications !== false;
   const messageNotifications = body.messageNotifications !== false;
@@ -80,8 +93,7 @@ export async function PATCH(request: Request) {
 
   if (name.length < 2 || name.length > 80) return NextResponse.json({ error: "Enter your full name." }, { status: 400 });
   if (phone.length > 0 && phone.length !== 10) return NextResponse.json({ error: "Enter a 10-digit phone number or leave it blank." }, { status: 400 });
-  if (city.length < 2 || city.length > 80 || !/^[A-Za-z .'-]+$/.test(city)) return NextResponse.json({ error: "Enter a valid city." }, { status: 400 });
-  if (!/^[A-Z]{2}$/.test(state)) return NextResponse.json({ error: "Enter a two-letter state code." }, { status: 400 });
+  if (!location.location) return NextResponse.json({ error: location.error ?? "Enter a valid account location." }, { status: 400 });
   if (!Number.isInteger(radius) || radius < 1 || radius > 250) return NextResponse.json({ error: "Enter a search radius from 1 to 250 miles." }, { status: 400 });
   if (timeZone !== "auto") {
     try { new Intl.DateTimeFormat("en-US", { timeZone }).format(); }
@@ -89,9 +101,27 @@ export async function PATCH(request: Request) {
   }
 
   const client = await database.connect();
+  const requestedSource = typeof body.locationSource === "string" && isAccountLocationSource(body.locationSource) ? body.locationSource : "USER_ENTERED";
+  const submittedSource = requestedSource === "BROWSER_LOCATION_CONFIRMED" ? requestedSource : "USER_ENTERED";
+  let locationSource = submittedSource;
   try {
     await client.query("BEGIN");
-    await client.query('UPDATE "user" SET name = $1, phone = $2, "updatedAt" = now() WHERE id = $3', [name, phone, session.user.id]);
+    const currentResult = await client.query<{ city: string | null; state: string | null; postal_code: string | null; country: string | null; source: string | null }>(
+      `SELECT location_city AS city, location_state AS state, location_postal_code AS postal_code,
+              location_country AS country, location_source AS source
+       FROM "user" WHERE id = $1 FOR UPDATE`,
+      [session.user.id],
+    );
+    const current = currentResult.rows[0];
+    const locationChanged = !current || current.city !== location.location.city || current.state !== location.location.state || current.postal_code !== location.location.postalCode || (current.country ?? "United States") !== location.location.country;
+    if (!locationChanged && isAccountLocationSource(current?.source)) locationSource = current.source;
+    await client.query(
+      `UPDATE "user" SET name = $1, phone = $2, location_city = $3, location_state = $4,
+       location_postal_code = $5, location_country = $6, location_source = $7,
+       location_updated_at = CASE WHEN $9::boolean OR location_updated_at IS NULL THEN now() ELSE location_updated_at END,
+       "updatedAt" = now() WHERE id = $8`,
+      [name, phone, location.location.city, location.location.state, location.location.postalCode, location.location.country, locationSource, session.user.id, locationChanged],
+    );
     await client.query(
       `INSERT INTO user_settings (user_id, city, state, search_radius_miles, booking_notifications, message_notifications, theme, time_zone)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -101,8 +131,15 @@ export async function PATCH(request: Request) {
          booking_notifications = EXCLUDED.booking_notifications,
          message_notifications = EXCLUDED.message_notifications,
          theme = EXCLUDED.theme, time_zone = EXCLUDED.time_zone`,
-      [session.user.id, city, state, radius, bookingNotifications, messageNotifications, theme, timeZone],
+      [session.user.id, location.location.city, location.location.state, radius, bookingNotifications, messageNotifications, theme, timeZone],
     );
+    if (locationChanged) {
+      await client.query(
+        `INSERT INTO activity_log (user_id, action, target_type, target_id, metadata)
+         VALUES ($1, 'account_location_updated', 'account', $1, $2::jsonb)`,
+        [session.user.id, JSON.stringify({ source: locationSource })],
+      );
+    }
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -112,5 +149,5 @@ export async function PATCH(request: Request) {
     client.release();
   }
 
-  return NextResponse.json({ ok: true, location: `${city}, ${state}`, radius, theme, timeZone });
+  return NextResponse.json({ ok: true, location: `${location.location.city}, ${location.location.state}`, postalCode: location.location.postalCode, country: location.location.country, locationSource, radius, theme, timeZone });
 }

@@ -13,13 +13,13 @@ import { applyThemePreference, applyTimeZonePreference, getStoredThemePreference
 import { formatUsPhone } from "@/lib/phone";
 
 type Settings = {
-  name: string; email: string; imageUrl: string; phone: string; city: string; state: string; radius: number;
+  name: string; email: string; imageUrl: string; phone: string; city: string; state: string; postalCode: string; country: string; locationSource: string | null; locationUpdatedAt: string | null; locationComplete: boolean; radius: number;
   bookingNotifications: boolean; messageNotifications: boolean; isProvider: boolean;
   theme: ThemePreference; timeZone: string;
 };
 
-const emptySettings: Settings = { name: "", email: "", imageUrl: "", phone: "", city: "", state: "WA", radius: 25, bookingNotifications: true, messageNotifications: true, isProvider: false, theme: "system", timeZone: "auto" };
-const inputClass = "mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
+const emptySettings: Settings = { name: "", email: "", imageUrl: "", phone: "", city: "", state: "", postalCode: "", country: "United States", locationSource: null, locationUpdatedAt: null, locationComplete: false, radius: 25, bookingNotifications: true, messageNotifications: true, isProvider: false, theme: "system", timeZone: "auto" };
+const inputClass = "mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-base outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
 const timeZones = [
   "America/Los_Angeles", "America/Denver", "America/Chicago", "America/New_York",
   "America/Anchorage", "Pacific/Honolulu", "America/Phoenix", "UTC",
@@ -41,6 +41,8 @@ export default function AccountSettings() {
   const [emailBusy, setEmailBusy] = useState(false);
   const [deletionConfirmation, setDeletionConfirmation] = useState("");
   const [deletionBusy, setDeletionBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [pendingSignupLocation, setPendingSignupLocation] = useState(false);
 
   useEffect(() => {
     if (!isPending && !session) router.replace("/login?redirect=/account/settings");
@@ -55,7 +57,17 @@ export default function AccountSettings() {
         if (!response.ok) throw new Error(data.error ?? "Settings could not be loaded.");
         if (active) {
           const theme = getStoredThemePreference() ?? data.theme;
-          setSettings({ ...data, theme });
+          let nextSettings = { ...data, theme };
+          const pending = sessionStorage.getItem("bubsbookings-pending-account-location");
+          if (pending && !data.locationComplete) {
+            try {
+              const location = JSON.parse(pending) as { city?: string; state?: string; postalCode?: string; country?: string };
+              nextSettings = { ...nextSettings, city: location.city ?? "", state: location.state ?? "", postalCode: location.postalCode ?? "", country: location.country ?? "United States", locationSource: "USER_ENTERED" };
+              setPendingSignupLocation(true);
+              setMessage("Please confirm or correct your account location, then save your settings.");
+            } catch { sessionStorage.removeItem("bubsbookings-pending-account-location"); }
+          }
+          setSettings(nextSettings);
           applyThemePreference(theme);
           applyTimeZonePreference(data.timeZone);
         }
@@ -75,6 +87,8 @@ export default function AccountSettings() {
     localStorage.setItem("bookme-service-area", JSON.stringify({ location: data.location, radius: data.radius }));
     if (data.theme) applyThemePreference(data.theme);
     if (data.timeZone) applyTimeZonePreference(data.timeZone);
+    sessionStorage.removeItem("bubsbookings-pending-account-location");
+    setPendingSignupLocation(false);
     setMessage("Your account settings have been saved.");
     await refetch();
     router.refresh();
@@ -127,6 +141,23 @@ export default function AccountSettings() {
     router.refresh();
   }
 
+  function useBrowserLocation() {
+    setError(""); setMessage("");
+    if (!("geolocation" in navigator)) { setError("Location is not available in this browser. Enter your city, state, and ZIP instead."); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      try {
+        const response = await fetch(`/api/locations/cities?lat=${encodeURIComponent(coords.latitude)}&lng=${encodeURIComponent(coords.longitude)}&limit=1`, { cache: "no-store" });
+        const data = await response.json() as { cities?: Array<{ city: string; state: string }> };
+        const nearest = data.cities?.[0];
+        if (!response.ok || !nearest) throw new Error();
+        setSettings((current) => ({ ...current, city: nearest.city, state: nearest.state, locationSource: "BROWSER_LOCATION_CONFIRMED" }));
+        setMessage("We found your general area. Confirm the city and state, enter your ZIP code, then save.");
+      } catch { setError("We could not determine your general area. Enter it manually instead."); }
+      finally { setLocating(false); }
+    }, () => { setLocating(false); setError("Location access was not granted. You can enter your city, state, and ZIP manually."); }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+  }
+
   async function deleteAccount() {
     setError(""); setMessage("");
     if (deletionConfirmation.trim().toLowerCase() !== settings.email.toLowerCase()) {
@@ -161,7 +192,17 @@ export default function AccountSettings() {
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
         <form onSubmit={saveProfile} className="space-y-6">
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Personal information</h2><p className="mt-1 text-sm text-[#738179]">This information stays connected to your bookings and messages.</p><ProfilePhotoManager name={settings.name} initialUrl={settings.imageUrl} onChange={(imageUrl) => { setSettings((current) => ({ ...current, imageUrl })); void refetch(); router.refresh(); }} /><div className="mt-6 grid gap-5 sm:grid-cols-2"><label className="text-sm font-bold">Full name<input required value={settings.name} onChange={(event) => setSettings({ ...settings, name: event.target.value })} autoComplete="name" className={inputClass} /></label><label className="text-sm font-bold">Phone number <span className="font-normal text-[#718078]">(optional)</span><input value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: formatUsPhone(event.target.value) })} inputMode="tel" autoComplete="tel" placeholder="(425) 555-0123" className={inputClass} /></label><label className="text-sm font-bold sm:col-span-2">Current email address<input readOnly value={settings.email} className={`${inputClass} cursor-not-allowed text-[#718078]`} /></label></div><div className="mt-5 rounded-2xl bg-[#f5f5ef] p-4"><label className="text-sm font-bold">Change email address<input required type="email" autoComplete="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="you@yourbusiness.com" className={inputClass} /></label><p className="mt-2 text-xs leading-5 text-[#718078]">We will send a verification link to the new address. Your current email remains active until the link is confirmed.</p><button type="button" onClick={() => void requestEmailChange()} disabled={emailBusy || !newEmail.trim()} className="mt-3 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{emailBusy ? "Sending…" : "Send verification link"}</button></div></section>
-          <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Your default area</h2><p className="mt-1 text-sm text-[#738179]">BubsBookings will remember this area when you search for nearby services.</p><div className="mt-6 grid gap-5 sm:grid-cols-[1fr_120px_190px]"><label className="text-sm font-bold">City<input required value={settings.city} onChange={(event) => setSettings({ ...settings, city: event.target.value })} placeholder="Issaquah" className={inputClass} /></label><label className="text-sm font-bold">State<input required maxLength={2} value={settings.state} onChange={(event) => setSettings({ ...settings, state: event.target.value.toUpperCase() })} className={inputClass} /></label><div className="text-sm font-bold"><p>Search radius</p><span className="mt-2 block"><RadiusSelector value={settings.radius} onChange={(radius) => setSettings({ ...settings, radius })} /></span></div></div><p className="mt-3 text-xs text-[#718078]">Choose a common distance or select Custom to enter any whole number from 1 to 250 miles.</p></section>
+          <section id="account-location" className="scroll-mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-xl font-bold">General account location</h2><p className="mt-1 text-sm leading-6 text-[#738179]">Your city, state, ZIP, and country help personalize BubsBookings. This is separate from a provider service area and from private service addresses used for bookings.</p></div><button type="button" onClick={useBrowserLocation} disabled={locating} className="min-h-11 shrink-0 rounded-full border border-[#183126]/15 bg-[#f5f5ef] px-4 py-2.5 text-sm font-bold transition hover:bg-[#e5eddf] disabled:opacity-60">{locating ? "Finding area…" : "Use my location"}</button></div>
+            {pendingSignupLocation && <p className="mt-4 rounded-2xl bg-[#fff8cb] px-4 py-3 text-sm font-semibold">Confirm or correct the location you entered before continuing.</p>}
+            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+              <label className="text-sm font-bold sm:col-span-2">City<input required autoComplete="address-level2" value={settings.city} onChange={(event) => setSettings({ ...settings, city: event.target.value, locationSource: "USER_ENTERED" })} placeholder="Issaquah" className={inputClass} /></label>
+              <label className="text-sm font-bold">State<input required autoComplete="address-level1" maxLength={2} value={settings.state} onChange={(event) => setSettings({ ...settings, state: event.target.value.toUpperCase(), locationSource: "USER_ENTERED" })} placeholder="WA" className={inputClass} /></label>
+              <label className="text-sm font-bold">ZIP code<input required autoComplete="postal-code" inputMode="numeric" pattern="[0-9]{5}(-[0-9]{4})?" value={settings.postalCode} onChange={(event) => setSettings({ ...settings, postalCode: event.target.value, locationSource: "USER_ENTERED" })} placeholder="98027" className={inputClass} /></label>
+              <label className="text-sm font-bold sm:col-span-2">Country<input readOnly autoComplete="country-name" value={settings.country} className={`${inputClass} cursor-not-allowed text-[#718078]`} /></label>
+            </div>
+            <div className="mt-6 border-t border-[#183126]/10 pt-6"><p className="text-sm font-bold">Marketplace search radius</p><p className="mt-1 text-xs leading-5 text-[#718078]">Used with your general account location as the default marketplace area. You can always search a different city.</p><div className="mt-3 max-w-xs"><RadiusSelector value={settings.radius} onChange={(radius) => setSettings({ ...settings, radius })} /></div></div>
+          </section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Display and time</h2><p className="mt-1 text-sm text-[#738179]">Choose how BubsBookings looks and how booking times are displayed.</p><fieldset className="mt-6"><legend className="text-sm font-bold">Appearance</legend><div className="mt-2 grid grid-cols-3 gap-2">{(["light", "dark", "system"] as const).map((theme) => <button key={theme} type="button" aria-pressed={settings.theme === theme} onClick={() => { setSettings({ ...settings, theme }); applyThemePreference(theme); }} className={`rounded-2xl border px-3 py-3 text-sm font-bold capitalize transition ${settings.theme === theme ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-[#faf9f5] hover:bg-[#e5eddf]"}`}>{theme === "light" ? "☀ Light" : theme === "dark" ? "◐ Dark" : "◑ System"}</button>)}</div></fieldset><label className="mt-6 block text-sm font-bold">Time zone<select value={settings.timeZone} onChange={(event) => { const timeZone = event.target.value; setSettings({ ...settings, timeZone }); applyTimeZonePreference(timeZone); }} className={inputClass}><option value="auto">Automatic (device time zone)</option>{timeZones.map((timeZone) => <option key={timeZone} value={timeZone}>{timeZone.replaceAll("_", " ")}</option>)}</select><span className="mt-2 block text-xs font-normal leading-5 text-[#718078]">Automatic is recommended when you travel. A selected zone keeps booking times fixed to that location.</span></label></section>
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Notification preferences</h2><p className="mt-1 text-sm text-[#738179]">Choose what appears in your BubsBookings notification center.</p><div className="mt-5 divide-y divide-[#183126]/10"><SettingToggle title="Booking updates" description="Requests, confirmations, changes, reminders, and cancellations." checked={settings.bookingNotifications} onChange={(checked) => setSettings({ ...settings, bookingNotifications: checked })} /><SettingToggle title="New messages" description="Messages sent between you and a customer or provider." checked={settings.messageNotifications} onChange={(checked) => setSettings({ ...settings, messageNotifications: checked })} /></div></section>
           <button disabled={saving} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold transition hover:bg-[#f5ea6b] disabled:opacity-60">{saving ? "Saving…" : "Save account settings"}</button>

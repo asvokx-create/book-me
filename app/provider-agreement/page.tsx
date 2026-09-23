@@ -19,5 +19,5 @@ const sections = [
 ] as const;
 
 export default function ProviderAgreementPage() {
-  return <LegalPage eyebrow="For service professionals" title="Provider Agreement" intro="The marketplace, payment, and service standards that apply when you offer work through BubsBookings." sections={sections} />;
+  return <LegalPage eyebrow="For service professionals" title="Provider Agreement" intro="The marketplace, payment, and service standards that apply when you offer work through BubsBookings." sections={sections} effectiveDate="September 21, 2026" />;
 }

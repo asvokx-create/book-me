@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLockup from "@/components/brand-lockup";
+import AccountLocationReminder from "@/components/account-location-reminder";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -363,6 +364,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           {listingDeleted && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Listing deleted.</p><p className="mt-1 text-[#567060]">It is no longer visible in customer searches.</p></div><button onClick={() => setListingDeleted(false)} aria-label="Dismiss" className="rounded-full px-2 text-lg text-[#64786a] transition hover:bg-[#cbdcc8]">×</button></div>}
 
           {providerLoaded && !provider && <div className="mb-6 rounded-2xl border border-[#d6ca65] bg-[#fff8cd] p-5 text-sm"><p className="font-bold">Create your provider profile to use this dashboard.</p><p className="mt-1 text-[#6f6840]">Add your business, first service, and availability to start getting discovered.</p><Link href="/providers/join" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 font-bold text-white">Start provider setup</Link></div>}
+
+          {section === "overview" && <AccountLocationReminder />}
 
           {section === "overview" && !ownerOnlySection && <><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div><p className="text-sm font-semibold text-[#687a70]">Today&apos;s overview</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Welcome, {firstName}.</h1><div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[#687a70]"><span>{provider ? `${provider.services.length} ${provider.services.length === 1 ? "service" : "services"} · ${provider.location}` : "Here's what’s happening with your business."}</span>{provider && <span className="rounded-full bg-[#eee25a] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#183126]">{provider.plan} plan</span>}</div></div>

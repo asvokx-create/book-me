@@ -7,6 +7,7 @@ import { authClient } from "../lib/auth-client";
 import { createPolicyConsentFields } from "../lib/policy-consent";
 import { formatUsPhone } from "../lib/phone";
 import { getGoogleSignInErrorMessage } from "../lib/oauth-error";
+import { normalizeAccountLocation } from "../lib/account-location";
 
 type SocialProvider = "google";
 
@@ -15,6 +16,9 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [confirmedAge, setConfirmedAge] = useState(false);
@@ -31,6 +35,14 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
     if (!isLogin && !hasRequiredConsents) {
       setError("Complete all required agreements before creating an account.");
       return;
+    }
+    if (!isLogin) {
+      const normalized = normalizeAccountLocation({ city, state, postalCode, country: "United States" });
+      if (!normalized.location) {
+        setError(normalized.error ?? "Enter your city, state, and ZIP code before creating an account.");
+        return;
+      }
+      sessionStorage.setItem("bubsbookings-pending-account-location", JSON.stringify(normalized.location));
     }
 
     setError("");
@@ -53,6 +65,11 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const phoneDigits = phone.replace(/\D/g, "");
+    const normalizedLocation = isLogin ? null : normalizeAccountLocation({ city, state, postalCode, country: "United States" });
+    if (!isLogin && !normalizedLocation?.location) {
+      setError(normalizedLocation?.error ?? "Enter your city, state, and ZIP code.");
+      return;
+    }
     if ((!isLogin && (!name.trim() || (phoneDigits.length > 0 && phoneDigits.length !== 10) || !hasRequiredConsents || password.length < 12)) || !email.includes("@") || (isLogin && password.length === 0)) {
       setError("Enter valid account details. If provided, phone numbers need 10 digits. New passwords need at least 12 characters.");
       return;
@@ -81,6 +98,10 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       password,
       name: name.trim(),
       phone: phone.trim(),
+      city: normalizedLocation!.location!.city,
+      state: normalizedLocation!.location!.state,
+      postalCode: normalizedLocation!.location!.postalCode,
+      country: normalizedLocation!.location!.country,
       ...createPolicyConsentFields(),
       callbackURL: redirectTo,
     });
@@ -105,7 +126,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
     router.refresh();
   }
 
-  const inputClass = "w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
+  const inputClass = "w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-base outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
 
   return (
     <div className="w-full max-w-md rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_24px_70px_rgba(24,49,38,.14)] sm:p-9">
@@ -124,11 +145,13 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       <form onSubmit={submit} className="space-y-4">
         {!isLogin && <label className="block"><span className="mb-2 block text-sm font-bold">Full name</span><input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your full name" className={inputClass} /></label>}
         <label className="block"><span className="mb-2 block text-sm font-bold">Email address</span><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={inputClass} /></label>
+        {!isLogin && <fieldset className="rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><legend className="px-1 text-sm font-bold">General account location</legend><p className="mb-4 text-xs leading-5 text-[#718078]">Used to show relevant local services. This is separate from a booking street address or provider service area.</p><div className="grid gap-4"><label className="block"><span className="mb-2 block text-sm font-bold">City</span><input required autoComplete="address-level2" value={city} onChange={(event) => setCity(event.target.value)} placeholder="Seattle" className={inputClass} /></label><div className="grid grid-cols-[minmax(0,.75fr)_minmax(0,1.25fr)] gap-3"><label className="block"><span className="mb-2 block text-sm font-bold">State</span><input required maxLength={2} autoComplete="address-level1" value={state} onChange={(event) => setState(event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} placeholder="WA" className={inputClass} /></label><label className="block"><span className="mb-2 block text-sm font-bold">ZIP code</span><input required inputMode="numeric" maxLength={10} pattern="[0-9]{5}(-[0-9]{4})?" autoComplete="postal-code" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="98101" className={inputClass} /></label></div><label className="block"><span className="mb-2 block text-sm font-bold">Country</span><input readOnly autoComplete="country-name" value="United States" className={`${inputClass} cursor-not-allowed text-[#718078]`} /></label></div></fieldset>}
         {!isLogin && <label className="block"><span className="mb-2 block text-sm font-bold">Phone number <span className="font-normal text-[#718078]">(optional)</span></span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(formatUsPhone(event.target.value))} placeholder="(425) 555-0123" className={inputClass} /><span className="mt-2 block text-xs text-[#849189]">Used for booking updates and provider communication.</span></label>}
         <label className="block"><span className="mb-2 flex items-center justify-between text-sm font-bold">Password {isLogin && <Link href="/forgot-password" className="rounded-full px-2 py-1 text-xs text-[#5a7563] underline decoration-[#c7bb41] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Forgot password?</Link>}</span><input type="password" minLength={isLogin ? 1 : 12} maxLength={128} autoComplete={isLogin ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isLogin ? "Your password" : "At least 12 characters"} className={inputClass} /></label>
         <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#183126]" /><span className="text-sm font-semibold">Keep me signed in on this device</span></label>
         {!isLogin && <div className="space-y-2 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#687b70]">Required agreements</p><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={confirmedAge} onChange={(event) => setConfirmedAge(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I confirm that I am at least 18 years old and can enter a binding agreement.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I have read and agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms of Service</Link>.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acknowledgedPrivacy} onChange={(event) => setAcknowledgedPrivacy(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link> and <Link href="/ai-transparency" target="_blank" className="font-bold underline">AI &amp; Safety disclosure</Link>.</span></label></div>}
         {(error || oauthError) && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold leading-5 text-[#9a4e25]">{error || getGoogleSignInErrorMessage(oauthError, oauthErrorDescription)}</p>}
+        {!isLogin && <p className="text-xs leading-5 text-[#66776e]">By creating an account, you agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms of Service</Link> and acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link>, including how BubsBookings uses your account and location information.</p>}
         <button type="submit" disabled={loading || (!isLogin && !hasRequiredConsents)} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
       </form>
 

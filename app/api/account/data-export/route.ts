@@ -17,6 +17,8 @@ export async function GET(request: Request) {
     const accountResult = await client.query(
       `SELECT id, name, email, "emailVerified", image, phone, role,
               terms_accepted_at, privacy_acknowledged_at, ai_safety_acknowledged_at,
+              location_city, location_state, location_postal_code, location_country,
+              location_source, location_updated_at,
               policy_version, "createdAt", "updatedAt"
        FROM "user" WHERE id = $1`,
       [userId],

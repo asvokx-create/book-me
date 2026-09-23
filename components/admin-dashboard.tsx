@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import ProfileAvatar from "@/components/profile-avatar";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
+import { accountLocationSourceLabel } from "@/lib/account-location";
 
 type AdminSection = "overview" | "reports" | "moderation" | "accounts" | "listings" | "reviews" | "payouts" | "audit";
 type Stats = {
@@ -64,6 +65,8 @@ type AccountDetails = {
     phone: string | null; email_verified: boolean; two_factor_enabled: boolean;
     terms_accepted_at: string | null; privacy_acknowledged_at: string | null;
     ai_safety_acknowledged_at: string | null; policy_version: string | null; updated_at: string;
+    location_city: string | null; location_state: string | null; location_postal_code: string | null; location_country: string | null;
+    location_source: string | null; location_updated_at: string | null;
     restriction_expires_at: string | null; restriction_created_at: string | null;
   };
   settings: null | { city: string; state: string; search_radius_miles: number; booking_notifications: boolean; message_notifications: boolean; theme: string; time_zone: string };
@@ -551,13 +554,18 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             { label: "AI safety acknowledged", value: details.account.ai_safety_acknowledged_at ? formatDate(details.account.ai_safety_acknowledged_at) : null },
             { label: "Policy version", value: details.account.policy_version },
           ]} /></section>
+          <section><h3 className="mb-1 text-lg font-bold">General account location</h3><p className="mb-3 text-sm text-[#718078]">Account-level location only. This is separate from provider service areas and private booking addresses.</p><DetailGrid items={[
+            { label: "City", value: details.account.location_city }, { label: "State", value: details.account.location_state },
+            { label: "ZIP code", value: details.account.location_postal_code }, { label: "Country", value: details.account.location_country },
+            { label: "Source", value: accountLocationSourceLabel(details.account.location_source) }, { label: "Last confirmed", value: details.account.location_updated_at ? formatDate(details.account.location_updated_at) : null },
+          ]} /></section>
           {details.settings && <section><h3 className="mb-3 text-lg font-bold">Preferences</h3><DetailGrid items={[
             { label: "Saved area", value: [details.settings.city, details.settings.state].filter(Boolean).join(", ") }, { label: "Search radius", value: `${details.settings.search_radius_miles} miles` },
             { label: "Time zone", value: details.settings.time_zone }, { label: "Theme", value: label(details.settings.theme) },
             { label: "Booking notifications", value: details.settings.booking_notifications }, { label: "Message notifications", value: details.settings.message_notifications },
           ]} /></section>}
           <section><h3 className="mb-3 text-lg font-bold">Marketplace history</h3><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">{Object.entries(details.counts).map(([key, value]) => <div key={key} className="rounded-2xl bg-[#183126] p-4 text-white"><p className="text-2xl font-bold">{value}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#bdd0c6]">{label(key)}</p></div>)}</div></section>
-          {details.provider && <details open className="rounded-3xl border border-[#183126]/10 p-5"><summary className="cursor-pointer text-lg font-bold">Provider profile and billing</summary><div className="mt-4 space-y-4"><DetailGrid items={[
+          {details.provider && <details open className="rounded-3xl border border-[#183126]/10 p-5"><summary className="cursor-pointer text-lg font-bold">Provider profile, service area, and billing</summary><div className="mt-4 space-y-4"><p className="text-sm text-[#718078]">Provider business and service coverage. This does not replace the general account location above.</p><DetailGrid items={[
             { label: "Business", value: details.provider.business_name }, { label: "Provider plan", value: PLAN_ENTITLEMENTS[details.provider.plan].name }, { label: "Provider active", value: details.provider.is_active },
             { label: "Business phone", value: details.provider.phone }, { label: "Service base", value: `${details.provider.city}, ${details.provider.state}` }, { label: "Service radius", value: `${details.provider.service_radius_miles} miles` },
             { label: "Phone details checked", value: details.provider.phone_verified }, { label: "Stripe identity", value: details.provider.identity_verified }, { label: "Business profile checked", value: details.provider.business_verified },

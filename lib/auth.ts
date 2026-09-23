@@ -4,6 +4,7 @@ import { database } from "./database";
 import { isEmailConfigured, sendAuthEmail } from "./email";
 import { createPolicyConsentFields, POLICY_VERSION } from "./policy-consent";
 import { sendAccountWelcome } from "./welcome-message";
+import { normalizeAccountLocation } from "./account-location";
 
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -82,7 +83,7 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        async before(user) {
+        async before(user, context) {
           const termsAcceptedAt = typeof user.termsAcceptedAt === "string" ? Date.parse(user.termsAcceptedAt) : Number.NaN;
           const privacyAcknowledgedAt = typeof user.privacyAcknowledgedAt === "string" ? Date.parse(user.privacyAcknowledgedAt) : Number.NaN;
           const aiSafetyAcknowledgedAt = typeof user.aiSafetyAcknowledgedAt === "string" ? Date.parse(user.aiSafetyAcknowledgedAt) : Number.NaN;
@@ -92,6 +93,20 @@ export const auth = betterAuth({
             !Number.isFinite(privacyAcknowledgedAt) ||
             !Number.isFinite(aiSafetyAcknowledgedAt)
           ) return false;
+          if (context?.path === "/sign-up/email") {
+            const normalized = normalizeAccountLocation({
+              city: user.city,
+              state: user.state,
+              postalCode: user.postalCode,
+              country: user.country,
+            });
+            if (!normalized.location) return false;
+            return { data: {
+              ...normalized.location,
+              locationSource: "USER_ENTERED",
+              locationUpdatedAt: new Date(),
+            } };
+          }
         },
         async after(user) {
           await sendAccountWelcome({ id: user.id, email: user.email, name: user.name });
@@ -123,6 +138,45 @@ export const auth = betterAuth({
       phone: {
         type: "string",
         required: true,
+      },
+      city: {
+        type: "string",
+        required: false,
+        returned: false,
+        fieldName: "location_city",
+      },
+      state: {
+        type: "string",
+        required: false,
+        returned: false,
+        fieldName: "location_state",
+      },
+      postalCode: {
+        type: "string",
+        required: false,
+        returned: false,
+        fieldName: "location_postal_code",
+      },
+      country: {
+        type: "string",
+        required: false,
+        defaultValue: "United States",
+        returned: false,
+        fieldName: "location_country",
+      },
+      locationSource: {
+        type: "string",
+        required: false,
+        input: false,
+        returned: false,
+        fieldName: "location_source",
+      },
+      locationUpdatedAt: {
+        type: "date",
+        required: false,
+        input: false,
+        returned: false,
+        fieldName: "location_updated_at",
       },
       role: {
         type: ["customer", "provider"],

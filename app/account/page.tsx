@@ -10,6 +10,7 @@ import NotificationBell from "@/components/notification-bell";
 import ProfileAvatar from "@/components/profile-avatar";
 import ContactSupportButton from "@/components/contact-support-button";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
+import AccountLocationReminder from "@/components/account-location-reminder";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
@@ -96,6 +97,7 @@ export default function AccountPage() {
       {toast && <div role="status" className="fixed right-5 top-20 z-50 flex max-w-sm items-start gap-3 rounded-2xl bg-[#183126] p-4 text-sm text-white shadow-2xl"><span className="text-[#eee25a]">✓</span><p className="font-semibold">{toast}</p><button onClick={() => setToast("")} aria-label="Dismiss" className="ml-2 rounded-full px-2 text-white/60 transition hover:bg-white/15 hover:text-white">×</button></div>}
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-14">
+        <AccountLocationReminder />
         {workerCompany && <section aria-label="Your company membership" className="mb-8 flex flex-col gap-5 rounded-3xl bg-[#183126] p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-widest text-[#eee25a]">You’re part of a company</p><h2 className="mt-2 break-words text-2xl font-bold">{workerCompany.businessName}</h2><p className="mt-2 text-sm text-[#c3d0c9]">Your role: {workerCompany.teamRole || "Team member"}</p><p className="mt-2 text-sm leading-6 text-[#c3d0c9]">View your assigned jobs and submit your working hours for your owner to approve.</p></div>
           <div className="flex shrink-0 flex-wrap gap-3"><Link href="/provider/dashboard" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126]">Open my work dashboard</Link><Link href="/provider/dashboard/team" className="rounded-full border border-white/30 px-5 py-3 text-sm font-bold">My team & hours</Link></div>

@@ -8,10 +8,10 @@ import {
   createPolicyConsentFields,
 } from "../lib/policy-consent.ts";
 
-test("legal policy versions stay aligned with the displayed effective date", () => {
-  assert.equal(POLICY_VERSION, "2026-09-21");
-  assert.equal(PROVIDER_AGREEMENT_VERSION, POLICY_VERSION);
-  assert.equal(POLICY_EFFECTIVE_DATE, "September 21, 2026");
+test("legal policy versions match their displayed effective dates", () => {
+  assert.equal(POLICY_VERSION, "2026-09-22");
+  assert.equal(PROVIDER_AGREEMENT_VERSION, "2026-09-21");
+  assert.equal(POLICY_EFFECTIVE_DATE, "September 22, 2026");
 });
 
 test("new account consent records use the current policy version", () => {
