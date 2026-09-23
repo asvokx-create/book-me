@@ -45,10 +45,10 @@ function IssueCard({ issue, busy, update, closed = false }: {
   closed?: boolean;
 }) {
   return (
-    <article className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6">
+    <article className="min-w-0 rounded-[1.7rem] border border-[#183126]/10 bg-white p-5 sm:p-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row">
         <div>
-          <div className="flex flex-wrap gap-2">
+          <div className="admin-action-row flex w-full flex-wrap gap-2 sm:w-auto">
             <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${statusStyle(issue.status)}`}>
               {issue.status}
             </span>
@@ -244,24 +244,24 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
   const title = type === "bugs" ? "Reported bugs" : "Booking disputes";
 
   return (
-    <main className="min-h-screen bg-[#f4f4ef] text-[#183126]">
+    <main className="min-h-screen overflow-x-clip bg-[#f4f4ef] text-[#183126]">
       <header className="border-b border-[#183126]/10 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
           <Link href="/admin" className="flex items-center gap-2 font-bold">
-            <BrandLockup />
+            <BrandLockup compact />
             <span className="hidden sm:inline">Admin</span>
           </Link>
-          <div className="flex gap-2">
-            <Link href="/admin/reported-bugs" className="rounded-full px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">Bug reports</Link>
-            <Link href="/admin/disputes" className="rounded-full px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">Disputes</Link>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+            <Link href="/admin/reported-bugs" className="flex min-h-11 items-center justify-center rounded-full px-3 py-2 text-center text-sm font-bold hover:bg-[#eee25a] sm:px-4">Bug reports</Link>
+            <Link href="/admin/disputes" className="flex min-h-11 items-center justify-center rounded-full px-3 py-2 text-center text-sm font-bold hover:bg-[#eee25a] sm:px-4">Disputes</Link>
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-6xl px-5 py-10">
-        <div className="flex items-end justify-between gap-4">
+      <div className="mx-auto min-w-0 max-w-6xl px-4 py-7 sm:px-5 sm:py-10">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">Admin case queue</p>
-            <h1 className="mt-2 text-4xl font-bold">{title}</h1>
+            <h1 className="mt-2 text-3xl font-bold sm:text-4xl">{title}</h1>
           </div>
           <button type="button" onClick={() => void load()} className="rounded-full bg-white px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">↻ Refresh</button>
         </div>

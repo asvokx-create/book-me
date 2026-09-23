@@ -805,6 +805,26 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
 
   .mobile-scroll-row::-webkit-scrollbar { display: none; }
 
+  .admin-action-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .admin-action-row > :where(a, button) {
+    display: inline-flex;
+    min-height: 2.75rem;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .admin-table-scroll {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
   [role="dialog"] { padding: 0.75rem; }
   [role="dialog"] > form,
   [role="dialog"] > div {
@@ -1398,5 +1418,9 @@ html[data-theme="dark"] .home-promise-card {
   body {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+  }
+
+  .admin-safe-content {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
   }
 }
