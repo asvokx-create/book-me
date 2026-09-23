@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SERVICE_CATEGORIES } from "@/lib/service-categories";
+import BackButton from "@/components/back-button";
 
 type Listing = {
   id: string;
@@ -98,7 +99,7 @@ export default function ListingEditor({ serviceId }: { serviceId: string }) {
   return (
     <main className="min-h-screen bg-[#f4f4ef] px-5 py-8 text-[#183126] sm:px-8 sm:py-12">
       <div className="mx-auto max-w-3xl">
-        <Link href="/provider/dashboard#services" className="text-sm font-bold text-[#60736a] hover:text-[#183126]">← Back to dashboard</Link>
+        <BackButton label="Back to services" fallbackHref="/provider/dashboard/services" />
         <div className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_18px_50px_rgba(24,49,38,.08)] sm:p-9">
           <p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Manage listing</p>
           <h1 className="mt-2 text-3xl font-bold tracking-[-.04em]">Edit your service</h1>

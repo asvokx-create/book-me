@@ -6,6 +6,7 @@ import GoogleAnalytics from "@/components/google-analytics";
 import { Suspense } from "react";
 import Script from "next/script";
 import { PreferencesProvider } from "@/components/preferences-provider";
+import InternalNavigationHistory from "@/components/internal-navigation-history";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -58,7 +59,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Script id="bubsbookings-theme" strategy="beforeInteractive">{`try{const p=localStorage.getItem("bubsbookings-theme")||"system";const t=p==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch{}`}</Script>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
         <PreferencesProvider>
-          <Suspense fallback={null}><AnalyticsTracker /></Suspense>
+          <Suspense fallback={null}><AnalyticsTracker /><InternalNavigationHistory /></Suspense>
           <div id="site-content" tabIndex={-1} className="contents">{children}</div>
           <SiteFooter />
         </PreferencesProvider>

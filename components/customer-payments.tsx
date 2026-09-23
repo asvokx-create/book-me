@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import BackButton from "@/components/back-button";
 
 type PaymentMethod = { id: string; brand: string; last4: string; expMonth: number | null; expYear: number | null };
 type PaymentMethodResponse = { configured?: boolean; mode?: "test" | "live"; paymentMethods?: PaymentMethod[]; error?: string };
@@ -67,6 +68,7 @@ export default function CustomerPayments() {
   }
 
   return <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-14">
+    <BackButton label="Back to my account" fallbackHref="/account" className="mb-6" />
     <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="text-sm font-semibold text-[#687a70]">Customer account</p><h1 className="mt-1 text-3xl font-bold tracking-[-.04em] sm:text-4xl">Payments</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[#687a70]">Save a card for faster booking checkout or remove one you no longer use.</p></div><span className={`w-fit rounded-full px-4 py-2 text-xs font-bold ${mode === "live" ? "bg-[#e5f1e5] text-[#34704a]" : "bg-[#fff3c4] text-[#775f00]"}`}>{mode === "live" ? "Live payments" : "Test mode"}</span></div>
     {notice && <p role="status" className="mt-6 rounded-2xl bg-[#e5f1e5] p-4 text-sm font-bold text-[#34704a]">✓ {notice}</p>}
     {error && <p role="alert" className="mt-6 rounded-2xl bg-[#fff0e8] p-4 text-sm font-bold text-[#964f2c]">{error}</p>}

@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLockup from "@/components/brand-lockup";
+import BackButton from "@/components/back-button";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
@@ -151,7 +152,7 @@ export default function AccountSettings() {
   if (isPending || !session || !loaded) return <main className="grid min-h-screen place-items-center bg-[#f5f4ef] text-[#183126]"><p className="font-semibold">Loading settings…</p></main>;
 
   return <main className="min-h-screen bg-[#f5f4ef] text-[#183126]">
-    <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><BrandLockup /></Link><Link href={settings.isProvider ? "/provider/dashboard" : "/account"} className="rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#dfead9]">← Back to dashboard</Link></div></header>
+    <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-8"><Link href="/" className="flex min-w-0 items-center gap-2.5 text-xl font-bold"><BrandLockup /></Link><BackButton label="Back to dashboard" fallbackHref={settings.isProvider ? "/provider/dashboard" : "/account"} /></div></header>
     <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
       <div><p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">Your account</p><h1 className="mt-2 text-4xl font-bold tracking-[-.045em]">Settings</h1><p className="mt-2 text-[#6b7b73]">Keep your details, preferences, and account security up to date.</p></div>
       {message && <p role="status" className="mt-6 rounded-2xl bg-[#e3f1e5] px-5 py-4 text-sm font-bold text-[#34704a]">✓ {message}</p>}

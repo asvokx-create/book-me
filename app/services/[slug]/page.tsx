@@ -14,6 +14,7 @@ import { serviceCategorySlug } from "@/lib/service-categories";
 import { getServiceAreaCoordinates, serviceAreaSlug } from "@/lib/service-areas";
 import ListingPhotoGallery from "@/components/listing-photo-gallery";
 import MobileSiteNav from "@/components/mobile-site-nav";
+import BackButton from "@/components/back-button";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,7 @@ export default async function ServicePage({ params, searchParams }: PageProps<"/
       </header>
 
       <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-12">
-        <Link href={servicesReturnPath} className="inline-flex items-center gap-2 text-sm font-semibold text-[#5f7268] transition hover:text-[#183126]">← Back to services</Link>
+        <BackButton label={returnPathValue ? "Back to results" : "Back to services"} fallbackHref={servicesReturnPath} />
         <div className="mt-7 grid gap-7 lg:grid-cols-[1.25fr_.75fr] lg:gap-10">
           <div>
             <ListingPhotoGallery images={service.imageUrls} title={service.title} fallbackGradient={visual.gradient} fallbackArt={visual.art}><span className="absolute left-6 top-6 z-20 rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-sm backdrop-blur">New listing</span><FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-6 top-6 z-20 grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-sm backdrop-blur" /></ListingPhotoGallery>

@@ -2,6 +2,7 @@ import BrandLockup from "@/components/brand-lockup";
 import Link from "next/link";
 import AccountNav from "@/components/account-nav";
 import BookingDetails from "@/components/booking-details";
+import BackButton from "@/components/back-button";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,6 @@ export default async function CustomerBookingPage({ params }: PageProps<"/accoun
   const { bookingId } = await params;
   return <main className="min-h-screen bg-[#f5f4ef] text-[#183126]">
     <header className="relative z-50 border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8"><Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight"><BrandLockup /></Link><AccountNav /></div></header>
-    <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12"><Link href="/account" className="text-sm font-bold text-[#62756a] transition hover:text-[#183126]">← My bookings</Link><div className="mt-6"><BookingDetails bookingId={bookingId} expectedRole="customer" /></div></div>
+    <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12"><BackButton label="Back to bookings" fallbackHref="/account" /><div className="mt-6"><BookingDetails bookingId={bookingId} expectedRole="customer" /></div></div>
   </main>;
 }

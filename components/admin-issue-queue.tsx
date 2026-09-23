@@ -1,6 +1,7 @@
 "use client";
 
 import BrandLockup from "@/components/brand-lockup";
+import BackButton from "@/components/back-button";
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -258,6 +259,7 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
         </div>
       </header>
       <div className="mx-auto min-w-0 max-w-6xl px-4 py-7 sm:px-5 sm:py-10">
+        <BackButton label="Back to admin" fallbackHref="/admin" className="mb-6" />
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">Admin case queue</p>
