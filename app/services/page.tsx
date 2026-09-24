@@ -82,7 +82,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
     <main className="services-page min-h-screen bg-[#f8f7f3] text-[#183126]">
       <SearchResultsAnalytics query={query} category={selectedCategory} location={location} radiusMiles={radius} resultCount={filteredServices.length} />
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
+        <div className="site-container-wide flex items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
             <BrandLockup />
           </Link>
@@ -97,7 +97,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
       </header>
 
       <section style={{ animation: "none" }} className="services-hero relative z-40 border-b border-[#183126]/10">
-        <div className="mx-auto max-w-7xl px-4 py-9 sm:px-8 sm:py-16">
+        <div className="site-container-wide px-4 py-9 sm:px-8 sm:py-16">
           <Link href="/" className="text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
           <p className="mt-8 text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{location ? "Explore nearby" : "Explore services"}</p>
           <h1 className="type-page-title mt-2">Find the right help for the job.</h1>
@@ -119,7 +119,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         </div>
       </section>
 
-      <section id="all-filters" style={{ animation: "none" }} className="relative z-0 mx-auto max-w-7xl scroll-mt-6 px-4 py-9 sm:px-8 sm:py-14">
+      <section id="all-filters" style={{ animation: "none" }} className="site-container-wide relative z-0 scroll-mt-6 px-4 py-9 sm:px-8 sm:py-14">
         <div className="mobile-scroll-row -mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0">
           {quickCategories.map((category) => {
             const active = category === selectedCategory;
@@ -160,7 +160,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
         </div>
 
         {filteredServices.length > 0 ? (
-          <div className="mt-7 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-7 grid gap-5 md:grid-cols-2 lg:grid-cols-3 min-[1536px]:grid-cols-4">
             {filteredServices.map((service) => (
               <article key={service.slug} className="marketplace-card group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white transition">
                 <Link href={`/services/${service.slug}?from=${encodeURIComponent(currentResultsPath)}`} className="block">

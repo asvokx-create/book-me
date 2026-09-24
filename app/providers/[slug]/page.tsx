@@ -34,8 +34,8 @@ export default async function ProviderProfilePage({ params }: PageProps<"/provid
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <header className="relative z-50 border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-8"><Link href="/" className="flex min-w-0 items-center gap-2.5 text-xl font-bold tracking-tight"><BrandLockup compact /></Link><div className="flex items-center gap-2"><MobileSiteNav /><AccountNav /></div></div></header>
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
+      <header className="relative z-50 border-b border-[#183126]/10 bg-white"><div className="site-container flex items-center justify-between gap-2 px-4 py-4 sm:px-8"><Link href="/" className="flex min-w-0 items-center gap-2.5 text-xl font-bold tracking-tight"><BrandLockup compact /></Link><div className="flex items-center gap-2"><MobileSiteNav /><AccountNav /></div></div></header>
+      <div className="site-container px-5 py-8 sm:px-8 sm:py-12">
         <BackButton label="Back to services" fallbackHref="/services" />
         <section className="mt-7 overflow-hidden rounded-[2.5rem] border border-[#183126]/10 bg-white shadow-[0_12px_40px_rgba(24,49,38,.08)]">
           <div role="img" aria-label={`${profileName} featured service`} style={featured?.imageUrls[0] ? { backgroundImage: `url("${featured.imageUrls[0]}")` } : undefined} className={`relative h-44 bg-cover bg-center sm:h-56 ${featured?.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!featured?.imageUrls[0] && <><div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(255,255,255,.4),transparent_30%)]" /><span className="absolute bottom-5 right-8 text-7xl opacity-80 sm:text-8xl">{visual.art}</span></>}</div>

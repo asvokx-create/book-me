@@ -15,6 +15,12 @@
   --shadow-md: 0 2px 5px rgba(16, 41, 31, 0.035), 0 18px 48px rgba(16, 41, 31, 0.085);
   --shadow-lg: 0 4px 10px rgba(16, 41, 31, 0.045), 0 32px 90px rgba(16, 41, 31, 0.13);
   --radius-card: 1.5rem;
+  --layout-reading: 48rem;
+  --layout-content: 80rem;
+  --layout-wide: 90rem;
+  --layout-dashboard: 96rem;
+  --layout-gutter: clamp(1rem, 2.4vw, 2.5rem);
+  --section-space: clamp(3rem, 5vw, 6rem);
   --font-site-sans: var(--font-manrope);
   --font-site-mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --type-hero: clamp(2.6rem, 6vw, 5rem);
@@ -60,6 +66,30 @@ body {
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
   font-optical-sizing: auto;
   text-rendering: optimizeLegibility;
+}
+
+/* Shared fluid layout system. Backgrounds may remain full bleed while these
+   semantic containers keep content proportions stable from phones through 4K. */
+.site-container,
+.site-container-wide,
+.dashboard-container,
+.reading-container {
+  width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.site-container { max-width: var(--layout-content); }
+.site-container-wide { max-width: var(--layout-wide); }
+.dashboard-container { max-width: var(--layout-dashboard); }
+.reading-container { max-width: var(--layout-reading); }
+.reading-measure { max-width: 72ch; }
+.section-space { padding-block: var(--section-space); }
+
+.responsive-media {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 main { isolation: isolate; position: relative; flex: 1 0 auto; }
@@ -154,7 +184,7 @@ main > header {
   right: auto;
   left: auto;
   z-index: 100 !important;
-  width: calc(100% - 1.5rem) !important;
+  width: min(calc(100% - 1.5rem), calc(var(--layout-dashboard) + (2 * var(--layout-gutter)))) !important;
   margin: .75rem auto 0 !important;
   box-shadow: 0 1px 0 rgba(16, 41, 31, .07), 0 12px 32px rgba(16, 41, 31, .03);
   backdrop-filter: blur(22px) saturate(150%);
@@ -431,7 +461,7 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
 /* Bold 2026 shell: navigation floats above the page instead of blending into it. */
 main > header {
   top: auto !important;
-  width: calc(100% - 1.5rem) !important;
+  width: min(calc(100% - 1.5rem), calc(var(--layout-dashboard) + (2 * var(--layout-gutter)))) !important;
   margin: .75rem auto 0 !important;
   border: 1px solid rgba(16, 41, 31, .1) !important;
   border-radius: 1.35rem;
@@ -681,6 +711,16 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
   box-shadow: 0 18px 50px rgba(16, 41, 31, .07);
 }
 
+.message-bubble {
+  max-width: min(82%, 44rem);
+}
+
+.service-booking-column {
+  width: 100%;
+  max-width: 25rem;
+  justify-self: end;
+}
+
 .marketing-listing-select {
   min-height: 4.15rem !important;
   border-color: rgba(238, 226, 90, .5) !important;
@@ -851,6 +891,9 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
   .type-section-title {
     font-size: clamp(1.45rem, 7vw, 2rem);
   }
+
+  .message-bubble { max-width: 88%; }
+  .service-booking-column { max-width: none; }
 
   :where(main, footer) :where(p, li, label, legend, td, th, a, button, span) {
     overflow-wrap: break-word;

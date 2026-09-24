@@ -256,7 +256,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   return (
     <main className="admin-page min-h-screen overflow-x-clip bg-[#f4f4ef] text-[#183126]">
       <header className="border-b border-[#183126]/10 bg-white">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-2 px-3 py-4 min-[360px]:px-4 sm:px-8">
+        <div className="dashboard-container flex items-center justify-between gap-2 px-3 py-4 min-[360px]:px-4 sm:px-8">
           <div className="min-w-0 flex items-center gap-4">
             <Link href="/" className="flex items-center gap-2.5 text-xl font-bold">
               <BrandLockup compact />
@@ -275,7 +275,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
         </div>
       </header>
 
-      <div className="mx-auto grid min-w-0 max-w-[1440px] gap-6 px-4 py-5 sm:px-5 sm:py-7 lg:grid-cols-[240px_minmax(0,1fr)] lg:px-8">
+      <div className="dashboard-container grid min-w-0 gap-6 px-4 py-5 sm:px-5 sm:py-7 lg:grid-cols-[240px_minmax(0,1fr)] lg:px-8">
         <aside className="admin-nav-shell min-w-0 overflow-hidden rounded-[1.35rem] bg-[#183126] p-3 text-white lg:min-h-[calc(100vh-8rem)] lg:rounded-[1.5rem]">
           <div className="hidden px-4 pb-5 pt-3 lg:block">
             <p className="text-xs font-bold uppercase tracking-[.16em] text-[#aabdb3]">Admin console</p>

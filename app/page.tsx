@@ -44,7 +44,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   return (
     <main className="home-page min-h-screen overflow-x-clip bg-[#f8f7f3] text-[#183126]">
       <header className="home-header sticky top-0 z-50 border-b border-white/70 bg-[#f8f7f3]/82 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="site-container flex items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
           <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             <BrandLockup priority />
           </Link>
@@ -67,7 +67,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
       <section className="home-hero relative z-10 isolate">
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[inherit]"><div className="home-hero-glow absolute -right-48 top-8 h-[620px] w-[620px] rounded-full bg-[#d8e7d3] blur-2xl sm:right-[-8rem] sm:top-4" /></div>
-        <div className="relative z-10 mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20 lg:py-24">
+        <div className="site-container relative z-10 px-4 py-12 sm:px-6 sm:py-20 lg:py-24">
         <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_.65fr] lg:gap-14">
         <div className="max-w-3xl">
           <p className="home-hero-eyebrow mb-5 inline-flex items-center gap-2 rounded-full border border-[#183126]/10 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#4d6b59] shadow-sm">
@@ -128,7 +128,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
       </section>
 
-      <section className="home-discovery relative z-0 mx-auto max-w-6xl px-4 pb-14 sm:px-6">
+      <section className="home-discovery site-container relative z-0 px-4 pb-14 sm:px-6">
         <p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">{location ? "Explore nearby" : "Explore services"}</p>
         <div className="mb-7 mt-2 flex items-end justify-between gap-4"><h3 className="text-3xl font-bold tracking-[-.04em]">What can we take off your plate?</h3><Link href="/services?showFilters=1#all-filters" className="home-section-action shrink-0 rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a]">View all</Link></div>
 
@@ -152,32 +152,32 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         {upcomingCategories.length > 0 && <div className="mt-8 rounded-[2rem] border border-dashed border-[#183126]/12 bg-white/45 p-5 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">More services coming soon</p><p className="mt-1 text-sm text-[#65766d]">Choose a category to request it or join the local availability list.</p></div><Link href="/requests" className="text-sm font-bold underline decoration-[#c7bb41] decoration-2 underline-offset-4">Request a service</Link></div><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{upcomingCategories.map((category) => { const categoryParams = new URLSearchParams({ category, radius: String(radius) }); if (location) categoryParams.set("location", location); return <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} className="flex min-h-12 items-center gap-3 rounded-2xl border border-[#183126]/10 bg-white/70 px-4 py-3 text-sm font-bold transition hover:border-[#6d8d78] hover:bg-white"><ServiceCategoryIcon category={category} compact /><span>{category}</span></Link>; })}</div></div>}
       </section>
 
-      {location && <section id="nearby-listings" className="home-marketplace scroll-mt-24 mx-auto max-w-6xl px-4 pb-2 sm:px-6 sm:pb-3">
+      {location && <section id="nearby-listings" className="home-marketplace site-container scroll-mt-24 px-4 pb-2 sm:px-6 sm:pb-3">
         <div className="mb-7 flex items-end justify-between gap-4">
           <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">Right in your city</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">Services in {city}</h3></div>
           <span className="shrink-0 rounded-full border border-[#183126]/10 bg-[#e8f0e4] px-4 py-2 text-xs font-bold text-[#496756]">{cityServices.length} {cityServices.length === 1 ? "local service" : "local services"}</span>
         </div>
 
-        {cityServices.length > 0 ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {cityServices.length > 0 ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 min-[1536px]:grid-cols-4">
           {cityServices.map((service) => <HomeServiceCard key={service.id} service={service} badge={`In ${city}`} />)}
         </div> : <div className="home-empty-state rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-12 text-center"><span className="text-4xl">🌱</span><h4 className="mt-4 text-xl font-bold">No services in {city} yet</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">You can still explore providers serving your area below, or become one of the first businesses listed in {city}.</p><Link href="/providers/join" className="mt-6 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">List a service in {city}</Link></div>}
       </section>}
 
       <section className="home-all-services home-marketplace border-y border-[#183126]/8 bg-[#eef3ea]/70">
-        <div className="mx-auto max-w-6xl px-4 pb-12 pt-7 sm:px-6 sm:pb-16 sm:pt-9">
+        <div className="site-container px-4 pb-12 pt-7 sm:px-6 sm:pb-16 sm:pt-9">
           <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
             <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">{location ? "More around you" : "Current marketplace"}</p><h3 className="mt-2 text-3xl font-bold tracking-[-.04em]">All services</h3><p className="mt-2 text-sm text-[#687970]">{location ? `More providers serving locations within ${radius} miles of ${city}.` : "Browse active listings across BubsBookings, or choose your city above for local results."}</p></div>
             <Link href={nearbyServicesHref} className="home-section-action shrink-0 rounded-full border border-[#183126]/12 bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">{location ? `Browse all within ${radius} miles` : "Browse all services"} →</Link>
           </div>
 
-          {otherServices.length > 0 ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {otherServices.length > 0 ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 min-[1536px]:grid-cols-4">
             {otherServices.map((service) => <HomeServiceCard key={service.id} service={service} />)}
           </div> : <div className="home-empty-state rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-10 text-center"><span className="text-3xl">{location ? "✓" : "🌱"}</span><h4 className="mt-3 text-lg font-bold">{location ? "That’s every service in your range" : "Listings are coming soon"}</h4><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">{location ? `All available services within ${radius} miles are already listed in the ${city} section above.` : "Choose your city to check local availability or list your business as an early provider."}</p></div>}
         </div>
       </section>
 
       <section className="home-promo-strip mt-5 bg-[#173d2e] text-white">
-        <div className="mx-auto grid max-w-6xl items-stretch gap-3 px-4 py-6 sm:px-6 md:grid-cols-2">
+        <div className="site-container grid items-stretch gap-3 px-4 py-6 sm:px-6 md:grid-cols-2">
           <Link href="/promise" className="home-promise-card group rounded-2xl border border-white/12 bg-white/7 p-5 transition hover:bg-white/10">
             <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#bfd0c6]">☂️ The BubsBookings Promise</p>
             <h3 className="mt-1.5 text-xl font-bold tracking-[-.03em]">Book with more confidence.</h3>

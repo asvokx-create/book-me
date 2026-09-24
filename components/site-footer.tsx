@@ -39,7 +39,7 @@ function FooterLinks({ title, links }: { title: string; links: ReadonlyArray<rea
 export default function SiteFooter() {
   return (
     <footer className="site-footer mt-auto overflow-hidden border-t border-white/10 bg-[linear-gradient(145deg,#102b20,#0b2118_60%,#123426)] text-white">
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 sm:py-14">
+      <div className="site-container px-5 py-10 sm:px-6 sm:py-14">
         <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[.065] p-6 shadow-[0_24px_70px_rgba(0,0,0,.18)] sm:p-8">
           <div aria-hidden="true" className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#eee25a]/10 blur-3xl" />
           <div className="relative grid items-end gap-7 lg:grid-cols-[1fr_auto]">

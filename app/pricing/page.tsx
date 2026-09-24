@@ -77,7 +77,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
   return (
     <main className="pricing-page min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="border-b border-[#183126]/10 bg-[#f8f7f3]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
+        <div className="site-container-wide flex items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><BrandLockup /></Link>
           <div className="flex items-center gap-2 sm:gap-3"><nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex"><Link href="/services" className="site-nav-link">Find services</Link><Link href="/guides" className="site-nav-link">Guides</Link></nav><MobileSiteNav /><AccountNav /></div>
         </div>
@@ -86,7 +86,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
       <section className="pricing-hero relative overflow-hidden border-b border-[#183126]/10">
         <div className="pointer-events-none absolute -right-24 -top-44 h-[620px] w-[620px] rounded-full bg-[#b7d7b8]/55 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-48 -left-36 h-[420px] w-[420px] rounded-full bg-[#eee25a]/15 blur-3xl" />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-12 text-left sm:px-8 sm:py-16 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
+        <div className="site-container relative grid items-center gap-10 px-5 py-12 text-left sm:px-8 sm:py-16 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.18em] text-[#d2dfd7]"><span className="h-2 w-2 rounded-full bg-[#eee25a]" />Simple, fair provider pricing</p>
             <h1 className="type-hero mt-6 max-w-3xl">Start free.<br /><span className="text-[#eee25a]">Grow on your terms.</span></h1>
@@ -109,7 +109,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
         </div>
       </section>
 
-      <section id="plans" className="mx-auto max-w-7xl px-4 py-12 sm:px-8 sm:py-20">
+      <section id="plans" className="site-container-wide px-4 py-12 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-4xl">
         {currentPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#183126] px-5 py-4 text-center text-white sm:flex-row sm:text-left"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#b8c8c0]">Your current plan</p><p className="mt-1 text-xl font-bold">{PLAN_ENTITLEMENTS[currentPlan].name}</p>{currentPlan === "owner" && <p className="mt-1 text-xs text-[#b8c8c0]">Private account access · $0/month · 0% booking fee · all features unlocked</p>}</div><Link href="/provider/dashboard/billing" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:bg-[#f5ea6b]">Manage billing</Link></div>}
         {selectedPlan && <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-[#edf3e7] px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="font-bold">{selectedPlan.name} selected</p><p className="mt-1 text-sm text-[#64766d]">{selectedPlan.id === "starter" ? "Create your provider profile for free." : proTrialEligible ? "Create your provider profile first, then start the 30-day trial securely from Billing." : "Continue to Billing to subscribe securely through Stripe."}</p></div><Link href={selectedPlan.id === "starter" ? "/providers/join?plan=starter" : currentProvider ? "/provider/dashboard/billing" : "/providers/join?plan=pro"} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">{selectedPlan.id === "starter" ? "Continue as a provider" : currentProvider ? "Continue to billing" : "Create provider profile"}</Link></div>}

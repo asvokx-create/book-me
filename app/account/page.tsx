@@ -87,7 +87,7 @@ export default function AccountPage() {
   return (
     <main className="account-page min-h-screen bg-[#f5f4ef] text-[#183126]">
       <header className="relative z-50 border-b border-[#183126]/10 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-8 sm:py-4">
+        <div className="dashboard-container flex items-center justify-between gap-2 px-3 py-3 sm:px-8 sm:py-4">
           <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 text-lg font-bold tracking-tight sm:gap-2.5 sm:text-xl"><BrandLockup compact /></Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold md:flex"><Link href="/services" className="hover:text-[#5b7365]">Explore services</Link><Link href="/providers/join" className="hover:text-[#5b7365]">List your service</Link></nav>
           <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Link href={isProvider ? "/provider/dashboard" : "/providers/join"} aria-label={isProvider ? "Switch to provider" : "Become a provider"} className="whitespace-nowrap rounded-full bg-[#183126] px-3.5 py-2.5 text-[11px] font-bold text-white shadow-[0_6px_18px_rgba(24,49,38,.16)] transition hover:bg-[#315846] min-[370px]:text-xs sm:px-4 sm:text-sm">{isProvider ? "Switch to provider" : "Become a provider"}</Link><NotificationBell /><ProfileAvatar name={accountName ?? "BubsBookings"} imageUrl={session?.user.image} className="hidden h-10 w-10 text-sm md:grid" /></div>
@@ -96,7 +96,7 @@ export default function AccountPage() {
 
       {toast && <div role="status" className="fixed right-5 top-20 z-50 flex max-w-sm items-start gap-3 rounded-2xl bg-[#183126] p-4 text-sm text-white shadow-2xl"><span className="text-[#eee25a]">✓</span><p className="font-semibold">{toast}</p><button onClick={() => setToast("")} aria-label="Dismiss" className="ml-2 rounded-full px-2 text-white/60 transition hover:bg-white/15 hover:text-white">×</button></div>}
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-14">
+      <div className="dashboard-container px-4 py-8 sm:px-8 sm:py-14">
         <AccountLocationReminder />
         {workerCompany && <section aria-label="Your company membership" className="mb-8 flex flex-col gap-5 rounded-3xl bg-[#183126] p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-widest text-[#eee25a]">You’re part of a company</p><h2 className="mt-2 break-words text-2xl font-bold">{workerCompany.businessName}</h2><p className="mt-2 text-sm text-[#c3d0c9]">Your role: {workerCompany.teamRole || "Team member"}</p><p className="mt-2 text-sm leading-6 text-[#c3d0c9]">View your assigned jobs and submit your working hours for your owner to approve.</p></div>

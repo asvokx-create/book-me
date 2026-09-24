@@ -63,15 +63,15 @@ export default async function ServicePage({ params, searchParams }: PageProps<"/
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="site-container flex items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><BrandLockup /></Link>
           <div className="flex items-center gap-1 sm:gap-3"><Link href="/pricing" className="hidden rounded-full px-2 py-2 text-xs font-semibold hover:bg-[#183126]/5 sm:inline-flex sm:px-4 sm:text-sm"><span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Provider pricing</span></Link><Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 md:block">List your service</Link><MobileSiteNav /><AccountNav /></div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-12">
+      <div className="site-container px-4 py-7 sm:px-6 sm:py-12">
         <BackButton label={returnPathValue ? "Back to results" : "Back to services"} fallbackHref={servicesReturnPath} />
-        <div className="mt-7 grid gap-7 lg:grid-cols-[1.25fr_.75fr] lg:gap-10">
+        <div className="mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,25rem)] lg:gap-10">
           <div>
             <ListingPhotoGallery images={service.imageUrls} title={service.title} fallbackGradient={visual.gradient} fallbackArt={visual.art}><span className="absolute left-6 top-6 z-20 rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-sm backdrop-blur">New listing</span><FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-6 top-6 z-20 grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-sm backdrop-blur" /></ListingPhotoGallery>
             <div className="py-8">
@@ -84,7 +84,7 @@ export default async function ServicePage({ params, searchParams }: PageProps<"/
               <div className="mt-10 border-t border-[#183126]/10 pt-9"><h2 className="text-2xl font-bold tracking-tight">Service details</h2><div className="mt-6 grid gap-4 sm:grid-cols-2"><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Estimated duration</p><p className="mt-2 font-bold">About {duration}</p><p className="mt-1 text-xs leading-5 text-[#718078]">Actual time may vary depending on the job.</p></div><div className="rounded-2xl bg-white p-5 shadow-[0_4px_18px_rgba(24,49,38,.04)]"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Starting price</p><p className="mt-2 font-bold">${service.price}</p><p className="mt-1 text-xs leading-5 text-[#718078]">Covers the service described in “What&apos;s included.” Any revised quote must be shown before confirmation.</p></div></div><div className="mt-4 rounded-2xl border border-[#183126]/10 bg-white p-5"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Cancellation policy</p><p className="mt-2 text-sm leading-6 text-[#5f7067]">{service.cancellationPolicy}</p><p className="mt-2 text-xs font-semibold text-[#718078]">Standard notice window: {service.cancellationWindowHours} hours</p><p className="mt-5 text-xs font-bold uppercase tracking-wider text-[#718078]">No-show policy</p><p className="mt-2 text-sm leading-6 text-[#5f7067]">{service.noShowPolicy}</p></div></div>
             </div>
           </div>
-          <aside className="min-w-0"><StationaryBookingPanel><BookingCard serviceId={service.id} price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} serviceCity={service.city} serviceState={service.state} bookingQuestions={service.bookingQuestions} isSignedIn={Boolean(session)} returnPath={`/services/${service.slug}`} cancellationPolicy={service.cancellationPolicy} cancellationWindowHours={service.cancellationWindowHours} noShowPolicy={service.noShowPolicy} parentBookingId={parentBookingId} requestAnotherTimeHref={`/requests?category=${encodeURIComponent(service.category)}&title=${encodeURIComponent(service.title)}`} /></StationaryBookingPanel></aside>
+          <aside className="service-booking-column min-w-0"><StationaryBookingPanel><BookingCard serviceId={service.id} price={service.price} duration={duration} serviceTitle={service.title} provider={service.provider} serviceCity={service.city} serviceState={service.state} bookingQuestions={service.bookingQuestions} isSignedIn={Boolean(session)} returnPath={`/services/${service.slug}`} cancellationPolicy={service.cancellationPolicy} cancellationWindowHours={service.cancellationWindowHours} noShowPolicy={service.noShowPolicy} parentBookingId={parentBookingId} requestAnotherTimeHref={`/requests?category=${encodeURIComponent(service.category)}&title=${encodeURIComponent(service.title)}`} /></StationaryBookingPanel></aside>
         </div>
       </div>
     </main>
