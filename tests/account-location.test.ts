@@ -27,6 +27,16 @@ test("signup requires a general location and discloses why it is collected", () 
   assert.match(form, /Privacy Policy/);
 });
 
+test("signup separates account details from location and agreements", () => {
+  const form = read("app/auth-form.tsx");
+  assert.match(form, /signupStep/);
+  assert.match(form, /Step \{signupStep\} of 2/);
+  assert.match(form, /signupStep === 1 \? "Next" : "Create account"/);
+  assert.match(form, /signupStep === 2 && <fieldset/);
+  assert.match(form, /signupStep === 2 && <div className="space-y-2/);
+  assert.match(form, /showSignupStepOne/);
+});
+
 test("account settings store only confirmed general location values", () => {
   const route = read("app/api/account/settings/route.ts");
   assert.match(route, /normalizeAccountLocation/);

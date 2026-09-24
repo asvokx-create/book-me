@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
 import { createPolicyConsentFields } from "../lib/policy-consent";
@@ -27,11 +27,38 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
+  const [signupStep, setSignupStep] = useState<1 | 2>(1);
+  const [signupMethod, setSignupMethod] = useState<"email" | SocialProvider>("email");
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const isLogin = mode === "login";
   const hasRequiredConsents = confirmedAge && acceptedTerms && acknowledgedPrivacy;
 
+  function showSignupStepTwo(method: "email" | SocialProvider) {
+    if (method === "email") {
+      const phoneDigits = phone.replace(/\D/g, "");
+      if (!name.trim() || !email.includes("@") || (phoneDigits.length > 0 && phoneDigits.length !== 10) || password.length < 12) {
+        setError("Enter your name, a valid email address, an optional 10-digit phone number, and a password with at least 12 characters.");
+        return;
+      }
+    }
+    setError("");
+    setSignupMethod(method);
+    setSignupStep(2);
+    requestAnimationFrame(() => stepHeadingRef.current?.focus());
+  }
+
+  function showSignupStepOne() {
+    setError("");
+    setSignupStep(1);
+    setSignupMethod("email");
+  }
+
   async function continueWith(provider: SocialProvider) {
     if (!socialProviders[provider]) return;
+    if (!isLogin && signupStep === 1) {
+      showSignupStepTwo(provider);
+      return;
+    }
     if (!isLogin && !hasRequiredConsents) {
       setError("Complete all required agreements before creating an account.");
       return;
@@ -64,6 +91,14 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!isLogin && signupStep === 1) {
+      showSignupStepTwo("email");
+      return;
+    }
+    if (!isLogin && signupMethod === "google") {
+      await continueWith("google");
+      return;
+    }
     const phoneDigits = phone.replace(/\D/g, "");
     const normalizedLocation = isLogin ? null : normalizeAccountLocation({ city, state, postalCode, country: "United States" });
     if (!isLogin && !normalizedLocation?.location) {
@@ -136,23 +171,25 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
         <p className="mt-3 text-sm leading-6 text-[#718078]">{isLogin ? "Manage bookings and connect with your favorite local pros." : "Find local service providers and keep every booking in one place."}</p>
       </div>
 
-      <div className="mt-7">
+      {!isLogin && <div className="mt-6" aria-label={`Signup step ${signupStep} of 2`}><div className="flex items-center gap-2" aria-hidden="true"><span className="h-1.5 flex-1 rounded-full bg-[#183126]" /><span className={`h-1.5 flex-1 rounded-full ${signupStep === 2 ? "bg-[#183126]" : "bg-[#dfe6dc]"}`} /></div><h2 ref={stepHeadingRef} tabIndex={-1} className="mt-3 text-sm font-bold outline-none">Step {signupStep} of 2 · {signupStep === 1 ? "Account details" : "Location and agreements"}</h2><p className="mt-1 text-xs leading-5 text-[#718078]">{signupStep === 1 ? "Enter your account details, then continue." : signupMethod === "google" ? "Add your general location and accept the required agreements before continuing with Google." : "Add your general location and accept the required agreements to finish."}</p></div>}
+
+      {(isLogin || signupStep === 1) && <div className="mt-7">
         <SocialButton enabled={socialProviders.google} loading={socialLoading === "google"} disabled={Boolean(socialLoading)} onClick={() => void continueWith("google")} />
-        {!isLogin && error === "Complete all required agreements before creating an account." && <p role="alert" className="mt-3 rounded-xl border border-[#d59a78] bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold text-[#9a4e25]">Before continuing with Google, check all three required agreements below.</p>}
-      </div>
-      <div className="my-6 flex items-center gap-3"><span className="h-px flex-1 bg-[#183126]/10" /><span className="text-xs text-[#89958f]">or continue with email</span><span className="h-px flex-1 bg-[#183126]/10" /></div>
+      </div>}
+      {(isLogin || signupStep === 1) && <div className="my-6 flex items-center gap-3"><span className="h-px flex-1 bg-[#183126]/10" /><span className="text-xs text-[#89958f]">or continue with email</span><span className="h-px flex-1 bg-[#183126]/10" /></div>}
 
       <form onSubmit={submit} className="space-y-4">
-        {!isLogin && <label className="block"><span className="mb-2 block text-sm font-bold">Full name</span><input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your full name" className={inputClass} /></label>}
-        <label className="block"><span className="mb-2 block text-sm font-bold">Email address</span><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={inputClass} /></label>
-        {!isLogin && <fieldset className="rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><legend className="px-1 text-sm font-bold">General account location</legend><p className="mb-4 text-xs leading-5 text-[#718078]">Used to show relevant local services. This is separate from a booking street address or provider service area.</p><div className="grid gap-4"><label className="block"><span className="mb-2 block text-sm font-bold">City</span><input required autoComplete="address-level2" value={city} onChange={(event) => setCity(event.target.value)} placeholder="Seattle" className={inputClass} /></label><div className="grid grid-cols-[minmax(0,.75fr)_minmax(0,1.25fr)] gap-3"><label className="block"><span className="mb-2 block text-sm font-bold">State</span><input required maxLength={2} autoComplete="address-level1" value={state} onChange={(event) => setState(event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} placeholder="WA" className={inputClass} /></label><label className="block"><span className="mb-2 block text-sm font-bold">ZIP code</span><input required inputMode="numeric" maxLength={10} pattern="[0-9]{5}(-[0-9]{4})?" autoComplete="postal-code" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="98101" className={inputClass} /></label></div><label className="block"><span className="mb-2 block text-sm font-bold">Country</span><input readOnly autoComplete="country-name" value="United States" className={`${inputClass} cursor-not-allowed text-[#718078]`} /></label></div></fieldset>}
-        {!isLogin && <label className="block"><span className="mb-2 block text-sm font-bold">Phone number <span className="font-normal text-[#718078]">(optional)</span></span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(formatUsPhone(event.target.value))} placeholder="(425) 555-0123" className={inputClass} /><span className="mt-2 block text-xs text-[#849189]">Used for booking updates and provider communication.</span></label>}
-        <label className="block"><span className="mb-2 flex items-center justify-between text-sm font-bold">Password {isLogin && <Link href="/forgot-password" className="rounded-full px-2 py-1 text-xs text-[#5a7563] underline decoration-[#c7bb41] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Forgot password?</Link>}</span><input type="password" minLength={isLogin ? 1 : 12} maxLength={128} autoComplete={isLogin ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isLogin ? "Your password" : "At least 12 characters"} className={inputClass} /></label>
-        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#183126]" /><span className="text-sm font-semibold">Keep me signed in on this device</span></label>
-        {!isLogin && <div className="space-y-2 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#687b70]">Required agreements</p><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={confirmedAge} onChange={(event) => setConfirmedAge(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I confirm that I am at least 18 years old and can enter a binding agreement.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I have read and agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms of Service</Link>.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acknowledgedPrivacy} onChange={(event) => setAcknowledgedPrivacy(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link> and <Link href="/ai-transparency" target="_blank" className="font-bold underline">AI &amp; Safety disclosure</Link>.</span></label></div>}
+        {!isLogin && signupStep === 1 && <label className="block"><span className="mb-2 block text-sm font-bold">Full name</span><input required autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your full name" className={inputClass} /></label>}
+        {(isLogin || signupStep === 1) && <label className="block"><span className="mb-2 block text-sm font-bold">Email address</span><input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={inputClass} /></label>}
+        {!isLogin && signupStep === 2 && <fieldset className="rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><legend className="px-1 text-sm font-bold">General account location</legend><p className="mb-4 text-xs leading-5 text-[#718078]">Used to show relevant local services. This is separate from a booking street address or provider service area.</p><div className="grid gap-4"><label className="block"><span className="mb-2 block text-sm font-bold">City</span><input required autoComplete="address-level2" value={city} onChange={(event) => setCity(event.target.value)} placeholder="Seattle" className={inputClass} /></label><div className="grid grid-cols-[minmax(0,.75fr)_minmax(0,1.25fr)] gap-3"><label className="block"><span className="mb-2 block text-sm font-bold">State</span><input required maxLength={2} autoComplete="address-level1" value={state} onChange={(event) => setState(event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} placeholder="WA" className={inputClass} /></label><label className="block"><span className="mb-2 block text-sm font-bold">ZIP code</span><input required inputMode="numeric" maxLength={10} pattern="[0-9]{5}(-[0-9]{4})?" autoComplete="postal-code" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="98101" className={inputClass} /></label></div><label className="block"><span className="mb-2 block text-sm font-bold">Country</span><input readOnly autoComplete="country-name" value="United States" className={`${inputClass} cursor-not-allowed text-[#718078]`} /></label></div></fieldset>}
+        {!isLogin && signupStep === 1 && <label className="block"><span className="mb-2 block text-sm font-bold">Phone number <span className="font-normal text-[#718078]">(optional)</span></span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(formatUsPhone(event.target.value))} placeholder="(425) 555-0123" className={inputClass} /><span className="mt-2 block text-xs text-[#849189]">Used for booking updates and provider communication.</span></label>}
+        {(isLogin || signupStep === 1) && <label className="block"><span className="mb-2 flex items-center justify-between text-sm font-bold">Password {isLogin && <Link href="/forgot-password" className="rounded-full px-2 py-1 text-xs text-[#5a7563] underline decoration-[#c7bb41] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Forgot password?</Link>}</span><input required type="password" minLength={isLogin ? 1 : 12} maxLength={128} autoComplete={isLogin ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isLogin ? "Your password" : "At least 12 characters"} className={inputClass} /></label>}
+        {(isLogin || signupStep === 1) && <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#183126]" /><span className="text-sm font-semibold">Keep me signed in on this device</span></label>}
+        {!isLogin && signupStep === 2 && <div className="space-y-2 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#687b70]">Required agreements</p><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={confirmedAge} onChange={(event) => setConfirmedAge(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I confirm that I am at least 18 years old and can enter a binding agreement.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I have read and agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms of Service</Link>.</span></label><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" required checked={acknowledgedPrivacy} onChange={(event) => setAcknowledgedPrivacy(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-xs leading-5 text-[#66776e]">I acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link> and <Link href="/ai-transparency" target="_blank" className="font-bold underline">AI &amp; Safety disclosure</Link>.</span></label></div>}
         {(error || oauthError) && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold leading-5 text-[#9a4e25]">{error || getGoogleSignInErrorMessage(oauthError, oauthErrorDescription)}</p>}
-        {!isLogin && <p className="text-xs leading-5 text-[#66776e]">By creating an account, you agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms of Service</Link> and acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link>, including how BubsBookings uses your account and location information.</p>}
-        <button type="submit" disabled={loading || (!isLogin && !hasRequiredConsents)} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-60">{loading ? "Please wait…" : isLogin ? "Log in" : "Create account"}</button>
+        {!isLogin && signupStep === 2 && <p className="text-xs leading-5 text-[#66776e]">By creating an account, you agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms of Service</Link> and acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link>, including how BubsBookings uses your account and location information.</p>}
+        {!isLogin && signupStep === 2 && <button type="button" onClick={showSignupStepOne} className="w-full rounded-full border border-[#183126]/15 bg-white px-6 py-3 text-sm font-bold text-[#52695d] transition hover:bg-[#e7efe3]">← Back to account details</button>}
+        <button type="submit" disabled={loading || Boolean(socialLoading) || (!isLogin && signupStep === 2 && !hasRequiredConsents)} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-60">{loading || socialLoading ? "Please wait…" : isLogin ? "Log in" : signupStep === 1 ? "Next" : "Create account"}</button>
       </form>
 
       <p className="mt-6 text-center text-sm text-[#74837b]">{isLogin ? "New to BubsBookings?" : "Already have an account?"} <Link href={`${isLogin ? "/signup" : "/login"}${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{isLogin ? "Sign up" : "Log in"}</Link></p>
