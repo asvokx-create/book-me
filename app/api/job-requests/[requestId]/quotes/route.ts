@@ -77,6 +77,8 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
     await client.query("COMMIT");
     await recordActivity({ userId: access.session.user.id, action: "job_quote_sent", targetType: "quote", targetId: created.rows[0].id });
     await recordAnalytics({ eventName: "job_quote_sent", userId: access.session.user.id, targetType: "quote", targetId: created.rows[0].id, metadata: { requestId, totalCents } });
+    const providerQuoteCount = await database.query<{ count: number }>("SELECT count(*)::int AS count FROM quotes WHERE provider_id::text = $1", [access.providerId]);
+    if (providerQuoteCount.rows[0]?.count === 1) await recordAnalytics({ eventName: "first_quote_sent", userId: access.session.user.id, targetType: "quote", targetId: created.rows[0].id });
     if (matched.customer_notifications) await sendTransactionalEmail({ to: matched.customer_email, userId: matched.customer_id, emailType: `job_quote_${created.rows[0].id}`, idempotencyKey: `job-quote-${created.rows[0].id}`, subject: "You received a new BubsBookings quote", heading: "A provider responded to your service request", message: `${access.session.user.name || "A local provider"} sent a $${total.toFixed(2)} quote. Compare the details before accepting.`, actionLabel: "Review quote", actionUrl: "/account/requests" });
     return NextResponse.json({ id: created.rows[0].id }, { status: 201 });
   } catch (error) {

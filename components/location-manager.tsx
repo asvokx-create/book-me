@@ -18,7 +18,7 @@ export default function LocationManager() {
   const [editingId, setEditingId] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [name, setName] = useState("");
-  const [location, setLocation] = useState("Issaquah, WA");
+  const [location, setLocation] = useState("");
   const [radius, setRadius] = useState(25);
   const [workerIds, setWorkerIds] = useState<string[]>([]);
   const [serviceAreas, setServiceAreas] = useState("");
@@ -42,7 +42,7 @@ export default function LocationManager() {
   const editing = locations.find((item) => item.id === editingId);
 
   function resetForm() {
-    setEditingId(""); setName(""); setLocation("Issaquah, WA"); setRadius(25); setWorkerIds([]); setServiceAreas(""); setError("");
+    setEditingId(""); setName(""); setLocation(""); setRadius(25); setWorkerIds([]); setServiceAreas(""); setError("");
   }
   function edit(item: Location) {
     setEditingId(item.id); setCompanyId(item.companyId); setName(item.name); setLocation(item.location); setRadius(item.serviceRadiusMiles); setWorkerIds(item.workerIds); setServiceAreas(item.serviceAreas.join("\n")); setError(""); setMessage("");

@@ -212,6 +212,10 @@ export async function POST(request: Request) {
       targetId: conversation.id,
       metadata: { senderRole: conversation.customer_id === session.user.id ? "customer" : "provider" },
     });
+    const messageCount = await database.query<{ count: number }>("SELECT count(*)::int AS count FROM messages WHERE conversation_id::text = $1 AND deleted_at IS NULL", [conversation.id]);
+    if (messageCount.rows[0]?.count === 1) {
+      await recordAnalytics({ eventName: "message_started", userId: session.user.id, targetType: "conversation", targetId: conversation.id, metadata: { senderRole: conversation.customer_id === session.user.id ? "customer" : "provider" } });
+    }
     const recipient = await database.query<{ email: string; enabled: boolean }>(
       `SELECT u.email, COALESCE(settings.message_notifications, true) AS enabled
        FROM "user" u LEFT JOIN user_settings settings ON settings.user_id = u.id

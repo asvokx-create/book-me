@@ -16,11 +16,12 @@ export default function AnalyticsTracker() {
     }
     const path = `${pathname}${query ? `?${query}` : ""}`;
     const serviceMatch = pathname.match(/^\/services\/([^/]+)$/);
-    const eventName = serviceMatch ? "service_view" : "page_view";
+    const providerMatch = pathname.match(/^\/(providers|companies)\/([^/]+)$/);
+    const eventName = serviceMatch ? "service_view" : providerMatch ? "provider_profile_view" : "page_view";
     void fetch("/api/analytics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventName, anonymousId, path, metadata: serviceMatch ? { slug: serviceMatch[1] } : {} }),
+      body: JSON.stringify({ eventName, anonymousId, path, metadata: serviceMatch ? { slug: serviceMatch[1] } : providerMatch ? { kind: providerMatch[1], slug: providerMatch[2] } : {} }),
       keepalive: true,
     });
   }, [pathname, query]);

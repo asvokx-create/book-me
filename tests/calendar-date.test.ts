@@ -44,14 +44,13 @@ test("booking calendar retains the existing date-only booking contract", () => {
   assert.match(availabilityRoute, /return NextResponse\.json\(\{ times:/);
 });
 
-test("the desktop booking panel stays stationary without nested scrolling", () => {
-  const css = readFileSync(join(projectRoot, "app", "globals.css"), "utf8");
+test("the desktop booking panel uses contained CSS sticky positioning", () => {
   const bookingCard = readFileSync(join(projectRoot, "app", "services", "[slug]", "booking-card.tsx"), "utf8");
   const stationaryPanel = readFileSync(join(projectRoot, "components", "stationary-booking-panel.tsx"), "utf8");
 
-  assert.match(stationaryPanel, /panelElement\.style\.position = "fixed"/);
-  assert.match(stationaryPanel, /window\.scrollY >= anchorTop - 16/);
-  assert.match(stationaryPanel, /panelHeight \+ 32 <= window\.innerHeight/);
-  assert.doesNotMatch(css, /\.service-booking-panel[\s\S]{0,300}overflow-y: auto/);
+  assert.match(stationaryPanel, /lg:sticky/);
+  assert.match(stationaryPanel, /lg:top-6/);
+  assert.match(stationaryPanel, /lg:max-h-\[calc\(100dvh-3rem\)\]/);
+  assert.doesNotMatch(stationaryPanel, /position = "fixed"|addEventListener\("scroll"/);
   assert.ok((bookingCard.match(/lg:hidden/g) ?? []).length >= 3);
 });

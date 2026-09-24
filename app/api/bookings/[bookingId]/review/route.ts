@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { enforceRateLimit } from "@/lib/request-security";
+import { recordAnalytics } from "@/lib/analytics";
 
 export async function POST(request: Request, context: RouteContext<"/api/bookings/[bookingId]/review">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -57,6 +58,7 @@ export async function POST(request: Request, context: RouteContext<"/api/booking
       [booking.provider_user_id, bookingId, `${session.user.name || "A customer"} left a ${rating}-star review for ${booking.service_title}.`],
     );
     await client.query("COMMIT");
+    await recordAnalytics({ eventName: "review_submitted", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { rating } });
     return NextResponse.json({ review: { id: created.rows[0].id, rating, body: review } }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK");

@@ -307,6 +307,12 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
     const automaticRefund = action === "cancel" ? await refundUnreleasedBooking(bookingId, "Provider cancelled before payout release.") : null;
     await recordActivity({ userId: session.user.id, action, targetType: "booking", targetId: bookingId });
     if (action === "cancel" || action === "declined") await recordAnalytics({ eventName: "booking_cancelled", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { cancelledBy: "provider" } });
+    if (action === "accepted") await recordAnalytics({ eventName: "booking_confirmed", userId: session.user.id, targetType: "booking", targetId: bookingId });
+    if (action === "completed") {
+      await recordAnalytics({ eventName: "booking_completed", userId: session.user.id, targetType: "booking", targetId: bookingId });
+      const completedCount = await database.query<{ count: number }>("SELECT count(*)::int AS count FROM bookings WHERE provider_id::text = $1 AND status = 'completed'", [booking.provider_id]);
+      if (completedCount.rows[0]?.count === 1) await recordAnalytics({ eventName: "first_booking_completed", userId: session.user.id, targetType: "booking", targetId: bookingId });
+    }
     if (!action.includes("reschedule") && action !== "assign" && action !== "send_quote") await sendBookingUpdateEmails(bookingId, action === "accepted" ? "accepted" : action === "completed" ? "completed" : action === "declined" ? "declined" : "cancelled");
     return NextResponse.json({ ok: true, refundWarning: automaticRefund && !automaticRefund.ok ? automaticRefund.error : undefined });
   } catch (error) {

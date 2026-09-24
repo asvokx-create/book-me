@@ -34,8 +34,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const cityServiceIds = new Set(cityServices.map((service) => service.id));
   const otherServices = servicesWithinRange.filter((service) => !cityServiceIds.has(service.id));
   const categoryCounts = new Map(FEATURED_SERVICE_CATEGORIES.map((category) => [category, servicesWithinRange.filter((service) => service.category === category).length]));
-  const homeCategories = [...FEATURED_SERVICE_CATEGORIES]
+  const populatedCategories = FEATURED_SERVICE_CATEGORIES
+    .filter((category) => (categoryCounts.get(category) ?? 0) > 0)
     .sort((left, right) => (categoryCounts.get(right) ?? 0) - (categoryCounts.get(left) ?? 0));
+  const upcomingCategories = FEATURED_SERVICE_CATEGORIES.filter((category) => (categoryCounts.get(category) ?? 0) === 0);
   const nearbyParams = new URLSearchParams({ radius: String(radius) });
   if (location) nearbyParams.set("location", location);
   const nearbyServicesHref = `/services?${nearbyParams.toString()}#service-listings`;
@@ -130,8 +132,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">{location ? "Explore nearby" : "Explore services"}</p>
         <div className="mb-7 mt-2 flex items-end justify-between gap-4"><h3 className="text-3xl font-bold tracking-[-.04em]">What can we take off your plate?</h3><Link href="/services?showFilters=1#all-filters" className="home-section-action shrink-0 rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a]">View all</Link></div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {homeCategories.map((category) => {
+        {populatedCategories.length > 0 ? <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          {populatedCategories.map((category) => {
             const count = categoryCounts.get(category) ?? 0;
             const card = <>
               <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[#e7efe3]/60 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
@@ -146,7 +148,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             if (location) categoryParams.set("location", location);
             return <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} aria-label={count > 0 ? `Browse ${category}` : `Join the availability list for ${category}`} className={`home-category-card group relative overflow-hidden rounded-[1.75rem] border p-5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60 ${count > 0 ? "border-[#183126]/10 bg-white shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)]" : "home-category-card--empty border-dashed border-[#183126]/10 bg-white/55 transition hover:border-[#6d8d78] hover:bg-white/80"}`}>{card}</Link>;
           })}
-        </div>
+        </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-8 text-center"><p className="font-bold">Providers are joining this area</p><p className="mt-2 text-sm text-[#687970]">Request the service you need and we’ll use that demand to guide local provider recruiting.</p><Link href="/requests" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>}
+        {upcomingCategories.length > 0 && <div className="mt-8 rounded-[2rem] border border-dashed border-[#183126]/12 bg-white/45 p-5 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">More services coming soon</p><p className="mt-1 text-sm text-[#65766d]">Choose a category to request it or join the local availability list.</p></div><Link href="/requests" className="text-sm font-bold underline decoration-[#c7bb41] decoration-2 underline-offset-4">Request a service</Link></div><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{upcomingCategories.map((category) => { const categoryParams = new URLSearchParams({ category, radius: String(radius) }); if (location) categoryParams.set("location", location); return <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} className="flex min-h-12 items-center gap-3 rounded-2xl border border-[#183126]/10 bg-white/70 px-4 py-3 text-sm font-bold transition hover:border-[#6d8d78] hover:bg-white"><ServiceCategoryIcon category={category} compact /><span>{category}</span></Link>; })}</div></div>}
       </section>
 
       {location && <section id="nearby-listings" className="home-marketplace scroll-mt-24 mx-auto max-w-6xl px-4 pb-2 sm:px-6 sm:pb-3">

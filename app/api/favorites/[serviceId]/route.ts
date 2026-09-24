@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
+import { recordAnalytics } from "@/lib/analytics";
 
 async function getUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -30,6 +31,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ ser
       [userId, serviceId],
     );
     if (existing.rowCount === 0) return NextResponse.json({ error: "Service not found." }, { status: 404 });
+  } else {
+    await recordAnalytics({ eventName: "provider_saved", userId, targetType: "service", targetId: serviceId });
   }
   return NextResponse.json({ saved: true });
 }

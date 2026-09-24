@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
+import { recordAnalytics } from "@/lib/analytics";
 
 const categories = new Set(["service_quality", "no_show", "damage", "billing", "other"]);
 
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
         'A booking dispute needs administrator review.', '/admin/disputes', 'booking-dispute-' || $2 || '-admin-' || admin.user_id
       FROM bookme_admins admin ON CONFLICT (dedupe_key) DO NOTHING`, [bookingId, result.rows[0].id]);
     await client.query("COMMIT");
+    await recordAnalytics({ eventName: "booking_disputed", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { category } });
     return NextResponse.json({ ok: true, disputeId: result.rows[0].id }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);

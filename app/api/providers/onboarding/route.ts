@@ -14,6 +14,7 @@ import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
 import { sendFirstListingSuccessEmail } from "@/lib/provider-success-email";
+import { recordAnalytics } from "@/lib/analytics";
 
 const weekdayNumbers: Record<string, number> = {
   Sun: 0,
@@ -219,6 +220,8 @@ export async function POST(request: Request) {
         serviceTitle: service,
       });
     }
+    if (!existing) await recordAnalytics({ eventName: "provider_profile_completed", userId: session.user.id, targetType: "provider", targetId: providerId });
+    if (isFirstListing) await recordAnalytics({ eventName: "first_listing_created", userId: session.user.id, targetType: "service", targetId: serviceResult.rows[0].id, metadata: { category, city, state } });
     return NextResponse.json({ ok: true, serviceId: serviceResult.rows[0].id });
   } catch (error) {
     await client.query("ROLLBACK");

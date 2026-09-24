@@ -199,6 +199,9 @@ export async function POST(request: Request) {
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: "booking_created", targetType: "booking", targetId: bookingId });
     await recordAnalytics({ eventName: "booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId });
+    const providerBookingCount = await database.query<{ count: number }>("SELECT count(*)::int AS count FROM bookings WHERE provider_id::text = $1", [service.provider_id]);
+    if (providerBookingCount.rows[0]?.count === 1) await recordAnalytics({ eventName: "first_booking_received", userId: service.provider_user_id, targetType: "booking", targetId: bookingId });
+    if (parentBookingId) await recordAnalytics({ eventName: "customer_rebooked", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { parentBookingId } });
     await sendBookingUpdateEmails(bookingId, "requested");
     return NextResponse.json({ id: bookingId, status: "requested" }, { status: 201 });
   } catch (error) {
