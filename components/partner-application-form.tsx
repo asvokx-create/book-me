@@ -7,9 +7,17 @@ const input = "w-full rounded-2xl border border-[#183126]/15 bg-white px-4 py-3.
 export default function PartnerApplicationForm() {
   const [status, setStatus] = useState<"idle" | "saving" | "sent">("idle");
   const [error, setError] = useState("");
+  const [audienceSize, setAudienceSize] = useState("");
+
+  function updateAudienceSize(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 15);
+    setAudienceSize(digits.replace(/\B(?=(\d{3})+(?!\d))/g, ","));
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setStatus("saving"); setError("");
     const form = new FormData(event.currentTarget);
+    form.set("audienceSize", audienceSize.replace(/,/g, ""));
     const response = await fetch("/api/affiliates/apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(form)) });
     const result = await response.json() as { error?: string };
     if (!response.ok) { setStatus("idle"); setError(result.error ?? "We could not submit your application."); return; }
@@ -22,7 +30,7 @@ export default function PartnerApplicationForm() {
       <label className="font-bold">Name<input name="name" required autoComplete="name" className={`${input} mt-2`} /></label>
       <label className="font-bold">Email<input name="email" required type="email" autoComplete="email" className={`${input} mt-2`} /></label>
       <label className="font-bold">Website <span className="font-normal text-[#718078]">(optional)</span><input name="website" type="url" inputMode="url" className={`${input} mt-2`} /></label>
-      <label className="font-bold">Audience size <span className="font-normal text-[#718078]">(optional)</span><input name="audienceSize" className={`${input} mt-2`} placeholder="e.g. 10,000 subscribers" /></label>
+      <label className="font-bold">Audience size <span className="font-normal text-[#718078]">(optional)</span><input name="audienceSize" value={audienceSize} onChange={(event) => updateAudienceSize(event.target.value)} inputMode="numeric" autoComplete="off" className={`${input} mt-2`} placeholder="e.g. 10,000" /></label>
       <label className="font-bold">YouTube <span className="font-normal text-[#718078]">(optional)</span><input name="youtube" type="url" className={`${input} mt-2`} /></label>
       <label className="font-bold">Instagram <span className="font-normal text-[#718078]">(optional)</span><input name="instagram" type="url" className={`${input} mt-2`} /></label>
       <label className="font-bold">TikTok <span className="font-normal text-[#718078]">(optional)</span><input name="tiktok" type="url" className={`${input} mt-2`} /></label>
