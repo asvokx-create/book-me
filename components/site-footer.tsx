@@ -7,6 +7,7 @@ const marketplaceLinks = [
   ["Service areas", "/locations"],
   ["Helpful guides", "/guides"],
   ["List your service", "/providers/join"],
+  ["Creator partners", "/partners"],
 ] as const;
 
 const trustLinks = [
@@ -21,6 +22,7 @@ const legalLinks = [
   ["Terms", "/terms"],
   ["Privacy", "/privacy"],
   ["Provider agreement", "/provider-agreement"],
+  ["Partner agreement", "/partner-agreement"],
   ["Cookies", "/cookies"],
   ["Content removal", "/content-removal"],
 ] as const;

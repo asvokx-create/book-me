@@ -30,6 +30,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   const [durationAmount, setDurationAmount] = useState("2");
   const [durationUnit, setDurationUnit] = useState<"hours" | "days">("hours");
   const [phone, setPhone] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [description, setDescription] = useState("");
   const [selectedDays, setSelectedDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri"]);
   const [dayHours, setDayHours] = useState<Record<string, { startTime: string; endTime: string; open24Hours: boolean }>>(() => Object.fromEntries(days.map((day) => [day, { startTime: "09:00", endTime: "17:00", open24Hours: false }])));
@@ -121,7 +122,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
     const response = await fetch("/api/providers/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ business, locationId, category: finalCategory, city, serviceRadiusMiles: Number(serviceRadiusMiles), phone, service, price, durationMinutes, description, availabilitySlots: selectedDays.map((day) => ({ day, startTime: dayHours[day].open24Hours ? ALL_DAY_START_TIME : dayHours[day].startTime, endTime: dayHours[day].open24Hours ? ALL_DAY_END_TIME : dayHours[day].endTime })), plan, acceptedProviderAgreement }),
+      body: JSON.stringify({ business, locationId, category: finalCategory, city, serviceRadiusMiles: Number(serviceRadiusMiles), phone, referralCode, service, price, durationMinutes, description, availabilitySlots: selectedDays.map((day) => ({ day, startTime: dayHours[day].open24Hours ? ALL_DAY_START_TIME : dayHours[day].startTime, endTime: dayHours[day].open24Hours ? ALL_DAY_END_TIME : dayHours[day].endTime })), plan, acceptedProviderAgreement }),
     });
     const result = (await response.json()) as { error?: string; serviceId?: string };
 
@@ -178,6 +179,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
           {!useNewCompany && (companies.find((item) => item.name === business)?.locations.length ?? 0) > 0 ? <label className="block"><span className="mb-2 block text-sm font-bold">Service location</span><select value={locationId} onChange={(event) => { const company = companies.find((item) => item.name === business); const selected = company?.locations.find((item) => item.id === event.target.value); setLocationId(event.target.value); if (selected) { setCity(selected.location); setServiceRadiusMiles(String(selected.serviceRadiusMiles)); } }} className={inputClass}>{companies.find((item) => item.name === business)?.locations.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.location}</option>)}</select><span className="mt-2 block text-xs text-[#74827b]">Add or edit branches from Service locations in your dashboard.</span></label> : <label className="block"><span className="mb-2 block text-sm font-bold">Primary service area</span><UsCitySelector value={city} onChange={setCity} className={inputClass} /><span className="mt-2 block text-xs text-[#74827b]">Choose a nearby city or use “View all U.S. cities” to search nationwide. This becomes the company&apos;s first service location.</span></label>}
           <div className="block"><p className="mb-2 text-sm font-bold">Working radius</p><RadiusSelector value={Number(serviceRadiusMiles)} onChange={(value) => setServiceRadiusMiles(String(value))} /><span className="mt-2 block text-xs text-[#74827b]">Choose a common distance or enter a custom whole number from 1 to 250 miles. Your listings appear only to customers searching within this distance.</span></div>
           <label className="block"><span className="mb-2 block text-sm font-bold">Business contact number</span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(formatUsPhone(event.target.value))} placeholder="(425) 555-0123" className={inputClass} /><span className="mt-2 block text-xs text-[#74827b]">Required for provider screening. We check it here so you can fix it before continuing.</span></label>
+          {companies.length === 0 && <label className="block"><span className="mb-2 block text-sm font-bold">Creator or partner referral code <span className="font-normal text-[#74827b]">(optional)</span></span><input value={referralCode} onChange={(event) => setReferralCode(event.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 32))} autoCapitalize="characters" autoComplete="off" placeholder="e.g. MIKE" className={inputClass} /><span className="mt-2 block text-xs leading-5 text-[#74827b]">If you followed a partner link, we already saved it. Entering a valid code here intentionally replaces that saved referral before your provider profile is created. Attribution locks after setup.</span></label>}
         </div>}
 
         {step === 2 && <div className="space-y-5">

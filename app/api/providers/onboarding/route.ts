@@ -15,6 +15,7 @@ import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-s
 import { enforceRateLimit } from "@/lib/request-security";
 import { sendFirstListingSuccessEmail } from "@/lib/provider-success-email";
 import { recordAnalytics } from "@/lib/analytics";
+import { AFFILIATE_COOKIE, lockAffiliateAttribution, normalizeAffiliateCode } from "@/lib/affiliates";
 
 const weekdayNumbers: Record<string, number> = {
   Sun: 0,
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
   const price = Number(body.price);
   const serviceRadiusMiles = Number(body.serviceRadiusMiles ?? 25);
   const acceptedProviderAgreement = body.acceptedProviderAgreement === true;
+  const referralCode = normalizeAffiliateCode(body.referralCode);
   const availabilitySlots = Array.isArray(body.availabilitySlots) ? body.availabilitySlots.flatMap((slot) => {
     if (!slot || typeof slot !== "object") return [];
     const candidate = slot as Record<string, unknown>;
@@ -197,6 +199,15 @@ export async function POST(request: Request) {
        RETURNING id::text`,
       [providerId, companyId, serviceLocation.id, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes, serviceLocation.city, serviceLocation.state, serviceLocation.latitude, serviceLocation.longitude],
     );
+
+    if (!existing) {
+      const cookieValue = request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${AFFILIATE_COOKIE}=`))?.slice(AFFILIATE_COOKIE.length + 1);
+      const attribution = await lockAffiliateAttribution({ client, providerId, manualCode: referralCode, attributionToken: cookieValue ? decodeURIComponent(cookieValue) : undefined });
+      if (attribution.invalidManualCode) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "That creator or partner referral code is not active. Remove it or enter a valid code." }, { status: 400 });
+      }
+    }
 
     await client.query("DELETE FROM availability WHERE provider_id = $1 AND service_id = $2", [providerId, serviceResult.rows[0].id]);
     for (const slot of availabilitySlots) {

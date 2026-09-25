@@ -90,6 +90,7 @@ type AccountDetails = {
   supportRequests: Array<{ id: string; subject: string; message: string; status: string; admin_reply: string; created_at: string }>;
   activity: Array<{ id: string; action: string; target_type: string; target_id: string | null; created_at: string }>;
   welcomeEmail: null | { status: "sent" | "skipped" | "failed"; created_at: string };
+  affiliateAttribution: null | { affiliate_name: string; affiliate_code: string; program_name: string; attributed_at: string; qualified_at: string | null; revenue_share_ends_at: string | null; status: string };
   privacyNote: string;
 };
 
@@ -267,6 +268,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
             <Link href="/admin/reported-bugs" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Bug reports</Link>
             <Link href="/admin/disputes" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Disputes</Link>
             <Link href="/admin/support" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] lg:inline-flex">Support</Link>
+            <Link href="/admin/affiliates" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Partners</Link>
             <Link href="/admin/operations" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Operations</Link>
             <Link href="/account" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#e4ecdf] sm:inline-flex">View marketplace</Link>
             <span className="hidden min-[375px]:inline-flex"><ProfileAvatar name={adminName} imageUrl={adminImage} className="h-10 w-10 text-sm" /></span>
@@ -307,6 +309,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
               <Link href="/admin/disputes" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Booking disputes</Link>
               <Link href="/admin/support" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Support &amp; verification</Link>
               <Link href="/admin/operations" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Operations</Link>
+              <Link href="/admin/affiliates" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Partners &amp; affiliates</Link>
               <Link href="/account" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">View marketplace</Link>
             </div>
           </nav>
@@ -574,6 +577,12 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             { label: "Subscription", value: label(details.provider.stripe_subscription_status) }, { label: "Current period ends", value: details.provider.stripe_current_period_end ? formatDate(details.provider.stripe_current_period_end) : null }, { label: "Live Pro trial used", value: details.provider.pro_trial_used_at_live ? formatDate(details.provider.pro_trial_used_at_live) : "No" },
             { label: "Provider agreement", value: details.provider.provider_agreement_accepted_at ? formatDate(details.provider.provider_agreement_accepted_at) : null }, { label: "Agreement version", value: details.provider.provider_agreement_version },
           ]} />{details.provider.bio && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Business description</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{details.provider.bio}</p></div>}{details.provider.screening_summary && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Screening summary</p><p className="mt-2 text-sm leading-6">{details.provider.screening_summary}</p></div>}</div></details>}
+          {details.affiliateAttribution && <section className="rounded-3xl border border-[#183126]/10 bg-[#edf5e9] p-5"><h3 className="text-lg font-bold">Affiliate attribution</h3><p className="mt-1 text-sm text-[#52665b]">Private attribution and snapshotted program status for this provider.</p><div className="mt-4"><DetailGrid items={[
+            { label: "Referred by", value: details.affiliateAttribution.affiliate_name }, { label: "Affiliate code", value: details.affiliateAttribution.affiliate_code },
+            { label: "Program", value: details.affiliateAttribution.program_name }, { label: "Referral date", value: formatDate(details.affiliateAttribution.attributed_at) },
+            { label: "Qualified", value: Boolean(details.affiliateAttribution.qualified_at) }, { label: "Referral status", value: label(details.affiliateAttribution.status) },
+            { label: "Revenue share ends", value: details.affiliateAttribution.revenue_share_ends_at ? formatDate(details.affiliateAttribution.revenue_share_ends_at) : null },
+          ]} /></div></section>}
           <RecordSection title="Listings" empty="No listings on this account." records={details.services.map((service) => ({ id: service.id, title: service.title, meta: `${label(service.category)} · $${(service.price_cents / 100).toFixed(2)} · ${service.duration_minutes} min`, status: service.is_active ? "active" : "inactive", body: service.business_name }))} />
           <RecordSection title="Bookings" empty="No bookings on this account." records={details.bookings.map((booking) => ({ id: booking.id, title: booking.service_title, meta: `${booking.account_role} · ${formatDate(booking.starts_at)} · $${(booking.price_cents / 100).toFixed(2)}`, status: `${label(booking.status)} · ${label(booking.payment_status)}`, body: `Other party: ${booking.other_party_name}` }))} />
           <RecordSection title="Reviews" empty="No reviews connected to this account." records={details.reviews.map((review) => ({ id: review.id, title: `${review.relationship} · ${review.rating}/5 stars`, meta: `${review.service_title} · ${formatDate(review.created_at)}`, status: review.is_hidden ? "Hidden" : "Visible", body: review.body || "No written comment." }))} />

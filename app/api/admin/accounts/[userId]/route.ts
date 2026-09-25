@@ -51,7 +51,7 @@ export async function GET(
     );
     const providerId = providerResult.rows[0]?.id as string | undefined;
 
-    const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity, welcomeEmail] = await Promise.all([
+    const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity, welcomeEmail, affiliateAttribution] = await Promise.all([
       database.query(
         `SELECT city, state, search_radius_miles, booking_notifications, message_notifications,
                 theme, time_zone, created_at, updated_at,
@@ -143,6 +143,15 @@ export async function GET(
          ORDER BY created_at DESC LIMIT 1`,
         [userId],
       ),
+      database.query(
+        `SELECT affiliate.display_name AS affiliate_name, affiliate.affiliate_code, program.name AS program_name,
+                referral.attributed_at, referral.qualified_at, referral.revenue_share_ends_at, referral.status
+         FROM affiliate_referrals referral
+         JOIN affiliate_profiles affiliate ON affiliate.id = referral.affiliate_id
+         JOIN affiliate_programs program ON program.id = referral.program_id
+         WHERE $1::uuid IS NOT NULL AND referral.provider_id = $1::uuid LIMIT 1`,
+        [providerId ?? null],
+      ),
     ]);
 
     await database.query(
@@ -168,6 +177,7 @@ export async function GET(
       supportRequests: supportRequests.rows,
       activity: activity.rows,
       welcomeEmail: welcomeEmail.rows[0] ?? null,
+      affiliateAttribution: affiliateAttribution.rows[0] ?? null,
       privacyNote: "Passwords, authentication secrets, payment-card and bank details, private conversations, booking addresses, and booking notes are intentionally excluded.",
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

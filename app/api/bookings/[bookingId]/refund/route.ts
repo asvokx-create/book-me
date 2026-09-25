@@ -8,6 +8,7 @@ import { getStripe, getStripeMode, isStripeReady } from "@/lib/stripe";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { hasAdminAccess } from "@/lib/admin";
 import { recordAnalytics } from "@/lib/analytics";
+import { syncAffiliateCommissionForBooking } from "@/lib/affiliates";
 
 type RefundAction = "request" | "approve" | "reject";
 
@@ -151,6 +152,7 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
       payout_frozen_at = NULL, payout_frozen_by = NULL, payout_freeze_reason = NULL,
       payout_failure_reason = NULLIF($7, '')
       WHERE id::text = $1`, [bookingId, refund.id, totalRefunded, fullyRefunded, adjustedHeldPayout, reversedCents, reversalFailure, serviceFeeRefund]);
+    await syncAffiliateCommissionForBooking(bookingId);
     await database.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message, metadata)
       VALUES ($1::uuid, $2, 'refunded', $3, jsonb_build_object('amountCents', $4, 'serviceFeeRefundCents', $5, 'stripeRefundId', $6))`, [bookingId, session.user.id, `$${(stripeRefundAmount / 100).toFixed(2)} refund approved through Stripe.`, stripeRefundAmount, serviceFeeRefund, refund.id]);
     await database.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)

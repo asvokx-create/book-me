@@ -1,6 +1,6 @@
-export const POLICY_VERSION = "2026-09-22";
+export const POLICY_VERSION = "2026-09-24";
 export const PROVIDER_AGREEMENT_VERSION = "2026-09-21";
-export const POLICY_EFFECTIVE_DATE = "September 22, 2026";
+export const POLICY_EFFECTIVE_DATE = "September 24, 2026";
 
 export function createPolicyConsentFields() {
   const acceptedAt = new Date().toISOString();

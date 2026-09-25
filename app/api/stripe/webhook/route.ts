@@ -7,6 +7,7 @@ import { recordAnalytics } from "@/lib/analytics";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { extraSeatQuantity } from "@/lib/stripe-team-seats";
 import { sendTransactionalEmail } from "@/lib/email";
+import { syncAffiliateCommissionForBooking } from "@/lib/affiliates";
 
 export const runtime = "nodejs";
 
@@ -208,6 +209,7 @@ async function recordStripeDisputeOpened(dispute: Stripe.Dispute) {
           WHEN stripe_transfer_id IS NOT NULL THEN 'A Stripe chargeback was opened after the provider payout. An administrator must review transfer recovery.'
           ELSE payout_failure_reason END
       WHERE id::text = $1`, [booking.id, dispute.id, dispute.status, dispute.reason]);
+    await syncAffiliateCommissionForBooking(booking.id, client);
     await client.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
       VALUES ($1::uuid, 'stripe_dispute_opened', $2,
       jsonb_build_object('stripeDisputeId', $3, 'reason', $4, 'payoutAlreadySent', $5))`,
@@ -307,6 +309,7 @@ async function recordStripeDisputeClosed(dispute: Stripe.Dispute) {
           WHEN $6 AND payout_failure_reason LIKE 'A Stripe chargeback was opened%' THEN NULL
           ELSE payout_failure_reason END
       WHERE id::text = $1`, [booking.id, dispute.id, dispute.status, dispute.reason, customerWon, providerWon]);
+    await syncAffiliateCommissionForBooking(booking.id, client);
     const outcomeMessage = customerWon
       ? (booking.stripe_transfer_id
         ? "The bank upheld the chargeback after the provider payout. Administrator review of transfer recovery is required."
@@ -393,13 +396,14 @@ async function processEvent(event: Stripe.Event) {
     }
     case "charge.refunded": {
       const charge = event.data.object;
-      await database.query(`UPDATE bookings SET
+      const refunded = await database.query<{ id: string }>(`UPDATE bookings SET
         payment_status = CASE WHEN $3 THEN 'refunded' ELSE payment_status END,
         refund_status = 'refunded',
         refunded_amount_cents = LEAST(price_cents, $4),
         customer_service_fee_refunded_cents = LEAST(customer_service_fee_cents, GREATEST($4 - price_cents, 0)),
         refunded_at = now()
-        WHERE stripe_payment_intent_id = $1 AND stripe_mode = $2`, [idOf(charge.payment_intent), getStripeMode(), charge.refunded, charge.amount_refunded]);
+        WHERE stripe_payment_intent_id = $1 AND stripe_mode = $2 RETURNING id::text`, [idOf(charge.payment_intent), getStripeMode(), charge.refunded, charge.amount_refunded]);
+      for (const booking of refunded.rows) await syncAffiliateCommissionForBooking(booking.id);
       break;
     }
     case "charge.dispute.created": {

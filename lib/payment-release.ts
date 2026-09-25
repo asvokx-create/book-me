@@ -3,6 +3,7 @@ import "server-only";
 import { database } from "./database";
 import { getStripe, getStripeMode, isStripeReady } from "./stripe";
 import { stripeOperationKey } from "./booking-financials";
+import { syncAffiliateCommissionForBooking } from "./affiliates";
 
 export const CUSTOMER_CONFIRMATION_HOURS = 48;
 
@@ -74,6 +75,7 @@ export async function releaseBookingPayout(bookingId: string, trigger: "customer
 
     await client.query(`UPDATE bookings SET payment_release_status = 'paid_out', stripe_transfer_id = $2,
       payout_released_at = now(), payout_failure_reason = NULL WHERE id::text = $1`, [bookingId, transfer.id]);
+    await syncAffiliateCommissionForBooking(bookingId, client);
     await client.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
       VALUES ($1::uuid, 'payout_released', $2, jsonb_build_object('transferId', $3, 'trigger', $4))`,
       [bookingId, `Provider payout of $${(booking.provider_payout_cents / 100).toFixed(2)} was released through Stripe.`, transfer.id, trigger]);
@@ -157,6 +159,7 @@ export async function refundUnreleasedBooking(bookingId: string, reason: string)
       customer_service_fee_refunded_cents = customer_service_fee_cents,
       refunded_at = now(), payment_status = 'refunded',
       payment_release_status = 'reversed', provider_payout_cents = 0 WHERE id::text = $1`, [bookingId, refund.id]);
+    await syncAffiliateCommissionForBooking(bookingId);
     await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
       VALUES ($1::uuid, 'refunded', 'Payment refunded before provider payout.',
       jsonb_build_object('amountCents', $2::integer, 'stripeRefundId', $3))`, [bookingId, amount, refund.id]);
