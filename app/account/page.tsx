@@ -41,6 +41,7 @@ export default function AccountPage() {
   const [bookings, setBookings] = useState(initialBookings);
   const [toast, setToast] = useState("");
   const [hasProviderProfile, setHasProviderProfile] = useState(false);
+  const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [workerCompany, setWorkerCompany] = useState<{ businessName: string; teamRole: string } | null>(null);
   const [savedServices, setSavedServices] = useState<SavedService[]>([]);
 
@@ -64,6 +65,10 @@ export default function AccountPage() {
       .then(async (response) => response.ok ? response.json() as Promise<{ bookings: Booking[] }> : null)
       .catch(() => null)
       .then((data) => { if (active && data) setBookings(data.bookings); });
+    fetch("/api/account/navigation", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() as Promise<{ authenticated: boolean; isAdmin: boolean }> : null)
+      .then((data) => { if (active) setHasAdminAccess(Boolean(data?.authenticated && data.isAdmin)); })
+      .catch(() => { if (active) setHasAdminAccess(false); });
     return () => { active = false; window.removeEventListener("focus", loadCompany); };
   }, [session?.user.id]);
 
@@ -90,7 +95,7 @@ export default function AccountPage() {
         <div className="dashboard-container flex items-center justify-between gap-2 px-3 py-3 sm:px-8 sm:py-4">
           <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 text-lg font-bold tracking-tight sm:gap-2.5 sm:text-xl"><BrandLockup compact /></Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold md:flex"><Link href="/services" className="hover:text-[#5b7365]">Explore services</Link><Link href="/providers/join" className="hover:text-[#5b7365]">List your service</Link></nav>
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3"><Link href={isProvider ? "/provider/dashboard" : "/providers/join"} aria-label={isProvider ? "Switch to provider" : "Become a provider"} className="whitespace-nowrap rounded-full bg-[#183126] px-3.5 py-2.5 text-[11px] font-bold text-white shadow-[0_6px_18px_rgba(24,49,38,.16)] transition hover:bg-[#315846] min-[370px]:text-xs sm:px-4 sm:text-sm">{isProvider ? "Switch to provider" : "Become a provider"}</Link><NotificationBell /><ProfileAvatar name={accountName ?? "BubsBookings"} imageUrl={session?.user.image} className="hidden h-10 w-10 text-sm md:grid" /></div>
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">{hasAdminAccess && <Link href="/admin/affiliates" className="hidden whitespace-nowrap rounded-full bg-[#eee25a] px-3.5 py-2.5 text-xs font-bold shadow-sm transition hover:bg-[#f5ea6b] sm:inline-flex">Partners</Link>}<Link href={isProvider ? "/provider/dashboard" : "/providers/join"} aria-label={isProvider ? "Switch to provider" : "Become a provider"} className="whitespace-nowrap rounded-full bg-[#183126] px-3.5 py-2.5 text-[11px] font-bold text-white shadow-[0_6px_18px_rgba(24,49,38,.16)] transition hover:bg-[#315846] min-[370px]:text-xs sm:px-4 sm:text-sm">{isProvider ? "Switch to provider" : "Become a provider"}</Link><NotificationBell /><ProfileAvatar name={accountName ?? "BubsBookings"} imageUrl={session?.user.image} className="hidden h-10 w-10 text-sm md:grid" /></div>
         </div>
       </header>
 
@@ -104,7 +109,7 @@ export default function AccountPage() {
         </section>}
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div><p className="text-sm font-semibold text-[#687a70]">Customer account</p><h1 className="mt-1 text-4xl font-bold tracking-[-.045em]">Hi, {firstName}.</h1><p className="mt-2 text-[#687a70]">Keep track of your bookings and favorite local pros.</p></div>
-          <div className="mobile-scroll-row -mx-4 flex w-[calc(100%+2rem)] flex-nowrap gap-2 self-start overflow-x-auto px-4 pb-2 sm:mx-0 sm:w-auto sm:flex-wrap sm:px-0 sm:pb-0 sm:self-auto"><Link href="/account/requests" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">⌁ Service requests</Link><Link href="/account/calendar" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">▣ Calendar</Link><Link href="/account/payments" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">💳 Payments</Link><Link href="/account/settings" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">⚙ Settings</Link><Link href="/account/messages" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">✉ Messages</Link><Link href="/services" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition">+ Book a service</Link></div>
+          <div className="mobile-scroll-row -mx-4 flex w-[calc(100%+2rem)] flex-nowrap gap-2 self-start overflow-x-auto px-4 pb-2 sm:mx-0 sm:w-auto sm:flex-wrap sm:px-0 sm:pb-0 sm:self-auto">{hasAdminAccess && <Link href="/admin/affiliates" className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#315846]">Partners dashboard</Link>}<Link href="/account/requests" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">⌁ Service requests</Link><Link href="/account/calendar" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">▣ Calendar</Link><Link href="/account/payments" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">💳 Payments</Link><Link href="/account/settings" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">⚙ Settings</Link><Link href="/account/messages" className="shrink-0 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]">✉ Messages</Link><Link href="/services" className="shrink-0 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition">+ Book a service</Link></div>
         </div>
 
         <div className="mt-9 flex gap-2 border-b border-[#183126]/10">
