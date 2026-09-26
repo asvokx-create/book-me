@@ -8,6 +8,7 @@ import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { extraSeatQuantity } from "@/lib/stripe-team-seats";
 import { sendTransactionalEmail } from "@/lib/email";
 import { syncAffiliateCommissionForBooking } from "@/lib/affiliates";
+import { finalizeAffiliatePayoutTransfer, reverseAffiliatePayoutTransfer } from "@/lib/affiliate-payouts";
 
 export const runtime = "nodejs";
 
@@ -118,6 +119,11 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
 }
 
 async function recordTransferCreated(transfer: Stripe.Transfer) {
+  const affiliatePayoutId = transfer.metadata?.affiliatePayoutId;
+  if (transfer.metadata?.kind === "affiliate_payout" && affiliatePayoutId) {
+    await finalizeAffiliatePayoutTransfer(affiliatePayoutId, transfer.id, getStripeMode());
+    return;
+  }
   const bookingId = transfer.metadata?.bookingId;
   if (!bookingId) return;
   await database.query(`UPDATE bookings SET stripe_transfer_id = COALESCE(stripe_transfer_id, $2),
@@ -127,6 +133,11 @@ async function recordTransferCreated(transfer: Stripe.Transfer) {
 }
 
 async function recordTransferReversed(transfer: Stripe.Transfer) {
+  const affiliatePayoutId = transfer.metadata?.affiliatePayoutId;
+  if (transfer.metadata?.kind === "affiliate_payout" && affiliatePayoutId) {
+    await reverseAffiliatePayoutTransfer(affiliatePayoutId, transfer.id, transfer.amount_reversed);
+    return;
+  }
   const bookingId = transfer.metadata?.bookingId;
   if (!bookingId) return;
   const fullyReversed = transfer.amount_reversed >= transfer.amount;
@@ -153,6 +164,11 @@ async function recordPayoutFailed(event: Stripe.Event, payout: Stripe.Payout) {
     FROM provider_profiles p WHERE p.stripe_account_id = $1 AND p.stripe_connect_mode = $4
     ON CONFLICT (dedupe_key) DO NOTHING`, [connectedAccountId, payout.id,
       `Stripe could not send payout ${payout.id} to your bank. Update your payout account or contact support.`, getStripeMode()]);
+  await database.query(`INSERT INTO notifications (user_id,type,title,message,href,dedupe_key)
+    SELECT affiliate.user_id,'payout_failed','Stripe bank payout failed',$3,'/affiliate','stripe-affiliate-payout-failed-'||$2
+    FROM affiliate_profiles affiliate WHERE affiliate.stripe_account_id=$1 AND affiliate.stripe_connect_mode=$4
+      AND affiliate.user_id IS NOT NULL ON CONFLICT (dedupe_key) DO NOTHING`, [connectedAccountId,payout.id,
+    `Stripe could not send payout ${payout.id} to your bank. Open your partner dashboard and update your Stripe payout account.`,getStripeMode()]);
   await database.query(`INSERT INTO operations_checks (check_type, status, details)
     VALUES ('stripe_connected_payout', 'warning', $1::jsonb)`,
     [JSON.stringify({ payoutId: payout.id, accountId: connectedAccountId, failureCode: payout.failure_code, failureMessage: payout.failure_message })]);
@@ -392,6 +408,11 @@ async function processEvent(event: Stripe.Event) {
       const account = event.data.object;
       const provider = await database.query<{ id: string }>("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1 AND stripe_connect_mode = $4 RETURNING id::text", [account.id, account.charges_enabled, account.payouts_enabled, getStripeMode()]);
       if (provider.rows[0]) await runAutomatedProviderVerification(provider.rows[0].id);
+      const requirements = account.requirements?.currently_due ?? [];
+      const affiliateReady = Boolean(account.details_submitted && account.payouts_enabled && account.capabilities?.transfers === "active" && requirements.length === 0);
+      await database.query(`UPDATE affiliate_profiles SET stripe_details_submitted=$2,stripe_payouts_enabled=$3,
+        stripe_requirements_due=$4,payment_status=$5 WHERE stripe_account_id=$1 AND stripe_connect_mode=$6`,
+      [account.id,account.details_submitted,account.payouts_enabled,requirements,affiliateReady?"ready":"not_ready",getStripeMode()]);
       break;
     }
     case "charge.refunded": {
