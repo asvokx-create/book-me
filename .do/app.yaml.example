@@ -38,6 +38,15 @@ services:
         value: REPLACE_IN_DIGITALOCEAN
         scope: RUN_TIME
         type: SECRET
+      - key: AFFILIATE_RESERVE_BUFFER_CENTS
+        value: "0"
+        scope: RUN_TIME
+      - key: PROTECTED_OWNER_PAYOUTS_ENABLED
+        value: "false"
+        scope: RUN_TIME
+      - key: OWNER_PAYOUT_MINIMUM_CENTS
+        value: "100"
+        scope: RUN_TIME
 
 databases:
   - name: bookme-db

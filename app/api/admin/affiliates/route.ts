@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { isSafeAffiliateCode, normalizeAffiliateCode } from "@/lib/affiliates";
-import { sendAffiliatePayout } from "@/lib/affiliate-payouts";
+import { createAffiliatePayout, getAffiliateReserveHealth, sendAffiliatePayout } from "@/lib/affiliate-payouts";
 import { enforceRateLimit } from "@/lib/request-security";
 
 const affiliateStatuses = new Set(["under_review","approved","active","paused","rejected","suspended","terminated"]);
 const commissionStatuses = new Set(["hold","approved","payable","rejected","disputed"]);
 
 async function dashboard() {
-  const [summary, programs, affiliates, commissions, payouts, recentClicks, auditHistory] = await Promise.all([
+  const [summary, programs, affiliates, commissions, payouts, recentClicks, auditHistory, reserve] = await Promise.all([
     database.query(`SELECT
       (SELECT count(*)::int FROM affiliate_profiles WHERE status IN ('applied','under_review')) AS applications,
       (SELECT count(*)::int FROM affiliate_profiles WHERE status = 'active') AS active_affiliates,
@@ -60,8 +60,9 @@ async function dashboard() {
     database.query(`SELECT audit.id::text, audit.action, audit.target_type, audit.target_id, audit.created_at,
       actor.name AS actor_name FROM affiliate_audit_log audit LEFT JOIN "user" actor ON actor.id=audit.actor_user_id
       ORDER BY audit.created_at DESC LIMIT 100`),
+    getAffiliateReserveHealth(),
   ]);
-  return { summary: summary.rows[0], programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows };
+  return { summary: summary.rows[0], reserve, programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows };
 }
 
 export async function GET() {
@@ -101,6 +102,13 @@ export async function PATCH(request: Request) {
     return result.ok
       ? NextResponse.json({ ok: true, transferId: result.transferId })
       : NextResponse.json({ error: result.error }, { status: 409 });
+  }
+  if (action === "payout_create") {
+    const result = await createAffiliatePayout(targetId, session.user.id);
+    if (result.ok) return NextResponse.json({ ok: true, payoutId: result.payoutId });
+    if (result.error === "MINIMUM") return NextResponse.json({ error: "The payable balance has not reached this partner's minimum payout." }, { status: 409 });
+    if (result.error === "NOT_READY") return NextResponse.json({ error: "Complete and verify this partner's payment and tax readiness before creating a payout." }, { status: 409 });
+    return NextResponse.json({ error: "The affiliate payout could not be created." }, { status: 409 });
   }
   const client = await database.connect();
   try {
@@ -163,19 +171,6 @@ export async function PATCH(request: Request) {
       const adjustment=await client.query<{id:string}>(`INSERT INTO affiliate_commissions (affiliate_id,referral_id,provider_id,commission_type,amount_cents,status,eligible_at,payable_at,admin_notes)
         VALUES ($1,$2,$3,'manual_adjustment',$4,'payable',now(),now(),$5) RETURNING id::text`,[targetId,referral.rows[0].id,referral.rows[0].provider_id,amount,reason]);
       await audit(session.user.id,"manual_adjustment_created","affiliate_commission",adjustment.rows[0].id,{affiliateId:targetId,amount,reason},client);
-    } else if (action === "payout_create") {
-      const affiliate = await client.query<{ minimum_cents: number; payment_status:string; tax_onboarding_status:string; stripe_account_id:string|null; stripe_payouts_enabled:boolean }>(`SELECT COALESCE(affiliate.minimum_payout_override_cents,program.minimum_payout_cents)::int AS minimum_cents,
-        affiliate.payment_status,affiliate.tax_onboarding_status,affiliate.stripe_account_id,affiliate.stripe_payouts_enabled
-        FROM affiliate_profiles affiliate JOIN affiliate_programs program ON program.id=affiliate.program_id WHERE affiliate.id::text=$1 FOR UPDATE`, [targetId]);
-      if (!affiliate.rows[0]) throw new Error("NOT_FOUND");
-      if (!affiliate.rows[0].stripe_account_id||!affiliate.rows[0].stripe_payouts_enabled||affiliate.rows[0].payment_status!=="ready"||affiliate.rows[0].tax_onboarding_status!=="complete") throw new Error("NOT_READY");
-      const payable = await client.query<{ id: string; amount_cents: number }>(`SELECT id::text, amount_cents FROM affiliate_commissions WHERE affiliate_id::text=$1 AND status='payable' ORDER BY created_at FOR UPDATE`, [targetId]);
-      const total = payable.rows.reduce((sum,row)=>sum+row.amount_cents,0);
-      if (total < affiliate.rows[0].minimum_cents) throw new Error("MINIMUM");
-      const payout = await client.query<{ id: string }>(`INSERT INTO affiliate_payouts (affiliate_id,amount_cents,initiated_by,payout_method) VALUES ($1,$2,$3,'stripe_connect') RETURNING id::text`, [targetId,total,session.user.id]);
-      for (const commission of payable.rows) await client.query(`INSERT INTO affiliate_payout_commissions (payout_id,commission_id,amount_cents) VALUES ($1,$2,$3)`, [payout.rows[0].id,commission.id,commission.amount_cents]);
-      await client.query(`UPDATE affiliate_commissions SET status='approved' WHERE id=ANY($1::uuid[])`, [payable.rows.map(row=>row.id)]);
-      await audit(session.user.id, "payout_created", "affiliate_payout", payout.rows[0].id, { affiliateId: targetId, total, commissionCount: payable.rowCount }, client);
     } else throw new Error("INVALID");
     await client.query("COMMIT");
     return NextResponse.json({ ok: true });

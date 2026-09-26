@@ -48,3 +48,36 @@ test("affiliate transfers require both Stripe and tax readiness", async () => {
   assert.match(status, /account\.capabilities\?\.transfers === "active"/);
   assert.match(agreement, /connected Stripe balance/);
 });
+
+test("affiliate obligations are reserved in operations and eligible payouts run automatically", async () => {
+  const payout = await readFile(new URL("../lib/affiliate-payouts.ts", import.meta.url), "utf8");
+  const cron = await readFile(new URL("../app/api/cron/payment-releases/route.ts", import.meta.url), "utf8");
+  const admin = await readFile(new URL("../components/affiliate-admin.tsx", import.meta.url), "utf8");
+
+  assert.match(payout, /status IN \('pending','hold','approved','payable'\)/);
+  assert.match(payout, /getStripe\(\)\.balance\.retrieve/);
+  assert.match(payout, /AFFILIATE_RESERVE_BUFFER_CENTS/);
+  assert.match(payout, /sum\(GREATEST\(affiliate_obligation_cents,0\)\)/);
+  assert.match(payout, /runAutomatedAffiliatePayouts/);
+  assert.match(payout, /affiliate\.tax_onboarding_status='complete'/);
+  assert.match(payout, /payout\.status='processing' AND payout\.updated_at < now\(\) - interval '10 minutes'/);
+  assert.match(cron, /advanceAffiliateCommissions[\s\S]*runAutomatedAffiliatePayouts/);
+  assert.match(admin, /Affiliate reserve needs funding/);
+  assert.match(admin, /Funding gap/);
+});
+
+test("owner payouts run only on Friday and send only Stripe funds above the protected reserve", async () => {
+  const payout = await readFile(new URL("../lib/affiliate-payouts.ts", import.meta.url), "utf8");
+  const cron = await readFile(new URL("../app/api/cron/payment-releases/route.ts", import.meta.url), "utf8");
+  const env = await readFile(new URL("../.env.example", import.meta.url), "utf8");
+
+  assert.match(payout, /PROTECTED_OWNER_PAYOUTS_ENABLED !== "true"/);
+  assert.match(payout, /timeZone: "America\/Los_Angeles"/);
+  assert.match(payout, /value\("weekday"\) !== "Friday"/);
+  assert.match(payout, /reason: "already_sent"/);
+  assert.match(payout, /reserve\.availableCents - reserve\.requiredCents/);
+  assert.match(payout, /getStripe\(\)\.payouts\.create/);
+  assert.match(payout, /protected-owner-payout-\$\{getStripeMode\(\)\}-\$\{dateKey\}/);
+  assert.match(cron, /runAutomatedAffiliatePayouts\(\)[\s\S]*runProtectedOwnerPayout\(\)/);
+  assert.match(env, /PROTECTED_OWNER_PAYOUTS_ENABLED=false/);
+});
