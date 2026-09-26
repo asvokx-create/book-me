@@ -71,7 +71,8 @@ test("owner payouts run only on Friday and send only Stripe funds above the prot
   const cron = await readFile(new URL("../app/api/cron/payment-releases/route.ts", import.meta.url), "utf8");
   const env = await readFile(new URL("../.env.example", import.meta.url), "utf8");
 
-  assert.match(payout, /PROTECTED_OWNER_PAYOUTS_ENABLED !== "true"/);
+  assert.match(payout, /configured !== undefined[\s\S]*return process\.env\.NODE_ENV === "production"/);
+  assert.match(payout, /if \(!protectedOwnerPayoutsEnabled\(\)\)/);
   assert.match(payout, /timeZone: "America\/Los_Angeles"/);
   assert.match(payout, /value\("weekday"\) !== "Friday"/);
   assert.match(payout, /reason: "already_sent"/);

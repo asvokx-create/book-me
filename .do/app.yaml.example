@@ -42,7 +42,7 @@ services:
         value: "0"
         scope: RUN_TIME
       - key: PROTECTED_OWNER_PAYOUTS_ENABLED
-        value: "false"
+        value: "true"
         scope: RUN_TIME
       - key: OWNER_PAYOUT_MINIMUM_CENTS
         value: "100"

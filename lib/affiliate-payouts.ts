@@ -19,6 +19,12 @@ export type AffiliateReserveHealth = {
   protectedOwnerPayoutsEnabled: boolean;
 };
 
+function protectedOwnerPayoutsEnabled() {
+  const configured = process.env.PROTECTED_OWNER_PAYOUTS_ENABLED;
+  if (configured !== undefined) return configured === "true";
+  return process.env.NODE_ENV === "production";
+}
+
 export async function getAffiliateReserveHealth(): Promise<AffiliateReserveHealth> {
   const result = await database.query<{ obligation_cents: number; payable_cents: number }>(`SELECT
       COALESCE(sum(GREATEST(affiliate_obligation_cents,0)),0)::int AS obligation_cents,
@@ -52,7 +58,7 @@ export async function getAffiliateReserveHealth(): Promise<AffiliateReserveHealt
     requiredCents,
     availableCents,
     shortfallCents: availableCents === null ? null : Math.max(0, requiredCents - availableCents),
-    protectedOwnerPayoutsEnabled: process.env.PROTECTED_OWNER_PAYOUTS_ENABLED === "true",
+    protectedOwnerPayoutsEnabled: protectedOwnerPayoutsEnabled(),
   };
 }
 
@@ -279,7 +285,7 @@ function fridayDateKey(now = new Date()) {
 }
 
 export async function runProtectedOwnerPayout(now = new Date()) {
-  if (process.env.PROTECTED_OWNER_PAYOUTS_ENABLED !== "true") return { enabled: false, sent: false };
+  if (!protectedOwnerPayoutsEnabled()) return { enabled: false, sent: false };
   if (!isStripeReady()) return { enabled: true, sent: false, error: "Stripe is not configured." };
   const dateKey = fridayDateKey(now);
   if (!dateKey) return { enabled: true, sent: false, reason: "not_friday" };
