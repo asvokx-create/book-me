@@ -9,9 +9,9 @@ import {
 } from "../lib/policy-consent.ts";
 
 test("legal policy versions match their displayed effective dates", () => {
-  assert.equal(POLICY_VERSION, "2026-09-24");
+  assert.equal(POLICY_VERSION, "2026-09-25");
   assert.equal(PROVIDER_AGREEMENT_VERSION, "2026-09-21");
-  assert.equal(POLICY_EFFECTIVE_DATE, "September 24, 2026");
+  assert.equal(POLICY_EFFECTIVE_DATE, "September 25, 2026");
 });
 
 test("new account consent records use the current policy version", () => {

@@ -90,7 +90,7 @@ type AccountDetails = {
   supportRequests: Array<{ id: string; subject: string; message: string; status: string; admin_reply: string; created_at: string }>;
   activity: Array<{ id: string; action: string; target_type: string; target_id: string | null; created_at: string }>;
   welcomeEmail: null | { status: "sent" | "skipped" | "failed"; created_at: string };
-  affiliateAttribution: null | { affiliate_name: string; affiliate_code: string; program_name: string; attributed_at: string; qualified_at: string | null; revenue_share_ends_at: string | null; status: string };
+  affiliateAttribution: null | { affiliate_name: string; affiliate_code: string; program_name: string; attributed_at: string; provider_signup_at: string; qualified_at: string | null; revenue_share_started_at: string | null; revenue_share_ends_at: string | null; status: string };
   privacyNote: string;
 };
 
@@ -580,7 +580,8 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
           {details.affiliateAttribution && <section className="rounded-3xl border border-[#183126]/10 bg-[#edf5e9] p-5"><h3 className="text-lg font-bold">Affiliate attribution</h3><p className="mt-1 text-sm text-[#52665b]">Private attribution and snapshotted program status for this provider.</p><div className="mt-4"><DetailGrid items={[
             { label: "Referred by", value: details.affiliateAttribution.affiliate_name }, { label: "Affiliate code", value: details.affiliateAttribution.affiliate_code },
             { label: "Program", value: details.affiliateAttribution.program_name }, { label: "Referral date", value: formatDate(details.affiliateAttribution.attributed_at) },
-            { label: "Qualified", value: Boolean(details.affiliateAttribution.qualified_at) }, { label: "Referral status", value: label(details.affiliateAttribution.status) },
+            { label: "Provider signup", value: formatDate(details.affiliateAttribution.provider_signup_at) }, { label: "Qualified", value: details.affiliateAttribution.qualified_at ? formatDate(details.affiliateAttribution.qualified_at) : "No" },
+            { label: "Referral status", value: label(details.affiliateAttribution.status) }, { label: "Revenue share started", value: details.affiliateAttribution.revenue_share_started_at ? formatDate(details.affiliateAttribution.revenue_share_started_at) : null },
             { label: "Revenue share ends", value: details.affiliateAttribution.revenue_share_ends_at ? formatDate(details.affiliateAttribution.revenue_share_ends_at) : null },
           ]} /></div></section>}
           <RecordSection title="Listings" empty="No listings on this account." records={details.services.map((service) => ({ id: service.id, title: service.title, meta: `${label(service.category)} · $${(service.price_cents / 100).toFixed(2)} · ${service.duration_minutes} min`, status: service.is_active ? "active" : "inactive", body: service.business_name }))} />

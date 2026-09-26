@@ -57,7 +57,7 @@ export default function SiteFooter() {
           </div>
           <div className="relative mt-7 grid gap-3 border-t border-white/10 pt-6 text-xs font-semibold text-[#bfd0c7] sm:grid-cols-3">
             <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Local-first marketplace</p>
-            <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Secure Stripe payments</p>
+            <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Stripe-powered payments</p>
             <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Real booking support</p>
           </div>
         </section>

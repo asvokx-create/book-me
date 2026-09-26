@@ -39,3 +39,41 @@ test("affiliate earnings are synchronized only after the provider payout succeed
   assert.match(engine, /row\.refunded_amount_cents < row\.price_cents/);
   assert.match(engine, /!disputeOpen && !disputeLost/);
 });
+
+test("affiliate attribution is active-only, single-use, and blocks self-referrals", async () => {
+  const engine = await readFile(new URL("../lib/affiliates.ts", import.meta.url), "utf8");
+  const clickRoute = await readFile(new URL("../app/api/affiliates/attribution/route.ts", import.meta.url), "utf8");
+  const onboarding = await readFile(new URL("../app/api/providers/onboarding/route.ts", import.meta.url), "utf8");
+
+  assert.match(clickRoute, /affiliate\.status = 'active'/);
+  assert.match(engine, /affiliate\.status = 'active'/);
+  assert.match(engine, /used_referral\.click_id = click\.id/);
+  assert.match(engine, /affiliate\.user_id = referred_owner\.id/);
+  assert.match(engine, /lower\(affiliate\.email\) = lower\(referred_owner\.email\)/);
+  assert.match(onboarding, /affiliateAttributionLocked/);
+  assert.match(onboarding, /response\.cookies\.delete\(AFFILIATE_COOKIE\)/);
+});
+
+test("eligible commissions recover after a provider wins a dispute", async () => {
+  const engine = await readFile(new URL("../lib/affiliates.ts", import.meta.url), "utf8");
+  assert.match(engine, /WHERE booking_id::text = \$1 AND status = 'disputed'/);
+  assert.match(engine, /payable_at IS NOT NULL AND payable_at <= now\(\) THEN 'payable' ELSE 'hold'/);
+  assert.match(engine, /reversal_reason = NULL/);
+  assert.match(engine, /status = 'revenue_share_ended'/);
+});
+
+test("partner application, dashboard, and public disclosure match activation behavior", async () => {
+  const page = await readFile(new URL("../app/partners/page.tsx", import.meta.url), "utf8");
+  const application = await readFile(new URL("../components/partner-application-form.tsx", import.meta.url), "utf8");
+  const dashboard = await readFile(new URL("../app/affiliate/page.tsx", import.meta.url), "utf8");
+  const cookieNotice = await readFile(new URL("../app/cookies/page.tsx", import.meta.url), "utf8");
+
+  assert.match(page, /Who this is for/);
+  assert.match(page, /FAQPage/);
+  assert.match(page, /Apply to become a partner/);
+  assert.match(application, /Submission is an application only; it does not approve or activate/);
+  assert.match(dashboard, /awaiting activation/);
+  assert.match(dashboard, /Lifetime earnings/);
+  assert.match(dashboard, /revenue_share_ends_at IS NULL OR revenue_share_ends_at >= now\(\)/);
+  assert.match(cookieNotice, /cleared after a successful provider attribution/);
+});

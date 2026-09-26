@@ -52,9 +52,15 @@ export async function lockAffiliateAttribution(input: {
           COALESCE(affiliate.minimum_payout_override_cents, program.minimum_payout_cents) AS minimum_payout_cents,
           program.eligible_provider_plans, program.eligible_revenue_types
         FROM affiliate_profiles affiliate JOIN affiliate_programs program ON program.id = affiliate.program_id
-        WHERE lower(affiliate.affiliate_code) = lower($1) AND affiliate.status IN ('approved','active')
+        WHERE lower(affiliate.affiliate_code) = lower($1) AND affiliate.status = 'active'
           AND program.status = 'enabled' AND (program.starts_at IS NULL OR program.starts_at <= now())
-          AND (program.ends_at IS NULL OR program.ends_at > now()) LIMIT 1`, [manualCode])
+          AND (program.ends_at IS NULL OR program.ends_at > now())
+          AND NOT EXISTS (
+            SELECT 1 FROM provider_profiles referred_provider
+            JOIN "user" referred_owner ON referred_owner.id = referred_provider.user_id
+            WHERE referred_provider.id = $2::uuid
+              AND (affiliate.user_id = referred_owner.id OR lower(affiliate.email) = lower(referred_owner.email))
+          ) LIMIT 1`, [manualCode, input.providerId])
     : token
       ? await input.client.query<{
           affiliate_id: string; program_id: string; click_id: string | null; affiliate_code: string;
@@ -72,9 +78,16 @@ export async function lockAffiliateAttribution(input: {
           FROM affiliate_clicks click
           JOIN affiliate_profiles affiliate ON affiliate.id = click.affiliate_id
           JOIN affiliate_programs program ON program.id = click.program_id
-          WHERE click.attribution_token::text = $1 AND affiliate.status IN ('approved','active') AND program.status = 'enabled'
+          WHERE click.attribution_token::text = $1 AND affiliate.status = 'active' AND program.status = 'enabled'
             AND click.created_at >= now() - make_interval(days => program.attribution_window_days)
-          ORDER BY click.created_at DESC LIMIT 1`, [token])
+            AND NOT EXISTS (SELECT 1 FROM affiliate_referrals used_referral WHERE used_referral.click_id = click.id)
+            AND NOT EXISTS (
+              SELECT 1 FROM provider_profiles referred_provider
+              JOIN "user" referred_owner ON referred_owner.id = referred_provider.user_id
+              WHERE referred_provider.id = $2::uuid
+                AND (affiliate.user_id = referred_owner.id OR lower(affiliate.email) = lower(referred_owner.email))
+            )
+          ORDER BY click.created_at DESC LIMIT 1`, [token, input.providerId])
       : null;
 
   const terms = match?.rows[0];
@@ -156,6 +169,12 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
     return { processed: true, eligible: false };
   }
 
+  await client.query(`UPDATE affiliate_commissions
+    SET status = CASE WHEN payable_at IS NOT NULL AND payable_at <= now() THEN 'payable' ELSE 'hold' END,
+        reversal_reason = NULL
+    WHERE booking_id::text = $1 AND status = 'disputed'
+      AND commission_type IN ('activation_bonus','revenue_share')`, [bookingId]);
+
   let shareStart = row.revenue_share_started_at;
   if (!shareStart && ["qualified", "first_completed_booking"].includes(row.revenue_share_starts_at)) shareStart = new Date();
   const shareEnd = row.revenue_share_ends_at ?? (shareStart ? new Date(new Date(shareStart).setMonth(new Date(shareStart).getMonth() + row.revenue_share_duration_months)) : null);
@@ -189,6 +208,8 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
 }
 
 export async function advanceAffiliateCommissions(client: DbClient = database) {
+  await client.query(`UPDATE affiliate_referrals SET status = 'revenue_share_ended', updated_at = now()
+    WHERE status = 'qualified' AND revenue_share_ends_at IS NOT NULL AND revenue_share_ends_at < now()`);
   const updated = await client.query(`UPDATE affiliate_commissions commission SET status = 'payable', approved_at = COALESCE(approved_at, now())
     FROM bookings booking
     WHERE commission.booking_id = booking.id AND commission.status IN ('pending','hold','approved')

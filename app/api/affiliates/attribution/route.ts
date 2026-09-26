@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const affiliate = await database.query<{ affiliate_id: string; program_id: string; attribution_window_days: number }>(
     `SELECT affiliate.id::text AS affiliate_id, program.id::text AS program_id, program.attribution_window_days
      FROM affiliate_profiles affiliate JOIN affiliate_programs program ON program.id = affiliate.program_id
-     WHERE lower(affiliate.affiliate_code) = lower($1) AND affiliate.status IN ('approved','active')
+     WHERE lower(affiliate.affiliate_code) = lower($1) AND affiliate.status = 'active'
        AND program.status = 'enabled' AND (program.starts_at IS NULL OR program.starts_at <= now())
        AND (program.ends_at IS NULL OR program.ends_at > now()) LIMIT 1`, [code],
   );

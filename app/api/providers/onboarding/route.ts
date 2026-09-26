@@ -118,6 +118,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Starter uses one shared service location. Use your existing location or upgrade to Pro for multiple locations.", upgradeRequired: true }, { status: 403 });
   }
   const client = await database.connect();
+  let affiliateAttributionLocked = false;
 
   try {
     await client.query("BEGIN");
@@ -207,6 +208,7 @@ export async function POST(request: Request) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "That creator or partner referral code is not active. Remove it or enter a valid code." }, { status: 400 });
       }
+      affiliateAttributionLocked = attribution.attributed;
     }
 
     await client.query("DELETE FROM availability WHERE provider_id = $1 AND service_id = $2", [providerId, serviceResult.rows[0].id]);
@@ -233,7 +235,9 @@ export async function POST(request: Request) {
     }
     if (!existing) await recordAnalytics({ eventName: "provider_profile_completed", userId: session.user.id, targetType: "provider", targetId: providerId });
     if (isFirstListing) await recordAnalytics({ eventName: "first_listing_created", userId: session.user.id, targetType: "service", targetId: serviceResult.rows[0].id, metadata: { category, city, state } });
-    return NextResponse.json({ ok: true, serviceId: serviceResult.rows[0].id });
+    const response = NextResponse.json({ ok: true, serviceId: serviceResult.rows[0].id });
+    if (affiliateAttributionLocked) response.cookies.delete(AFFILIATE_COOKIE);
+    return response;
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Provider onboarding failed", error);

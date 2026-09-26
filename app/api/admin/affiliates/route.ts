@@ -8,7 +8,7 @@ const affiliateStatuses = new Set(["under_review","approved","active","paused","
 const commissionStatuses = new Set(["hold","approved","payable","rejected","disputed"]);
 
 async function dashboard() {
-  const [summary, programs, affiliates, commissions, payouts, recentClicks] = await Promise.all([
+  const [summary, programs, affiliates, commissions, payouts, recentClicks, auditHistory] = await Promise.all([
     database.query(`SELECT
       (SELECT count(*)::int FROM affiliate_profiles WHERE status IN ('applied','under_review')) AS applications,
       (SELECT count(*)::int FROM affiliate_profiles WHERE status = 'active') AS active_affiliates,
@@ -23,13 +23,18 @@ async function dashboard() {
       FROM affiliate_programs ORDER BY created_at DESC`),
     database.query(`SELECT affiliate.id::text, affiliate.display_name, affiliate.email, affiliate.affiliate_code,
       affiliate.status, affiliate.website_url, affiliate.youtube_url, affiliate.instagram_url, affiliate.tiktok_url,
+      affiliate.x_url, affiliate.facebook_url, affiliate.other_social_url,
       affiliate.primary_audience, affiliate.promotion_plan, affiliate.audience_size, affiliate.admin_notes,
       affiliate.payment_status, affiliate.tax_onboarding_status, affiliate.applied_at, affiliate.approved_at,
       program.id::text AS program_id, program.name AS program_name,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id) AS clicks,
       (SELECT count(*)::int FROM affiliate_referrals referral WHERE referral.affiliate_id=affiliate.id) AS referrals,
       (SELECT count(*)::int FROM affiliate_referrals referral WHERE referral.affiliate_id=affiliate.id AND referral.qualified_at IS NOT NULL) AS qualified,
-      (SELECT COALESCE(sum(commission.amount_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.status='payable') AS payable_cents
+      (SELECT count(DISTINCT commission.booking_id)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.booking_id IS NOT NULL) AS bookings_generated,
+      (SELECT COALESCE(sum(commission.eligible_revenue_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.commission_type='revenue_share' AND commission.status<>'reversed') AS eligible_revenue_cents,
+      (SELECT COALESCE(sum(commission.amount_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.status IN ('pending','hold','approved')) AS pending_cents,
+      (SELECT COALESCE(sum(commission.amount_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.status='payable') AS payable_cents,
+      (SELECT COALESCE(sum(commission.amount_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.status='paid') AS paid_cents
       FROM affiliate_profiles affiliate LEFT JOIN affiliate_programs program ON program.id = affiliate.program_id
       GROUP BY affiliate.id, program.id ORDER BY affiliate.applied_at DESC`),
     database.query(`SELECT commission.id::text, commission.commission_type, commission.eligible_revenue_cents,
@@ -48,8 +53,11 @@ async function dashboard() {
       click.created_at, affiliate.display_name AS affiliate_name
       FROM affiliate_clicks click JOIN affiliate_profiles affiliate ON affiliate.id = click.affiliate_id
       ORDER BY click.created_at DESC LIMIT 100`),
+    database.query(`SELECT audit.id::text, audit.action, audit.target_type, audit.target_id, audit.created_at,
+      actor.name AS actor_name FROM affiliate_audit_log audit LEFT JOIN "user" actor ON actor.id=audit.actor_user_id
+      ORDER BY audit.created_at DESC LIMIT 100`),
   ]);
-  return { summary: summary.rows[0], programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, recentClicks: recentClicks.rows };
+  return { summary: summary.rows[0], programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows };
 }
 
 export async function GET() {
@@ -132,9 +140,9 @@ export async function PATCH(request: Request) {
       await audit(session.user.id, "commission_status_changed", "affiliate_commission", targetId, { status, reason }, client);
     } else if (action === "commission_reversal") {
       if (!reason) throw new Error("INVALID");
-      const original = await client.query<{ id:string; affiliate_id:string; referral_id:string; provider_id:string; booking_id:string|null; amount_cents:number }>(`SELECT id::text,affiliate_id::text,referral_id::text,provider_id::text,booking_id::text,amount_cents FROM affiliate_commissions WHERE id::text=$1 AND commission_type<>'reversal' FOR UPDATE`,[targetId]);
+      const original = await client.query<{ id:string; affiliate_id:string; referral_id:string; provider_id:string; booking_id:string|null; amount_cents:number; status:string }>(`SELECT id::text,affiliate_id::text,referral_id::text,provider_id::text,booking_id::text,amount_cents,status FROM affiliate_commissions WHERE id::text=$1 AND commission_type<>'reversal' FOR UPDATE`,[targetId]);
       const row=original.rows[0]; if(!row)throw new Error("NOT_FOUND");
-      await client.query(`INSERT INTO affiliate_commissions (affiliate_id,referral_id,provider_id,booking_id,payment_reference,commission_type,amount_cents,status,eligible_at,reversal_reason,admin_notes)
+      if(row.status==="paid")await client.query(`INSERT INTO affiliate_commissions (affiliate_id,referral_id,provider_id,booking_id,payment_reference,commission_type,amount_cents,status,eligible_at,reversal_reason,admin_notes)
         VALUES ($1,$2,$3,$4::uuid,$5,'reversal',$6,'payable',now(),$7,$7)`,[row.affiliate_id,row.referral_id,row.provider_id,row.booking_id,`admin-reversal:${row.id}:${Date.now()}`,-Math.abs(row.amount_cents),reason]);
       await client.query(`UPDATE affiliate_commissions SET status=CASE WHEN status='paid' THEN status ELSE 'reversed' END,reversal_reason=$2 WHERE id::text=$1`,[targetId,reason]);
       await audit(session.user.id,"commission_reversed","affiliate_commission",targetId,{reason,amountCents:row.amount_cents},client);

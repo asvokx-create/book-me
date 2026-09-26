@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 const protections = [
   ["Clear provider signals", "Provider profiles show the limited account, profile, and Stripe onboarding checks BubsBookings has completed—and explain what those checks do not verify."],
-  ["Secure payments", "Payments are handled by Stripe. Providers do not receive your full card information, and payment records stay connected to your booking."],
+  ["Stripe-powered payments", "Payments are handled by Stripe. Providers do not receive your full card information, and payment records stay connected to your booking."],
   ["Private request details", "Matched providers can review your requested scope, city, ZIP, timing, and optional budget before quoting; your street address is withheld until you accept a quote and create a booking."],
   ["Everything in one place", "Keep requests, quotes, booking details, schedule changes, messages, and status updates together so both sides have a clear record."],
   ["Help when something goes wrong", "You can contact BubsBookings support, report a concern, request a refund, or open a dispute from your account."],

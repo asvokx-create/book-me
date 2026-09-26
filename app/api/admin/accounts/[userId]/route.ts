@@ -145,10 +145,12 @@ export async function GET(
       ),
       database.query(
         `SELECT affiliate.display_name AS affiliate_name, affiliate.affiliate_code, program.name AS program_name,
-                referral.attributed_at, referral.qualified_at, referral.revenue_share_ends_at, referral.status
+                referral.attributed_at, referral.qualified_at, referral.revenue_share_started_at,
+                referral.revenue_share_ends_at, referral.status, provider.created_at AS provider_signup_at
          FROM affiliate_referrals referral
          JOIN affiliate_profiles affiliate ON affiliate.id = referral.affiliate_id
          JOIN affiliate_programs program ON program.id = referral.program_id
+         JOIN provider_profiles provider ON provider.id = referral.provider_id
          WHERE $1::uuid IS NOT NULL AND referral.provider_id = $1::uuid LIMIT 1`,
         [providerId ?? null],
       ),

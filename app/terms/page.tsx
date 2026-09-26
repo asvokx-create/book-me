@@ -24,7 +24,7 @@ const sections = [
 ] as const;
 
 export default function TermsPage() {
-  return <LegalPage eyebrow="Legal" title="Terms of Service" intro="The rules that keep BubsBookings useful, fair, and safe for customers and providers." sections={sections} />;
+  return <LegalPage eyebrow="Legal" title="Terms of Service" intro="The rules that keep BubsBookings useful, fair, and safe for customers and providers." sections={sections} effectiveDate="September 24, 2026" />;
 }
 
 export function LegalPage({ eyebrow, title, intro, sections, effectiveDate = POLICY_EFFECTIVE_DATE }: { eyebrow: string; title: string; intro: string; sections: ReadonlyArray<readonly [string, string | React.ReactNode]>; effectiveDate?: string }) {

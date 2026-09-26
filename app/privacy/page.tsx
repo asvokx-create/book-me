@@ -22,5 +22,6 @@ const sections = [
 ] as const;
 
 export default function PrivacyPage() {
-  return <LegalPage eyebrow="Your information" title="Privacy Policy" intro="A plain-language explanation of what BubsBookings collects, why we use it, and how automated safety checks work." sections={sections} />;
+  const numberedSections = sections.map(([heading, content], index) => [heading.replace(/^\d+\./, `${index + 1}.`), content] as const);
+  return <LegalPage eyebrow="Your information" title="Privacy Policy" intro="A plain-language explanation of what BubsBookings collects, why we use it, and how automated safety checks work." sections={numberedSections} />;
 }
