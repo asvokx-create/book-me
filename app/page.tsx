@@ -186,10 +186,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </Link>
 
           <div className="home-business-card rounded-2xl bg-[#f3ed74] p-5 text-[#183126]">
-            <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#627065]">🧰 For local businesses</p>
-            <h3 className="mt-1.5 text-xl font-bold tracking-[-.03em]">No lead fees. No charge to chat.</h3>
-            <p className="mt-2 text-xs leading-5 text-[#52655a]">List services and send quotes for free. Starter charges 10% and Pro charges 6% only on paid bookings.</p>
-            <Link href="/pricing" className="mt-3 inline-flex rounded-full border border-[#183126]/20 bg-white/45 px-3.5 py-2 text-xs font-bold transition hover:bg-white/70">Provider pricing →</Link>
+            <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#627065]">✨ For creators &amp; affiliates</p>
+            <h3 className="mt-1.5 text-xl font-bold tracking-[-.03em]">Share BubsBookings. Earn when providers succeed.</h3>
+            <p className="mt-2 text-xs leading-5 text-[#52655a]">Refer real local providers and earn from eligible BubsBookings fee revenue after they complete qualifying paid work.</p>
+            <Link href="/partners" className="mt-3 inline-flex rounded-full border border-[#183126]/20 bg-white/45 px-3.5 py-2 text-xs font-bold transition hover:bg-white/70">Become a creator partner →</Link>
           </div>
         </div>
       </section>

@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 
-test("guides explain current marketplace, partner, and payout behavior", async () => {
-  const [guides, indexPage, articlePage] = await Promise.all([
+test("guides and homepage explain current marketplace, partner, and payout behavior", async () => {
+  const [guides, indexPage, articlePage, homePage] = await Promise.all([
     readFile(new URL("../lib/guides.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/guides/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/guides/[slug]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(guides, /creator-partner-earnings-tracking-and-payouts/);
@@ -19,4 +20,7 @@ test("guides explain current marketplace, partner, and payout behavior", async (
   assert.match(indexPage, /For partners/);
   assert.match(articlePage, /href="\/partner-agreement"/);
   assert.match(articlePage, /current legal policies control/);
+  assert.match(homePage, /For creators &amp; affiliates/);
+  assert.match(homePage, /Share BubsBookings\. Earn when providers succeed\./);
+  assert.match(homePage, /href="\/partners"/);
 });
