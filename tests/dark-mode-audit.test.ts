@@ -111,6 +111,10 @@ test("calendars, messages, charts, tables, dialogs, and footer use shared dark p
   assert.match(read("components/booking-calendar.tsx"), /calendar-view-toggle/);
   assert.match(read("components/messaging-center.tsx"), /message-bubble--sent/);
   assert.match(read("components/provider-dashboard.tsx"), /revenue-chart-line/);
+  assert.match(read("components/service-category-icon.tsx"), /service-category-icon-decoration/);
+  assert.match(css, /\.service-category-icon-decoration[\s\S]*?background-color: rgba\(255, 255, 255, \.2\) !important/);
+  assert.match(css, /\.account-page > header[\s\S]*?border-color: transparent !important/);
+  assert.match(css, /\.brand-wordmark-text[\s\S]*?padding: \.08em \.04em \.22em/);
 });
 
 test("dark palette pairs retain accessible text contrast", () => {

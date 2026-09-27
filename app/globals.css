@@ -1366,9 +1366,9 @@ html[data-theme="dark"] .home-header-provider-link:hover {
   display: inline-flex;
   align-items: center;
   overflow: visible;
-  padding: .08em .04em .12em;
-  margin: -.08em -.04em -.12em;
-  line-height: 1.08;
+  padding: .08em .04em .22em;
+  margin: -.08em -.04em -.22em;
+  line-height: 1.14;
   font-weight: 800;
   letter-spacing: -.052em;
   text-rendering: optimizeLegibility;
@@ -1873,6 +1873,19 @@ html[data-theme="dark"] :where(
   [class^="bg-[#e5f"], [class*=" bg-[#e5f"]
 ) {
   background-color: var(--surface-elevated) !important;
+}
+
+/* Keep decorative icon highlights translucent instead of converting them into
+   solid dark surfaces. */
+html[data-theme="dark"] .service-category-icon-decoration {
+  background-color: rgba(255, 255, 255, .2) !important;
+}
+
+/* The floating account header is separated by elevation in dark mode; a full
+   light outline is unnecessarily harsh against the near-black page. */
+html[data-theme="dark"] .account-page > header {
+  border-color: transparent !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, .28) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

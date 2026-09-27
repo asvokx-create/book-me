@@ -38,7 +38,7 @@ export default function ServiceCategoryIcon({ category, className = "", compact 
       className={`relative grid place-items-center overflow-hidden bg-gradient-to-br shadow-[inset_0_0_0_1px_rgba(24,49,38,.06),0_8px_18px_rgba(24,49,38,.08)] ${compact ? "h-10 w-10 rounded-xl [&_svg]:h-8 [&_svg]:w-8" : "h-16 w-16 rounded-[1.35rem]"} ${style.background} ${className}`}
       style={{ color: style.foreground }}
     >
-      <span className="absolute -right-3 -top-3 h-10 w-10 rounded-full bg-white/45" />
+      <span className="service-category-icon-decoration absolute -right-3 -top-3 h-10 w-10 rounded-full bg-white/45" />
       <span className="relative transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-2"><Illustration category={category} /></span>
     </span>
   );
