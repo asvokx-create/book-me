@@ -9,6 +9,7 @@ import LocationFilter from "@/components/location-filter";
 import ServiceCategoryIcon from "@/components/service-category-icon";
 import { getContextualLocation } from "@/lib/request-location";
 import MobileSiteNav from "@/components/mobile-site-nav";
+import ServiceSearchAssist from "@/components/service-search-assist";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Find and book local services", description: "Compare local service listings, message providers, and request bookings across the United States.", alternates: { canonical: "/" } };
@@ -105,18 +106,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
         </div>
 
-        <form action="/services" className="home-search-bar mt-12 flex max-w-5xl flex-col gap-2 rounded-3xl border border-white bg-white/92 p-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl md:flex-row md:items-center md:rounded-full">
-          <div className="home-search-input flex flex-1 items-center rounded-full px-6 sm:px-7">
-            <span className="home-search-icon mr-4 grid h-9 w-9 shrink-0 place-items-center rounded-full text-base" aria-hidden="true">⌕</span>
-            <label htmlFor="home-service-search" className="sr-only">Service to search for</label>
-            <input
-              id="home-service-search"
-              name="q"
-              type="text"
-              placeholder="What service do you need?"
-              className="w-full py-4 outline-none"
-            />
-          </div>
+        <form action="/services" className="home-search-bar relative z-40 mt-12 flex max-w-5xl flex-col gap-2 overflow-visible rounded-3xl border border-white bg-white/92 p-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl md:flex-row md:items-center md:rounded-full">
+          <ServiceSearchAssist id="home-service-search" placeholder="What service do you need?" className="home-search-input flex flex-1 items-center rounded-full px-6 sm:px-7" inputClassName="w-full py-4 outline-none" iconClassName="home-search-icon mr-4 grid h-9 w-9 shrink-0 place-items-center rounded-full text-base" />
 
           <div className="home-search-location md:min-w-[330px]"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
 
@@ -124,7 +115,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             Find a pro
           </button>
         </form>
-        <div className="mt-4 flex max-w-5xl flex-col items-center justify-between gap-3 rounded-2xl border border-[#183126]/10 bg-white/65 px-5 py-4 text-center backdrop-blur sm:flex-row sm:text-left"><div><p className="text-sm font-bold">Not sure which listing fits?</p><p className="mt-1 text-xs text-[#63756b]">Share what you need once and receive free quotes from local providers.</p></div><Link href="/requests" className="min-h-11 shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>
+        <div className="relative z-0 mt-4 flex max-w-5xl flex-col items-center justify-between gap-3 rounded-2xl border border-[#183126]/10 bg-white/65 px-5 py-4 text-center backdrop-blur sm:flex-row sm:text-left"><div><p className="text-sm font-bold">Not sure which listing fits?</p><p className="mt-1 text-xs text-[#63756b]">Share what you need once and receive free quotes from local providers.</p></div><Link href="/requests" className="min-h-11 shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>
         </div>
       </section>
 

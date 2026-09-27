@@ -12,6 +12,7 @@ import { getContextualLocation } from "@/lib/request-location";
 import ServiceDemandCapture from "@/components/service-demand-capture";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import SearchResultsAnalytics from "@/components/search-results-analytics";
+import ServiceSearchAssist from "@/components/service-search-assist";
 
 export const dynamic = "force-dynamic";
 
@@ -104,11 +105,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">{location ? `Compare local providers, prices, and availability around ${location}.` : "Browse active service listings, or choose your city for distance-based local results."}</p>
 
           <form action={`/services${resultsAnchor}`} className="services-search-panel relative z-30 mt-8 flex max-w-5xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 sm:flex-row sm:items-center sm:rounded-full">
-            <label className="services-search-query flex flex-1 items-center gap-3 px-5 py-3">
-              <span aria-hidden="true">🔎</span>
-              <span className="sr-only">Search services</span>
-              <input name="q" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" className="services-search-query-input w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" />
-            </label>
+            <ServiceSearchAssist id="services-service-search" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" label="Search services" className="services-search-query flex flex-1 items-center gap-3 px-5 py-3" inputClassName="services-search-query-input w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" icon="🔎" />
             <div className="services-search-location border-t border-[#183126]/10 sm:min-w-[350px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
             {selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
             {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}

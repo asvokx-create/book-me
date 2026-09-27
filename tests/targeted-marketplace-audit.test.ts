@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { calculateAffiliateCommission, calculateEligibleProviderFeeRevenue } from "../lib/affiliate-rules.ts";
+import { getServiceCategorySearchMatches } from "../lib/service-categories.ts";
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
@@ -64,6 +65,16 @@ test("first-visit browser location approval reloads the marketplace with the res
   assert.match(locationFilter, /if \(reload\) \{\s*window\.location\.replace\(href\)/);
   assert.match(locationFilter, /requestCurrentLocation\(true, true\)/);
   assert.match(locationFilter, /localStorage\.setItem\(STORAGE_KEY, JSON\.stringify\(\{ location: closest\.label, radius \}\)\)/);
+});
+
+test("search assistance finds related service categories from two typed characters", () => {
+  assert.ok(getServiceCategorySearchMatches("ca").includes("Car detailing"));
+  const searchAssist = read("components/service-search-assist.tsx");
+  const home = read("app/page.tsx");
+  assert.match(searchAssist, /role="combobox"/);
+  assert.match(searchAssist, /role="listbox"/);
+  assert.match(searchAssist, /requestSubmit/);
+  assert.match(home, /home-search-bar relative z-40/);
 });
 
 test("$250 Starter and Pro affiliate examples use the snapshotted provider fee rather than booking total", () => {

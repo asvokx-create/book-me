@@ -24,7 +24,7 @@ export const SERVICE_CATEGORIES = [
 
 export const FEATURED_SERVICE_CATEGORIES = SERVICE_CATEGORIES.slice(0, 5);
 
-const SERVICE_SEARCH_ALIASES: Partial<Record<(typeof SERVICE_CATEGORIES)[number], readonly string[]>> = {
+export const SERVICE_SEARCH_ALIASES: Partial<Record<(typeof SERVICE_CATEGORIES)[number], readonly string[]>> = {
   "Home cleaning": ["house cleaning", "home cleaner", "house cleaner", "maid", "maid service", "housekeeping", "deep cleaning", "move out cleaning"],
   "Car detailing": ["auto detailing", "vehicle detailing", "car cleaning", "mobile detailing", "car wash"],
   "Lawn & garden": ["yard care", "lawn care", "yard work", "mowing", "lawn mowing", "grass cutting", "landscaping", "gardening", "gardener", "weed removal"],
@@ -70,7 +70,7 @@ function editDistance(left: string, right: string) {
 
 export function getServiceCategorySearchMatches(query: string) {
   const normalizedQuery = normalizeSearchText(query);
-  if (normalizedQuery.length < 3) return [];
+  if (normalizedQuery.length < 2) return [];
 
   return SERVICE_CATEGORIES.filter((category) => {
     const searchTerms = [category, ...(SERVICE_SEARCH_ALIASES[category] ?? [])].map(normalizeSearchText);
