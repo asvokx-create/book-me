@@ -40,7 +40,7 @@ export async function GET() {
             COALESCE(us.search_radius_miles, 25)::int AS search_radius_miles,
             COALESCE(us.booking_notifications, true) AS booking_notifications,
             COALESCE(us.message_notifications, true) AS message_notifications,
-            COALESCE(us.theme, 'system') AS theme,
+            COALESCE(us.theme, 'light') AS theme,
             COALESCE(us.time_zone, 'auto') AS time_zone,
             (p.id IS NOT NULL OR EXISTS (
               SELECT 1
@@ -89,7 +89,7 @@ export async function PATCH(request: Request) {
   const radius = Number(body.radius);
   const bookingNotifications = body.bookingNotifications !== false;
   const messageNotifications = body.messageNotifications !== false;
-  const theme = body.theme === "light" || body.theme === "dark" ? body.theme : "system";
+  const theme = body.theme === "light" || body.theme === "dark" || body.theme === "system" ? body.theme : "light";
   const timeZone = typeof body.timeZone === "string" ? body.timeZone.trim() : "auto";
 
   if (name.length < 2 || name.length > 80) return NextResponse.json({ error: "Enter your full name." }, { status: 400 });

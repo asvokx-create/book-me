@@ -39,11 +39,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const storedTheme = getStoredThemePreference();
-    const savedTheme = storedTheme ?? "system";
+    const savedTheme = storedTheme ?? "light";
     const savedTimeZone = localStorage.getItem(TIME_ZONE_KEY) ?? "auto";
     const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
     const syncSystemTheme = () => {
-      if ((localStorage.getItem(THEME_KEY) ?? "system") === "system") applyThemePreference("system");
+      if (localStorage.getItem(THEME_KEY) === "system") applyThemePreference("system");
     };
     const syncPreferences = (event: Event) => {
       const detail = (event as CustomEvent<{ timeZone?: string }>).detail;

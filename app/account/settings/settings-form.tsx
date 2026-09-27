@@ -18,7 +18,7 @@ type Settings = {
   theme: ThemePreference; timeZone: string;
 };
 
-const emptySettings: Settings = { name: "", email: "", imageUrl: "", phone: "", city: "", state: "", postalCode: "", country: "United States", locationSource: null, locationUpdatedAt: null, locationComplete: false, radius: 25, bookingNotifications: true, messageNotifications: true, isProvider: false, theme: "system", timeZone: "auto" };
+const emptySettings: Settings = { name: "", email: "", imageUrl: "", phone: "", city: "", state: "", postalCode: "", country: "United States", locationSource: null, locationUpdatedAt: null, locationComplete: false, radius: 25, bookingNotifications: true, messageNotifications: true, isProvider: false, theme: "light", timeZone: "auto" };
 const inputClass = "mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-base outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
 const timeZones = [
   "America/Los_Angeles", "America/Denver", "America/Chicago", "America/New_York",
