@@ -9,15 +9,24 @@ test("dark accent text only changes when an accent background is active", () => 
   assert.match(css, /\[class~="bg-\[#eee25a\]"\]/);
   assert.doesNotMatch(css, /html\[data-theme="dark"\] :where\(\s*\[class\*="bg-\[#eee25a\]"\]/);
   assert.match(css, /\[class~="hover:bg-\[#eee25a\]"\][\s\S]*?\):hover/);
-  assert.match(css, /\):not\(\[class\*="hover:bg-"\]\)/);
+  assert.match(css, /\[class\^="bg-\[#faf"\]/);
+  assert.match(css, /\[class\*=" bg-\[#faf"\]/);
+  assert.doesNotMatch(css, /\[class\*="bg-\[#faf"\]/);
 });
 
 test("dark mode has explicit surfaces for the audited visual exceptions", () => {
   const css = read("app/globals.css");
+  const home = read("app/page.tsx");
+  const settings = read("app/account/settings/settings-form.tsx");
   for (const selector of [
     ".partners-hero",
     ".message-thread-surface",
     ".home-preview-badge",
+    ".home-request-banner",
+    ".home-upcoming-panel",
+    ".settings-theme-option",
+    ".settings-secondary-action",
+    ".settings-logout-action",
     ".trust-badge--verified",
     ".trust-badge--warning",
   ]) assert.match(css, new RegExp(selector.replace(".", "\\.")));
@@ -27,7 +36,12 @@ test("dark mode has explicit surfaces for the audited visual exceptions", () => 
   assert.match(read("app/partners/page.tsx"), /className="partners-hero /);
   assert.match(read("components/messaging-center.tsx"), /className="message-thread-surface /);
   assert.match(read("components/messaging-center.tsx"), /className="grid gap-3 border-b/);
-  assert.match(read("app/page.tsx"), /className="home-preview-badge /);
+  for (const className of ["home-preview-badge", "home-header-provider-link", "home-request-banner", "home-upcoming-panel"]) {
+    assert.match(home, new RegExp(`className="${className} `));
+  }
+  for (const className of ["settings-theme-option", "settings-secondary-action", "settings-logout-action"]) {
+    assert.match(settings, new RegExp(className));
+  }
   assert.match(read("app/services/[slug]/page.tsx"), /trust-badge--verified/);
   assert.match(read("components/brand-wordmark.tsx"), /text-\[\.9rem\] min-\[360px\]:text-\[1\.05rem\]/);
 });
