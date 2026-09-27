@@ -117,6 +117,16 @@ test("calendars, messages, charts, tables, dialogs, and footer use shared dark p
   assert.match(css, /\.brand-wordmark-text[\s\S]*?padding: \.08em \.04em \.22em/);
 });
 
+test("search controls do not expose native or duplicate bright borders in dark mode", () => {
+  const css = read("app/globals.css");
+  assert.match(css, /input\[type="search"\][\s\S]*?appearance: none/);
+  assert.match(css, /\.home-search-input input[\s\S]*?border-color: transparent !important[\s\S]*?box-shadow: none !important[\s\S]*?outline: none !important/);
+  assert.match(css, /html\[data-theme="dark"\] \.home-search-input:focus-within[\s\S]*?var\(--brand\)/);
+  assert.match(css, /html\[data-theme="dark"\] \.home-search-input input:focus-visible[\s\S]*?outline: none !important/);
+  assert.match(css, /\.services-search-query-input,[\s\S]*?\.services-search-query-input:focus[\s\S]*?border-color: transparent !important[\s\S]*?box-shadow: none !important/);
+  assert.match(css, /\.compact-radius-select,[\s\S]*?\.sort-control-select[\s\S]*?border-color: transparent !important[\s\S]*?box-shadow: none !important/);
+});
+
 test("dark palette pairs retain accessible text contrast", () => {
   const rgb = (hex: string) => hex.match(/[a-f\d]{2}/gi)!.map((part) => Number.parseInt(part, 16));
   const luminance = (hex: string) => {
