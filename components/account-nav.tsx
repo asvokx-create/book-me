@@ -9,7 +9,7 @@ export default function AccountNav() {
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) {
-    return <div aria-label="Loading account" className="h-10 w-28 animate-pulse rounded-full bg-[#183126]/8" />;
+    return <div aria-label="Loading account" className="h-10 w-10 animate-pulse rounded-full bg-[#183126]/8 min-[380px]:w-28" />;
   }
 
   if (session) {

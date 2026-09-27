@@ -111,7 +111,7 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
     WHERE b.id::text = $1 ON CONFLICT (dedupe_key) DO NOTHING`, [checkout.metadata.bookingId]);
   await database.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
     SELECT b.customer_id, b.id, 'booking_payment', 'Payment received',
-      '$' || to_char(b.customer_total_cents::numeric / 100, 'FM999999990.00') || ' was paid securely for ' || s.title || '.',
+      '$' || to_char(b.customer_total_cents::numeric / 100, 'FM999999990.00') || ' was processed through Stripe for ' || s.title || '.',
       '/account/bookings/' || b.id::text, 'payment-received-' || b.id::text || '-customer'
     FROM bookings b JOIN services s ON s.id = b.service_id
     WHERE b.id::text = $1 ON CONFLICT (dedupe_key) DO NOTHING`, [checkout.metadata.bookingId]);

@@ -20,7 +20,7 @@ const providerWorkflow = [
   ["List your services", "Set the service area, starting price, duration, photos, availability, and booking questions."],
   ["Receive inquiries", "Customers can ask about a service without creating a charge for you."],
   ["Chat and send quotes", "Clarify the scope and send a price before either side commits."],
-  ["Get booked", "Accept work that fits your schedule and let the customer pay securely through Stripe."],
+  ["Get booked", "Accept work that fits your schedule and let the customer pay through Stripe."],
   ["Complete the job", "Mark the service complete when the agreed work is finished."],
   ["Receive your payout", "After the customer review period, the provider share is released under the payment and dispute rules."],
 ] as const;

@@ -101,7 +101,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     const timer = window.setTimeout(() => {
       void loadBooking();
       if (new URLSearchParams(window.location.search).get("reschedule") === "1") setRescheduleOpen(true);
-      if (new URLSearchParams(window.location.search).get("payment") === "success") setNotice("Payment submitted securely through Stripe. Your receipt and payment status will appear after confirmation.");
+      if (new URLSearchParams(window.location.search).get("payment") === "success") setNotice("Payment submitted through Stripe. Your receipt and payment status will appear after confirmation.");
       if (new URLSearchParams(window.location.search).get("payment") === "cancelled") {
         setNotice("Payment checkout was cancelled. Nothing was charged.");
         void fetch("/api/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventName: "checkout_abandoned", path: window.location.pathname, metadata: { bookingId } }) });
@@ -370,6 +370,6 @@ function paymentReleaseCopy(booking: Booking, timeZone?: string) {
     case "frozen": return { label: "Payout on hold", detail: "An administrator paused this payout while the booking is reviewed." };
     case "reversed": return { label: "Payout reversed", detail: "The provider payout was withheld or reversed because the payment was refunded." };
     case "failed": return { label: "Payout needs attention", detail: booking.paymentRelease.failureReason || "Stripe could not release this payout. BubsBookings support has been notified." };
-    default: return { label: "Payment complete", detail: "Paid securely through Stripe." };
+    default: return { label: "Payment complete", detail: "Payment processed through Stripe." };
   }
 }

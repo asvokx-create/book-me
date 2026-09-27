@@ -6,6 +6,7 @@ import { findUsCity } from "@/lib/us-cities";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { enforceRateLimit } from "@/lib/request-security";
 import { normalizeProviderServiceAreas, replaceProviderServiceAreas } from "@/lib/provider-service-areas";
+import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 
 type LocationInput = { companyId?: unknown; locationId?: unknown; name?: unknown; location?: unknown; serviceRadiusMiles?: unknown; workerIds?: unknown; serviceAreas?: unknown };
 
@@ -148,6 +149,9 @@ export async function PATCH(request: Request) {
     for (const worker of validWorkers.rows) await client.query("INSERT INTO provider_team_member_locations (team_member_id, location_id) VALUES ($1, $2)", [worker.id, locationId]);
     await replaceProviderServiceAreas(client, locationId, serviceAreas);
     await client.query("COMMIT");
+    await runAutomatedProviderVerification(provider.providerId).catch((error) => {
+      console.error("Post-location-update verification failed", provider.providerId, error);
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     await client.query("ROLLBACK");

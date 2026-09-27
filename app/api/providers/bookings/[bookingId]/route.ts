@@ -273,7 +273,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
          VALUES ($1, $2::uuid, 'booking_accepted', 'Booking confirmed', $3, '/account/bookings/' || $2::uuid::text, 'booking-accepted-' || $2::uuid::text || '-customer')
          ON CONFLICT (dedupe_key) DO NOTHING`,
-        [booking.customer_id, bookingId, `Your ${booking.service_title} booking was accepted. Open the booking to pay securely before your appointment.`],
+        [booking.customer_id, bookingId, `Your ${booking.service_title} booking was accepted. Open the booking to pay through Stripe before your appointment.`],
       );
       await client.query(
         `WITH cancelled AS (

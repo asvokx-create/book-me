@@ -1,0 +1,80 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { calculateAffiliateCommission, calculateEligibleProviderFeeRevenue } from "../lib/affiliate-rules.ts";
+
+const root = process.cwd();
+const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
+
+test("new listings omit empty photo and completed-booking metrics without hiding honest review status", () => {
+  const listing = read("app/services/[slug]/page.tsx");
+  assert.match(listing, /service\.imageUrls\.length > 0/);
+  assert.match(listing, /service\.completedJobCount > 0/);
+  assert.match(listing, /No verified reviews yet/);
+  assert.doesNotMatch(listing, />Completed on BubsBookings</);
+});
+
+test("default nearby discovery keeps eligible paid-plan listings ahead while preserving distance within a plan", () => {
+  const marketplace = read("lib/marketplace.ts");
+  assert.match(marketplace, /p\.plan AS provider_plan/);
+  assert.match(marketplace, /PRIORITY_DISTANCE_BAND_MILES = 10/);
+  assert.match(marketplace, /Math\.floor\(\(left\.distanceMiles \?\? 0\) \/ PRIORITY_DISTANCE_BAND_MILES\)/);
+  assert.match(marketplace, /Number\(right\.priorityPlacement\) - Number\(left\.priorityPlacement\)/);
+  assert.match(marketplace, /\(left\.distanceMiles \?\? 0\) - \(right\.distanceMiles \?\? 0\)/);
+  assert.match(marketplace, /LOWER\(s\.category\)/);
+  assert.match(marketplace, /distance <= radiusMiles/);
+});
+
+test("substantive provider edits refresh automated verification while cosmetic settings do not", () => {
+  const listingRoute = read("app/api/providers/services/[serviceId]/route.ts");
+  const locationRoute = read("app/api/providers/locations/route.ts");
+  const accountRoute = read("app/api/account/settings/route.ts");
+  const trustRoute = read("app/api/providers/trust-settings/route.ts");
+  assert.match(listingRoute, /Post-listing-update verification failed/);
+  assert.match(listingRoute, /Post-listing-removal verification failed/);
+  assert.match(locationRoute, /Post-location-update verification failed/);
+  assert.match(accountRoute, /current\.name !== name/);
+  assert.match(accountRoute, /Post-account-update verification failed/);
+  assert.doesNotMatch(trustRoute, /runAutomatedProviderVerification/);
+});
+
+test("guide marketplace calls to action use the reader's location context instead of forcing Issaquah", () => {
+  const guides = read("lib/guides.ts");
+  assert.match(guides, /Find car detailing near you/);
+  assert.match(guides, /Find a handyman near you/);
+  assert.match(guides, /Find lawn care near you/);
+  assert.doesNotMatch(guides, /mobile-car-detailing-vs-detail-shop[\s\S]*?ctaHref: "[^"]*location=Issaquah/);
+});
+
+test("homepage section headings follow the page heading without skipping directly to level three", () => {
+  const home = read("app/page.tsx");
+  assert.match(home, /<h1 className="type-hero">/);
+  assert.match(home, /<h2 className="text-3xl font-bold tracking-/);
+  assert.doesNotMatch(home, /<h3 className="text-3xl font-bold tracking-/);
+});
+
+test("the account loading placeholder cannot cover the wordmark on the narrowest phones", () => {
+  const accountNav = read("components/account-nav.tsx");
+  assert.match(accountNav, /w-10[^"]*min-\[380px\]:w-28/);
+});
+
+test("$250 Starter and Pro affiliate examples use the snapshotted provider fee rather than booking total", () => {
+  const starterRevenue = calculateEligibleProviderFeeRevenue({ providerMarketplaceFeeCents: 2_500, bookingPriceCents: 25_000, refundedServiceAmountCents: 0 });
+  const proRevenue = calculateEligibleProviderFeeRevenue({ providerMarketplaceFeeCents: 1_500, bookingPriceCents: 25_000, refundedServiceAmountCents: 0 });
+  assert.equal(calculateAffiliateCommission(starterRevenue, 2_000), 500);
+  assert.equal(calculateAffiliateCommission(proRevenue, 2_000), 300);
+});
+
+test("affiliate math preserves proportional partial refunds and removes revenue after a full refund", () => {
+  const partialRevenue = calculateEligibleProviderFeeRevenue({ providerMarketplaceFeeCents: 2_500, bookingPriceCents: 25_000, refundedServiceAmountCents: 10_000 });
+  const fullRevenue = calculateEligibleProviderFeeRevenue({ providerMarketplaceFeeCents: 2_500, bookingPriceCents: 25_000, refundedServiceAmountCents: 25_000 });
+  assert.equal(partialRevenue, 1_500);
+  assert.equal(calculateAffiliateCommission(partialRevenue, 2_000), 300);
+  assert.equal(fullRevenue, 0);
+});
+
+test("affiliate attribution is only locked while creating a provider profile", () => {
+  const onboardingRoute = read("app/api/providers/onboarding/route.ts");
+  assert.match(onboardingRoute, /if \(!existing\) \{[\s\S]*?lockAffiliateAttribution/);
+});

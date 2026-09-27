@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
 import { isAccountLocationSource, normalizeAccountLocation } from "@/lib/account-location";
+import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 
 type SettingsRow = {
   name: string;
@@ -104,15 +105,17 @@ export async function PATCH(request: Request) {
   const requestedSource = typeof body.locationSource === "string" && isAccountLocationSource(body.locationSource) ? body.locationSource : "USER_ENTERED";
   const submittedSource = requestedSource === "BROWSER_LOCATION_CONFIRMED" ? requestedSource : "USER_ENTERED";
   let locationSource = submittedSource;
+  let verificationRelevantChanged = false;
   try {
     await client.query("BEGIN");
-    const currentResult = await client.query<{ city: string | null; state: string | null; postal_code: string | null; country: string | null; source: string | null }>(
-      `SELECT location_city AS city, location_state AS state, location_postal_code AS postal_code,
+    const currentResult = await client.query<{ name: string; phone: string | null; city: string | null; state: string | null; postal_code: string | null; country: string | null; source: string | null }>(
+      `SELECT name, phone, location_city AS city, location_state AS state, location_postal_code AS postal_code,
               location_country AS country, location_source AS source
        FROM "user" WHERE id = $1 FOR UPDATE`,
       [session.user.id],
     );
     const current = currentResult.rows[0];
+    verificationRelevantChanged = Boolean(current && (current.name !== name || (current.phone ?? "").replace(/\D/g, "") !== phone));
     const locationChanged = !current || current.city !== location.location.city || current.state !== location.location.state || current.postal_code !== location.location.postalCode || (current.country ?? "United States") !== location.location.country;
     if (!locationChanged && isAccountLocationSource(current?.source)) locationSource = current.source;
     await client.query(
@@ -147,6 +150,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "We could not save your settings." }, { status: 500 });
   } finally {
     client.release();
+  }
+
+  if (verificationRelevantChanged) {
+    const provider = await database.query<{ id: string }>("SELECT id::text FROM provider_profiles WHERE user_id = $1", [session.user.id]);
+    if (provider.rows[0]) await runAutomatedProviderVerification(provider.rows[0].id).catch((error) => {
+      console.error("Post-account-update verification failed", provider.rows[0].id, error);
+    });
   }
 
   return NextResponse.json({ ok: true, location: `${location.location.city}, ${location.location.state}`, postalCode: location.location.postalCode, country: location.location.country, locationSource, radius, theme, timeZone });

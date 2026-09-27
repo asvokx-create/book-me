@@ -55,7 +55,7 @@ export default function AffiliateStripeSetup({ initialConnected, initialReady, i
   const content = state === "ready"
     ? { title: "Stripe payouts ready", body: taxState === "complete" ? "Your Stripe payout account and tax review are complete. Eligible payouts can be sent to your Stripe balance." : "Your Stripe payout account is connected. BubsBookings still needs to complete the program tax review before sending your first payout.", action: "Review Stripe setup" }
     : state === "action_needed"
-      ? { title: "Stripe needs more information", body: "Finish the outstanding Stripe requirements so affiliate payouts can be sent securely.", action: "Continue Stripe setup" }
+      ? { title: "Stripe needs more information", body: "Finish the outstanding Stripe requirements so affiliate payouts can be sent through Stripe.", action: "Continue Stripe setup" }
       : state === "in_review" || state === "loading"
         ? { title: "Stripe setup is being reviewed", body: "Stripe is reviewing your payout information. Refresh the status or continue setup if Stripe requests more information.", action: "Continue Stripe setup" }
         : { title: "Set up Stripe payouts", body: "Connect a U.S. Stripe payout account so BubsBookings can send approved creator earnings to your Stripe balance. BubsBookings does not receive your full bank account details.", action: "Set up Stripe payouts" };

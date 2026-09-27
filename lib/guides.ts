@@ -161,7 +161,7 @@ export const GUIDES: Guide[] = [
     ctaHeading: "Check your payment setup",
     ctaDescription: "Review your plan, Stripe connection, payout status, and tax-document setup from Billing.",
     sections: [
-      { heading: "Customers pay through Stripe", paragraphs: ["After you confirm a booking, the customer pays through secure Stripe Checkout. A provider cannot mark the work complete until that payment succeeds. The customer sees the service price plus a separate $2.99 BubsBookings service fee at checkout; that customer fee does not reduce the service price used to calculate your share."] },
+      { heading: "Customers pay through Stripe", paragraphs: ["After you confirm a booking, the customer pays through Stripe Checkout. A provider cannot mark the work complete until that payment succeeds. The customer sees the service price plus a separate $2.99 BubsBookings service fee at checkout; that customer fee does not reduce the service price used to calculate your share."] },
       { heading: "Your plan determines the provider booking fee", paragraphs: ["Starter deducts a 10% booking fee from the service price. Pro deducts 6% and also has a $9.99 monthly subscription after any eligible trial. Your Revenue and booking details show the provider share based on the active plan and recorded payment."], checklist: ["Service price", "Provider booking-fee percentage", "Expected provider share", "Any refund, dispute, or payout hold"] },
       { heading: "Paid does not always mean paid out", paragraphs: ["BubsBookings uses separate charges and delayed marketplace transfers. The customer charge is created on the BubsBookings Stripe platform account, while the eligible provider transfer is created later. After the customer pays, the provider share can remain held until eligible completion. Once the customer confirms completion—or the 48-hour review period passes without a dispute—BubsBookings may initiate the transfer. Stripe then controls availability and bank payout timing. This process is not an escrow, trust, deposit, or bank account."] },
       { heading: "Some events pause or reverse release", paragraphs: ["An incomplete Stripe account, open refund or BubsBookings dispute, payment failure, Stripe chargeback, administrative hold, or legal restriction can delay a transfer. An open BubsBookings dispute freezes an unreleased provider payout until an administrator decides the case. A Stripe bank chargeback also freezes unreleased provider funds when Stripe sends the chargeback event to BubsBookings. If the bank closes that chargeback in the platform’s favor, the booking returns to the normal release process; if the bank upholds it, the held provider payout is not released. A payout that was already transferred requires administrator review and may require a Stripe transfer reversal."], checklist: ["Keep Stripe details current", "Watch the booking’s payment progress", "Respond promptly to evidence requests", "Do not treat pending funds as final income"] },
@@ -266,6 +266,8 @@ export const GUIDES: Guide[] = [
     readMinutes: 5,
     publishedAt: "2026-09-06",
     updatedAt: "2026-09-16",
+    ctaHref: "/services?category=Car+detailing#service-listings",
+    ctaLabel: "Find car detailing near you",
     sections: [
       { heading: "Why prices vary", paragraphs: ["Vehicle size, interior condition, pet hair, stains, odors, paint condition, and requested treatments can all change the amount of time and material required. That is why many listings use a starting price and confirm the final scope before accepting the booking."], checklist: ["Vehicle year, make, and model", "Interior, exterior, or both", "Pet hair, spills, stains, or strong odors", "Any paint correction or protective treatment requested"] },
       { heading: "Describe the vehicle’s condition accurately", paragraphs: ["BubsBookings messages do not currently support customer photo attachments, so describe the vehicle and problem areas precisely in the booking request. If a detailer needs visual information before quoting, ask what secure method they accept and remove license plates, documents, faces, addresses, and other private details from any image you choose to share."], checklist: ["Front and rear seating condition", "Exterior damage or contamination", "Stains, pet hair, or odors", "Cargo or trunk area when included"] },
@@ -281,6 +283,8 @@ export const GUIDES: Guide[] = [
     readMinutes: 5,
     publishedAt: "2026-09-06",
     updatedAt: "2026-09-16",
+    ctaHref: "/services?category=Handyman#service-listings",
+    ctaLabel: "Find a handyman near you",
     sections: [
       { heading: "Describe the whole project", paragraphs: ["Small details can change the tools, materials, and time a job requires. Provide dimensions, the type of wall or surface, visible condition, and whether old hardware must be removed. BubsBookings messages do not currently support customer photo attachments. If there are several tasks, list each one instead of describing the visit as general repairs."] },
       { heading: "Ask about experience and requirements", paragraphs: ["Ask whether the provider has completed similar work and whether the project requires a specialist, permit, or licensed trade. Electrical, plumbing, structural, roofing, and other regulated work may require credentials that vary by location. Do not rely on a general profile badge as proof of a trade license."], checklist: ["Have you completed this type of project?", "Does this work require a license or permit?", "Do you carry insurance appropriate for the work?", "Who will actually perform the service?"] },
@@ -313,8 +317,8 @@ export const GUIDES: Guide[] = [
     readMinutes: 5,
     publishedAt: "2026-09-09",
     updatedAt: "2026-09-16",
-    ctaHref: "/services?category=Car+detailing&location=Issaquah%2C+WA&radius=25#service-listings",
-    ctaLabel: "Explore car detailing",
+    ctaHref: "/services?category=Car+detailing#service-listings",
+    ctaLabel: "Find car detailing near you",
     sections: [
       { heading: "When mobile detailing is a good fit", paragraphs: ["A mobile detailer comes to an agreed location, which can save travel and waiting time. It works best when there is enough safe space around the vehicle and the property permits the work."], checklist: ["A legal and safe place to work", "Permission from the property owner or manager", "Access to water or power if the provider requires it", "A backup plan for severe weather"] },
       { heading: "When a shop may be better", paragraphs: ["A dedicated shop offers a controlled workspace and may be better suited to paint correction, coatings, odor treatment, or work that needs specialized lighting and equipment. You will need to plan for drop-off, pickup, and possibly leaving the vehicle for longer."] },
@@ -330,8 +334,8 @@ export const GUIDES: Guide[] = [
     readMinutes: 6,
     publishedAt: "2026-09-09",
     updatedAt: "2026-09-09",
-    ctaHref: "/services?category=Lawn+%26+garden&location=Issaquah%2C+WA&radius=25#service-listings",
-    ctaLabel: "Browse lawn and garden services",
+    ctaHref: "/services?category=Lawn+%26+garden#service-listings",
+    ctaLabel: "Find lawn care near you",
     sections: [
       { heading: "What usually changes the quote", paragraphs: ["Lot size, grass height, slope, obstacles, edging, cleanup, and disposal all affect the time and equipment a lawn job requires. Photos help, but measurements and an honest description of overgrowth make estimates more useful."], checklist: ["Approximate lawn or lot size", "Current grass and weed height", "Slopes, gates, play equipment, or tight access", "Whether clippings and debris must be removed"] },
       { heading: "One-time cleanup or recurring care", paragraphs: ["A first visit may involve extra trimming and cleanup before the yard is ready for regular maintenance. Ask the provider to separate the initial work from the recurring scope so you understand what later visits include."] },

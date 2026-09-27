@@ -6,6 +6,7 @@ import { checkAndRecordContent } from "@/lib/content-safety";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
+import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 
 async function getSessionUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -147,6 +148,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
       [businessName, title, category, description, Math.round(price * 100), durationMinutes, JSON.stringify(bookingQuestions), locationId, selected.city, selected.state, selected.latitude, selected.longitude, serviceId],
     );
     await client.query("COMMIT");
+    await runAutomatedProviderVerification(ownership.rows[0].provider_id).catch((error) => {
+      console.error("Post-listing-update verification failed", ownership.rows[0].provider_id, error);
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     await client.query("ROLLBACK");
@@ -192,6 +196,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
       [removed.provider_id, removed.company_id],
     );
     await client.query("COMMIT");
+    await runAutomatedProviderVerification(removed.provider_id).catch((error) => {
+      console.error("Post-listing-removal verification failed", removed.provider_id, error);
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     await client.query("ROLLBACK");

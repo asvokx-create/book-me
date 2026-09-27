@@ -13,7 +13,7 @@ import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "@/
 export async function POST(request: Request, context: RouteContext<"/api/stripe/bookings/[bookingId]/checkout">) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to pay for this booking." }, { status: 401 });
-  if (!isStripeReady()) return NextResponse.json({ error: "Secure payments are not available yet." }, { status: 503 });
+  if (!isStripeReady()) return NextResponse.json({ error: "Stripe payments are not available yet." }, { status: 503 });
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "stripe-booking-checkout", limit: 8 }))
     return NextResponse.json({ error: "Too many payment attempts. Please wait and try again." }, { status: 429 });
   const { bookingId } = await context.params;

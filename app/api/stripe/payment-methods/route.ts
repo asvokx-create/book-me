@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) return NextResponse.json({ error: "Log in to add a payment method." }, { status: 401 });
-    if (!process.env.STRIPE_SECRET_KEY) return NextResponse.json({ error: "Secure payments are not configured yet." }, { status: 503 });
+    if (!process.env.STRIPE_SECRET_KEY) return NextResponse.json({ error: "Stripe payments are not configured yet." }, { status: 503 });
     if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "stripe-payment-method-setup", limit: 8 })) {
       return NextResponse.json({ error: "Too many payment setup attempts. Please wait and try again." }, { status: 429 });
     }
