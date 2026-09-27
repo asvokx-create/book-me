@@ -43,7 +43,7 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
     return () => controller.abort();
   }, [location]);
 
-  const navigateToLocation = useCallback((nextLocation: string, nextRadius: number, replace = false) => {
+  const navigateToLocation = useCallback((nextLocation: string, nextRadius: number, replace = false, reload = false) => {
     if (!autoSubmitLocation && !autoSubmitRadius) return;
     const params = new URLSearchParams(currentSearch);
     if (nextLocation) params.set("location", nextLocation);
@@ -52,11 +52,15 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
     params.delete("showFilters");
     const anchor = pathname === "/" ? "#nearby-listings" : pathname === "/services" ? "#service-listings" : "";
     const href = `${pathname}?${params.toString()}${replace ? "" : anchor}`;
+    if (reload) {
+      window.location.replace(href);
+      return;
+    }
     if (replace) router.replace(href, { scroll: false });
     else router.push(href);
   }, [autoSubmitLocation, autoSubmitRadius, currentSearch, pathname, router]);
 
-  const requestCurrentLocation = useCallback((replace = false) => {
+  const requestCurrentLocation = useCallback((replace = false, reload = false) => {
     if (!navigator.geolocation) {
       setMessage("Current location is not available in this browser.");
       return;
@@ -73,7 +77,7 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
             setLocation(closest.label);
             localStorage.setItem(STORAGE_KEY, JSON.stringify({ location: closest.label, radius }));
             setMessage(`Using your nearest city: ${closest.label}.`);
-            navigateToLocation(closest.label, radius, replace);
+            navigateToLocation(closest.label, radius, replace, reload);
           })
           .catch(() => setMessage("We found your location but could not match it to a city. Search for your city instead."))
           .finally(() => setLocating(false));
@@ -101,7 +105,7 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
         }
         if (!hasLocationParameter && requestLocationOnFirstVisit && !localStorage.getItem(LOCATION_PROMPTED_KEY)) {
           localStorage.setItem(LOCATION_PROMPTED_KEY, "true");
-          requestCurrentLocation(true);
+          requestCurrentLocation(true, true);
         }
       } catch {
         localStorage.removeItem(STORAGE_KEY);

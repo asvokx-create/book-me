@@ -59,6 +59,13 @@ test("the account loading placeholder cannot cover the wordmark on the narrowest
   assert.match(accountNav, /w-10[^"]*min-\[380px\]:w-28/);
 });
 
+test("first-visit browser location approval reloads the marketplace with the resolved city", () => {
+  const locationFilter = read("components/location-filter.tsx");
+  assert.match(locationFilter, /if \(reload\) \{\s*window\.location\.replace\(href\)/);
+  assert.match(locationFilter, /requestCurrentLocation\(true, true\)/);
+  assert.match(locationFilter, /localStorage\.setItem\(STORAGE_KEY, JSON\.stringify\(\{ location: closest\.label, radius \}\)\)/);
+});
+
 test("$250 Starter and Pro affiliate examples use the snapshotted provider fee rather than booking total", () => {
   const starterRevenue = calculateEligibleProviderFeeRevenue({ providerMarketplaceFeeCents: 2_500, bookingPriceCents: 25_000, refundedServiceAmountCents: 0 });
   const proRevenue = calculateEligibleProviderFeeRevenue({ providerMarketplaceFeeCents: 1_500, bookingPriceCents: 25_000, refundedServiceAmountCents: 0 });
