@@ -207,7 +207,7 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
           {message && <p className="mt-2 text-xs leading-5 text-[#6c7d74]">{message}</p>}
           <p className="mt-5 text-xs font-bold text-[#718078]">Nearby cities</p>
           <div className="mt-2 grid grid-cols-2 gap-2">{location.trim() && nearby.map((area) => <button key={area.label} type="button" onClick={() => chooseLocation(area.label)} className="rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[#edf3e7]"><span className="block font-semibold">{area.city}</span><span className="text-[11px] text-[#7a8881]">{typeof area.distance === "number" ? `${Math.round(area.distance)} mi away` : area.state}</span></button>)}</div>
-          <button type="button" disabled={!location.trim() || resolving} onClick={() => void applyTypedLocation()} className="mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c] disabled:opacity-45">{resolving ? "Finding your area…" : "Use this area"}</button>
+          <button type="button" disabled={!location.trim() || resolving} onClick={() => void applyTypedLocation()} className="location-apply-button mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">{resolving ? "Finding your area…" : "Use this area"}</button>
         </div>
       </details>
       <div className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={changeRadius} compact /></div>

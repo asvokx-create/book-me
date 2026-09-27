@@ -77,6 +77,14 @@ test("search assistance finds related service categories from two typed characte
   assert.match(home, /home-search-bar relative z-40/);
 });
 
+test("location action remains readable when enabled or disabled", () => {
+  const locationFilter = read("components/location-filter.tsx");
+  const styles = read("app/globals.css");
+  assert.match(locationFilter, /location-apply-button/);
+  assert.match(styles, /\.location-apply-button\s*\{[\s\S]*?color:\s*#ffffff\s*!important/);
+  assert.match(styles, /\.location-apply-button:disabled\s*\{[\s\S]*?background:\s*#dfe5de\s*!important[\s\S]*?opacity:\s*1\s*!important/);
+});
+
 test("$250 Starter and Pro affiliate examples use the snapshotted provider fee rather than booking total", () => {
   const starterRevenue = calculateEligibleProviderFeeRevenue({ providerMarketplaceFeeCents: 2_500, bookingPriceCents: 25_000, refundedServiceAmountCents: 0 });
   const proRevenue = calculateEligibleProviderFeeRevenue({ providerMarketplaceFeeCents: 1_500, bookingPriceCents: 25_000, refundedServiceAmountCents: 0 });

@@ -615,6 +615,23 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
   box-shadow: 0 14px 30px rgba(138, 122, 15, .22);
 }
 
+/* Keep the location panel action readable when broad search-bar color rules apply. */
+.location-apply-button {
+  color: #ffffff !important;
+}
+
+.location-apply-button:disabled {
+  cursor: not-allowed;
+  background: #dfe5de !important;
+  color: #57675f !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] .location-apply-button:disabled {
+  background: #30463b !important;
+  color: #d3ded7 !important;
+}
+
 .compact-radius-select,
 .sort-control-select {
   min-height: 2.5rem !important;
