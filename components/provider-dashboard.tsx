@@ -493,10 +493,10 @@ function RevenuePanel({ revenue, loaded, plan }: { revenue: RevenueSummary | nul
       <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Last six months</p><h2 className="mt-2 text-xl font-bold">Revenue trend</h2></div><p className="text-sm font-bold">{formatCurrency(revenue.monthlyRevenue.reduce((sum, month) => sum + month.revenue, 0))}</p></div>
       <div className="mt-6 overflow-x-auto">
         <div className="min-w-[620px]">
-          <svg viewBox="0 0 720 235" role="img" aria-label="Revenue by month for the last six months" className="h-auto w-full">
-            {[45, 85, 125, 165, 205].map((y) => <line key={y} x1="30" x2="690" y1={y} y2={y} stroke="#183126" strokeOpacity="0.08" />)}
-            {chartPoints.length > 1 && <polyline points={chartPoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#183126" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />}
-            {chartPoints.map((point) => <g key={point.month}><line x1={point.x} x2={point.x} y1={point.y} y2="205" stroke="#d9e5d4" strokeWidth="12" strokeLinecap="round" /><circle cx={point.x} cy={point.y} r="7" fill="#eee25a" stroke="#183126" strokeWidth="3" /><text x={point.x} y="230" textAnchor="middle" className="fill-[#718078] text-[12px] font-bold">{point.label}</text>{point.revenue > 0 && <text x={point.x} y={Math.max(point.y - 14, 18)} textAnchor="middle" className="fill-[#183126] text-[11px] font-bold">{formatCurrency(point.revenue)}</text>}</g>)}
+          <svg viewBox="0 0 720 235" role="img" aria-label="Revenue by month for the last six months" className="revenue-chart h-auto w-full">
+            {[45, 85, 125, 165, 205].map((y) => <line className="revenue-chart-grid" key={y} x1="30" x2="690" y1={y} y2={y} stroke="#183126" strokeOpacity="0.08" />)}
+            {chartPoints.length > 1 && <polyline className="revenue-chart-line" points={chartPoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#183126" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />}
+            {chartPoints.map((point) => <g key={point.month}><line className="revenue-chart-bar" x1={point.x} x2={point.x} y1={point.y} y2="205" stroke="#d9e5d4" strokeWidth="12" strokeLinecap="round" /><circle className="revenue-chart-point" cx={point.x} cy={point.y} r="7" fill="#eee25a" stroke="#183126" strokeWidth="3" /><text x={point.x} y="230" textAnchor="middle" className="revenue-chart-label fill-[#718078] text-[12px] font-bold">{point.label}</text>{point.revenue > 0 && <text x={point.x} y={Math.max(point.y - 14, 18)} textAnchor="middle" className="revenue-chart-value fill-[#183126] text-[11px] font-bold">{formatCurrency(point.revenue)}</text>}</g>)}
           </svg>
         </div>
       </div>
@@ -508,5 +508,5 @@ function RevenuePanel({ revenue, loaded, plan }: { revenue: RevenueSummary | nul
 }
 
 function RevenueCard({ label, value, note, featured = false }: { label: string; value: string; note: string; featured?: boolean }) {
-  return <div className={`rounded-[1.75rem] p-6 ${featured ? "bg-[#183126] text-white" : "border border-[#183126]/10 bg-white"}`}><div className="flex items-center justify-between"><p className={`text-xs font-bold uppercase tracking-[.12em] ${featured ? "text-[#b6c8bf]" : "text-[#718078]"}`}>{label}</p><span className={`grid h-9 w-9 place-items-center rounded-xl text-sm font-bold ${featured ? "bg-[#eee25a] text-[#183126]" : "bg-[#edf2e8]"}`}>$</span></div><p className="mt-5 text-3xl font-bold tracking-tight">{value}</p><p className={`mt-2 text-xs ${featured ? "text-[#b6c8bf]" : "text-[#77857e]"}`}>{note}</p></div>;
+  return <div className={`revenue-card rounded-[1.75rem] p-6 ${featured ? "revenue-card--featured bg-[#183126] text-white" : "border border-[#183126]/10 bg-white"}`}><div className="flex items-center justify-between"><p className={`text-xs font-bold uppercase tracking-[.12em] ${featured ? "text-[#b6c8bf]" : "text-[#718078]"}`}>{label}</p><span className={`grid h-9 w-9 place-items-center rounded-xl text-sm font-bold ${featured ? "bg-[#eee25a] text-[#183126]" : "bg-[#edf2e8]"}`}>$</span></div><p className="mt-5 text-3xl font-bold tracking-tight">{value}</p><p className={`mt-2 text-xs ${featured ? "text-[#b6c8bf]" : "text-[#77857e]"}`}>{note}</p></div>;
 }

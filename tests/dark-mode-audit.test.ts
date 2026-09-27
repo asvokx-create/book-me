@@ -29,11 +29,15 @@ test("dark mode has explicit surfaces for the audited visual exceptions", () => 
     ".settings-logout-action",
     ".trust-badge--verified",
     ".trust-badge--warning",
+    ".partners-program-card",
+    ".auth-page",
   ]) assert.match(css, new RegExp(selector.replace(".", "\\.")));
 
   assert.match(css, /:-webkit-autofill/);
   assert.match(css, /radial-gradient\(circle_at_85%_15%/);
   assert.match(read("app/partners/page.tsx"), /className="partners-hero /);
+  assert.match(read("app/partners/page.tsx"), /className="partners-program-card /);
+  assert.match(read("app/signup/page.tsx"), /className="auth-page /);
   assert.match(read("components/messaging-center.tsx"), /className="message-thread-surface /);
   assert.match(read("components/messaging-center.tsx"), /className="grid gap-3 border-b/);
   for (const className of ["home-preview-badge", "home-header-provider-link", "home-request-banner", "home-upcoming-panel"]) {
@@ -44,6 +48,69 @@ test("dark mode has explicit surfaces for the audited visual exceptions", () => 
   }
   assert.match(read("app/services/[slug]/page.tsx"), /trust-badge--verified/);
   assert.match(read("components/brand-wordmark.tsx"), /text-\[\.9rem\] min-\[360px\]:text-\[1\.05rem\]/);
+});
+
+test("dark mode uses one neutral token system while preserving branded accents", () => {
+  const css = read("app/globals.css");
+  const dark = css.slice(css.indexOf('html[data-theme="dark"]'));
+  const tokens = {
+    background: "#0d0d0f",
+    surface: "#171719",
+    "surface-elevated": "#1b1b1e",
+    card: "#1d1d20",
+    "card-hover": "#242428",
+    input: "#222226",
+    "input-hover": "#29292e",
+    "input-focus": "#26262b",
+    border: "#38383e",
+    "border-strong": "#505058",
+    divider: "#2c2c31",
+    "text-primary": "#f5f5f6",
+    "text-secondary": "#d4d4d8",
+    "text-muted": "#a6a6ad",
+    link: "#8edaa7",
+    "link-hover": "#b5e9c5",
+    tooltip: "#28282d",
+    modal: "#1b1b1e",
+    success: "#78d698",
+    warning: "#f0d66d",
+    error: "#f09a8c",
+    info: "#8fc7ff",
+    "focus-ring": "#eee25a",
+    skeleton: "#2b2b30",
+  };
+  for (const [name, value] of Object.entries(tokens)) {
+    assert.match(dark, new RegExp(`--${name}: ${value}`));
+  }
+  assert.doesNotMatch(dark, /(?:background(?:-color)?|--(?:background|surface|card|input|modal|tooltip))\s*:[^;\n]*(?:#0d1813|#15251e|#101f18|#17372a|#172a21|#122219|#10241b|#162b21)/);
+  assert.match(dark, /background-color: #246b42 !important/);
+  assert.match(dark, /background-color: var\(--focus-ring\)|outline: 3px solid var\(--focus-ring\)/);
+  assert.match(dark, /\.home-business-card a[\s\S]*?background-color: #fffef5 !important[\s\S]*?color: #183126 !important/);
+  assert.match(dark, /\.pricing-hero aside[\s\S]*?background-color: var\(--card\) !important/);
+  assert.match(dark, /\.partners-program-card[\s\S]*?background: linear-gradient\(145deg, #202024, #18181b\) !important/);
+});
+
+test("calendars, messages, charts, tables, dialogs, and footer use shared dark primitives", () => {
+  const css = read("app/globals.css");
+  for (const selector of [
+    ".booking-calendar-day--available",
+    ".booking-calendar-day--today",
+    ".booking-calendar-day--selected",
+    ".booking-calendar-day--disabled",
+    ".calendar-event--blocked",
+    ".message-bubble--sent",
+    ".message-bubble--received",
+    ".revenue-chart-grid",
+    ".revenue-chart-line",
+    ".admin-table-scroll",
+    ".site-footer",
+    '[role="tooltip"]',
+  ]) assert.match(css, new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+  assert.match(read("components/booking-date-picker.tsx"), /booking-calendar-day--selected/);
+  assert.match(read("components/booking-calendar.tsx"), /calendar-view-toggle/);
+  assert.match(read("components/messaging-center.tsx"), /message-bubble--sent/);
+  assert.match(read("components/provider-dashboard.tsx"), /revenue-chart-line/);
 });
 
 test("dark palette pairs retain accessible text contrast", () => {
@@ -65,4 +132,9 @@ test("dark palette pairs retain accessible text contrast", () => {
   assert.ok(contrast("#183126", "#eee25a") >= 4.5);
   assert.ok(contrast("#a9e3ba", "#19392a") >= 4.5);
   assert.ok(contrast("#f4df83", "#3a3217") >= 4.5);
+  assert.ok(contrast("#f5f5f6", "#0d0d0f") >= 12);
+  assert.ok(contrast("#d4d4d8", "#1d1d20") >= 7);
+  assert.ok(contrast("#a6a6ad", "#1d1d20") >= 4.5);
+  assert.ok(contrast("#ffffff", "#246b42") >= 4.5);
+  assert.ok(contrast("#183126", "#eee25a") >= 4.5);
 });
