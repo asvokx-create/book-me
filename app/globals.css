@@ -1050,31 +1050,40 @@ html[data-theme="dark"] :where(
   [class*="bg-[#e9f"], [class*="bg-[#e7f"], [class*="bg-[#e7e"],
   [class*="bg-[#e6f"], [class*="bg-[#e6e"], [class*="bg-[#e5f"], [class*="bg-[#e5e"],
   [class*="bg-[#e4f"], [class*="bg-[#e3e"], [class*="bg-[#dfe"]
-) {
+):not([class*="hover:bg-"]) {
   background-color: #15251e !important;
 }
 
 html[data-theme="dark"] :where(header)[class~="bg-white"],
-html[data-theme="dark"] :where(header)[class*="bg-[#f"] {
+html[data-theme="dark"] :where(header)[class*="bg-[#f"]:not([class*="hover:bg-"]) {
   background-color: rgba(13, 24, 19, 0.9) !important;
 }
 
-html[data-theme="dark"] :where([class*="text-[#183126]"], [class*="text-[#132e23]"]) {
+html[data-theme="dark"] :where([class*="text-[#183126]"], [class*="text-[#132e23]"]):not([class*="hover:text-"]) {
   color: #eef5f0 !important;
 }
 
 /* Accent actions stay intentionally bright, so their copy must stay dark. */
 html[data-theme="dark"] :where(
-  [class*="bg-[#eee25a]"], [class*="bg-[#f5ea6b]"],
-  [class*="bg-[#e1d43d]"], [class*="bg-[#d5c11f]"]
+  [class~="bg-[#eee25a]"], [class~="bg-[#f5ea6b]"],
+  [class~="bg-[#e1d43d]"], [class~="bg-[#d5c11f]"]
 ) {
+  color: #183126 !important;
+}
+
+/* Tailwind hover utilities include the accent token in the class name, but the
+   accent is not the resting background. Only darken their copy while hovered. */
+html[data-theme="dark"] :where(
+  [class~="hover:bg-[#eee25a]"], [class~="hover:bg-[#f5ea6b]"],
+  [class~="hover:bg-[#e1d43d]"], [class~="hover:bg-[#d5c11f]"]
+):hover {
   color: #183126 !important;
 }
 
 html[data-theme="dark"] :where(
   [class*="text-[#5"], [class*="text-[#6"], [class*="text-[#7"],
   [class*="text-[#8"], [class*="text-zinc-500"]
-) {
+):not([class*="hover:text-"]) {
   color: #adbbb3 !important;
 }
 
@@ -1082,7 +1091,7 @@ html[data-theme="dark"] :where(
 html[data-theme="dark"] :where(
   [class*="text-[#34704a]"], [class*="text-[#35704a]"],
   [class*="text-[#37724c]"], [class*="text-[#476452]"]
-) {
+):not([class*="hover:text-"]) {
   color: #8fd3a6 !important;
 }
 
@@ -1090,7 +1099,7 @@ html[data-theme="dark"] :where(
   [class*="bg-[#fff1"], [class*="bg-[#fff2"], [class*="bg-[#fff3"],
   [class*="bg-[#fff4"], [class*="bg-[#fff5"], [class*="bg-[#fff6"],
   [class*="bg-[#fff8"], [class*="bg-[#fff9"]
-) {
+):not([class*="hover:bg-"]) {
   background-color: #3a3217 !important;
   color: #f4df83 !important;
   border-color: rgba(244, 223, 131, 0.28) !important;
@@ -1098,13 +1107,13 @@ html[data-theme="dark"] :where(
 
 html[data-theme="dark"] :where(
   [class*="bg-[#fff0"], [class*="bg-[#f2e"], [class*="bg-[#f4d"]
-) {
+):not([class*="hover:bg-"]) {
   background-color: #3a2420 !important;
   color: #f0b8a6 !important;
   border-color: rgba(240, 184, 166, 0.24) !important;
 }
 
-html[data-theme="dark"] :where([class*="border-[#183126]"]) {
+html[data-theme="dark"] :where([class*="border-[#183126]"]):not([class*="hover:border-"]) {
   border-color: rgba(232, 243, 236, 0.14) !important;
 }
 
@@ -1113,6 +1122,15 @@ html[data-theme="dark"] :where(input, select, textarea) {
   color: #eef5f0 !important;
   border-color: rgba(232, 243, 236, 0.16) !important;
   color-scheme: dark;
+}
+
+html[data-theme="dark"] :where(input, textarea):-webkit-autofill,
+html[data-theme="dark"] :where(input, textarea):-webkit-autofill:hover,
+html[data-theme="dark"] :where(input, textarea):-webkit-autofill:focus {
+  -webkit-text-fill-color: #eef5f0;
+  -webkit-box-shadow: 0 0 0 1000px #101f18 inset;
+  caret-color: #eef5f0;
+  transition: background-color 9999s ease-out 0s;
 }
 
 html[data-theme="dark"] .marketing-listing-select {
@@ -1156,14 +1174,14 @@ html[data-theme="dark"] .services-search-query-input:focus {
   box-shadow: none !important;
 }
 
-html[data-theme="dark"] :where(main section, main article, main aside, main details)[class*="bg-white"][class*="rounded"] {
+html[data-theme="dark"] :where(main section, main article, main aside, main details)[class*="bg-white"][class*="rounded"]:not([class*="hover:bg-"]) {
   background-image: linear-gradient(145deg, rgba(255, 255, 255, .035), transparent 52%);
   border-color: rgba(232, 243, 236, .12) !important;
   box-shadow: 0 1px 0 rgba(255, 255, 255, .045) inset, 0 14px 38px rgba(0, 0, 0, .2);
 }
 
-html[data-theme="dark"] :where(main, footer) :where(a, button)[class*="bg-[#183126]"],
-html[data-theme="dark"] :where(main, footer) :where(a, button)[class*="bg-[#173d2e]"] {
+html[data-theme="dark"] :where(main, footer) :where(a, button)[class*="bg-[#183126]"]:not([class*="hover:bg-"]),
+html[data-theme="dark"] :where(main, footer) :where(a, button)[class*="bg-[#173d2e]"]:not([class*="hover:bg-"]) {
   box-shadow: 0 10px 26px rgba(0, 0, 0, .28), 0 0 0 1px rgba(255, 255, 255, .08) inset;
 }
 
@@ -1299,6 +1317,41 @@ html[data-theme="dark"] .home-preview-card {
   background: linear-gradient(145deg, rgba(28, 49, 39, 0.98), rgba(17, 34, 26, 0.98)) !important;
   border-color: rgba(224, 239, 229, 0.16) !important;
   box-shadow: 0 34px 80px rgba(0, 0, 0, 0.42);
+}
+
+html[data-theme="dark"] .home-preview-badge {
+  background-color: rgba(226, 239, 230, .94) !important;
+  color: #183126 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
+}
+
+html[data-theme="dark"] .partners-hero {
+  background:
+    radial-gradient(circle at 80% 10%, rgba(86, 137, 103, .28), transparent 38%),
+    linear-gradient(135deg, #10241b, #162b21) !important;
+}
+
+html[data-theme="dark"] main > section[class*="radial-gradient(circle_at_85%_15%"] {
+  background:
+    radial-gradient(circle at 85% 15%, rgba(86, 137, 103, .25), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, .018), transparent) !important;
+  border-color: rgba(232, 243, 236, .11) !important;
+}
+
+html[data-theme="dark"] .message-thread-surface {
+  background-color: #0f1f18 !important;
+}
+
+html[data-theme="dark"] .trust-badge--verified {
+  background-color: #19392a !important;
+  border: 1px solid rgba(143, 211, 166, .25);
+  color: #a9e3ba !important;
+}
+
+html[data-theme="dark"] .trust-badge--warning {
+  background-color: #3a3217 !important;
+  border: 1px solid rgba(244, 223, 131, .28);
+  color: #f4df83 !important;
 }
 
 html[data-theme="dark"] .home-preview-card > div:last-child > div:first-child > div > p:first-child {

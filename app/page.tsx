@@ -94,7 +94,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <Link href={nearbyServicesHref} aria-label={location ? `Browse services near ${city}` : "Browse available services"} className="home-preview-card relative block rotate-[2deg] rounded-[2.25rem] border border-white/80 bg-white/88 p-5 shadow-[0_30px_80px_rgba(24,49,38,.18)] backdrop-blur-xl transition hover:shadow-[0_34px_85px_rgba(24,49,38,.22)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]">
             <div className="relative h-56 overflow-hidden rounded-[1.65rem] bg-gradient-to-br from-[#143d2c] via-[#2f7652] to-[#b8dc62]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(255,255,255,.4),transparent_27%)]" />
-              <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold">{location ? "Popular nearby" : "Available services"}</span>
+              <span className="home-preview-badge absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold">{location ? "Popular nearby" : "Available services"}</span>
               <span className="absolute bottom-4 right-5 text-6xl drop-shadow-lg">🧰</span>
             </div>
             <div className="px-1 pb-1 pt-5">
@@ -197,7 +197,7 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
     <Link href={`/services/${service.slug}`} className="block">
       <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
         {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-        {badge && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{badge}</span>}
+        {badge && <span className="home-preview-badge absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{badge}</span>}
         {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80 transition duration-300 group-hover:scale-105">{visual.art}</span>}
       </div>
         <div className="p-5">
