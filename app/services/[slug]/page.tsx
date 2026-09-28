@@ -15,6 +15,7 @@ import { getServiceAreaCoordinates, serviceAreaSlug } from "@/lib/service-areas"
 import ListingPhotoGallery from "@/components/listing-photo-gallery";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import BackButton from "@/components/back-button";
+import ListingShareButton from "@/components/listing-share-button";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,15 @@ export async function generateMetadata({ params }: PageProps<"/services/[slug]">
   const service = await getServiceBySlug(slug);
   if (!service) return {};
   const description = `${service.title} in ${service.city}, ${service.state}. Starting at $${service.price}. ${service.description}`.slice(0, 160);
+  const socialTitle = `${service.title} | BubsBookings`;
+  const fallbackImage = `/services/${service.slug}/opengraph-image`;
+  const socialImage = service.imageUrls[0] ? { url: service.imageUrls[0], alt: `${service.title} by ${service.provider}` } : { url: fallbackImage, width: 1200, height: 630, alt: `${service.title} on BubsBookings` };
   return {
     title: `${service.title} in ${service.city}, ${service.state}`,
     description,
     alternates: { canonical: `/services/${service.slug}` },
-    openGraph: { title: service.title, description, url: `/services/${service.slug}`, images: service.imageUrls[0] ? [service.imageUrls[0]] : undefined },
+    openGraph: { type: "website", siteName: "BubsBookings", title: socialTitle, description, url: `/services/${service.slug}`, images: [socialImage] },
+    twitter: { card: "summary_large_image", title: socialTitle, description, images: [service.imageUrls[0] ?? fallbackImage] },
   };
 }
 
@@ -70,7 +75,7 @@ export default async function ServicePage({ params, searchParams }: PageProps<"/
       </header>
 
       <div className="site-container px-4 py-7 sm:px-6 sm:py-12">
-        <BackButton label={returnPathValue ? "Back to results" : "Back to services"} fallbackHref={servicesReturnPath} />
+        <div className="flex items-center justify-between gap-3"><BackButton label={returnPathValue ? "Back to results" : "Back to services"} fallbackHref={servicesReturnPath} /><ListingShareButton serviceId={service.id} slug={service.slug} title={service.title} description={`Check out ${service.title} by ${service.provider} on BubsBookings.`} /></div>
         <div className="mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,25rem)] lg:gap-10">
           <div>
             <ListingPhotoGallery images={service.imageUrls} title={service.title} fallbackGradient={visual.gradient} fallbackArt={visual.art}><span className="absolute left-6 top-6 z-20 rounded-full bg-white/90 px-4 py-2 text-xs font-bold shadow-sm backdrop-blur">New listing</span><FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-6 top-6 z-20 grid h-12 w-12 place-items-center rounded-full bg-white/90 text-2xl shadow-sm backdrop-blur" /></ListingPhotoGallery>

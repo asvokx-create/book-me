@@ -1015,6 +1015,95 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
   }
 }
 
+.listing-share-option {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  gap: .7rem;
+  border: 1px solid rgb(24 49 38 / .12);
+  border-radius: 1rem;
+  background: #fff;
+  padding: .75rem 1rem;
+  color: #183126;
+  font-size: .875rem;
+  font-weight: 700;
+  transition: border-color .18s ease, background-color .18s ease;
+}
+
+.listing-share-dialog > div:first-child {
+  flex-wrap: nowrap !important;
+}
+
+.listing-share-dialog .listing-share-close {
+  flex: 0 0 2.75rem !important;
+}
+
+.listing-share-option:hover {
+  border-color: rgb(24 49 38 / .35);
+  background: #edf2e9;
+}
+
+.listing-share-option:focus-visible {
+  outline: 3px solid rgb(238 226 90 / .8);
+  outline-offset: 2px;
+}
+
+.listing-share-option > span {
+  display: grid;
+  height: 1.75rem;
+  width: 1.75rem;
+  flex: 0 0 1.75rem;
+  place-items: center;
+  border-radius: .6rem;
+  background: #e7eee2;
+  font-size: .75rem;
+  font-weight: 900;
+}
+
+html[data-theme="dark"] .listing-share-dialog {
+  border-color: #3b3b40;
+  background: #1a1a1d;
+  color: #f6f6f3;
+}
+
+html[data-theme="dark"] .listing-share-dialog :where(p:not([class*="bg-"]), .listing-share-dialog-label) {
+  color: #b8b8bd;
+}
+
+html[data-theme="dark"] .listing-share-close,
+html[data-theme="dark"] .listing-share-url,
+html[data-theme="dark"] .listing-share-option {
+  border-color: #444449;
+  background: #242428;
+  color: #f7f7f4;
+}
+
+html[data-theme="dark"] .listing-share-option:hover {
+  border-color: #6b6b72;
+  background: #303035;
+}
+
+html[data-theme="dark"] .listing-share-option > span {
+  background: #35353a;
+}
+
+html[data-theme="dark"] .listing-share-dialog p[class*="bg-[#f0f2ed]"] {
+  background: #242428 !important;
+  color: #c8c8cc !important;
+}
+
+html[data-theme="dark"] .listing-share-trigger:not([class*="bg-transparent"]):not([class*="bg-[#eee25a]"]) {
+  border-color: #45454a;
+  background: #232327;
+  color: #f7f7f4;
+}
+
+@media (max-width: 639px) {
+  .listing-share-dialog {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+}
+
 html[data-theme="dark"] {
   color-scheme: dark;
   --background: #0d0d0f;

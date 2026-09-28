@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import QRCode from "react-qr-code";
+import ListingShareButton from "@/components/listing-share-button";
 
 type MarketingService = {
   id: string;
@@ -21,31 +22,10 @@ function safeFilename(value: string) {
 
 export default function ProviderMarketingTools({ services }: { services: MarketingService[] }) {
   const [selectedId, setSelectedId] = useState(services[0]?.id ?? "");
-  const [copied, setCopied] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const qrRef = useRef<HTMLDivElement>(null);
   const selected = services.find((service) => service.id === selectedId) ?? services[0];
   const listingUrl = selected ? `${publicSiteUrl}/services/${selected.slug}` : "";
-
-  async function copyLink() {
-    if (!listingUrl) return;
-    try {
-      await navigator.clipboard.writeText(listingUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
-  }
-
-  async function shareListing() {
-    if (!selected || !listingUrl) return;
-    if (navigator.share) {
-      await navigator.share({ title: selected.title, text: `Book ${selected.title} on BubsBookings`, url: listingUrl }).catch(() => undefined);
-      return;
-    }
-    await copyLink();
-  }
 
   function downloadQrCode() {
     if (!selected || !qrRef.current) return;
@@ -124,7 +104,7 @@ export default function ProviderMarketingTools({ services }: { services: Marketi
         <p className="text-xs font-bold uppercase tracking-[.14em] text-[#b9c9c0]">Choose a listing</p>
         {services.length > 1 ? <label className="mt-4 block">
           <span className="sr-only">Service listing</span>
-          <select value={selected.id} onChange={(event) => { setSelectedId(event.target.value); setCopied(false); setDownloadError(""); }} className="marketing-listing-select w-full rounded-2xl border px-5 py-3.5 text-sm font-bold outline-none">
+          <select value={selected.id} onChange={(event) => { setSelectedId(event.target.value); setDownloadError(""); }} className="marketing-listing-select w-full rounded-2xl border px-5 py-3.5 text-sm font-bold outline-none">
             {services.map((service) => <option key={service.id} value={service.id}>{service.title} — {service.businessName}</option>)}
           </select>
         </label> : null}
@@ -139,8 +119,8 @@ export default function ProviderMarketingTools({ services }: { services: Marketi
           <p className="text-xs font-bold uppercase tracking-[.12em] text-[#acc0b5]">Your direct link</p>
           <div className="mt-2 break-all rounded-2xl border border-white/10 bg-[#0f271d] p-4 text-sm text-[#eef5f0]">{listingUrl}</div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={copyLink} className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:bg-[#f7ed74]">{copied ? "Copied ✓" : "Copy link"}</button>
-            <button type="button" onClick={shareListing} className="rounded-full border border-white/20 px-5 py-3 text-sm font-bold text-white transition hover:border-white/40 hover:bg-white/10">Share listing</button>
+            <ListingShareButton action="copy" serviceId={selected.id} slug={selected.slug} title={selected.title} className="border-0 bg-[#eee25a] text-[#183126] hover:bg-[#f7ed74]" />
+            <ListingShareButton serviceId={selected.id} slug={selected.slug} title={selected.title} description={`Check out ${selected.title} by ${selected.businessName} on BubsBookings.`} className="border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/10" />
           </div>
           <Link href={`/services/${selected.slug}`} target="_blank" className="mt-4 inline-flex text-sm font-bold text-[#eee25a] underline decoration-[#eee25a]/60 underline-offset-4">Preview public listing ↗</Link>
         </div>
