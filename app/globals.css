@@ -1742,6 +1742,10 @@ html[data-theme="dark"] .home-upcoming-panel {
   color: var(--text-primary) !important;
 }
 
+.home-upcoming-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.75rem), 1fr));
+}
+
 html[data-theme="dark"] .home-upcoming-panel > div:first-child p:first-child {
   color: var(--text-secondary) !important;
 }

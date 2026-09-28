@@ -58,11 +58,15 @@ test("the global responsive system preserves mobile viewport safety", () => {
 test("upcoming service categories stay compact without collapsing their icons", () => {
   const home = read("app", "page.tsx");
   const categoryIcon = read("components", "service-category-icon.tsx");
+  const categoryCard = read("components", "upcoming-category-card.tsx");
+  const css = read("app", "globals.css");
 
-  assert.match(home, /grid-cols-1 gap-2 min-\[375px\]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5/);
-  assert.match(home, /home-upcoming-category[^\"]*min-h-12[^\"]*gap-2[^\"]*rounded-xl/);
-  assert.match(home, /text-\[13px\][^\"]*sm:text-sm/);
-  assert.match(home, /whitespace-nowrap/);
+  assert.match(home, /home-upcoming-grid mt-4 grid gap-2/);
+  assert.match(css, /grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 11\.75rem\), 1fr\)\)/);
+  assert.match(categoryCard, /home-upcoming-category[^\"]*min-h-12[^\"]*min-w-0[^\"]*gap-2[^\"]*rounded-xl/);
+  assert.match(categoryCard, /text-\[13px\][^\"]*sm:text-sm/);
+  assert.match(categoryCard, /min-w-0 flex-1 whitespace-normal break-words/);
+  assert.doesNotMatch(categoryCard, /whitespace-nowrap/);
   assert.match(categoryIcon, /shrink-0[^\"]*aspect-square/);
   assert.match(categoryIcon, /h-10 min-h-10 w-10 min-w-10/);
 });
