@@ -35,7 +35,7 @@ export default function ServiceCategoryIcon({ category, className = "", compact 
   const style = styles[category] ?? { background: "from-[#e5eee4] to-[#f6efc8]", foreground: "#315c47" };
   return (
     <span
-      className={`relative grid place-items-center overflow-hidden bg-gradient-to-br shadow-[inset_0_0_0_1px_rgba(24,49,38,.06),0_8px_18px_rgba(24,49,38,.08)] ${compact ? "h-10 w-10 rounded-xl [&_svg]:h-8 [&_svg]:w-8" : "h-16 w-16 rounded-[1.35rem]"} ${style.background} ${className}`}
+      className={`relative grid shrink-0 place-items-center overflow-hidden aspect-square bg-gradient-to-br shadow-[inset_0_0_0_1px_rgba(24,49,38,.06),0_8px_18px_rgba(24,49,38,.08)] ${compact ? "h-10 min-h-10 w-10 min-w-10 rounded-xl [&_svg]:h-8 [&_svg]:w-8" : "h-16 min-h-16 w-16 min-w-16 rounded-[1.35rem]"} ${style.background} ${className}`}
       style={{ color: style.foreground }}
     >
       <span className="service-category-icon-decoration absolute -right-3 -top-3 h-10 w-10 rounded-full bg-white/45" />

@@ -54,3 +54,15 @@ test("the global responsive system preserves mobile viewport safety", () => {
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.doesNotMatch(layout, /user-scalable=no/);
 });
+
+test("upcoming service categories stay compact without collapsing their icons", () => {
+  const home = read("app", "page.tsx");
+  const categoryIcon = read("components", "service-category-icon.tsx");
+
+  assert.match(home, /grid-cols-1 gap-2 min-\[375px\]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5/);
+  assert.match(home, /home-upcoming-category[^\"]*min-h-12[^\"]*gap-2[^\"]*rounded-xl/);
+  assert.match(home, /text-\[13px\][^\"]*sm:text-sm/);
+  assert.match(home, /whitespace-nowrap/);
+  assert.match(categoryIcon, /shrink-0[^\"]*aspect-square/);
+  assert.match(categoryIcon, /h-10 min-h-10 w-10 min-w-10/);
+});
