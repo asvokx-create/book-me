@@ -32,7 +32,7 @@ export default function PromisePage() {
         <span className="text-5xl">☂</span>
         <p className="mt-7 text-xs font-bold uppercase tracking-[.17em] text-[#c7d5cd]">The BubsBookings Promise</p>
         <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-[-.05em] sm:text-6xl">More confidence from booking to completion.</h1>
-        <p className="mt-6 max-w-2xl text-lg leading-8 text-[#c3d0c9]">We give customers clear provider information, secure payment tools, organized communication, and a direct path to support.</p>
+        <p className="mt-6 max-w-2xl text-lg leading-8 text-[#c3d0c9]">We give customers clear provider information, Stripe payment tools, organized communication, and a direct path to support.</p>
       </div>
     </section>
 
@@ -45,6 +45,15 @@ export default function PromisePage() {
         <div><h2 className="text-2xl font-bold">Need help with a booking?</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#61736a]">Open the booking from your account to message the provider, manage changes, request a refund, or contact support.</p></div>
         <Link href="/account" className="mt-5 inline-flex shrink-0 rounded-full bg-[#183126] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#315846] sm:mt-0">Go to my bookings →</Link>
       </div>
+
+      <section aria-labelledby="promise-actions-heading" className="mt-8">
+        <h2 id="promise-actions-heading" className="text-center text-2xl font-bold">When you need help, start here</h2>
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <Link href="/support" className="rounded-[1.5rem] border border-[#183126]/10 bg-white p-5 text-center font-bold transition hover:border-[#557463] hover:bg-[#edf2e9]">Report a concern →</Link>
+          <Link href="/account" className="rounded-[1.5rem] border border-[#183126]/10 bg-white p-5 text-center font-bold transition hover:border-[#557463] hover:bg-[#edf2e9]">Request a refund →</Link>
+          <Link href="/disputes" className="rounded-[1.5rem] border border-[#183126]/10 bg-white p-5 text-center font-bold transition hover:border-[#557463] hover:bg-[#edf2e9]">Open a dispute →</Link>
+        </div>
+      </section>
 
       <p className="mx-auto mt-8 max-w-3xl text-center text-xs leading-6 text-[#718078]">The BubsBookings Promise supports a safer, clearer marketplace experience. It is not insurance, a background check, or a guarantee of a provider&apos;s work. Review each provider&apos;s profile, service details, and policies before booking.</p>
     </section>

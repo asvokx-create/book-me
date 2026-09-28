@@ -11,6 +11,26 @@ export async function POST(request: Request) {
   const body = (await request.json()) as Record<string, unknown>;
   const code = normalizeAffiliateCode(body.code);
   if (!code) return NextResponse.json({ error: "Enter a referral code." }, { status: 400 });
+
+  const savedToken = cookieValue(request.headers.get("cookie"), AFFILIATE_COOKIE);
+  if (savedToken && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(savedToken)) {
+    const saved = await database.query<{ affiliate_code: string }>(
+      `SELECT click.affiliate_code
+       FROM affiliate_clicks click
+       JOIN affiliate_profiles affiliate ON affiliate.id = click.affiliate_id
+       JOIN affiliate_programs program ON program.id = click.program_id
+       WHERE click.attribution_token = $1::uuid
+         AND affiliate.status = 'active' AND program.status = 'enabled'
+         AND click.created_at > now() - make_interval(days => program.attribution_window_days)
+         AND (program.starts_at IS NULL OR program.starts_at <= now())
+         AND (program.ends_at IS NULL OR program.ends_at > now())
+       LIMIT 1`, [savedToken],
+    );
+    if (saved.rows[0]) {
+      return NextResponse.json({ ok: true, code: saved.rows[0].affiliate_code, retained: true });
+    }
+  }
+
   const affiliate = await database.query<{ affiliate_id: string; program_id: string; attribution_window_days: number }>(
     `SELECT affiliate.id::text AS affiliate_id, program.id::text AS program_id, program.attribution_window_days
      FROM affiliate_profiles affiliate JOIN affiliate_programs program ON program.id = affiliate.program_id
@@ -35,4 +55,13 @@ export async function POST(request: Request) {
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim().slice(0, 160) || null : null;
+}
+
+function cookieValue(header: string | null, name: string) {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const [rawName, ...rawValue] = part.trim().split("=");
+    if (rawName === name) return rawValue.join("=");
+  }
+  return null;
 }

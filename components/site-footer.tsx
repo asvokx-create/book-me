@@ -64,7 +64,7 @@ export default function SiteFooter() {
 
         <div className="grid gap-10 py-11 sm:grid-cols-2 lg:grid-cols-[1.35fr_.8fr_.8fr_.8fr]">
           <div>
-            <Link href="/" className="flex w-fit items-center gap-3 text-xl font-bold tracking-[-.03em]"><BrandLockup /></Link>
+            <Link href="/" aria-label="BubsBookings" className="flex w-fit items-center gap-3 text-xl font-bold tracking-[-.03em]"><BrandLockup /></Link>
             <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local services, safer conversations, clear choices—and a simpler way to get things done.</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <BugReportButton />

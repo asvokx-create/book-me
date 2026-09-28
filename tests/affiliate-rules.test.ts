@@ -46,6 +46,9 @@ test("affiliate attribution is active-only, single-use, and blocks self-referral
   const onboarding = await readFile(new URL("../app/api/providers/onboarding/route.ts", import.meta.url), "utf8");
 
   assert.match(clickRoute, /affiliate\.status = 'active'/);
+  assert.match(clickRoute, /click\.attribution_token = \$1::uuid/);
+  assert.match(clickRoute, /retained: true/);
+  assert.ok(clickRoute.indexOf("retained: true") < clickRoute.indexOf("const token = newAttributionToken()"), "a valid saved first touch must be retained before a new click can replace it");
   assert.match(engine, /affiliate\.status = 'active'/);
   assert.match(engine, /used_referral\.click_id = click\.id/);
   assert.match(engine, /affiliate\.user_id = referred_owner\.id/);
@@ -54,11 +57,39 @@ test("affiliate attribution is active-only, single-use, and blocks self-referral
   assert.match(onboarding, /response\.cookies\.delete\(AFFILIATE_COOKIE\)/);
 });
 
+test("affiliate click tracking still reaches the server when session storage is unavailable", async () => {
+  const tracker = await readFile(new URL("../components/affiliate-attribution-tracker.tsx", import.meta.url), "utf8");
+  assert.match(tracker, /function wasRecorded[\s\S]*?try[\s\S]*?sessionStorage\.getItem[\s\S]*?catch/);
+  assert.match(tracker, /function rememberRecorded[\s\S]*?try[\s\S]*?sessionStorage\.setItem[\s\S]*?catch/);
+  assert.ok(tracker.indexOf("fetch(\"/api/affiliates/attribution\"") < tracker.indexOf("rememberRecorded(key)"), "a failed request must not be marked as recorded");
+});
+
 test("eligible commissions recover after a provider wins a dispute", async () => {
   const engine = await readFile(new URL("../lib/affiliates.ts", import.meta.url), "utf8");
   assert.match(engine, /WHERE booking_id::text = \$1 AND status = 'disputed'/);
   assert.match(engine, /payable_at IS NOT NULL AND payable_at <= now\(\) THEN 'payable' ELSE 'hold'/);
   assert.match(engine, /reversal_reason = NULL/);
+  assert.match(engine, /status = 'revenue_share_ended'/);
+});
+
+test("Stripe chargebacks freeze affiliate earnings and preserve a reversal ledger", async () => {
+  const engine = await readFile(new URL("../lib/affiliates.ts", import.meta.url), "utf8");
+  const webhook = await readFile(new URL("../app/api/stripe/webhook/route.ts", import.meta.url), "utf8");
+  assert.match(webhook, /case "charge\.dispute\.created"/);
+  assert.match(webhook, /case "charge\.dispute\.closed"/);
+  assert.match(webhook, /Stripe chargeback under review/);
+  assert.match(webhook, /const providerWon = dispute\.status === "won"/);
+  assert.match(webhook, /const customerWon = dispute\.status === "lost"/);
+  assert.match(webhook, /syncAffiliateCommissionForBooking\(booking\.id, client\)/);
+  assert.match(engine, /commission_type,eligible_revenue_cents[\s\S]*?'reversal'/);
+  assert.match(engine, /Stripe chargeback was lost\./);
+});
+
+test("revenue share starts and expires from the snapshotted program event", async () => {
+  const engine = await readFile(new URL("../lib/affiliates.ts", import.meta.url), "utf8");
+  assert.match(engine, /\["qualified", "first_completed_booking"\]\.includes\(row\.revenue_share_starts_at\)/);
+  assert.match(engine, /row\.revenue_share_duration_months/);
+  assert.match(engine, /const inShareWindow = Boolean\(shareStart && shareEnd && new Date\(\) <= shareEnd\)/);
   assert.match(engine, /status = 'revenue_share_ended'/);
 });
 

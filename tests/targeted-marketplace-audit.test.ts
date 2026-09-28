@@ -104,3 +104,24 @@ test("affiliate attribution is only locked while creating a provider profile", (
   const onboardingRoute = read("app/api/providers/onboarding/route.ts");
   assert.match(onboardingRoute, /if \(!existing\) \{[\s\S]*?lockAffiliateAttribution/);
 });
+
+test("the narrow homepage header hides its wordmark before it can clip at 320px", () => {
+  const home = read("app/page.tsx");
+  const styles = read("app/globals.css");
+  assert.match(home, /narrow-mobile-header site-container/);
+  assert.match(styles, /@media \(max-width: 340px\)[\s\S]*?\.narrow-mobile-header \.brand-wordmark-text \{ display: none; \}/);
+});
+
+test("affiliate admin does not render an invalid audience size as NaN", () => {
+  const admin = read("components/affiliate-admin.tsx");
+  assert.match(admin, /Number\.isFinite\(parsed\) && parsed > 0/);
+  assert.doesNotMatch(admin, /Number\(item\.audience_size\)\.toLocaleString/);
+});
+
+test("the Promise page exposes direct concern, refund, and dispute paths", () => {
+  const promise = read("app/promise/page.tsx");
+  assert.match(promise, />Report a concern →</);
+  assert.match(promise, />Request a refund →</);
+  assert.match(promise, />Open a dispute →</);
+  assert.doesNotMatch(promise, /secure payment tools/i);
+});

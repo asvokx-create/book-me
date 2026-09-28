@@ -16,8 +16,14 @@ test("category discovery separates live supply from coming-soon demand capture",
 
 test("brand markup exposes one consistent BubsBookings accessible name", () => {
   const lockup = read("components", "brand-lockup.tsx");
+  const mark = read("components", "brand-mark.tsx");
+  const footer = read("components", "site-footer.tsx");
   const layout = read("app", "layout.tsx");
-  assert.match(lockup, /role="img" aria-label="BubsBookings"/);
+  assert.doesNotMatch(lockup, /role="img" aria-label="BubsBookings"/);
+  assert.doesNotMatch(lockup, /aria-hidden="true" className="contents"/);
+  assert.match(mark, /aria-hidden="true"/);
+  assert.match(mark, /alt=""/);
+  assert.match(footer, /aria-label="BubsBookings"/);
   assert.match(layout, /applicationName: "BubsBookings"/);
   assert.match(layout, /siteName: "BubsBookings"/);
   assert.match(layout, /name: "BubsBookings"/);

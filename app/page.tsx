@@ -45,7 +45,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   return (
     <main className="home-page min-h-screen overflow-x-clip bg-[#f8f7f3] text-[#183126]">
       <header className="home-header sticky top-0 z-50 border-b border-white/70 bg-[#f8f7f3]/82 backdrop-blur-xl">
-        <div className="site-container flex items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="narrow-mobile-header site-container flex items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-5">
           <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             <BrandLockup priority />
           </Link>
