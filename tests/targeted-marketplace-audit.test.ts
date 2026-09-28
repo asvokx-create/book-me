@@ -125,3 +125,14 @@ test("the Promise page exposes direct concern, refund, and dispute paths", () =>
   assert.match(promise, />Open a dispute →</);
   assert.doesNotMatch(promise, /secure payment tools/i);
 });
+
+test("customer-facing guide surfaces consistently use Guides rather than Blog", () => {
+  const index = read("app/guides/page.tsx");
+  const article = read("app/guides/[slug]/page.tsx");
+  const socialImage = read("app/guides/[slug]/opengraph-image.tsx");
+  assert.doesNotMatch(index, /BubsBookings Blog|Filter blog articles/);
+  assert.match(index, /BubsBookings Guides/);
+  assert.doesNotMatch(article, /BubsBookings Blog/);
+  assert.match(article, /BubsBookings Guides/);
+  assert.match(socialImage, /BubsBookings Guides/);
+});

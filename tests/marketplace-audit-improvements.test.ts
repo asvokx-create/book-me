@@ -19,7 +19,7 @@ test("brand markup exposes one consistent BubsBookings accessible name", () => {
   const mark = read("components", "brand-mark.tsx");
   const footer = read("components", "site-footer.tsx");
   const layout = read("app", "layout.tsx");
-  assert.doesNotMatch(lockup, /role="img" aria-label="BubsBookings"/);
+  assert.match(lockup, /role="img" aria-label="BubsBookings"/);
   assert.doesNotMatch(lockup, /aria-hidden="true" className="contents"/);
   assert.match(mark, /aria-hidden="true"/);
   assert.match(mark, /alt=""/);

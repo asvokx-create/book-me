@@ -77,7 +77,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/quotes
     await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key) VALUES
       ($1,$3,'job_quote','Quote accepted',$4,'/provider/dashboard/bookings/' || $3::uuid::text,$5),
       ($2,$3,'booking_confirmed','Booking created from your quote',$6,'/account/bookings/' || $3::uuid::text,$7)
-      ON CONFLICT (dedupe_key) DO NOTHING`, [quote.provider_user_id, session.user.id, bookingId, `${session.user.name || "The customer"} accepted your quote for ${quote.service_title}.`, `job-quote-accepted-${quoteId}-provider`, `Your booking for ${quote.service_title} is ready for secure payment.`, `job-quote-accepted-${quoteId}-customer`]);
+      ON CONFLICT (dedupe_key) DO NOTHING`, [quote.provider_user_id, session.user.id, bookingId, `${session.user.name || "The customer"} accepted your quote for ${quote.service_title}.`, `job-quote-accepted-${quoteId}-provider`, `Your booking for ${quote.service_title} is ready for payment through Stripe.`, `job-quote-accepted-${quoteId}-customer`]);
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: "job_quote_accepted", targetType: "quote", targetId: quoteId });
     await recordAnalytics({ eventName: "job_quote_accepted", userId: session.user.id, targetType: "quote", targetId: quoteId, metadata: { bookingId, totalCents: quote.total_cents } });

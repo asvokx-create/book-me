@@ -170,7 +170,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
     const response = await fetch(`/api/stripe/bookings/${bookingId}/checkout`, { method: "POST" }).catch(() => null);
     const result = response ? await response.json() as { url?: string; error?: string } : null;
     if (!response?.ok || !result?.url) {
-      setError(result?.error ?? "We could not open secure payment.");
+      setError(result?.error ?? "We could not open Stripe checkout.");
       setWorking(false);
       return;
     }
@@ -360,7 +360,7 @@ function Detail({ icon, label, value, note }: { icon: string; label: string; val
 
 function paymentReleaseCopy(booking: Booking, timeZone?: string) {
   if (booking.paymentStatus === "refunded") return { label: "Payment refunded", detail: "The payment was returned to the original payment method." };
-  if (booking.paymentStatus !== "paid") return { label: "Payment not completed", detail: booking.quote.status === "accepted" ? "Customer approved this price. Secure payment is required before the provider can mark the job complete." : "Payment is due after booking confirmation and before completion." };
+  if (booking.paymentStatus !== "paid") return { label: "Payment not completed", detail: booking.quote.status === "accepted" ? "Customer approved this price. Payment through Stripe is required before the provider can mark the job complete." : "Payment is due after booking confirmation and before completion." };
   switch (booking.paymentRelease.status) {
     case "secured": return { label: "Payment secured · Awaiting completion", detail: "Stripe has collected the payment. The provider share stays held until the service is completed." };
     case "awaiting_customer": return { label: "48-hour review window", detail: `The provider marked the service complete. Confirm it or report a problem${booking.paymentRelease.confirmationDueAt ? ` before ${formatInUserTimeZone(booking.paymentRelease.confirmationDueAt, { dateStyle: "medium", timeStyle: "short" }, timeZone)}` : " within 48 hours"}. If you take no action, the provider payout releases automatically.` };

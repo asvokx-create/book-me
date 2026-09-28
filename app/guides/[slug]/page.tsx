@@ -37,7 +37,7 @@ export default async function GuidePage({ params }: PageProps<"/guides/[slug]">)
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "BlogPosting", "@id": `${articleUrl}#article`, headline: guide.title, description: guide.description, image: [imageUrl], datePublished: guide.publishedAt, dateModified: guide.updatedAt, articleSection: guide.category, wordCount, author: { "@type": "Organization", name: "BubsBookings Editorial Team", url: "https://bubsbookings.com/guides" }, publisher: { "@type": "Organization", name: "BubsBookings", url: "https://bubsbookings.com" }, mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl }, isPartOf: { "@type": "Blog", name: "BubsBookings Blog", url: "https://bubsbookings.com/guides" } },
+      { "@type": "BlogPosting", "@id": `${articleUrl}#article`, headline: guide.title, description: guide.description, image: [imageUrl], datePublished: guide.publishedAt, dateModified: guide.updatedAt, articleSection: guide.category, wordCount, author: { "@type": "Organization", name: "BubsBookings Editorial Team", url: "https://bubsbookings.com/guides" }, publisher: { "@type": "Organization", name: "BubsBookings", url: "https://bubsbookings.com" }, mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl }, isPartOf: { "@type": "Blog", name: "BubsBookings Guides", url: "https://bubsbookings.com/guides" } },
       { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: "https://bubsbookings.com" }, { "@type": "ListItem", position: 2, name: "Guides", item: "https://bubsbookings.com/guides" }, { "@type": "ListItem", position: 3, name: guide.title, item: articleUrl }] },
     ],
   };

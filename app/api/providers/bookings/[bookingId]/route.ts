@@ -212,7 +212,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       }
       if (booking.payment_status !== "paid" || booking.payment_flow !== "held_transfer_v1") {
         await client.query("ROLLBACK");
-        return NextResponse.json({ error: "The customer must complete secure payment before this job can be marked complete." }, { status: 409 });
+        return NextResponse.json({ error: "The customer must complete payment through Stripe before this job can be marked complete." }, { status: 409 });
       }
       await client.query(`UPDATE bookings SET status = 'completed', completed_at = now(),
         payment_release_status = CASE WHEN payout_frozen_at IS NULL THEN 'awaiting_customer' ELSE 'frozen' END,

@@ -102,7 +102,7 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
     RETURNING id`, [checkout.metadata.bookingId, paymentIntentId, checkout.id, getStripeMode(), chargeId, heldTransfer, checkout.amount_total]);
   if (!updated.rowCount) return;
   await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
-    VALUES ($1::uuid, 'payment_received', 'Secure payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);
+    VALUES ($1::uuid, 'payment_received', 'Payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);
   await database.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
     SELECT p.user_id, b.id, 'booking_payment', 'Customer payment received',
       '$' || to_char((b.price_cents - b.platform_fee_cents)::numeric / 100, 'FM999999990.00') || ' is secured for ' || s.title || '.',
