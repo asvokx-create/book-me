@@ -9,7 +9,7 @@ const affiliateStatuses = new Set(["under_review","approved","active","paused","
 const commissionStatuses = new Set(["hold","approved","payable","rejected","disputed"]);
 
 async function dashboard() {
-  const [summary, programs, affiliates, commissions, payouts, recentClicks, auditHistory, reserve] = await Promise.all([
+  const [summary, programs, affiliates, commissions, payouts, campaigns, recentClicks, auditHistory, reserve] = await Promise.all([
     database.query(`SELECT
       (SELECT count(*)::int FROM affiliate_profiles WHERE status IN ('applied','under_review')) AS applications,
       (SELECT count(*)::int FROM affiliate_profiles WHERE status = 'active') AS active_affiliates,
@@ -53,6 +53,15 @@ async function dashboard() {
       FROM affiliate_payouts payout JOIN affiliate_profiles affiliate ON affiliate.id = payout.affiliate_id
       LEFT JOIN affiliate_payout_commissions link ON link.payout_id = payout.id
       GROUP BY payout.id, affiliate.display_name ORDER BY payout.created_at DESC LIMIT 100`),
+    database.query(`SELECT campaign.id::text, campaign.campaign_name, campaign.fixed_amount_cents,
+      campaign.currency, campaign.payment_status, campaign.campaign_starts_on, campaign.campaign_ends_on,
+      campaign.affiliate_code, campaign.revenue_share_basis_points, campaign.revenue_share_duration_months,
+      campaign.notes, campaign.payment_reference, campaign.paid_at, campaign.created_at,
+      affiliate.display_name AS affiliate_name, program.name AS program_name
+      FROM creator_campaign_payments campaign
+      JOIN affiliate_profiles affiliate ON affiliate.id = campaign.affiliate_id
+      LEFT JOIN affiliate_programs program ON program.id = campaign.program_id
+      ORDER BY campaign.created_at DESC LIMIT 100`),
     database.query(`SELECT click.id::text, click.affiliate_code, click.landing_path, click.utm_campaign,
       click.created_at, affiliate.display_name AS affiliate_name
       FROM affiliate_clicks click JOIN affiliate_profiles affiliate ON affiliate.id = click.affiliate_id
@@ -62,7 +71,7 @@ async function dashboard() {
       ORDER BY audit.created_at DESC LIMIT 100`),
     getAffiliateReserveHealth(),
   ]);
-  return { summary: summary.rows[0], reserve, programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows };
+  return { summary: summary.rows[0], reserve, programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, campaigns: campaigns.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows };
 }
 
 export async function GET() {
@@ -76,6 +85,38 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-affiliate", limit: 40 })) return NextResponse.json({ error: "Too many admin actions." }, { status: 429 });
   const body = await request.json() as Record<string, unknown>;
+  if (body.action === "campaign_create") {
+    const affiliateId = typeof body.affiliateId === "string" ? body.affiliateId : "";
+    const programId = typeof body.programId === "string" && body.programId ? body.programId : null;
+    const campaignName = typeof body.campaignName === "string" ? body.campaignName.trim().slice(0, 160) : "";
+    const amountCents = Math.round(Number(body.fixedAmount) * 100);
+    const paymentStatus = typeof body.paymentStatus === "string" ? body.paymentStatus : "planned";
+    const startsOn = typeof body.startsOn === "string" && body.startsOn ? body.startsOn : null;
+    const endsOn = typeof body.endsOn === "string" && body.endsOn ? body.endsOn : null;
+    const shareBasisPoints = body.revenueSharePercent === "" || body.revenueSharePercent == null ? null : Math.round(Number(body.revenueSharePercent) * 100);
+    const durationMonths = body.durationMonths === "" || body.durationMonths == null ? null : Number(body.durationMonths);
+    const suppliedCode = normalizeAffiliateCode(body.affiliateCode);
+    if (!affiliateId || !campaignName || !Number.isInteger(amountCents) || amountCents < 0 || !new Set(["planned","approved","paid","cancelled"]).has(paymentStatus)
+      || (shareBasisPoints !== null && (!Number.isInteger(shareBasisPoints) || shareBasisPoints < 0 || shareBasisPoints > 10000))
+      || (durationMonths !== null && (!Number.isInteger(durationMonths) || durationMonths < 0))
+      || (startsOn && !/^\d{4}-\d{2}-\d{2}$/.test(startsOn)) || (endsOn && !/^\d{4}-\d{2}-\d{2}$/.test(endsOn)) || (startsOn && endsOn && endsOn < startsOn)) {
+      return NextResponse.json({ error: "Enter valid campaign terms." }, { status: 400 });
+    }
+    const result = await database.query<{ id: string }>(`INSERT INTO creator_campaign_payments (
+        affiliate_id, program_id, campaign_name, fixed_amount_cents, payment_status, campaign_starts_on,
+        campaign_ends_on, affiliate_code, revenue_share_basis_points, revenue_share_duration_months,
+        notes, payment_reference, paid_at, created_by)
+      SELECT affiliate.id, $2::uuid, $3, $4, $5, $6::date, $7::date,
+        COALESCE(NULLIF($8,''), affiliate.affiliate_code), $9, $10, $11, $12,
+        CASE WHEN $5='paid' THEN now() ELSE NULL END, $13
+      FROM affiliate_profiles affiliate WHERE affiliate.id::text=$1
+      RETURNING id::text`, [affiliateId, programId, campaignName, amountCents, paymentStatus, startsOn, endsOn,
+      suppliedCode, shareBasisPoints, durationMonths, typeof body.notes === "string" ? body.notes.trim().slice(0, 2000) : "",
+      typeof body.paymentReference === "string" ? body.paymentReference.trim().slice(0, 200) || null : null, session.user.id]);
+    if (!result.rowCount) return NextResponse.json({ error: "Choose a valid creator." }, { status: 404 });
+    await audit(session.user.id, "creator_campaign_created", "creator_campaign", result.rows[0].id, { affiliateId, programId, campaignName, amountCents, paymentStatus });
+    return NextResponse.json({ ok: true, id: result.rows[0].id });
+  }
   if (body.action !== "program_create") return NextResponse.json({ error: "Unsupported action." }, { status: 400 });
   const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
   const activation = Math.round(Number(body.activationBonus) * 100);
@@ -124,6 +165,16 @@ export async function PATCH(request: Request) {
         WHERE id::text=$1`, [targetId,status,code,typeof body.programId === "string" ? body.programId : null,reason]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
       await audit(session.user.id, "affiliate_status_changed", "affiliate", targetId, { status, code, reason }, client);
+    } else if (action === "campaign_status") {
+      const status = typeof body.status === "string" ? body.status : "";
+      if (!new Set(["planned","approved","paid","cancelled"]).has(status)) throw new Error("INVALID");
+      const result = await client.query(`UPDATE creator_campaign_payments SET payment_status=$2,
+        payment_reference=CASE WHEN $3='' THEN payment_reference ELSE $3 END,
+        notes=CASE WHEN $4='' THEN notes ELSE concat_ws(E'\n',NULLIF(notes,''),$4) END,
+        paid_at=CASE WHEN $2='paid' THEN COALESCE(paid_at,now()) ELSE paid_at END
+        WHERE id::text=$1`, [targetId,status,typeof body.paymentReference === "string" ? body.paymentReference.trim().slice(0,200) : "",reason]);
+      if (!result.rowCount) throw new Error("NOT_FOUND");
+      await audit(session.user.id,"creator_campaign_status_changed","creator_campaign",targetId,{status,reason},client);
     } else if (action === "affiliate_overrides") {
       const bonus = body.activationBonus === "" || body.activationBonus == null ? null : Math.round(Number(body.activationBonus) * 100);
       const share = body.revenueSharePercent === "" || body.revenueSharePercent == null ? null : Math.round(Number(body.revenueSharePercent) * 100);
