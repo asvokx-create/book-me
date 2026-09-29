@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS affiliate_programs (
   revenue_share_duration_months integer NOT NULL DEFAULT 6 CHECK (revenue_share_duration_months >= 0),
   revenue_share_starts_at text NOT NULL DEFAULT 'qualified' CHECK (revenue_share_starts_at IN ('provider_signup', 'qualified', 'first_completed_booking')),
   attribution_window_days integer NOT NULL DEFAULT 60 CHECK (attribution_window_days BETWEEN 1 AND 365),
-  hold_period_days integer NOT NULL DEFAULT 30 CHECK (hold_period_days BETWEEN 0 AND 365),
+  hold_period_days integer NOT NULL DEFAULT 14 CHECK (hold_period_days BETWEEN 0 AND 365),
   minimum_payout_cents integer NOT NULL DEFAULT 5000 CHECK (minimum_payout_cents >= 0),
   payout_schedule text NOT NULL DEFAULT 'manual' CHECK (payout_schedule IN ('manual', 'monthly')),
   eligible_provider_plans text[] NOT NULL DEFAULT ARRAY['starter','pro','business','owner']::text[],

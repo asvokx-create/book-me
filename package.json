@@ -10,7 +10,8 @@
     "lint": "eslint",
     "db:auth": "npx auth@latest migrate --yes --config ./lib/auth.ts",
     "db:marketplace": "node scripts/setup-marketplace-db.mjs",
-    "db:setup": "npm run db:auth && npm run db:marketplace"
+    "db:setup": "npm run db:auth && npm run db:marketplace",
+    "sandbox:affiliate": "node --experimental-strip-types scripts/run-affiliate-sandbox.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1124.0",

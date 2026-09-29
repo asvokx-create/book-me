@@ -3,7 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { database } from "./database";
-import { calculateAffiliateCommission, calculateEligibleProviderFeeRevenue } from "./affiliate-rules";
+import { affiliateRevenueShareWindow, calculateAffiliateCommission, calculateEligibleProviderFeeRevenue } from "./affiliate-rules";
 
 export const AFFILIATE_COOKIE = "bubs_affiliate_attribution";
 export const RESERVED_AFFILIATE_CODES = new Set(["ADMIN", "BUBS", "BUBSBOOKINGS", "HELP", "PRICING", "PROVIDER", "SUPPORT"]);
@@ -177,8 +177,9 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
 
   let shareStart = row.revenue_share_started_at;
   if (!shareStart && ["qualified", "first_completed_booking"].includes(row.revenue_share_starts_at)) shareStart = new Date();
-  const shareEnd = row.revenue_share_ends_at ?? (shareStart ? new Date(new Date(shareStart).setMonth(new Date(shareStart).getMonth() + row.revenue_share_duration_months)) : null);
-  const inShareWindow = Boolean(shareStart && shareEnd && new Date() <= shareEnd);
+  const shareEnd = row.revenue_share_ends_at ?? (shareStart ? affiliateRevenueShareWindow(new Date(shareStart), row.revenue_share_duration_months).end : null);
+  const now = new Date();
+  const inShareWindow = Boolean(shareStart && shareEnd && now >= new Date(shareStart) && now < new Date(shareEnd));
   const payableAt = new Date(Date.now() + row.hold_period_days * 86_400_000);
   const shareAmount = targetShareAmount;
 
@@ -209,7 +210,7 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
 
 export async function advanceAffiliateCommissions(client: DbClient = database) {
   await client.query(`UPDATE affiliate_referrals SET status = 'revenue_share_ended', updated_at = now()
-    WHERE status = 'qualified' AND revenue_share_ends_at IS NOT NULL AND revenue_share_ends_at < now()`);
+    WHERE status = 'qualified' AND revenue_share_ends_at IS NOT NULL AND revenue_share_ends_at <= now()`);
   const updated = await client.query(`UPDATE affiliate_commissions commission SET status = 'payable', approved_at = COALESCE(approved_at, now())
     FROM bookings booking
     WHERE commission.booking_id = booking.id AND commission.status IN ('pending','hold','approved')

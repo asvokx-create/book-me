@@ -89,8 +89,17 @@ test("revenue share starts and expires from the snapshotted program event", asyn
   const engine = await readFile(new URL("../lib/affiliates.ts", import.meta.url), "utf8");
   assert.match(engine, /\["qualified", "first_completed_booking"\]\.includes\(row\.revenue_share_starts_at\)/);
   assert.match(engine, /row\.revenue_share_duration_months/);
-  assert.match(engine, /const inShareWindow = Boolean\(shareStart && shareEnd && new Date\(\) <= shareEnd\)/);
+  assert.match(engine, /affiliateRevenueShareWindow/);
+  assert.match(engine, /now < new Date\(shareEnd\)/);
   assert.match(engine, /status = 'revenue_share_ended'/);
+  assert.match(engine, /revenue_share_ends_at <= now\(\)/);
+});
+
+test("future standard referrals use a 14-day hold without rewriting existing referral snapshots", async () => {
+  const migration = await readFile(new URL("../database/migrations/064_affiliate_hold_period_14_days.sql", import.meta.url), "utf8");
+  assert.match(migration, /UPDATE affiliate_programs[\s\S]*hold_period_days = 14/);
+  assert.match(migration, /WHERE name = 'Standard Creator Program'/);
+  assert.doesNotMatch(migration, /UPDATE affiliate_referrals/);
 });
 
 test("partner application, dashboard, and public disclosure match activation behavior", async () => {
