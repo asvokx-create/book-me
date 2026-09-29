@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/locations" },
 };
 
+// Availability changes whenever a provider publishes or removes a listing.
+// Rendering this directory at request time prevents a failed build-time
+// database lookup from permanently publishing an empty directory.
+export const dynamic = "force-dynamic";
+
 export default async function LocationsPage() {
   const services = await getServices({ limit: 1000 }).catch(() => []);
   const activeAreas = SERVICE_AREAS.filter((area) => services.some((service) => service.city.toLowerCase() === area.city.toLowerCase() && service.state.toLowerCase() === area.state.toLowerCase()));

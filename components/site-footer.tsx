@@ -15,7 +15,7 @@ const trustLinks = [
   ["AI & safety", "/ai-transparency"],
   ["Disputes", "/disputes"],
   ["Accessibility", "/accessibility"],
-  ["Contact support", "mailto:christian@bubsbookings.com"],
+  ["Contact support", "/support"],
 ] as const;
 
 const legalLinks = [
@@ -68,7 +68,7 @@ export default function SiteFooter() {
             <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local services, safer conversations, clear choices—and a simpler way to get things done.</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <BugReportButton />
-              <a href="mailto:christian@bubsbookings.com" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-[#c8d7cf] hover:bg-white/10 hover:text-white">Contact support</a>
+              <Link href="/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-[#c8d7cf] hover:bg-white/10 hover:text-white">Contact support</Link>
             </div>
           </div>
           <FooterLinks title="Marketplace" links={marketplaceLinks} />

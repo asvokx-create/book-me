@@ -6,6 +6,10 @@ import { GUIDES } from "@/lib/guides";
 
 const baseUrl = "https://bubsbookings.com";
 
+// Public listing, company, provider, and location URLs change with marketplace
+// inventory, so the sitemap must not be frozen during a deployment build.
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const services = await getServices({ limit: 1000 }).catch(() => []);
   const providerIds = [...new Set(services.map((service) => service.providerId))];

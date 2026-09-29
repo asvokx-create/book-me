@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   description: "Practical guides for hiring local service providers, growing a service business, and understanding BubsBookings partner referrals, payments, and payouts.",
   alternates: { canonical: "/guides" },
   robots: { index: true, follow: true },
-  openGraph: { type: "website", url: "/guides", title: "BubsBookings Guides", description: "Practical guides for customers, local service providers, and creator partners." },
+  openGraph: { type: "website", url: "/guides", title: "BubsBookings Guides", description: "Practical guides for customers, local service providers, and creator partners.", images: [{ url: "/brand-logo.png", width: 1200, height: 1200, alt: "BubsBookings Guides" }] },
+  twitter: { card: "summary", title: "BubsBookings Guides", description: "Practical guides for customers, local service providers, and creator partners.", images: ["/brand-logo.png"] },
 };
 
 export default async function GuidesPage({ searchParams }: PageProps<"/guides">) {

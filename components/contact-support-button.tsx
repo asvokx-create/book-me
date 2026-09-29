@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 export default function ContactSupportButton({ className = "" }: { className?: string }) {
@@ -20,7 +21,7 @@ export default function ContactSupportButton({ className = "" }: { className?: s
   }
 
   return <>
-    <button type="button" onClick={() => { setOpen(true); setSent(false); setError(""); }} className={className}>Contact support</button>
+    <Link href="/support" onClick={(event) => { event.preventDefault(); setOpen(true); setSent(false); setError(""); }} className={className}>Contact support</Link>
     {open && <div className="fixed inset-0 z-[100] grid place-items-center bg-[#10251c]/55 p-5" role="dialog" aria-modal="true" aria-labelledby="support-title">
       <div className="w-full max-w-lg rounded-[2rem] bg-white p-6 text-[#183126] shadow-2xl sm:p-8">
         {sent ? <div className="text-center"><span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#e5f1e5] text-2xl">✓</span><h2 id="support-title" className="mt-4 text-2xl font-bold">Message sent to support</h2><p className="mt-2 text-sm text-[#687970]">Your request is now in the BubsBookings admin support inbox.</p><button onClick={() => setOpen(false)} className="mt-6 rounded-full bg-[#183126] px-6 py-3 text-sm font-bold text-white">Done</button></div> :

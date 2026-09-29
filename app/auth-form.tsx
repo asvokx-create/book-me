@@ -31,6 +31,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   const [signupMethod, setSignupMethod] = useState<"email" | SocialProvider>("email");
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const isLogin = mode === "login";
+  const isProviderIntent = redirectTo === "/providers/join" || redirectTo.startsWith("/providers/join?") || redirectTo.startsWith("/provider/");
   const hasRequiredConsents = confirmedAge && acceptedTerms && acknowledgedPrivacy;
 
   function showSignupStepTwo(method: "email" | SocialProvider) {
@@ -166,9 +167,9 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   return (
     <div className="w-full max-w-md rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_24px_70px_rgba(24,49,38,.14)] sm:p-9">
       <div className="text-center">
-        <p className="text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{isLogin ? "Welcome back" : "Join BubsBookings"}</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-[-.04em]">{isLogin ? "Log in to your account" : "Create your account"}</h1>
-        <p className="mt-3 text-sm leading-6 text-[#718078]">{isLogin ? "Manage bookings and connect with your favorite local pros." : "Find local service providers and keep every booking in one place."}</p>
+        <p className="text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{isProviderIntent ? "Provider setup" : isLogin ? "Welcome back" : "Join BubsBookings"}</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-[-.04em]">{isProviderIntent ? (isLogin ? "Log in to continue provider setup" : "Create your provider account") : isLogin ? "Log in to your account" : "Create your account"}</h1>
+        <p className="mt-3 text-sm leading-6 text-[#718078]">{isProviderIntent ? "Set up your provider profile, services, availability, and Stripe payouts after you sign in." : isLogin ? "Manage bookings and connect with your favorite local pros." : "Find local service providers and keep every booking in one place."}</p>
       </div>
 
       {!isLogin && <div className="mt-6" aria-label={`Signup step ${signupStep} of 2`}><div className="flex items-center gap-2" aria-hidden="true"><span className="h-1.5 flex-1 rounded-full bg-[#183126]" /><span className={`h-1.5 flex-1 rounded-full ${signupStep === 2 ? "bg-[#183126]" : "bg-[#dfe6dc]"}`} /></div><h2 ref={stepHeadingRef} tabIndex={-1} className="mt-3 text-sm font-bold outline-none">Step {signupStep} of 2 · {signupStep === 1 ? "Account details" : "Location and agreements"}</h2><p className="mt-1 text-xs leading-5 text-[#718078]">{signupStep === 1 ? "Enter your account details, then continue." : signupMethod === "google" ? "Add your general location and accept the required agreements before continuing with Google." : "Add your general location and accept the required agreements to finish."}</p></div>}
