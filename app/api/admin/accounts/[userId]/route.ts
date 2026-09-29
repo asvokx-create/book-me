@@ -45,13 +45,14 @@ export async function GET(
               stripe_payouts_enabled, stripe_current_period_end,
               (stripe_account_id IS NOT NULL) AS stripe_connected,
               provider_agreement_accepted_at, provider_agreement_version,
-              pro_trial_used_at_test, pro_trial_used_at_live, created_at, updated_at
+              pro_trial_used_at_test, pro_trial_used_at_live, public_profile_slug, public_profile_visible,
+              years_experience, experience_summary, specialties, languages, provider_highlights, created_at, updated_at
        FROM provider_profiles WHERE user_id = $1`,
       [userId],
     );
     const providerId = providerResult.rows[0]?.id as string | undefined;
 
-    const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity, welcomeEmail, affiliateAttribution] = await Promise.all([
+    const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity, welcomeEmail, affiliateAttribution, portfolio] = await Promise.all([
       database.query(
         `SELECT city, state, search_radius_miles, booking_notifications, message_notifications,
                 theme, time_zone, created_at, updated_at,
@@ -154,6 +155,12 @@ export async function GET(
          WHERE $1::uuid IS NOT NULL AND referral.provider_id = $1::uuid LIMIT 1`,
         [providerId ?? null],
       ),
+      database.query(
+        `SELECT id::text, public_url AS url, caption, alt_text, moderation_status, created_at
+         FROM provider_portfolio_items WHERE $1::uuid IS NOT NULL AND provider_id = $1::uuid
+         ORDER BY sort_order, created_at`,
+        [providerId ?? null],
+      ),
     ]);
 
     await database.query(
@@ -180,6 +187,7 @@ export async function GET(
       activity: activity.rows,
       welcomeEmail: welcomeEmail.rows[0] ?? null,
       affiliateAttribution: affiliateAttribution.rows[0] ?? null,
+      portfolio: portfolio.rows,
       privacyNote: "Passwords, authentication secrets, payment-card and bank details, private conversations, booking addresses, and booking notes are intentionally excluded.",
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

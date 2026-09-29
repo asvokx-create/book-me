@@ -16,6 +16,7 @@ import { enforceRateLimit } from "@/lib/request-security";
 import { sendFirstListingSuccessEmail } from "@/lib/provider-success-email";
 import { recordAnalytics } from "@/lib/analytics";
 import { AFFILIATE_COOKIE, lockAffiliateAttribution, normalizeAffiliateCode } from "@/lib/affiliates";
+import { slugifyProviderName } from "@/lib/provider-profile-options";
 
 const weekdayNumbers: Record<string, number> = {
   Sun: 0,
@@ -105,7 +106,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ error: screening.summary, screening }, { status: 422 });
   }
-  const existingProfile = await database.query<{ plan: ProviderPlan; city: string; state: string }>("SELECT plan, city, state FROM provider_profiles WHERE user_id = $1", [session.user.id]);
+  const existingProfile = await database.query<{ plan: ProviderPlan; city: string; state: string; public_profile_slug: string }>("SELECT plan, city, state, public_profile_slug FROM provider_profiles WHERE user_id = $1", [session.user.id]);
   const plan: ProviderPlan = isOwnerEmail(session.user.email)
     ? "owner"
     : existingProfile.rows[0]?.plan ?? "starter";
@@ -124,10 +125,23 @@ export async function POST(request: Request) {
     await client.query("BEGIN");
     await client.query('UPDATE "user" SET role = $1, phone = $2, "updatedAt" = now() WHERE id = $3', ["provider", phone, session.user.id]);
 
+    let publicProfileSlug = existing?.public_profile_slug;
+    if (!publicProfileSlug) {
+      const base = slugifyProviderName(business);
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`provider-profile-slug:${base}`]);
+      const matches = await client.query<{ public_profile_slug: string }>(
+        "SELECT public_profile_slug FROM provider_profiles WHERE lower(public_profile_slug) = lower($1) OR lower(public_profile_slug) LIKE lower($1 || '-%')",
+        [base],
+      );
+      const used = new Set(matches.rows.map((row) => row.public_profile_slug.toLowerCase()));
+      publicProfileSlug = base;
+      for (let suffix = 2; used.has(publicProfileSlug.toLowerCase()); suffix += 1) publicProfileSlug = `${base}-${suffix}`;
+    }
+
     const profileResult = await client.query<{ id: string }>(
-      `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state, plan, latitude, longitude, service_radius_miles,
+      `INSERT INTO provider_profiles (user_id, business_name, bio, phone, city, state, plan, latitude, longitude, service_radius_miles, public_profile_slug,
           screening_status, screening_score, screening_summary, screening_checked_at, provider_agreement_accepted_at, provider_agreement_version, is_verified, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'passed', $11, $12, now(), now(), $13, true, true)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'passed', $12, $13, now(), now(), $14, true, true)
        ON CONFLICT (user_id) DO UPDATE SET
          bio = EXCLUDED.bio,
          phone = EXCLUDED.phone,
@@ -142,7 +156,7 @@ export async function POST(request: Request) {
          is_verified = true,
          is_active = true
        RETURNING id`,
-      [session.user.id, business, description, phone, city, state, plan, coordinates.latitude, coordinates.longitude, serviceRadiusMiles, screening.score, screening.summary, PROVIDER_AGREEMENT_VERSION],
+      [session.user.id, business, description, phone, city, state, plan, coordinates.latitude, coordinates.longitude, serviceRadiusMiles, publicProfileSlug, screening.score, screening.summary, PROVIDER_AGREEMENT_VERSION],
     );
     const providerId = profileResult.rows[0].id;
 

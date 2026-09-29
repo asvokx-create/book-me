@@ -315,6 +315,14 @@ export async function PATCH(request: Request) {
       if (!result.rowCount) throw new Error("NOT_FOUND");
       targetType = "review";
       auditAction = status === "hidden" ? "review_hidden" : "review_restored";
+    } else if (action === "portfolio_status" && (status === "active" || status === "hidden")) {
+      const result = await client.query(
+        "UPDATE provider_portfolio_items SET moderation_status = $2, updated_at = now() WHERE id::text = $1",
+        [targetId, status],
+      );
+      if (!result.rowCount) throw new Error("NOT_FOUND");
+      targetType = "provider_portfolio";
+      auditAction = status === "hidden" ? "provider_portfolio_hidden" : "provider_portfolio_restored";
     } else if (action === "payout_freeze" && (status === "frozen" || status === "active")) {
       if (status === "frozen" && !reason) {
         await client.query("ROLLBACK");

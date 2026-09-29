@@ -20,62 +20,31 @@ function safeFilename(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "listing";
 }
 
-export default function ProviderMarketingTools({ services }: { services: MarketingService[] }) {
+export default function ProviderMarketingTools({ services, providerProfile }: { services: MarketingService[]; providerProfile: { slug: string; name: string; visible: boolean } | null }) {
   const [selectedId, setSelectedId] = useState(services[0]?.id ?? "");
   const [downloadError, setDownloadError] = useState("");
   const qrRef = useRef<HTMLDivElement>(null);
+  const profileQrRef = useRef<HTMLDivElement>(null);
   const selected = services.find((service) => service.id === selectedId) ?? services[0];
   const listingUrl = selected ? `${publicSiteUrl}/services/${selected.slug}` : "";
+  const profileUrl = providerProfile ? `${publicSiteUrl}/providers/${providerProfile.slug}` : "";
+
+  function downloadQr(ref: HTMLDivElement | null, filename: string) {
+    if (!ref) return;
+    const svg = ref.querySelector("svg");
+    if (!svg) return setDownloadError("The QR code could not be downloaded. Please try again.");
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg"); clone.setAttribute("width", "1200"); clone.setAttribute("height", "1200");
+    const objectUrl = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml;charset=utf-8" }));
+    const image = new Image();
+    image.onload = () => { const canvas = document.createElement("canvas"); canvas.width = 1600; canvas.height = 1600; const context = canvas.getContext("2d"); if (!context) return; context.fillStyle = "#ffffff"; context.fillRect(0, 0, 1600, 1600); context.drawImage(image, 160, 160, 1280, 1280); URL.revokeObjectURL(objectUrl); canvas.toBlob((png) => { if (!png) return; const link = document.createElement("a"); link.href = URL.createObjectURL(png); link.download = filename; link.click(); window.setTimeout(() => URL.revokeObjectURL(link.href), 1000); }, "image/png"); };
+    image.onerror = () => { URL.revokeObjectURL(objectUrl); setDownloadError("The QR code could not be downloaded. Please try again."); };
+    image.src = objectUrl;
+  }
 
   function downloadQrCode() {
     if (!selected || !qrRef.current) return;
-    setDownloadError("");
-    const svg = qrRef.current.querySelector("svg");
-    if (!svg) {
-      setDownloadError("The QR code could not be downloaded. Please try again.");
-      return;
-    }
-
-    const clone = svg.cloneNode(true) as SVGSVGElement;
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("width", "1200");
-    clone.setAttribute("height", "1200");
-    const source = new XMLSerializer().serializeToString(clone);
-    const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
-    const objectUrl = URL.createObjectURL(blob);
-    const image = new Image();
-
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1600;
-      canvas.height = 1600;
-      const context = canvas.getContext("2d");
-      if (!context) {
-        URL.revokeObjectURL(objectUrl);
-        setDownloadError("The QR code could not be downloaded. Please try again.");
-        return;
-      }
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 160, 160, 1280, 1280);
-      URL.revokeObjectURL(objectUrl);
-      canvas.toBlob((png) => {
-        if (!png) {
-          setDownloadError("The QR code could not be downloaded. Please try again.");
-          return;
-        }
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(png);
-        link.download = `${safeFilename(selected.title)}-bubsbookings-qr.png`;
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-      }, "image/png");
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      setDownloadError("The QR code could not be downloaded. Please try again.");
-    };
-    image.src = objectUrl;
+    downloadQr(qrRef.current, `${safeFilename(selected.title)}-bubsbookings-qr.png`);
   }
 
   if (!services.length) {
@@ -98,6 +67,8 @@ export default function ProviderMarketingTools({ services }: { services: Marketi
       </div>
       <span className="w-fit rounded-full bg-[#e7eee2] px-4 py-2 text-xs font-bold">Included with every provider plan</span>
     </div>
+
+    {providerProfile && <section className="mt-7 rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_8px_32px_rgba(24,49,38,.06)] sm:p-8"><div className="grid gap-6 md:grid-cols-[auto_1fr] md:items-center"><div ref={profileQrRef} className="mx-auto h-[164px] w-[164px] rounded-2xl bg-white p-2"><QRCode value={profileUrl} size={148} level="H" bgColor="#ffffff" fgColor="#183126" aria-label={`QR code for ${providerProfile.name} provider profile`} /></div><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Provider profile QR · separate from listing QR codes</p><h2 className="mt-2 text-2xl font-bold">Share your complete provider profile</h2><p className="mt-2 break-all text-sm text-[#687a70]">{profileUrl}</p>{!providerProfile.visible && <p className="mt-2 text-sm font-bold text-[#9b4934]">Your public profile is currently hidden. Turn it on in Public profile before sharing.</p>}<div className="mt-4 flex flex-wrap gap-2"><ListingShareButton providerSlug={providerProfile.slug} title={providerProfile.name} /><button type="button" onClick={() => downloadQr(profileQrRef.current, `${safeFilename(providerProfile.name)}-provider-profile-qr.png`)} className="min-h-11 rounded-full bg-[#183126] px-5 py-2.5 text-sm font-bold text-white">Download profile QR</button><Link href={`/providers/${providerProfile.slug}`} target="_blank" className="inline-flex min-h-11 items-center px-2 text-sm font-bold underline underline-offset-4">Preview profile ↗</Link></div></div></div></section>}
 
     <div className="mt-8 grid gap-5 xl:grid-cols-[.82fr_1.18fr]">
       <section className="rounded-[2rem] bg-[#183126] p-6 text-white sm:p-8">

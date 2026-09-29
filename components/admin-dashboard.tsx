@@ -3,6 +3,7 @@
 import BrandLockup from "@/components/brand-lockup";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
@@ -80,6 +81,8 @@ type AccountDetails = {
     stripe_current_period_end: string | null; stripe_connected: boolean;
     provider_agreement_accepted_at: string | null; provider_agreement_version: string | null;
     pro_trial_used_at_test: string | null; pro_trial_used_at_live: string | null; created_at: string; updated_at: string;
+    public_profile_slug: string; public_profile_visible: boolean; years_experience: number | null; experience_summary: string;
+    specialties: string[]; languages: string[]; provider_highlights: string[];
   };
   counts: { bookings: number; listings: number; reviews: number; safety_reports: number; disputes: number; support_requests: number };
   services: Array<{ id: string; slug: string; title: string; category: string; business_name: string; price_cents: number; duration_minutes: number; is_active: boolean; created_at: string }>;
@@ -91,6 +94,7 @@ type AccountDetails = {
   activity: Array<{ id: string; action: string; target_type: string; target_id: string | null; created_at: string }>;
   welcomeEmail: null | { status: "sent" | "skipped" | "failed"; created_at: string };
   affiliateAttribution: null | { affiliate_name: string; affiliate_code: string; program_name: string; attributed_at: string; provider_signup_at: string; qualified_at: string | null; revenue_share_started_at: string | null; revenue_share_ends_at: string | null; status: string };
+  portfolio: Array<{ id: string; url: string; caption: string; alt_text: string; moderation_status: "active" | "hidden"; created_at: string }>;
   privacyNote: string;
 };
 
@@ -531,6 +535,10 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
     setWelcomeResult(response?.ok ? result?.message ?? "Welcome email sent." : result?.error ?? "The welcome email could not be sent.");
     setWelcomeBusy(false);
   }
+  async function moderatePortfolio(id: string, status: "active" | "hidden") {
+    const response = await fetch("/api/admin", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "portfolio_status", targetId: id, status }) });
+    if (response.ok) onRetry();
+  }
 
   return <div className="fixed inset-0 z-[200] flex min-w-0 justify-end overflow-hidden bg-[#10251c]/55" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
     <section className="admin-account-dialog h-[100dvh] min-w-0 w-full max-w-4xl overflow-x-hidden overflow-y-auto overscroll-contain bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="account-detail-title">
@@ -576,7 +584,9 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             { label: "Stripe connected", value: details.provider.stripe_connected }, { label: "Charges enabled", value: details.provider.stripe_charges_enabled }, { label: "Payouts enabled", value: details.provider.stripe_payouts_enabled },
             { label: "Subscription", value: label(details.provider.stripe_subscription_status) }, { label: "Current period ends", value: details.provider.stripe_current_period_end ? formatDate(details.provider.stripe_current_period_end) : null }, { label: "Live Pro trial used", value: details.provider.pro_trial_used_at_live ? formatDate(details.provider.pro_trial_used_at_live) : "No" },
             { label: "Provider agreement", value: details.provider.provider_agreement_accepted_at ? formatDate(details.provider.provider_agreement_accepted_at) : null }, { label: "Agreement version", value: details.provider.provider_agreement_version },
+            { label: "Public profile", value: details.provider.public_profile_visible ? "Visible" : "Hidden" }, { label: "Public slug", value: details.provider.public_profile_slug }, { label: "Years experience", value: details.provider.years_experience },
           ]} />{details.provider.bio && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Business description</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{details.provider.bio}</p></div>}{details.provider.screening_summary && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Screening summary</p><p className="mt-2 text-sm leading-6">{details.provider.screening_summary}</p></div>}</div></details>}
+          {details.portfolio.length > 0 && <section><h3 className="mb-3 text-lg font-bold">Provider portfolio moderation</h3><div className="grid gap-3 sm:grid-cols-2">{details.portfolio.map((item) => <article key={item.id} className="overflow-hidden rounded-2xl border border-[#183126]/10"><Image src={item.url} alt={item.alt_text || item.caption || "Provider portfolio"} width={600} height={450} unoptimized className="aspect-[4/3] w-full object-cover" /><div className="p-4"><div className="flex items-center justify-between gap-2"><p className="text-sm font-bold">{item.caption || "Untitled work"}</p><StatusPill value={item.moderation_status} /></div><button type="button" onClick={() => void moderatePortfolio(item.id, item.moderation_status === "hidden" ? "active" : "hidden")} className="mt-3 rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold">{item.moderation_status === "hidden" ? "Restore image" : "Hide image"}</button></div></article>)}</div></section>}
           {details.affiliateAttribution && <section className="rounded-3xl border border-[#183126]/10 bg-[#edf5e9] p-5"><h3 className="text-lg font-bold">Affiliate attribution</h3><p className="mt-1 text-sm text-[#52665b]">Private attribution and snapshotted program status for this provider.</p><div className="mt-4"><DetailGrid items={[
             { label: "Referred by", value: details.affiliateAttribution.affiliate_name }, { label: "Affiliate code", value: details.affiliateAttribution.affiliate_code },
             { label: "Program", value: details.affiliateAttribution.program_name }, { label: "Referral date", value: formatDate(details.affiliateAttribution.attributed_at) },

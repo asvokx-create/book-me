@@ -5,8 +5,9 @@ import { createPortal } from "react-dom";
 import { canonicalListingUrl, listingShareDestinations, listingShareText, type ListingShareMethod } from "@/lib/listing-share";
 
 type ListingShareButtonProps = {
-  serviceId: string;
-  slug: string;
+  serviceId?: string;
+  slug?: string;
+  providerSlug?: string;
   title: string;
   description?: string;
   action?: "share" | "copy";
@@ -24,7 +25,7 @@ const eventByMethod: Record<ListingShareMethod, string> = {
   email: "listing_share_email",
 };
 
-function trackShare(serviceId: string, method: ListingShareMethod) {
+function trackShare(target: { serviceId?: string; providerSlug?: string }, method: ListingShareMethod) {
   let anonymousId: string | undefined;
   try {
     anonymousId = window.localStorage.getItem("bubs-analytics-id") ?? undefined;
@@ -38,7 +39,7 @@ function trackShare(serviceId: string, method: ListingShareMethod) {
   void fetch("/api/analytics", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ eventName: eventByMethod[method], anonymousId, path: window.location.pathname, metadata: { serviceId, method } }),
+    body: JSON.stringify({ eventName: target.providerSlug ? eventByMethod[method].replace("listing_", "provider_") : eventByMethod[method], anonymousId, path: window.location.pathname, metadata: { serviceId: target.serviceId, providerSlug: target.providerSlug, method } }),
     keepalive: true,
   }).catch(() => undefined);
 }
@@ -60,15 +61,21 @@ async function copyText(value: string) {
   return copied;
 }
 
-export default function ListingShareButton({ serviceId, slug, title, description, action = "share", className = "" }: ListingShareButtonProps) {
+export default function ListingShareButton({ serviceId, slug, providerSlug, title, description, action = "share", className = "" }: ListingShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "manual">("idle");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const copyTimer = useRef<number | undefined>(undefined);
-  const url = canonicalListingUrl(slug);
+  const url = providerSlug ? `https://bubsbookings.com/providers/${encodeURIComponent(providerSlug)}` : canonicalListingUrl(slug ?? "");
   const text = description?.trim() || listingShareText(title);
-  const destinations = listingShareDestinations(title, slug);
+  const destinations = providerSlug ? {
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    x: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+    email: `mailto:?subject=${encodeURIComponent(`${title} on BubsBookings`)}&body=${encodeURIComponent(`${text}\n\n${url}`)}`,
+  } : listingShareDestinations(title, slug ?? "");
 
   useEffect(() => () => window.clearTimeout(copyTimer.current), []);
 
@@ -106,7 +113,7 @@ export default function ListingShareButton({ serviceId, slug, title, description
     try {
       const copied = await copyText(url);
       setCopyState(copied ? "copied" : "manual");
-      if (copied) trackShare(serviceId, "copy_link");
+      if (copied) trackShare({ serviceId, providerSlug }, "copy_link");
     } catch {
       setCopyState("manual");
     }
@@ -119,12 +126,12 @@ export default function ListingShareButton({ serviceId, slug, title, description
       await copyLink();
       return;
     }
-    trackShare(serviceId, "opened");
+    trackShare({ serviceId, providerSlug }, "opened");
     const mobileLike = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
     if (mobileLike && typeof navigator.share === "function") {
       try {
         await navigator.share({ title: `${title} | BubsBookings`, text, url });
-        trackShare(serviceId, "native");
+        trackShare({ serviceId, providerSlug }, "native");
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -134,7 +141,7 @@ export default function ListingShareButton({ serviceId, slug, title, description
   }
 
   function record(method: Exclude<ListingShareMethod, "opened" | "native" | "copy_link">) {
-    trackShare(serviceId, method);
+    trackShare({ serviceId, providerSlug }, method);
   }
 
   const triggerLabel = action === "copy" ? (copyState === "copied" ? "Link copied ✓" : "Copy link") : "Share";
@@ -142,13 +149,13 @@ export default function ListingShareButton({ serviceId, slug, title, description
     <div className="listing-share-backdrop fixed inset-0 z-[320] grid place-items-end bg-black/55 sm:place-items-center sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="listing-share-title" className="listing-share-dialog max-h-[calc(100dvh-1rem)] w-full overflow-y-auto rounded-t-[2rem] border border-[#183126]/10 bg-[#fbfaf6] p-5 text-[#183126] shadow-2xl sm:max-w-md sm:rounded-[2rem] sm:p-7">
         <div className="flex items-start justify-between gap-4">
-          <div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#718078]">BubsBookings</p><h2 id="listing-share-title" className="mt-1 text-2xl font-bold">Share this service</h2><p className="mt-2 line-clamp-2 text-sm text-[#687970]">{title}</p></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#718078]">BubsBookings</p><h2 id="listing-share-title" className="mt-1 text-2xl font-bold">Share this {providerSlug ? "provider" : "service"}</h2><p className="mt-2 line-clamp-2 text-sm text-[#687970]">{title}</p></div>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close share menu" className="listing-share-close grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/15 bg-white text-xl">×</button>
         </div>
 
         <button type="button" onClick={copyLink} className="listing-share-copy mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:bg-[#f6ea69] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#6b8d77]/40"><span aria-hidden="true">⧉</span>{copyState === "copied" ? "Link copied ✓" : "Copy link"}</button>
-        <p aria-live="polite" role="status" className="mt-2 min-h-5 text-center text-xs font-semibold text-[#5f7168]">{copyState === "copied" ? "The canonical listing link is ready to paste." : copyState === "manual" ? "Copy was unavailable. Select the link below." : ""}</p>
-        {copyState === "manual" && <input readOnly value={url} onFocus={(event) => event.currentTarget.select()} aria-label="Listing link" className="listing-share-url mt-1 w-full rounded-xl border border-[#183126]/15 bg-white px-3 py-3 text-sm" />}
+        <p aria-live="polite" role="status" className="mt-2 min-h-5 text-center text-xs font-semibold text-[#5f7168]">{copyState === "copied" ? `The canonical ${providerSlug ? "provider" : "listing"} link is ready to paste.` : copyState === "manual" ? "Copy was unavailable. Select the link below." : ""}</p>
+        {copyState === "manual" && <input readOnly value={url} onFocus={(event) => event.currentTarget.select()} aria-label={`${providerSlug ? "Provider" : "Listing"} link`} className="listing-share-url mt-1 w-full rounded-xl border border-[#183126]/15 bg-white px-3 py-3 text-sm" />}
 
         <p className="mt-4 text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Share with</p>
         <div className="mt-3 grid grid-cols-2 gap-2">

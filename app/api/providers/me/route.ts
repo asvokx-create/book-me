@@ -32,13 +32,15 @@ export async function GET() {
     cancellation_policy: string;
     no_show_policy: string;
     service_radius_miles: number;
+    public_profile_slug: string;
+    public_profile_visible: boolean;
   }>(
     `SELECT p.id::text, p.user_id, p.business_name, p.city, p.state, p.plan, p.is_active,
             u.name AS user_name,
             u."emailVerified" AS email_verified, p.phone_verified, p.identity_verified,
             p.business_verified, p.screening_status, p.screening_score, p.screening_summary,
             p.screening_checked_at, p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
-            p.service_radius_miles
+            p.service_radius_miles, p.public_profile_slug, p.public_profile_visible
      FROM provider_profiles p
      JOIN "user" u ON u.id = p.user_id
      WHERE p.id::text = $1`,
@@ -160,6 +162,8 @@ export async function GET() {
     cancellationPolicy: provider.cancellation_policy,
     noShowPolicy: provider.no_show_policy,
     serviceRadiusMiles: provider.service_radius_miles,
+    publicProfileSlug: provider.public_profile_slug,
+    publicProfileVisible: provider.public_profile_visible,
     service: services[0] ?? null,
     services,
     availability: services[0] ? availabilityByService[services[0].id] ?? [] : defaultAvailability,

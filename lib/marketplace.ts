@@ -16,6 +16,8 @@ export type ServiceListing = {
   price: number;
   durationMinutes: number;
   providerId: string;
+  providerSlug: string;
+  providerProfileVisible: boolean;
   provider: string;
   companySlug?: string;
   city: string;
@@ -52,6 +54,8 @@ type ServiceRow = {
   price_cents: number;
   duration_minutes: number;
   provider_id: string;
+  provider_slug: string;
+  provider_profile_visible: boolean;
   business_name: string;
   company_slug?: string;
   city: string;
@@ -81,6 +85,8 @@ function mapService(row: ServiceRow): ServiceListing {
     price: row.price_cents / 100,
     durationMinutes: row.duration_minutes,
     providerId: row.provider_id,
+    providerSlug: row.provider_slug,
+    providerProfileVisible: row.provider_profile_visible,
     provider: row.business_name,
     companySlug: row.company_slug,
     city: row.city,
@@ -145,7 +151,7 @@ export async function getServices(options: { query?: string; category?: string; 
   const orderBy = options.sort === "price-low" ? `s.price_cents ASC, ${planPriority}, s.created_at DESC` : options.sort === "price-high" ? `s.price_cents DESC, ${planPriority}, s.created_at DESC` : `${planPriority}, s.created_at DESC`;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id,
+            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, company.slug AS company_slug,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
@@ -187,7 +193,7 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
   if (!isDatabaseConfigured()) return null;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id,
+            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, company.slug AS company_slug,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
@@ -235,7 +241,7 @@ export async function getServiceById(id: string) {
   if (!isDatabaseConfigured()) return null;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id,
+            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
@@ -255,10 +261,11 @@ export async function getServiceById(id: string) {
   return result.rows[0] ? mapService(result.rows[0]) : null;
 }
 
-export async function getProviderById(id: string) {
+export async function getProviderBySlug(slug: string, options: { includeHidden?: boolean } = {}) {
   if (!isDatabaseConfigured()) return null;
   const providerResult = await database.query<{
     id: string;
+    public_profile_slug: string;
     owner_name: string;
     business_name: string;
     bio: string;
@@ -273,16 +280,26 @@ export async function getProviderById(id: string) {
     cancellation_window_hours: number;
     cancellation_policy: string;
     no_show_policy: string;
+    public_profile_visible: boolean;
+    years_experience: number | null;
+    experience_summary: string;
+    specialties: string[];
+    languages: string[];
+    provider_highlights: string[];
   }>(
-    `SELECT p.id::text, owner.name AS owner_name, p.business_name, p.bio, p.city, p.state,
+    `SELECT p.id::text, p.public_profile_slug, owner.name AS owner_name, p.business_name, p.bio, p.city, p.state,
             p.is_verified, owner."emailVerified" AS email_verified, p.phone_verified,
             p.identity_verified, p.business_verified, p.cancellation_window_hours,
-            p.cancellation_policy, p.no_show_policy, owner.image AS profile_image_url
+            p.cancellation_policy, p.no_show_policy, owner.image AS profile_image_url,
+            p.public_profile_visible, p.years_experience, p.experience_summary,
+            p.specialties, p.languages, p.provider_highlights
      FROM provider_profiles p
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE p.id::text = $1 AND p.is_active = true
+     WHERE (lower(p.public_profile_slug) = lower($1) OR p.id::text = $1)
+       AND p.is_active = true AND ($2::boolean = true OR p.public_profile_visible = true)
+       AND EXISTS (SELECT 1 FROM services active_service WHERE active_service.provider_id = p.id AND active_service.is_active = true)
      LIMIT 1`,
-    [id],
+    [slug, options.includeHidden === true],
   );
   const provider = providerResult.rows[0];
   if (!provider) return null;
@@ -300,8 +317,35 @@ export async function getProviderById(id: string) {
      LIMIT 20`,
     [provider.id],
   );
+  const portfolioResult = await database.query<{ id: string; public_url: string; caption: string; alt_text: string; service_id: string | null; service_title: string | null }>(
+    `SELECT item.id::text, item.public_url, item.caption, item.alt_text, item.service_id::text,
+            service.title AS service_title
+     FROM provider_portfolio_items item
+     LEFT JOIN services service ON service.id = item.service_id AND service.is_active = true
+     WHERE item.provider_id = $1 AND item.moderation_status = 'active'
+     ORDER BY item.sort_order, item.created_at`,
+    [provider.id],
+  );
+  const evidenceResult = await database.query<{ completed_booking_count: string; service_areas: string[] | null; available_weekdays: number[] | null }>(
+    `SELECT
+       (SELECT count(*)::text FROM bookings booking WHERE booking.provider_id = $1 AND booking.status = 'completed') AS completed_booking_count,
+       (SELECT array_agg(DISTINCT area.city || ', ' || area.state ORDER BY area.city || ', ' || area.state)
+        FROM provider_location_service_areas area
+        JOIN provider_locations location ON location.id = area.location_id
+        JOIN provider_companies company ON company.id = location.company_id
+        WHERE company.provider_id = $1 AND company.is_active = true AND location.is_active = true) AS service_areas,
+       (SELECT array_agg(DISTINCT availability.weekday ORDER BY availability.weekday)
+        FROM availability WHERE availability.provider_id = $1) AS available_weekdays`,
+    [provider.id],
+  );
+  const privateCustomerName = (name: string) => {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    return parts.length > 1 ? `${parts[0]} ${parts.at(-1)?.charAt(0)}.` : parts[0] || "BubsBookings customer";
+  };
+  const evidence = evidenceResult.rows[0];
   return {
     id: provider.id,
+    publicSlug: provider.public_profile_slug,
     ownerName: provider.owner_name,
     businessName: services[0]?.provider ?? provider.business_name,
     bio: provider.bio,
@@ -316,7 +360,16 @@ export async function getProviderById(id: string) {
     cancellationWindowHours: provider.cancellation_window_hours,
     cancellationPolicy: provider.cancellation_policy,
     noShowPolicy: provider.no_show_policy,
-    reviews: reviewsResult.rows.map((review) => ({ id: review.id, rating: review.rating, body: review.body, customerName: review.customer_name, serviceTitle: review.service_title, createdAt: review.created_at })),
+    yearsExperience: provider.years_experience,
+    experienceSummary: provider.experience_summary,
+    specialties: provider.specialties ?? [],
+    languages: provider.languages ?? [],
+    highlights: provider.provider_highlights ?? [],
+    completedBookingCount: Number(evidence?.completed_booking_count ?? 0),
+    serviceAreas: evidence?.service_areas ?? [],
+    availableWeekdays: evidence?.available_weekdays ?? [],
+    portfolio: portfolioResult.rows.map((item) => ({ id: item.id, url: item.public_url, caption: item.caption, altText: item.alt_text, serviceId: item.service_id, serviceTitle: item.service_title })),
+    reviews: reviewsResult.rows.map((review) => ({ id: review.id, rating: review.rating, body: review.body, customerName: privateCustomerName(review.customer_name), serviceTitle: review.service_title, createdAt: review.created_at })),
     services,
   };
 }
@@ -324,7 +377,7 @@ export async function getProviderById(id: string) {
 async function getServicesForProvider(providerId: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id,
+            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
@@ -337,7 +390,7 @@ async function getServicesForProvider(providerId: string) {
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE p.id = $1 AND s.is_active = true
+     WHERE p.id = $1 AND p.is_active = true AND s.is_active = true
      ORDER BY s.created_at DESC`,
     [providerId],
   );
@@ -348,7 +401,7 @@ export async function getFavoriteServices(customerId: string) {
   if (!isDatabaseConfigured()) return [];
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id,
+            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
@@ -378,6 +431,11 @@ export function formatDuration(minutes: number) {
   if (minutes < 60) return `${minutes} minutes`;
   const hours = minutes / 60;
   return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+}
+
+/** Compatibility lookup for existing message links. Public pages should use getProviderBySlug. */
+export async function getProviderById(id: string) {
+  return getProviderBySlug(id, { includeHidden: true });
 }
 
 export function getServiceVisual(category: string) {

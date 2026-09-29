@@ -66,6 +66,7 @@ export async function GET(request: Request) {
       serviceAreas: await rows("SELECT area.* FROM provider_location_service_areas area JOIN provider_locations location ON location.id = area.location_id JOIN provider_companies company ON company.id = location.company_id WHERE company.provider_id = $1 ORDER BY area.created_at", [providerId]),
       services: await rows("SELECT * FROM services WHERE provider_id = $1 ORDER BY created_at", [providerId]),
       serviceImages: await rows("SELECT image.* FROM service_images image JOIN services service ON service.id = image.service_id WHERE service.provider_id = $1 ORDER BY image.created_at", [providerId]),
+      portfolio: await rows("SELECT * FROM provider_portfolio_items WHERE provider_id = $1 ORDER BY sort_order, created_at", [providerId]),
       availability: await rows("SELECT * FROM availability WHERE provider_id = $1 ORDER BY weekday, start_time", [providerId]),
       teamMembers: await rows("SELECT * FROM provider_team_members WHERE provider_id = $1 ORDER BY created_at", [providerId]),
       teamAvailability: await rows("SELECT availability.* FROM team_member_availability availability JOIN provider_team_members member ON member.id = availability.team_member_id WHERE member.provider_id = $1 ORDER BY availability.weekday, availability.start_time", [providerId]),

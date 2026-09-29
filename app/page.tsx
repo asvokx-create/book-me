@@ -195,21 +195,21 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
     ? service.distanceMiles < 0.1 ? "In your city" : `${service.distanceMiles.toFixed(1)} mi away`
     : "";
   return <article className="home-service-card group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition duration-300 hover:border-[#547562]/25 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
-    <Link href={`/services/${service.slug}`} className="block">
+    <Link href={`/services/${service.slug}`} className="block" aria-label={`View ${service.title}`}>
       <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
         {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
         {badge && <span className="home-preview-badge absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{badge}</span>}
         {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80 transition duration-300 group-hover:scale-105">{visual.art}</span>}
       </div>
+    </Link>
         <div className="p-5">
           <p className="text-xs font-bold uppercase tracking-[.13em] text-[#75847c]">{service.category}</p>
           <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0"><h3 className="mt-1 truncate text-lg font-semibold">{service.title}</h3><p className="mt-1 truncate text-sm text-zinc-500">Provider: {service.provider}</p></div>
+          <div className="min-w-0"><Link href={`/services/${service.slug}`}><h3 className="mt-1 truncate text-lg font-semibold">{service.title}</h3></Link><p className="mt-1 truncate text-sm text-zinc-500">Provider: {service.provider}</p>{service.providerProfileVisible && <Link href={`/providers/${service.providerSlug}`} className="mt-2 inline-flex text-xs font-bold text-[#4f6d5a] underline underline-offset-4">View provider profile</Link>}</div>
           <div className="shrink-0 text-right"><p className="font-bold">${service.price}</p><p className="text-xs text-zinc-500">starting</p></div>
         </div>
         <div className="mt-5 flex items-center gap-2 text-sm text-zinc-500"><span>📍</span><span>{service.city}, {service.state}{distanceLabel && ` · ${distanceLabel}`}</span></div>
       </div>
-    </Link>
     <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />
   </article>;
 }

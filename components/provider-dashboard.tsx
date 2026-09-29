@@ -17,6 +17,7 @@ import BookingCalendar from "@/components/booking-calendar";
 import ProfileAvatar from "@/components/profile-avatar";
 import LocationManager from "@/components/location-manager";
 import ProviderMarketingTools from "@/components/provider-marketing-tools";
+import ProviderProfileEditor from "@/components/provider-profile-editor";
 import JobRequestCenter from "@/components/job-request-center";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { isAllDayAvailability } from "@/lib/availability-hours";
@@ -24,7 +25,7 @@ import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-
 import { dashboardWidgetDetails, ownerDashboardWidgets, workerDashboardWidgets, type DashboardWidgetId } from "@/lib/provider-dashboard-widgets";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
-export type DashboardSection = "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "revenue" | "services" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
+export type DashboardSection = "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "revenue" | "services" | "profile" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
 
 type ProviderBooking = { id: string; customer: string; customerImage: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus; assigneeName: string; repeatBookings: number };
 const initialRequests: ProviderBooking[] = [];
@@ -56,6 +57,8 @@ type ProviderSummary = {
   cancellationPolicy: string;
   noShowPolicy: string;
   serviceRadiusMiles: number;
+  publicProfileSlug: string;
+  publicProfileVisible: boolean;
 };
 
 type ProviderService = { id: string; companyId: string; companySlug: string; businessName: string; locationId: string; locationName: string; location: string; slug: string; title: string; category: string; price: number; durationMinutes: number; imageUrls: string[]; createdAt: string; viewCount: number };
@@ -119,6 +122,7 @@ const dashboardNav: Array<{ section: DashboardSection; href: string; icon: strin
   { section: "messages", href: "/provider/dashboard/messages", icon: "✉", label: "Messages" },
   { section: "revenue", href: "/provider/dashboard/revenue", icon: "$", label: "Revenue" },
   { section: "services", href: "/provider/dashboard/services", icon: "◇", label: "Services" },
+  { section: "profile", href: "/provider/dashboard/profile", icon: "◉", label: "Public profile" },
   { section: "marketing", href: "/provider/dashboard/marketing", icon: "⌁", label: "Marketing" },
   { section: "locations", href: "/provider/dashboard/locations", icon: "⌖", label: "Locations" },
   { section: "availability", href: "/provider/dashboard/availability", icon: "□", label: "Availability" },
@@ -432,7 +436,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
             <section className="rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a9c1b1]">Profile strength</p><div className="mt-3 flex items-end justify-between"><p className="text-3xl font-bold">{hasListingPhotos ? "100%" : "75%"}</p><p className="text-xs text-[#adbbb3]">{hasListingPhotos ? "Complete" : "Add listing photos"}</p></div><div className="mt-4 h-2 rounded-full bg-white/15"><div className={`h-full rounded-full bg-[#eee25a] ${hasListingPhotos ? "w-full" : "w-3/4"}`} /></div><p className="mt-5 text-sm font-bold text-[#eee25a]">{hasListingPhotos ? "Your profile is ready ✓" : "Add photos to a service"}</p></section>
           </div>}
 
-          {section === "marketing" && !isWorker && <ProviderMarketingTools services={provider?.services ?? []} />}
+          {section === "marketing" && !isWorker && <ProviderMarketingTools services={provider?.services ?? []} providerProfile={provider ? { slug: provider.publicProfileSlug, name: provider.businessName, visible: provider.publicProfileVisible } : null} />}
+          {section === "profile" && !isWorker && <ProviderProfileEditor />}
 
           {section === "locations" && <LocationManager />}
 

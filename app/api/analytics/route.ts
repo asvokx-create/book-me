@@ -10,7 +10,8 @@ const shareEvents = new Map([
   ["listing_share_facebook", "facebook"], ["listing_share_x", "x"], ["listing_share_whatsapp", "whatsapp"],
   ["listing_share_linkedin", "linkedin"], ["listing_share_email", "email"],
 ]);
-const allowedEvents = new Set(["page_view", "service_view", "provider_profile_view", "search_results", "zero_result_search", "checkout_abandoned", ...shareEvents.keys()]);
+const providerShareEvents = new Map([...shareEvents.entries()].map(([event, method]) => [event.replace("listing_", "provider_"), method]));
+const allowedEvents = new Set(["page_view", "service_view", "provider_profile_view", "search_results", "zero_result_search", "checkout_abandoned", ...shareEvents.keys(), ...providerShareEvents.keys()]);
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null) as { eventName?: unknown; anonymousId?: unknown; path?: unknown; metadata?: unknown } | null;
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     if (!slug) return NextResponse.json({ ok: true });
     const profile = kind === "companies"
       ? await database.query<{ id: string; owner_user_id: string }>(`SELECT company.id::text, provider.user_id AS owner_user_id FROM provider_companies company JOIN provider_profiles provider ON provider.id = company.provider_id WHERE company.slug = $1 AND company.is_active = true AND provider.is_active = true`, [slug])
-      : await database.query<{ id: string; owner_user_id: string }>(`SELECT provider.id::text, provider.user_id AS owner_user_id FROM provider_profiles provider WHERE provider.id::text = $1 AND provider.is_active = true`, [slug]);
+      : await database.query<{ id: string; owner_user_id: string }>(`SELECT provider.id::text, provider.user_id AS owner_user_id FROM provider_profiles provider WHERE (lower(provider.public_profile_slug) = lower($1) OR provider.id::text = $1) AND provider.is_active = true AND provider.public_profile_visible = true`, [slug]);
     if (!profile.rows[0] || profile.rows[0].owner_user_id === session?.user.id) return NextResponse.json({ ok: true });
     targetType = kind === "companies" ? "company" : "provider";
     targetId = profile.rows[0].id;
@@ -63,6 +64,20 @@ export async function POST(request: Request) {
     targetType = "service";
     targetId = service.rows[0].id;
     metadata = { method: shareEvents.get(eventName), providerId: service.rows[0].provider_id };
+  }
+  if (providerShareEvents.has(eventName)) {
+    const providerSlug = typeof metadata.providerSlug === "string" ? metadata.providerSlug.slice(0, 100) : "";
+    if (!providerSlug) return NextResponse.json({ ok: true });
+    const provider = await database.query<{ id: string }>(
+      `SELECT p.id::text FROM provider_profiles p
+       WHERE lower(p.public_profile_slug) = lower($1) AND p.is_active = true AND p.public_profile_visible = true
+         AND EXISTS (SELECT 1 FROM services s WHERE s.provider_id = p.id AND s.is_active = true) LIMIT 1`,
+      [providerSlug],
+    );
+    if (!provider.rows[0]) return NextResponse.json({ ok: true });
+    targetType = "provider";
+    targetId = provider.rows[0].id;
+    metadata = { method: providerShareEvents.get(eventName) };
   }
   await recordAnalytics({ eventName, userId: session?.user.id, anonymousId, path, targetType, targetId, metadata });
   return NextResponse.json({ ok: true });

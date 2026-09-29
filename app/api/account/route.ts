@@ -58,7 +58,9 @@ export async function DELETE(request: Request) {
   );
   const settings = settingsResult.rows[0] ?? null;
   const imageResult = await database.query<{ object_key: string }>(
-    `SELECT object_key FROM service_images WHERE service_id IN (SELECT service.id FROM services service JOIN provider_profiles provider ON provider.id = service.provider_id WHERE provider.user_id = $1)`,
+    `SELECT object_key FROM service_images WHERE service_id IN (SELECT service.id FROM services service JOIN provider_profiles provider ON provider.id = service.provider_id WHERE provider.user_id = $1)
+     UNION ALL
+     SELECT item.object_key FROM provider_portfolio_items item JOIN provider_profiles provider ON provider.id = item.provider_id WHERE provider.user_id = $1`,
     [session.user.id],
   );
 

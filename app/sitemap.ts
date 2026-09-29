@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const services = await getServices({ limit: 1000 }).catch(() => []);
-  const providerIds = [...new Set(services.map((service) => service.providerId))];
+  const providerSlugs = [...new Set(services.filter((service) => service.providerProfileVisible).map((service) => service.providerSlug).filter(Boolean))];
   const companySlugs = [...new Set(services.map((service) => service.companySlug).filter((slug): slug is string => Boolean(slug)))];
   const activeServiceAreas = SERVICE_AREAS.filter((area) => services.some((service) => service.city.toLowerCase() === area.city.toLowerCase() && service.state.toLowerCase() === area.state.toLowerCase()));
   const localCategoryPages = [...new Map(services.flatMap((service) => {
@@ -30,6 +30,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...GUIDES.map((guide) => ({ url: `${baseUrl}/guides/${guide.slug}`, lastModified: guide.updatedAt, changeFrequency: "monthly" as const, priority: 0.6 })),
     ...services.map((service) => ({ url: `${baseUrl}/services/${service.slug}`, changeFrequency: "weekly" as const, priority: 0.8 })),
     ...companySlugs.map((slug) => ({ url: `${baseUrl}/companies/${slug}`, changeFrequency: "weekly" as const, priority: 0.75 })),
-    ...providerIds.map((providerId) => ({ url: `${baseUrl}/providers/${providerId}`, changeFrequency: "weekly" as const, priority: 0.7 })),
+    ...providerSlugs.map((providerSlug) => ({ url: `${baseUrl}/providers/${providerSlug}`, changeFrequency: "weekly" as const, priority: 0.7 })),
   ];
 }
