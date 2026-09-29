@@ -11,6 +11,7 @@ import UpcomingCategoryCard from "@/components/upcoming-category-card";
 import { getContextualLocation } from "@/lib/request-location";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import ServiceSearchAssist from "@/components/service-search-assist";
+import HomeHeroPreview from "@/components/home-hero-preview";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Find and book local services", description: "Compare local service listings, message providers, and request bookings across the United States.", alternates: { canonical: "/" } };
@@ -93,21 +94,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </div>
         </div>
 
-        <div className="relative hidden lg:block">
-          <div className="absolute -inset-8 rounded-full bg-[#bcd6b8]/35 blur-3xl" />
-          <Link href={nearbyServicesHref} aria-label={location ? `Browse services near ${city}` : "Browse available services"} className="home-preview-card relative block rotate-[2deg] rounded-[2.25rem] border border-white/80 bg-white/88 p-5 shadow-[0_30px_80px_rgba(24,49,38,.18)] backdrop-blur-xl transition hover:shadow-[0_34px_85px_rgba(24,49,38,.22)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]">
-            <div className="relative h-56 overflow-hidden rounded-[1.65rem] bg-gradient-to-br from-[#143d2c] via-[#2f7652] to-[#b8dc62]">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(255,255,255,.4),transparent_27%)]" />
-              <span className="home-preview-badge absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold">{location ? "Popular nearby" : "Available services"}</span>
-              <span className="absolute bottom-4 right-5 text-6xl drop-shadow-lg">🧰</span>
-            </div>
-            <div className="px-1 pb-1 pt-5">
-              <div className="flex items-start justify-between gap-4"><div><p className="text-lg font-bold">Help is closer than you think</p><p className="mt-1 text-sm text-[#65766d]">Compare, message, and book in one place.</p></div><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#f1e45c] text-lg">→</span></div>
-              <div className="mt-5 grid grid-cols-3 gap-2 text-center"><div className="home-preview-stat rounded-2xl bg-[#f3f5f0] px-2 py-3"><p className="font-black">Local</p><p className="mt-0.5 text-[10px] text-[#6a7b72]">Search by area</p></div><div className="home-preview-stat rounded-2xl bg-[#f3f5f0] px-2 py-3"><p className="font-black">Direct</p><p className="mt-0.5 text-[10px] text-[#6a7b72]">Chat with pros</p></div><div className="home-preview-stat rounded-2xl bg-[#f3f5f0] px-2 py-3"><p className="font-black">Secure</p><p className="mt-0.5 text-[10px] text-[#6a7b72]">Pay with Stripe</p></div></div>
-            </div>
-          </Link>
-          <div className="absolute -bottom-5 -left-8 rounded-2xl border border-white bg-[#173d2e] px-4 py-3 text-white shadow-xl"><p className="text-xs font-bold text-[#bdd0c4]">BUILT FOR YOUR NEIGHBORHOOD</p><p className="mt-1 text-sm font-bold">Local help, without the hassle.</p></div>
-        </div>
+        <HomeHeroPreview href={nearbyServicesHref} city={city} hasLocation={Boolean(location)} />
         </div>
 
         <form action="/services" className="home-search-bar relative z-40 mt-12 flex max-w-5xl flex-col gap-2 overflow-visible rounded-3xl border border-white bg-white/92 p-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl md:flex-row md:items-center md:rounded-full">
