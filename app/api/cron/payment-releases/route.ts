@@ -3,6 +3,7 @@ import { releaseDuePayouts } from "@/lib/payment-release";
 import { secureSecretMatches } from "@/lib/request-security";
 import { advanceAffiliateCommissions } from "@/lib/affiliates";
 import { runAutomatedAffiliatePayouts, runProtectedOwnerPayout } from "@/lib/affiliate-payouts";
+import { expireStaleJobRequests, processJobRequestNotificationQueue } from "@/lib/job-request-operations";
 
 export async function POST(request: Request) {
   const configuredSecret = process.env.CRON_SECRET;
@@ -12,5 +13,7 @@ export async function POST(request: Request) {
   const affiliateCommissionsAdvanced = await advanceAffiliateCommissions();
   const affiliatePayouts = await runAutomatedAffiliatePayouts();
   const ownerPayout = await runProtectedOwnerPayout();
-  return NextResponse.json({ ok: true, ...releases, affiliateCommissionsAdvanced, affiliatePayouts, ownerPayout });
+  const expiredRequests = await expireStaleJobRequests();
+  const requestNotifications = await processJobRequestNotificationQueue();
+  return NextResponse.json({ ok: true, ...releases, affiliateCommissionsAdvanced, affiliatePayouts, ownerPayout, ...expiredRequests, ...requestNotifications });
 }

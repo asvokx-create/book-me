@@ -4,9 +4,9 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 
-type Props = { initialCategory?: string; initialTitle?: string };
+type Props = { initialCategory?: string; initialTitle?: string; initialCity?: string; initialState?: string; initialPostalCode?: string };
 
-export default function PostJobForm({ initialCategory = "", initialTitle = "" }: Props) {
+export default function PostJobForm({ initialCategory = "", initialTitle = "", initialCity = "", initialState = "", initialPostalCode = "" }: Props) {
   const [tomorrow] = useState(() => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -21,7 +21,8 @@ export default function PostJobForm({ initialCategory = "", initialTitle = "" }:
     const response = await fetch("/api/job-requests", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
-    });
+    }).catch(() => null);
+    if (!response) { setBusy(false); setError("Check your connection and try again. Your request details are still here."); return; }
     const data = await response.json() as { id?: string; matchedProviders?: number; error?: string };
     setBusy(false);
     if (!response.ok || !data.id) { setError(data.error ?? "We could not post your request."); return; }
@@ -31,7 +32,8 @@ export default function PostJobForm({ initialCategory = "", initialTitle = "" }:
   if (result) return <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-sm sm:p-9" role="status">
     <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[#e2efdf] text-2xl">✓</span>
     <h2 className="mt-5 text-2xl font-bold">Your service request is live.</h2>
-    <p className="mt-2 max-w-xl leading-7 text-[#65776d]">We matched it with {result.matchedProviders} {result.matchedProviders === 1 ? "provider" : "providers"} who serve your area. You will see quotes in your account, and providers never pay to respond.</p>
+    <p className="mt-2 max-w-xl leading-7 text-[#65776d]">{result.matchedProviders > 0 ? <>We matched it with {result.matchedProviders} {result.matchedProviders === 1 ? "provider" : "providers"} who serve your area and fit the requested time. You will see quotes in your account, and providers never pay to respond.</> : <>There are no eligible providers for this request yet. Your request remains open for 14 days, and you can also browse nearby services while we grow local coverage.</>}</p>
+    <p className="mt-3 text-sm text-[#718078]">Posting a request does not guarantee a response, provider availability, a specific price, or a booking.</p>
     <div className="mt-6 flex flex-col gap-3 sm:flex-row"><Link href="/account/requests" className="rounded-full bg-[#183126] px-6 py-3 text-center font-bold text-white">View my request</Link><Link href="/services" className="rounded-full border border-[#183126]/15 px-6 py-3 text-center font-bold">Browse services</Link></div>
   </section>;
 
@@ -44,8 +46,8 @@ export default function PostJobForm({ initialCategory = "", initialTitle = "" }:
       <label className="text-sm font-bold sm:col-span-2">Describe what you need<textarea required minLength={20} maxLength={3000} name="description" rows={5} placeholder="Share the details, size, condition, and anything the provider should know." className={`${input} resize-y`} /></label>
       <label className="text-sm font-bold sm:col-span-2">Service address<input required autoComplete="street-address" name="addressLine1" placeholder="Street address" className={input} /></label>
       <label className="text-sm font-bold sm:col-span-2">Apartment, suite, or unit <span className="font-normal text-[#78877f]">(optional)</span><input autoComplete="address-line2" name="addressLine2" className={input} /></label>
-      <label className="text-sm font-bold">City<input required autoComplete="address-level2" name="city" className={input} /></label>
-      <div className="grid grid-cols-[1fr_1.35fr] gap-3"><label className="text-sm font-bold">State<input required maxLength={2} autoComplete="address-level1" name="state" placeholder="WA" className={input} /></label><label className="text-sm font-bold">ZIP code<input required inputMode="numeric" pattern="[0-9]{5}(-[0-9]{4})?" autoComplete="postal-code" name="postalCode" placeholder="98027" className={input} /></label></div>
+      <label className="text-sm font-bold">City<input required autoComplete="address-level2" name="city" defaultValue={initialCity} className={input} /></label>
+      <div className="grid grid-cols-[1fr_1.35fr] gap-3"><label className="text-sm font-bold">State<input required maxLength={2} autoComplete="address-level1" name="state" defaultValue={initialState} placeholder="WA" className={input} /></label><label className="text-sm font-bold">ZIP code<input required inputMode="numeric" pattern="[0-9]{5}(-[0-9]{4})?" autoComplete="postal-code" name="postalCode" defaultValue={initialPostalCode} placeholder="98027" className={input} /></label></div>
       <label className="text-sm font-bold">Preferred date<input required type="date" min={tomorrow} name="date" className={input} /></label>
       <label className="text-sm font-bold">Preferred time<input required type="time" name="time" className={input} /></label>
       <label className="flex min-h-12 items-center gap-3 rounded-2xl bg-[#f2f5ee] px-4 py-3 text-sm font-bold sm:col-span-2"><input type="checkbox" name="flexible" value="true" className="h-5 w-5 accent-[#183126]" />My timing is flexible</label>
@@ -55,5 +57,6 @@ export default function PostJobForm({ initialCategory = "", initialTitle = "" }:
     {error && <p className="mt-5 rounded-2xl bg-[#fff0e7] px-4 py-3 text-sm font-bold text-[#934a28]" role="alert">{error}</p>}
     <button disabled={busy} className="mt-7 min-h-12 w-full rounded-full bg-[#eee25a] px-6 py-3.5 font-bold text-[#183126] shadow-sm disabled:opacity-60">{busy ? "Sending your request…" : "Send my request"}</button>
     <p className="mt-3 text-center text-xs leading-5 text-[#7a8981]">Your exact street address stays private until you accept a quote.</p>
+    <p className="mt-1 text-center text-xs leading-5 text-[#7a8981]">Provider responses, availability, prices, and bookings are not guaranteed.</p>
   </form>;
 }

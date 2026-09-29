@@ -37,6 +37,8 @@ export async function GET() {
      WHERE n.user_id = $1
        AND (CASE WHEN n.type LIKE 'booking_%' THEN COALESCE(us.booking_notifications, true)
                  WHEN n.type = 'new_message' OR n.type LIKE 'message_%' THEN COALESCE(us.message_notifications, true)
+                 WHEN n.type = 'job_request_match' THEN COALESCE(us.opportunity_notifications, true)
+                 WHEN n.type IN ('job_request', 'job_quote') THEN COALESCE(us.request_notifications, true)
                  ELSE true END)
      ORDER BY n.created_at DESC
      LIMIT 30`,
@@ -48,6 +50,8 @@ export async function GET() {
      WHERE n.user_id = $1 AND n.read_at IS NULL
        AND (CASE WHEN n.type LIKE 'booking_%' THEN COALESCE(us.booking_notifications, true)
                  WHEN n.type = 'new_message' OR n.type LIKE 'message_%' THEN COALESCE(us.message_notifications, true)
+                 WHEN n.type = 'job_request_match' THEN COALESCE(us.opportunity_notifications, true)
+                 WHEN n.type IN ('job_request', 'job_quote') THEN COALESCE(us.request_notifications, true)
                  ELSE true END)`,
     [session.user.id],
   );

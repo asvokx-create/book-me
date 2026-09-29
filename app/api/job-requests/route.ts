@@ -18,16 +18,19 @@ type RequestRow = {
   budget_min_cents: number | null; budget_max_cents: number | null; status: string; expires_at: Date;
   created_at: Date; service_address_line1?: string; service_address_line2?: string | null;
   matched_service_id?: string; matched_service_title?: string; distance_miles?: number;
+  conversation_id?: string | null; match_status?: string; viewed_at?: Date | null; responded_at?: Date | null;
 };
 
 type QuoteRow = {
   id: string; job_request_id: string; provider_id: string; provider_name: string; service_id: string; service_title: string;
   version: number; title: string; description: string; line_items: unknown; total_cents: number; notes: string;
   expires_at: Date | null; status: string; booking_id: string | null; created_at: Date;
+  conversation_id: string | null; public_slug: string | null; public_profile_enabled: boolean; is_verified: boolean;
+  average_rating: number | null; review_count: number;
 };
 
 function mapQuote(row: QuoteRow) {
-  return { id: row.id, requestId: row.job_request_id, providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceTitle: row.service_title, version: row.version, title: row.title, description: row.description, lineItems: Array.isArray(row.line_items) ? row.line_items : [], total: row.total_cents / 100, notes: row.notes, expiresAt: row.expires_at, status: row.status, bookingId: row.booking_id, createdAt: row.created_at };
+  return { id: row.id, requestId: row.job_request_id, providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceTitle: row.service_title, version: row.version, title: row.title, description: row.description, lineItems: Array.isArray(row.line_items) ? row.line_items : [], total: row.total_cents / 100, notes: row.notes, expiresAt: row.expires_at, status: row.status, bookingId: row.booking_id, createdAt: row.created_at, conversationId: row.conversation_id, publicProfileHref: row.public_profile_enabled && row.public_slug ? `/providers/${row.public_slug}` : null, verified: row.is_verified, averageRating: row.average_rating, reviewCount: row.review_count };
 }
 
 async function quotesFor(requestIds: string[], providerId?: string) {
@@ -37,9 +40,17 @@ async function quotesFor(requestIds: string[], providerId?: string) {
             provider.business_name AS provider_name, quote.service_id::text, service.title AS service_title,
             quote.version, quote.title, quote.description, quote.line_items, quote.total_cents, quote.notes,
             quote.expires_at, CASE WHEN quote.status = 'sent' AND quote.expires_at <= now() THEN 'expired' ELSE quote.status END AS status,
-            quote.booking_id::text, quote.created_at
+            quote.booking_id::text, quote.created_at, COALESCE(quote.conversation_id, match.conversation_id)::text AS conversation_id,
+            provider.public_slug, provider.public_profile_enabled, provider.is_verified,
+            rating.average_rating, COALESCE(rating.review_count, 0)::int AS review_count
      FROM quotes quote JOIN provider_profiles provider ON provider.id = quote.provider_id
      JOIN services service ON service.id = quote.service_id
+     LEFT JOIN job_request_matches match ON match.request_id = quote.job_request_id AND match.provider_id = quote.provider_id
+     LEFT JOIN LATERAL (
+       SELECT round(avg(review.rating)::numeric, 1)::float AS average_rating, count(*)::int AS review_count
+       FROM reviews review JOIN bookings booking ON booking.id = review.booking_id
+       WHERE booking.provider_id = provider.id AND booking.status = 'completed' AND review.is_hidden = false
+     ) rating ON true
      WHERE quote.job_request_id::text = ANY($1::text[])
        AND ($2::uuid IS NULL OR quote.provider_id = $2::uuid)
      ORDER BY quote.created_at DESC`,
@@ -62,12 +73,18 @@ export async function GET(request: Request) {
       `SELECT request.id::text, request.customer_id, request.category, request.title, request.description,
               request.city, request.state, request.postal_code, request.preferred_starts_at, request.preferred_time_zone, request.is_flexible,
               request.budget_min_cents, request.budget_max_cents, request.status, request.expires_at, request.created_at,
-              match.service_id::text AS matched_service_id, service.title AS matched_service_title, match.distance_miles
+              match.service_id::text AS matched_service_id, service.title AS matched_service_title, match.distance_miles,
+              match.conversation_id::text, match.status AS match_status, match.viewed_at, match.responded_at
        FROM job_request_matches match
        JOIN job_requests request ON request.id = match.request_id
        JOIN services service ON service.id = match.service_id
+       JOIN provider_profiles eligible ON eligible.id = match.provider_id
        WHERE match.provider_id::text = $1 AND match.status <> 'dismissed'
          AND request.status IN ('open', 'receiving_responses') AND request.expires_at > now()
+         AND eligible.is_active = true AND eligible.is_verified = true AND eligible.screening_status = 'passed'
+         AND eligible.stripe_charges_enabled = true AND eligible.stripe_payouts_enabled = true
+         AND NOT EXISTS (SELECT 1 FROM account_restrictions restriction WHERE restriction.user_id = eligible.user_id
+           AND restriction.status IN ('suspended', 'banned') AND (restriction.expires_at IS NULL OR restriction.expires_at > now()))
        ORDER BY request.created_at DESC`,
       [access.providerId],
     );
@@ -85,7 +102,7 @@ export async function GET(request: Request) {
     const metrics = metricResult.rows[0] ?? { opportunities: 0, responded: 0, accepted: 0, average_response_minutes: null };
     return NextResponse.json({
       metrics: { opportunities: metrics.opportunities, responded: metrics.responded, accepted: metrics.accepted, responseRate: metrics.opportunities >= 5 ? Math.round((metrics.responded / metrics.opportunities) * 100) : null, averageResponseMinutes: metrics.responded >= 3 ? Math.round(metrics.average_response_minutes ?? 0) : null, sampleProtected: metrics.opportunities < 5 },
-      requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, city: item.city, state: item.state, postalCode: item.postal_code, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, matchedServiceId: item.matched_service_id, matchedServiceTitle: item.matched_service_title, distanceMiles: item.distance_miles, quotes: groupedQuotes.get(item.id) ?? [] })),
+      requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, city: item.city, state: item.state, postalCode: item.postal_code, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, matchedServiceId: item.matched_service_id, matchedServiceTitle: item.matched_service_title, distanceMiles: item.distance_miles, conversationId: item.conversation_id, matchStatus: item.match_status, viewedAt: item.viewed_at, respondedAt: item.responded_at, quotes: groupedQuotes.get(item.id) ?? [] })),
     });
   }
 
@@ -137,8 +154,24 @@ export async function POST(request: Request) {
      FROM services service JOIN provider_profiles provider ON provider.id = service.provider_id AND provider.is_active = true
      JOIN provider_locations location ON location.id = service.location_id AND location.is_active = true
      WHERE service.is_active = true AND lower(service.category) = lower($1)
+       AND provider.is_verified = true AND provider.screening_status = 'passed'
+       AND provider.stripe_charges_enabled = true AND provider.stripe_payouts_enabled = true
+       AND NOT EXISTS (
+         SELECT 1 FROM account_restrictions restriction
+         WHERE restriction.user_id = provider.user_id
+           AND restriction.status IN ('suspended', 'banned')
+           AND (restriction.expires_at IS NULL OR restriction.expires_at > now())
+       )
+       AND ($4::boolean OR NOT EXISTS (SELECT 1 FROM availability configured WHERE configured.service_id = service.id)
+         OR EXISTS (
+           SELECT 1 FROM availability slot
+           WHERE slot.service_id = service.id
+             AND slot.weekday = EXTRACT(DOW FROM ($5::timestamptz AT TIME ZONE slot.timezone))::int
+             AND ($5::timestamptz AT TIME ZONE slot.timezone)::time >= slot.start_time
+             AND (($5::timestamptz + make_interval(mins => service.duration_minutes)) AT TIME ZONE slot.timezone)::time <= slot.end_time
+         ))
      ORDER BY service.created_at DESC LIMIT 250`,
-    [category, postalCode, `${place.city}, ${place.state}`],
+    [category, postalCode, `${place.city}, ${place.state}`, flexible, preferredStartsAt],
   );
   const matched = new Map<string, { providerId: string; providerUserId: string; serviceId: string; distance: number }>();
   for (const candidate of candidateResult.rows) {
@@ -160,20 +193,28 @@ export async function POST(request: Request) {
     );
     const requestId = created.rows[0].id;
     for (const item of matched.values()) {
-      await client.query("INSERT INTO job_request_matches (request_id, provider_id, service_id, distance_miles) VALUES ($1,$2,$3,$4)", [requestId, item.providerId, item.serviceId, item.distance]);
-      await client.query(
+      const conversation = await client.query<{ id: string }>(
         `INSERT INTO conversations (customer_id, provider_id, service_id)
          VALUES ($1,$2,$3) ON CONFLICT (customer_id, provider_id, service_id) WHERE service_id IS NOT NULL
-         DO UPDATE SET customer_deleted_at = NULL, provider_deleted_at = NULL, updated_at = now()`,
+         DO UPDATE SET customer_deleted_at = NULL, provider_deleted_at = NULL, updated_at = now()
+         RETURNING id::text`,
         [session.user.id, item.providerId, item.serviceId],
       );
+      await client.query("INSERT INTO job_request_matches (request_id, provider_id, service_id, distance_miles, conversation_id) VALUES ($1,$2,$3,$4,$5)", [requestId, item.providerId, item.serviceId, item.distance, conversation.rows[0].id]);
       await client.query(
         `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
-         VALUES ($1,'job_request_match','New service request in your area',$2,'/provider/dashboard/opportunities',$3)
+         SELECT $1,'job_request_match','New service request in your area',$2,$4,$3
+         WHERE COALESCE((SELECT opportunity_notifications FROM user_settings WHERE user_id = $1), true)
          ON CONFLICT (dedupe_key) DO NOTHING`,
-        [item.providerUserId, `${category} request near ${place.city}, ${place.state}. Responding and quoting are free.`, `job-request-${requestId}-${item.providerId}`],
+        [item.providerUserId, `${category} request near ${place.city}, ${place.state}. Responding and quoting are free.`, `job-request-${requestId}-${item.providerId}`, `/provider/dashboard/opportunities?requestId=${requestId}`],
+      );
+      await client.query(
+        `INSERT INTO job_request_notification_queue (user_id, job_request_id, kind, payload, dedupe_key)
+         VALUES ($1,$2,'provider_opportunity',$3::jsonb,$4) ON CONFLICT (dedupe_key) DO NOTHING`,
+        [item.providerUserId, requestId, JSON.stringify({ category, city: place.city, state: place.state }), `job-request-email-${requestId}-${item.providerId}`],
       );
     }
+    await client.query("UPDATE job_requests SET matching_status = 'completed', matching_completed_at = now(), matched_provider_count = $2 WHERE id::text = $1", [requestId, matched.size]);
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: "job_request_created", targetType: "job_request", targetId: requestId });
     await recordAnalytics({ eventName: "job_request_created", userId: session.user.id, targetType: "job_request", targetId: requestId, metadata: { category, city: place.city, state: place.state, matchedProviders: matched.size } });

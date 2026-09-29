@@ -38,16 +38,21 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
     await client.query("BEGIN");
     const match = await client.query<{ customer_id: string; customer_email: string; customer_notifications: boolean; status: string; service_id: string; conversation_id: string | null }>(
       `SELECT request.customer_id, customer.email AS customer_email,
-              COALESCE(settings.booking_notifications, true) AS customer_notifications,
+              COALESCE(settings.request_notifications, true) AS customer_notifications,
               request.status, match.service_id::text,
-              (SELECT conversation.id::text FROM conversations conversation
+              COALESCE(match.conversation_id::text, (SELECT conversation.id::text FROM conversations conversation
                WHERE conversation.customer_id = request.customer_id AND conversation.provider_id = match.provider_id
-                 AND conversation.service_id = match.service_id LIMIT 1) AS conversation_id
+                 AND conversation.service_id = match.service_id LIMIT 1)) AS conversation_id
        FROM job_request_matches match JOIN job_requests request ON request.id = match.request_id
+       JOIN provider_profiles eligible ON eligible.id = match.provider_id
        JOIN "user" customer ON customer.id = request.customer_id
        LEFT JOIN user_settings settings ON settings.user_id = customer.id
        WHERE request.id::text = $1 AND match.provider_id::text = $2 AND match.service_id::text = $3
          AND request.status IN ('open','receiving_responses') AND request.expires_at > now()
+         AND eligible.is_active = true AND eligible.is_verified = true AND eligible.screening_status = 'passed'
+         AND eligible.stripe_charges_enabled = true AND eligible.stripe_payouts_enabled = true
+         AND NOT EXISTS (SELECT 1 FROM account_restrictions restriction WHERE restriction.user_id = eligible.user_id
+           AND restriction.status IN ('suspended', 'banned') AND (restriction.expires_at IS NULL OR restriction.expires_at > now()))
        FOR UPDATE OF request, match`,
       [requestId, access.providerId, serviceId],
     );
@@ -66,9 +71,9 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
        RETURNING id::text`,
       [matched.customer_id, access.providerId, serviceId, requestId, matched.conversation_id, (previous?.version ?? 0) + 1, title, description, JSON.stringify(lineItems), totalCents, notes, expiresInDays, previous?.id ?? null],
     );
-    await client.query("UPDATE job_request_matches SET status = 'responded', updated_at = now() WHERE request_id::text = $1 AND provider_id::text = $2", [requestId, access.providerId]);
+    await client.query("UPDATE job_request_matches SET status = 'responded', viewed_at = COALESCE(viewed_at, now()), responded_at = COALESCE(responded_at, now()), updated_at = now() WHERE request_id::text = $1 AND provider_id::text = $2", [requestId, access.providerId]);
     await client.query("UPDATE job_requests SET status = 'receiving_responses' WHERE id::text = $1 AND status = 'open'", [requestId]);
-    await client.query(
+    if (matched.customer_notifications) await client.query(
       `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
        VALUES ($1,'job_quote','New quote for your service request',$2,'/account/requests',$3)
        ON CONFLICT (dedupe_key) DO NOTHING`,

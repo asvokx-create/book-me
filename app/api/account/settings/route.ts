@@ -20,6 +20,8 @@ type SettingsRow = {
   search_radius_miles: number;
   booking_notifications: boolean;
   message_notifications: boolean;
+  request_notifications: boolean;
+  opportunity_notifications: boolean;
   theme: "light" | "dark" | "system";
   time_zone: string;
   is_provider: boolean;
@@ -40,6 +42,8 @@ export async function GET() {
             COALESCE(us.search_radius_miles, 25)::int AS search_radius_miles,
             COALESCE(us.booking_notifications, true) AS booking_notifications,
             COALESCE(us.message_notifications, true) AS message_notifications,
+            COALESCE(us.request_notifications, true) AS request_notifications,
+            COALESCE(us.opportunity_notifications, true) AS opportunity_notifications,
             COALESCE(us.theme, 'light') AS theme,
             COALESCE(us.time_zone, 'auto') AS time_zone,
             (p.id IS NOT NULL OR EXISTS (
@@ -72,6 +76,8 @@ export async function GET() {
     radius: row.search_radius_miles,
     bookingNotifications: row.booking_notifications,
     messageNotifications: row.message_notifications,
+    requestNotifications: row.request_notifications,
+    opportunityNotifications: row.opportunity_notifications,
     theme: row.theme,
     timeZone: row.time_zone,
     isProvider: row.is_provider,
@@ -89,6 +95,8 @@ export async function PATCH(request: Request) {
   const radius = Number(body.radius);
   const bookingNotifications = body.bookingNotifications !== false;
   const messageNotifications = body.messageNotifications !== false;
+  const requestNotifications = body.requestNotifications !== false;
+  const opportunityNotifications = body.opportunityNotifications !== false;
   const theme = body.theme === "light" || body.theme === "dark" || body.theme === "system" ? body.theme : "light";
   const timeZone = typeof body.timeZone === "string" ? body.timeZone.trim() : "auto";
 
@@ -126,15 +134,17 @@ export async function PATCH(request: Request) {
       [name, phone, location.location.city, location.location.state, location.location.postalCode, location.location.country, locationSource, session.user.id, locationChanged],
     );
     await client.query(
-      `INSERT INTO user_settings (user_id, city, state, search_radius_miles, booking_notifications, message_notifications, theme, time_zone)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO user_settings (user_id, city, state, search_radius_miles, booking_notifications, message_notifications, request_notifications, opportunity_notifications, theme, time_zone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (user_id) DO UPDATE SET
          city = EXCLUDED.city, state = EXCLUDED.state,
          search_radius_miles = EXCLUDED.search_radius_miles,
          booking_notifications = EXCLUDED.booking_notifications,
          message_notifications = EXCLUDED.message_notifications,
+         request_notifications = EXCLUDED.request_notifications,
+         opportunity_notifications = EXCLUDED.opportunity_notifications,
          theme = EXCLUDED.theme, time_zone = EXCLUDED.time_zone`,
-      [session.user.id, location.location.city, location.location.state, radius, bookingNotifications, messageNotifications, theme, timeZone],
+      [session.user.id, location.location.city, location.location.state, radius, bookingNotifications, messageNotifications, requestNotifications, opportunityNotifications, theme, timeZone],
     );
     if (locationChanged) {
       await client.query(
