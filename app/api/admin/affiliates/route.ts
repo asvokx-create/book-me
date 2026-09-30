@@ -8,6 +8,22 @@ import { enforceRateLimit } from "@/lib/request-security";
 const affiliateStatuses = new Set(["under_review","approved","active","paused","rejected","suspended","terminated"]);
 const commissionStatuses = new Set(["hold","approved","payable","rejected","disputed"]);
 
+function programTerms(body: Record<string, unknown>) {
+  const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
+  const description = typeof body.description === "string" ? body.description.trim().slice(0, 1000) : "";
+  const activation = Math.round(Number(body.activationBonus) * 100);
+  const shareBps = Math.round(Number(body.revenueSharePercent) * 100);
+  const duration = Number(body.durationMonths);
+  const attribution = Number(body.attributionDays);
+  const hold = Number(body.holdDays);
+  const minimum = Math.round(Number(body.minimumPayout) * 100);
+  const valid = Boolean(name)
+    && [activation, shareBps, duration, attribution, hold, minimum].every(Number.isInteger)
+    && activation >= 0 && shareBps >= 0 && shareBps <= 10000 && duration >= 0
+    && attribution >= 1 && attribution <= 365 && hold >= 0 && hold <= 365 && minimum >= 0;
+  return valid ? { name, description, activation, shareBps, duration, attribution, hold, minimum } : null;
+}
+
 async function dashboard() {
   const [summary, programs, affiliates, commissions, payouts, campaigns, recentClicks, auditHistory, reserve] = await Promise.all([
     database.query(`SELECT
@@ -118,16 +134,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, id: result.rows[0].id });
   }
   if (body.action !== "program_create") return NextResponse.json({ error: "Unsupported action." }, { status: 400 });
-  const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
-  const activation = Math.round(Number(body.activationBonus) * 100);
-  const shareBps = Math.round(Number(body.revenueSharePercent) * 100);
-  const duration = Number(body.durationMonths); const attribution = Number(body.attributionDays); const hold = Number(body.holdDays); const minimum = Math.round(Number(body.minimumPayout) * 100);
-  if (!name || ![activation, shareBps, duration, attribution, hold, minimum].every(Number.isInteger) || activation < 0 || shareBps < 0 || shareBps > 10000 || duration < 0 || attribution < 1 || hold < 0 || minimum < 0) return NextResponse.json({ error: "Enter valid program terms." }, { status: 400 });
-  const result = await database.query<{ id: string }>(`INSERT INTO affiliate_programs (name, description, activation_bonus_cents,
-      revenue_share_basis_points, revenue_share_duration_months, attribution_window_days, hold_period_days, minimum_payout_cents, status)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft') RETURNING id::text`, [name, typeof body.description === "string" ? body.description.trim().slice(0,1000) : "", activation, shareBps, duration, attribution, hold, minimum]);
-  await audit(session.user.id, "program_created", "affiliate_program", result.rows[0].id, body);
-  return NextResponse.json({ ok: true, id: result.rows[0].id });
+  const terms = programTerms(body);
+  if (!terms) return NextResponse.json({ error: "Enter valid program terms." }, { status: 400 });
+  try {
+    const result = await database.query<{ id: string }>(`INSERT INTO affiliate_programs (name, description, activation_bonus_cents,
+        revenue_share_basis_points, revenue_share_duration_months, attribution_window_days, hold_period_days, minimum_payout_cents, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft') RETURNING id::text`, [terms.name,terms.description,terms.activation,terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum]);
+    await audit(session.user.id, "program_created", "affiliate_program", result.rows[0].id, terms);
+    return NextResponse.json({ ok: true, id: result.rows[0].id });
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") return NextResponse.json({ error: "A program with that name already exists." }, { status: 409 });
+    return NextResponse.json({ error: "The affiliate program could not be created." }, { status: 400 });
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -159,12 +177,18 @@ export async function PATCH(request: Request) {
       if (!affiliateStatuses.has(status)) throw new Error("INVALID");
       const code = normalizeAffiliateCode(body.code);
       if (["approved","active"].includes(status) && !isSafeAffiliateCode(code)) throw new Error("CODE");
+      const requestedProgramId = typeof body.programId === "string" ? body.programId : "";
+      if (["approved","active"].includes(status)) {
+        if (!requestedProgramId) throw new Error("PROGRAM");
+        const selectedProgram = await client.query("SELECT 1 FROM affiliate_programs WHERE id::text=$1 AND status='enabled'", [requestedProgramId]);
+        if (!selectedProgram.rowCount) throw new Error("PROGRAM");
+      }
       const result = await client.query(`UPDATE affiliate_profiles SET status=$2, affiliate_code=CASE WHEN $3='' THEN affiliate_code ELSE $3 END,
         program_id=COALESCE($4::uuid, program_id), approved_at=CASE WHEN $2 IN ('approved','active') THEN COALESCE(approved_at,now()) ELSE approved_at END,
         activated_at=CASE WHEN $2='active' THEN COALESCE(activated_at,now()) ELSE activated_at END, admin_notes=CASE WHEN $5='' THEN admin_notes ELSE $5 END
-        WHERE id::text=$1`, [targetId,status,code,typeof body.programId === "string" ? body.programId : null,reason]);
+        WHERE id::text=$1`, [targetId,status,code,requestedProgramId||null,reason]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
-      await audit(session.user.id, "affiliate_status_changed", "affiliate", targetId, { status, code, reason }, client);
+      await audit(session.user.id, "affiliate_status_changed", "affiliate", targetId, { status, code, programId: requestedProgramId||null, reason }, client);
     } else if (action === "campaign_status") {
       const status = typeof body.status === "string" ? body.status : "";
       if (!new Set(["planned","approved","paid","cancelled"]).has(status)) throw new Error("INVALID");
@@ -199,6 +223,15 @@ export async function PATCH(request: Request) {
       if (!new Set(["draft","enabled","disabled"]).has(status)) throw new Error("INVALID");
       await client.query("UPDATE affiliate_programs SET status=$2 WHERE id::text=$1", [targetId,status]);
       await audit(session.user.id, "program_status_changed", "affiliate_program", targetId, { status }, client);
+    } else if (action === "program_update") {
+      const terms = programTerms(body);
+      if (!terms) throw new Error("INVALID");
+      const result = await client.query(`UPDATE affiliate_programs SET name=$2,description=$3,activation_bonus_cents=$4,
+        revenue_share_basis_points=$5,revenue_share_duration_months=$6,attribution_window_days=$7,
+        hold_period_days=$8,minimum_payout_cents=$9 WHERE id::text=$1`,
+      [targetId,terms.name,terms.description,terms.activation,terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum]);
+      if (!result.rowCount) throw new Error("NOT_FOUND");
+      await audit(session.user.id,"program_updated","affiliate_program",targetId,terms,client);
     } else if (action === "commission_status") {
       const status = typeof body.status === "string" ? body.status : "";
       if (!commissionStatuses.has(status) || (["rejected","disputed"].includes(status) && !reason)) throw new Error("INVALID");
@@ -229,10 +262,11 @@ export async function PATCH(request: Request) {
     await client.query("ROLLBACK");
     const message = error instanceof Error ? error.message : "";
     if (message === "CODE") return NextResponse.json({ error: "Use a unique code with 3–32 letters, numbers, hyphens, or underscores." }, { status: 400 });
+    if (message === "PROGRAM") return NextResponse.json({ error: "Choose an enabled affiliate program." }, { status: 400 });
     if (message === "MINIMUM") return NextResponse.json({ error: "The payable balance has not reached this partner's minimum payout." }, { status: 409 });
     if (message === "NOT_READY") return NextResponse.json({ error: "Complete and verify this partner's payment and tax readiness before creating a payout." }, { status: 409 });
     if (message === "NOT_FOUND") return NextResponse.json({ error: "That record is not available for this action." }, { status: 404 });
-    if ((error as { code?: string }).code === "23505") return NextResponse.json({ error: "That affiliate code is already in use." }, { status: 409 });
+    if ((error as { code?: string }).code === "23505") return NextResponse.json({ error: action === "program_update" ? "A program with that name already exists." : "That affiliate code is already in use." }, { status: 409 });
     return NextResponse.json({ error: message === "INVALID" ? "Check the requested action and required reason." : "The affiliate action could not be completed." }, { status: 400 });
   } finally { client.release(); }
 }
