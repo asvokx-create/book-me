@@ -62,10 +62,6 @@ export default function HomeHeroPreview({ href, city, hasLocation }: HomeHeroPre
             {hasLocation ? `Popular in ${areaLabel}` : "Available nearby"}
           </span>
 
-          <svg className="home-preview-route absolute inset-0 h-full w-full" viewBox="0 0 440 240" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M64 188 C105 142 124 181 170 137 S251 75 302 115 S355 150 399 89" />
-          </svg>
-
           <MapPin className="left-[12%] top-[57%]"><CleaningIcon /></MapPin>
           <MapPin className="right-[24%] top-[24%]"><GardenIcon /></MapPin>
           <MapPin className="right-[8%] top-[55%]"><CarIcon /></MapPin>

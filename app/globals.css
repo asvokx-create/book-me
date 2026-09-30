@@ -580,15 +580,6 @@ html:not([data-theme="dark"]) .home-hero {
   box-shadow: inset 0 0 0 9px rgba(255, 255, 255, .22);
 }
 
-.home-preview-route path {
-  fill: none;
-  stroke: #2b7350;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-dasharray: 2 9;
-  filter: drop-shadow(0 2px 3px rgba(24, 49, 38, .18));
-}
-
 .home-preview-pin {
   position: absolute;
   display: grid;
