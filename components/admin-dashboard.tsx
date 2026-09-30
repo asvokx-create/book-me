@@ -274,6 +274,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
             <Link href="/admin/support" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] lg:inline-flex">Support</Link>
             <Link href="/admin/affiliates" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Partners</Link>
             <Link href="/admin/operations" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Operations</Link>
+            <Link href="/admin/expenses" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Expenses</Link>
             <Link href="/admin/requests" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Requests</Link>
             <Link href="/account" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#e4ecdf] sm:inline-flex">View marketplace</Link>
             <span className="hidden min-[375px]:inline-flex"><ProfileAvatar name={adminName} imageUrl={adminImage} className="h-10 w-10 text-sm" /></span>
@@ -314,6 +315,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
               <Link href="/admin/disputes" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Booking disputes</Link>
               <Link href="/admin/support" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Support &amp; verification</Link>
               <Link href="/admin/operations" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Operations</Link>
+              <Link href="/admin/expenses" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Expenses</Link>
               <Link href="/admin/requests" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Service requests</Link>
               <Link href="/admin/affiliates" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Partners &amp; affiliates</Link>
               <Link href="/account" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">View marketplace</Link>

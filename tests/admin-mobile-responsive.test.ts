@@ -17,7 +17,7 @@ test("admin mobile navigation exposes every dashboard and route section without 
   assert.match(dashboard, /admin-nav-shell min-w-0 overflow-hidden/);
   assert.doesNotMatch(dashboard, /mobile-scroll-row/);
 
-  for (const href of ["/admin/reported-bugs", "/admin/disputes", "/admin/support", "/admin/operations", "/account"]) {
+  for (const href of ["/admin/reported-bugs", "/admin/disputes", "/admin/support", "/admin/operations", "/admin/expenses", "/account"]) {
     assert.match(dashboard, new RegExp(`href="${href.replaceAll("/", "\\/")}"`));
   }
 });

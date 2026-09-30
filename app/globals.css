@@ -1090,6 +1090,35 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
   }
 }
 
+.expense-input {
+  display: block;
+  width: 100%;
+  min-height: 3rem;
+  border: 1px solid rgb(24 49 38 / 14%);
+  border-radius: 1rem;
+  background: white;
+  padding: .75rem 1rem;
+  color: #183126;
+  font-weight: 600;
+  outline: none;
+}
+
+.expense-input:focus {
+  border-color: #35704a;
+  box-shadow: 0 0 0 3px rgb(53 112 74 / 14%);
+}
+
+html[data-theme="dark"] .expense-input {
+  border-color: var(--border);
+  background-color: var(--input);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .expense-input:focus {
+  border-color: #4da86d;
+  box-shadow: 0 0 0 3px rgb(77 168 109 / 20%);
+}
+
 @media (max-width: 430px) {
   :root {
     --radius-card: 1.25rem;
