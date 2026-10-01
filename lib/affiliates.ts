@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { database } from "./database";
 import { affiliateRevenueShareWindow, calculateAffiliateCommission, calculateEligibleProviderFeeRevenue } from "./affiliate-rules";
+import { evaluateAffiliateMilestonesForProvider } from "./affiliate-milestones";
 
 export const AFFILIATE_COOKIE = "bubs_affiliate_attribution";
 export const RESERVED_AFFILIATE_CODES = new Set(["ADMIN", "BUBS", "BUBSBOOKINGS", "HELP", "PRICING", "PROVIDER", "SUPPORT"]);
@@ -43,6 +44,7 @@ export async function lockAffiliateAttribution(input: {
         activation_bonus_cents: number; revenue_share_basis_points: number; revenue_share_duration_months: number;
         revenue_share_starts_at: string; attribution_window_days: number; hold_period_days: number;
         minimum_payout_cents: number; eligible_provider_plans: string[]; eligible_revenue_types: string[];
+        milestone_bonuses_enabled: boolean; active_provider_required_bookings: number;
       }>(`SELECT affiliate.id::text AS affiliate_id, program.id::text AS program_id, NULL::text AS click_id,
           affiliate.affiliate_code,
           COALESCE(affiliate.activation_bonus_override_cents, program.activation_bonus_cents) AS activation_bonus_cents,
@@ -50,7 +52,9 @@ export async function lockAffiliateAttribution(input: {
           COALESCE(affiliate.revenue_share_duration_override_months, program.revenue_share_duration_months) AS revenue_share_duration_months,
           program.revenue_share_starts_at, program.attribution_window_days, program.hold_period_days,
           COALESCE(affiliate.minimum_payout_override_cents, program.minimum_payout_cents) AS minimum_payout_cents,
-          program.eligible_provider_plans, program.eligible_revenue_types
+          program.eligible_provider_plans, program.eligible_revenue_types,
+          COALESCE(affiliate.milestone_bonuses_override, program.milestone_bonuses_enabled) AS milestone_bonuses_enabled,
+          program.active_provider_required_bookings
         FROM affiliate_profiles affiliate JOIN affiliate_programs program ON program.id = affiliate.program_id
         WHERE lower(affiliate.affiliate_code) = lower($1) AND affiliate.status = 'active'
           AND program.status = 'enabled' AND (program.starts_at IS NULL OR program.starts_at <= now())
@@ -67,6 +71,7 @@ export async function lockAffiliateAttribution(input: {
           activation_bonus_cents: number; revenue_share_basis_points: number; revenue_share_duration_months: number;
           revenue_share_starts_at: string; attribution_window_days: number; hold_period_days: number;
           minimum_payout_cents: number; eligible_provider_plans: string[]; eligible_revenue_types: string[];
+          milestone_bonuses_enabled: boolean; active_provider_required_bookings: number;
         }>(`SELECT affiliate.id::text AS affiliate_id, program.id::text AS program_id, click.id::text AS click_id,
             affiliate.affiliate_code,
             COALESCE(affiliate.activation_bonus_override_cents, program.activation_bonus_cents) AS activation_bonus_cents,
@@ -74,7 +79,9 @@ export async function lockAffiliateAttribution(input: {
             COALESCE(affiliate.revenue_share_duration_override_months, program.revenue_share_duration_months) AS revenue_share_duration_months,
             program.revenue_share_starts_at, program.attribution_window_days, program.hold_period_days,
             COALESCE(affiliate.minimum_payout_override_cents, program.minimum_payout_cents) AS minimum_payout_cents,
-            program.eligible_provider_plans, program.eligible_revenue_types
+            program.eligible_provider_plans, program.eligible_revenue_types,
+            COALESCE(affiliate.milestone_bonuses_override, program.milestone_bonuses_enabled) AS milestone_bonuses_enabled,
+            program.active_provider_required_bookings
           FROM affiliate_clicks click
           JOIN affiliate_profiles affiliate ON affiliate.id = click.affiliate_id
           JOIN affiliate_programs program ON program.id = click.program_id
@@ -97,15 +104,18 @@ export async function lockAffiliateAttribution(input: {
       affiliate_id, provider_id, click_id, program_id, attribution_source, status,
       activation_bonus_cents, revenue_share_basis_points, revenue_share_duration_months, revenue_share_starts_at,
       attribution_window_days, hold_period_days, minimum_payout_cents, eligible_provider_plans, eligible_revenue_types,
+      milestone_bonuses_enabled, active_provider_required_bookings,
       revenue_share_started_at, revenue_share_ends_at)
     VALUES ($1, $2::uuid, $3::uuid, $4, $5, 'listing_published', $6, $7, $8, $9, $10, $11, $12, $13, $14,
-      CASE WHEN $15 THEN now() ELSE NULL END,
-      CASE WHEN $15 THEN now() + make_interval(months => $8) ELSE NULL END)
+      $15, $16,
+      CASE WHEN $17 THEN now() ELSE NULL END,
+      CASE WHEN $17 THEN now() + make_interval(months => $8) ELSE NULL END)
     ON CONFLICT (provider_id) DO NOTHING RETURNING id::text`, [
     terms.affiliate_id, input.providerId, terms.click_id, terms.program_id, manualCode ? "manual" : "cookie",
     terms.activation_bonus_cents, terms.revenue_share_basis_points, terms.revenue_share_duration_months,
     terms.revenue_share_starts_at, terms.attribution_window_days, terms.hold_period_days,
-    terms.minimum_payout_cents, terms.eligible_provider_plans, terms.eligible_revenue_types, startAttribution,
+    terms.minimum_payout_cents, terms.eligible_provider_plans, terms.eligible_revenue_types,
+    terms.milestone_bonuses_enabled, terms.active_provider_required_bookings, startAttribution,
   ]);
   return { attributed: Boolean(inserted.rows[0]), invalidManualCode: false, affiliateCode: terms.affiliate_code };
 }
@@ -166,6 +176,7 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
     await client.query(`UPDATE affiliate_commissions SET status = CASE WHEN status = 'paid' THEN status WHEN $2 THEN 'disputed' ELSE 'rejected' END,
       reversal_reason = CASE WHEN status = 'paid' THEN reversal_reason WHEN $2 THEN 'Underlying booking is disputed.' ELSE 'Underlying booking is not eligible.' END
       WHERE booking_id::text = $1 AND status <> 'reversed'`, [bookingId, disputeOpen]);
+    await evaluateAffiliateMilestonesForProvider(row.provider_id, client);
     return { processed: true, eligible: false };
   }
 
@@ -205,21 +216,27 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
         updated_at = now()`, [row.affiliate_id, row.referral_id, row.provider_id, bookingId, row.stripe_payment_intent_id,
       eligibleRevenue, row.revenue_share_basis_points, shareAmount, payableAt]);
   }
+  await evaluateAffiliateMilestonesForProvider(row.provider_id, client);
   return { processed: true, eligible: true, eligibleRevenue, shareAmount };
 }
 
 export async function advanceAffiliateCommissions(client: DbClient = database) {
   await client.query(`UPDATE affiliate_referrals SET status = 'revenue_share_ended', updated_at = now()
     WHERE status = 'qualified' AND revenue_share_ends_at IS NOT NULL AND revenue_share_ends_at <= now()`);
-  const updated = await client.query(`UPDATE affiliate_commissions commission SET status = 'payable', approved_at = COALESCE(approved_at, now())
+  const updated = await client.query<{ provider_id: string }>(`UPDATE affiliate_commissions commission SET status = 'payable', approved_at = COALESCE(approved_at, now())
     FROM bookings booking
     WHERE commission.booking_id = booking.id AND commission.status IN ('pending','hold','approved')
       AND commission.payable_at <= now() AND booking.payment_status = 'paid' AND booking.status = 'completed'
       AND booking.refunded_amount_cents < booking.price_cents
       AND (booking.stripe_dispute_status IS NULL OR booking.stripe_dispute_status IN ('won','warning_closed'))
       AND NOT EXISTS (SELECT 1 FROM booking_disputes dispute WHERE dispute.booking_id = booking.id AND dispute.status IN ('open','reviewing'))
-    RETURNING commission.id`);
-  return updated.rowCount ?? 0;
+    RETURNING commission.provider_id::text`);
+  const milestones = await client.query<{ provider_id: string }>(`UPDATE affiliate_commissions SET status='payable', approved_at=COALESCE(approved_at,now())
+    WHERE commission_type='milestone_bonus' AND status IN ('pending','hold','approved') AND payable_at <= now()
+    RETURNING provider_id::text`);
+  const providers = new Set([...updated.rows, ...milestones.rows].map((row) => row.provider_id));
+  for (const providerId of providers) await evaluateAffiliateMilestonesForProvider(providerId, client);
+  return (updated.rowCount ?? 0) + (milestones.rowCount ?? 0);
 }
 
 export function newAttributionToken() {

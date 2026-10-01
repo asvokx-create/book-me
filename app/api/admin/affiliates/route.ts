@@ -4,6 +4,7 @@ import { database } from "@/lib/database";
 import { isSafeAffiliateCode, normalizeAffiliateCode } from "@/lib/affiliates";
 import { createAffiliatePayout, getAffiliateReserveHealth, sendAffiliatePayout } from "@/lib/affiliate-payouts";
 import { enforceRateLimit } from "@/lib/request-security";
+import { evaluateAffiliateMilestonesForAffiliate } from "@/lib/affiliate-milestones";
 
 const affiliateStatuses = new Set(["under_review","approved","active","paused","rejected","suspended","terminated"]);
 const commissionStatuses = new Set(["hold","approved","payable","rejected","disputed"]);
@@ -17,15 +18,16 @@ function programTerms(body: Record<string, unknown>) {
   const attribution = Number(body.attributionDays);
   const hold = Number(body.holdDays);
   const minimum = Math.round(Number(body.minimumPayout) * 100);
+  const milestoneBonusesEnabled = body.milestoneBonusesEnabled === undefined ? null : body.milestoneBonusesEnabled === true;
   const valid = Boolean(name)
     && [activation, shareBps, duration, attribution, hold, minimum].every(Number.isInteger)
     && activation >= 0 && shareBps >= 0 && shareBps <= 10000 && duration >= 0
     && attribution >= 1 && attribution <= 365 && hold >= 0 && hold <= 365 && minimum >= 0;
-  return valid ? { name, description, activation, shareBps, duration, attribution, hold, minimum } : null;
+  return valid ? { name, description, activation, shareBps, duration, attribution, hold, minimum, milestoneBonusesEnabled } : null;
 }
 
 async function dashboard() {
-  const [summary, programs, affiliates, commissions, payouts, campaigns, recentClicks, auditHistory, reserve] = await Promise.all([
+  const [summary, programs, affiliates, commissions, payouts, campaigns, recentClicks, auditHistory, milestoneAchievements, reserve] = await Promise.all([
     database.query(`SELECT
       (SELECT count(*)::int FROM affiliate_profiles WHERE status IN ('applied','under_review')) AS applications,
       (SELECT count(*)::int FROM affiliate_profiles WHERE status = 'active') AS active_affiliates,
@@ -36,19 +38,37 @@ async function dashboard() {
       (SELECT COALESCE(sum(amount_cents),0)::int FROM affiliate_commissions WHERE status = 'paid') AS paid_cents`),
     database.query(`SELECT id::text, name, description, activation_bonus_cents, revenue_share_basis_points,
       revenue_share_duration_months, revenue_share_starts_at, attribution_window_days, hold_period_days,
-      minimum_payout_cents, payout_schedule, eligible_provider_plans, eligible_revenue_types, status, starts_at, ends_at
+      minimum_payout_cents, payout_schedule, eligible_provider_plans, eligible_revenue_types, status, starts_at, ends_at,
+      milestone_bonuses_enabled, active_provider_required_bookings, milestone_thresholds, milestone_bonus_cents
       FROM affiliate_programs ORDER BY created_at DESC`),
     database.query(`SELECT affiliate.id::text, affiliate.display_name, affiliate.email, affiliate.affiliate_code,
       affiliate.status, affiliate.website_url, affiliate.youtube_url, affiliate.instagram_url, affiliate.tiktok_url,
       affiliate.x_url, affiliate.facebook_url, affiliate.other_social_url,
       affiliate.primary_audience, affiliate.promotion_plan, affiliate.audience_size, affiliate.admin_notes,
       affiliate.payment_status, affiliate.tax_onboarding_status, affiliate.applied_at, affiliate.approved_at,
+      affiliate.milestone_bonuses_override, affiliate.milestone_backfill_approved,
       affiliate.stripe_account_id,affiliate.stripe_connect_mode,affiliate.stripe_details_submitted,
       affiliate.stripe_payouts_enabled,cardinality(affiliate.stripe_requirements_due)::int AS stripe_requirements_count,
       program.id::text AS program_id, program.name AS program_name,
+      COALESCE(affiliate.milestone_bonuses_override,program.milestone_bonuses_enabled,false) AS milestone_bonuses_enabled,
+      program.milestone_thresholds, program.milestone_bonus_cents,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id) AS clicks,
       (SELECT count(*)::int FROM affiliate_referrals referral WHERE referral.affiliate_id=affiliate.id) AS referrals,
       (SELECT count(*)::int FROM affiliate_referrals referral WHERE referral.affiliate_id=affiliate.id AND referral.qualified_at IS NOT NULL) AS qualified,
+      (SELECT count(*)::int FROM affiliate_referrals referral
+        WHERE referral.affiliate_id=affiliate.id AND referral.status<>'disqualified'
+          AND (SELECT count(DISTINCT booking.id) FROM bookings booking
+            JOIN provider_profiles milestone_provider ON milestone_provider.id=booking.provider_id AND milestone_provider.is_active=true
+            WHERE booking.provider_id=referral.provider_id AND booking.status='completed' AND booking.payment_status='paid'
+              AND booking.payment_release_status IN ('paid_out','partially_released') AND booking.payout_released_at IS NOT NULL
+              AND booking.payout_released_at + make_interval(days => referral.hold_period_days) <= now()
+              AND booking.refunded_amount_cents < booking.price_cents
+              AND (booking.stripe_dispute_status IS NULL OR booking.stripe_dispute_status IN ('won','warning_closed'))
+              AND NOT EXISTS (SELECT 1 FROM booking_disputes dispute WHERE dispute.booking_id=booking.id AND dispute.status IN ('open','reviewing'))
+              AND NOT EXISTS (SELECT 1 FROM account_restrictions restriction WHERE restriction.user_id=milestone_provider.user_id
+                AND restriction.status IN ('suspended','banned') AND (restriction.expires_at IS NULL OR restriction.expires_at>now()))) >= referral.active_provider_required_bookings
+      ) AS active_provider_count,
+      (SELECT count(*)::int FROM affiliate_milestone_achievements achievement WHERE achievement.affiliate_id=affiliate.id AND achievement.reversed_at IS NULL) AS completed_milestones,
       (SELECT count(DISTINCT commission.booking_id)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.booking_id IS NOT NULL) AS bookings_generated,
       (SELECT COALESCE(sum(commission.eligible_revenue_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.commission_type='revenue_share' AND commission.status<>'reversed') AS eligible_revenue_cents,
       (SELECT COALESCE(sum(commission.amount_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.status IN ('pending','hold','approved')) AS pending_cents,
@@ -85,9 +105,17 @@ async function dashboard() {
     database.query(`SELECT audit.id::text, audit.action, audit.target_type, audit.target_id, audit.created_at,
       actor.name AS actor_name FROM affiliate_audit_log audit LEFT JOIN "user" actor ON actor.id=audit.actor_user_id
       ORDER BY audit.created_at DESC LIMIT 100`),
+    database.query(`SELECT achievement.id::text,achievement.milestone_threshold,achievement.bonus_amount_cents,
+      achievement.active_provider_count,achievement.earned_at,achievement.reversed_at,achievement.reversal_reason,
+      achievement.email_sent_at,commission.status AS commission_status,commission.paid_at,
+      affiliate.display_name AS affiliate_name
+      FROM affiliate_milestone_achievements achievement
+      JOIN affiliate_profiles affiliate ON affiliate.id=achievement.affiliate_id
+      LEFT JOIN affiliate_commissions commission ON commission.id=achievement.commission_id
+      ORDER BY achievement.earned_at DESC LIMIT 150`),
     getAffiliateReserveHealth(),
   ]);
-  return { summary: summary.rows[0], reserve, programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, campaigns: campaigns.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows };
+  return { summary: summary.rows[0], reserve, programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, campaigns: campaigns.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows, milestoneAchievements: milestoneAchievements.rows };
 }
 
 export async function GET() {
@@ -138,8 +166,9 @@ export async function POST(request: Request) {
   if (!terms) return NextResponse.json({ error: "Enter valid program terms." }, { status: 400 });
   try {
     const result = await database.query<{ id: string }>(`INSERT INTO affiliate_programs (name, description, activation_bonus_cents,
-        revenue_share_basis_points, revenue_share_duration_months, attribution_window_days, hold_period_days, minimum_payout_cents, status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft') RETURNING id::text`, [terms.name,terms.description,terms.activation,terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum]);
+        revenue_share_basis_points, revenue_share_duration_months, attribution_window_days, hold_period_days,
+        minimum_payout_cents, milestone_bonuses_enabled, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft') RETURNING id::text`, [terms.name,terms.description,terms.activation,terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum,terms.milestoneBonusesEnabled]);
     await audit(session.user.id, "program_created", "affiliate_program", result.rows[0].id, terms);
     return NextResponse.json({ ok: true, id: result.rows[0].id });
   } catch (error) {
@@ -210,6 +239,19 @@ export async function PATCH(request: Request) {
         admin_notes=CASE WHEN $6='' THEN admin_notes ELSE $6 END WHERE id::text=$1`, [targetId,bonus,share,duration,minimum,reason]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
       await audit(session.user.id, "affiliate_overrides_changed", "affiliate", targetId, { bonus, share, duration, minimum, reason }, client);
+    } else if (action === "affiliate_milestones") {
+      const enabled = body.enabled === true;
+      const result = await client.query(`UPDATE affiliate_profiles SET milestone_bonuses_override=$2 WHERE id::text=$1`, [targetId,enabled]);
+      if (!result.rowCount) throw new Error("NOT_FOUND");
+      await audit(session.user.id,"affiliate_milestones_changed","affiliate",targetId,{enabled,reason},client);
+      if (enabled) await evaluateAffiliateMilestonesForAffiliate(targetId,client);
+    } else if (action === "milestone_backfill_approve") {
+      if (!reason) throw new Error("INVALID");
+      const result = await client.query(`UPDATE affiliate_profiles SET milestone_backfill_approved=true,
+        admin_notes=concat_ws(E'\n',NULLIF(admin_notes,''),$2) WHERE id::text=$1`,[targetId,reason]);
+      if (!result.rowCount) throw new Error("NOT_FOUND");
+      await audit(session.user.id,"milestone_backfill_approved","affiliate",targetId,{reason},client);
+      await evaluateAffiliateMilestonesForAffiliate(targetId,client);
     } else if (action === "affiliate_payment_readiness") {
       const ready = body.ready === true;
       if (ready && !reason) throw new Error("INVALID");
@@ -223,13 +265,18 @@ export async function PATCH(request: Request) {
       if (!new Set(["draft","enabled","disabled"]).has(status)) throw new Error("INVALID");
       await client.query("UPDATE affiliate_programs SET status=$2 WHERE id::text=$1", [targetId,status]);
       await audit(session.user.id, "program_status_changed", "affiliate_program", targetId, { status }, client);
+    } else if (action === "program_milestones") {
+      const enabled = body.enabled === true;
+      const result = await client.query("UPDATE affiliate_programs SET milestone_bonuses_enabled=$2 WHERE id::text=$1",[targetId,enabled]);
+      if (!result.rowCount) throw new Error("NOT_FOUND");
+      await audit(session.user.id,"program_milestones_changed","affiliate_program",targetId,{enabled,reason},client);
     } else if (action === "program_update") {
       const terms = programTerms(body);
       if (!terms) throw new Error("INVALID");
       const result = await client.query(`UPDATE affiliate_programs SET name=$2,description=$3,activation_bonus_cents=$4,
         revenue_share_basis_points=$5,revenue_share_duration_months=$6,attribution_window_days=$7,
-        hold_period_days=$8,minimum_payout_cents=$9 WHERE id::text=$1`,
-      [targetId,terms.name,terms.description,terms.activation,terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum]);
+        hold_period_days=$8,minimum_payout_cents=$9,milestone_bonuses_enabled=COALESCE($10,milestone_bonuses_enabled) WHERE id::text=$1`,
+      [targetId,terms.name,terms.description,terms.activation,terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum,terms.milestoneBonusesEnabled]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
       await audit(session.user.id,"program_updated","affiliate_program",targetId,terms,client);
     } else if (action === "commission_status") {

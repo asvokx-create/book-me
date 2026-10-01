@@ -188,6 +188,15 @@ img, picture, video, canvas, svg { max-width: 100%; }
   box-shadow: var(--shadow-sm);
 }
 
+/* The public growth cards intentionally sit on a dark program panel. The
+   general bg-white card normalizer above must not turn their translucent
+   utility into an opaque surface. */
+#growth-bonuses-heading ~ div > article {
+  background-color: #244e3f !important;
+  background-image: none !important;
+  color: #fff;
+}
+
 :where([role="dialog"] > div, [role="dialog"] > form) {
   box-shadow: 0 30px 100px rgba(7, 27, 19, .26);
 }
