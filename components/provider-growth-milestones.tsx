@@ -29,7 +29,6 @@ export default function ProviderGrowthMilestones({
       <span className="rounded-full bg-[#edf3e7] px-3 py-1.5 text-xs font-bold">{activeProviderCount} active {activeProviderCount === 1 ? "provider" : "providers"}</span>
     </div>
     {!enabled ? <div role="status" className="mt-4 rounded-xl bg-[#f5f5ef] px-4 py-3 text-sm leading-5"><strong>Growth bonuses are not included in this agreement.</strong> Standard commissions and campaign payments are unchanged.</div> : <>
-      {historicalReviewPending ? <div role="status" className="mt-4 rounded-xl border border-[#b78e2e]/20 bg-[#fff8d8] px-4 py-3 text-sm leading-5"><strong>Historical progress is under review.</strong> Verified progress is shown; past bonuses remain pending administrator approval.</div> : null}
       <div className="mt-5">
         <div role="progressbar" aria-label={progressLabel} aria-valuemin={0} aria-valuemax={maximumThreshold} aria-valuenow={Math.min(activeProviderCount, maximumThreshold)} aria-valuetext={progressLabel} className="relative h-3">
           <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-[#e8ece6]"><div className="h-full rounded-full bg-[#4c765e] transition-[width]" style={{ width: `${visualProgress}%` }} /></div>
@@ -37,6 +36,7 @@ export default function ProviderGrowthMilestones({
         </div>
         <div className="relative mt-2 h-10 sm:h-11">{milestones.map((milestone,index) => <div key={milestone.threshold} style={{ left: `${(milestone.threshold / maximumThreshold) * 100}%` }} className={`absolute top-0 w-12 text-center sm:w-20 ${index===milestones.length-1?"-translate-x-full text-right":"-translate-x-1/2"}`}><p className="text-[9px] font-bold leading-4 sm:text-xs">{milestone.threshold} providers</p><p className="text-[9px] font-bold leading-4 text-[#4c765e] sm:text-xs">+{money(milestone.bonusCents)} bonus</p></div>)}</div>
       </div>
+      {historicalReviewPending ? <p role="status" className="mt-1 text-xs leading-5 text-[#718078]"><strong>Historical review pending.</strong> Past bonuses remain subject to administrator approval.</p> : null}
       <p className="sr-only">An active provider completes 4 qualified paid bookings after refund, dispute, chargeback, and holding checks.</p>
     </>}
   </section>;
