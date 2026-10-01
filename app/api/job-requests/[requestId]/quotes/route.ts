@@ -5,6 +5,7 @@ import { getProviderAccess } from "@/lib/provider-access";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { recordAnalytics } from "@/lib/analytics";
 import { sendTransactionalEmail } from "@/lib/email";
+import { isBookingDeliveryMethod, serviceSupportsMethod, type BookingDeliveryMethod, type RequestDeliveryType, type ServiceDeliveryType } from "@/lib/service-delivery";
 
 type LineItem = { label: string; amount: number };
 
@@ -20,6 +21,7 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
   const notes = typeof body.notes === "string" ? body.notes.trim() : "";
   const total = Number(body.total);
   const expiresInDays = body.expiresInDays == null ? 7 : Number(body.expiresInDays);
+  const requestedDeliveryMethod = isBookingDeliveryMethod(body.deliveryMethod) ? body.deliveryMethod : null;
   const rawItems = Array.isArray(body.lineItems) ? body.lineItems : [];
   const lineItems: LineItem[] = rawItems.slice(0, 12).flatMap((item) => {
     if (!item || typeof item !== "object") return [];
@@ -36,14 +38,15 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const match = await client.query<{ customer_id: string; customer_email: string; customer_notifications: boolean; status: string; service_id: string; conversation_id: string | null }>(
+    const match = await client.query<{ customer_id: string; customer_email: string; customer_notifications: boolean; status: string; service_id: string; conversation_id: string | null; request_delivery_type: RequestDeliveryType; service_delivery_type: ServiceDeliveryType }>(
       `SELECT request.customer_id, customer.email AS customer_email,
               COALESCE(settings.request_notifications, true) AS customer_notifications,
-              request.status, match.service_id::text,
+              request.status, match.service_id::text, request.delivery_type AS request_delivery_type, service.delivery_type AS service_delivery_type,
               COALESCE(match.conversation_id::text, (SELECT conversation.id::text FROM conversations conversation
                WHERE conversation.customer_id = request.customer_id AND conversation.provider_id = match.provider_id
                  AND conversation.service_id = match.service_id LIMIT 1)) AS conversation_id
        FROM job_request_matches match JOIN job_requests request ON request.id = match.request_id
+       JOIN services service ON service.id = match.service_id
        JOIN provider_profiles eligible ON eligible.id = match.provider_id
        JOIN "user" customer ON customer.id = request.customer_id
        LEFT JOIN user_settings settings ON settings.user_id = customer.id
@@ -58,6 +61,12 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
     );
     const matched = match.rows[0];
     if (!matched) { await client.query("ROLLBACK"); return NextResponse.json({ error: "This request is no longer available to quote." }, { status: 409 }); }
+    const deliveryMethod: BookingDeliveryMethod = requestedDeliveryMethod
+      ?? (matched.request_delivery_type === "REMOTE" || (matched.request_delivery_type === "EITHER" && matched.service_delivery_type === "REMOTE") ? "REMOTE" : "IN_PERSON");
+    if (!serviceSupportsMethod(matched.service_delivery_type, deliveryMethod) || (matched.request_delivery_type !== "EITHER" && matched.request_delivery_type !== deliveryMethod)) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "Choose a delivery method supported by both the request and service." }, { status: 400 });
+    }
     const latest = await client.query<{ id: string; version: number }>(
       `SELECT id::text, version FROM quotes WHERE job_request_id::text = $1 AND provider_id::text = $2 ORDER BY version DESC LIMIT 1 FOR UPDATE`,
       [requestId, access.providerId],
@@ -66,10 +75,10 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
     if (previous) await client.query("UPDATE quotes SET status = 'superseded' WHERE id::text = $1 AND status = 'sent'", [previous.id]);
     const created = await client.query<{ id: string }>(
       `INSERT INTO quotes (customer_id, provider_id, service_id, job_request_id, conversation_id, version, title,
-         description, line_items, total_cents, notes, expires_at, supersedes_quote_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,now() + make_interval(days => $12),$13::uuid)
+         description, line_items, total_cents, notes, expires_at, supersedes_quote_id, delivery_method)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,now() + make_interval(days => $12),$13::uuid,$14)
        RETURNING id::text`,
-      [matched.customer_id, access.providerId, serviceId, requestId, matched.conversation_id, (previous?.version ?? 0) + 1, title, description, JSON.stringify(lineItems), totalCents, notes, expiresInDays, previous?.id ?? null],
+      [matched.customer_id, access.providerId, serviceId, requestId, matched.conversation_id, (previous?.version ?? 0) + 1, title, description, JSON.stringify(lineItems), totalCents, notes, expiresInDays, previous?.id ?? null, deliveryMethod],
     );
     await client.query("UPDATE job_request_matches SET status = 'responded', viewed_at = COALESCE(viewed_at, now()), responded_at = COALESCE(responded_at, now()), updated_at = now() WHERE request_id::text = $1 AND provider_id::text = $2", [requestId, access.providerId]);
     await client.query("UPDATE job_requests SET status = 'receiving_responses' WHERE id::text = $1 AND status = 'open'", [requestId]);
@@ -81,10 +90,10 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
     );
     await client.query("COMMIT");
     await recordActivity({ userId: access.session.user.id, action: "job_quote_sent", targetType: "quote", targetId: created.rows[0].id });
-    await recordAnalytics({ eventName: "job_quote_sent", userId: access.session.user.id, targetType: "quote", targetId: created.rows[0].id, metadata: { requestId, totalCents } });
+    await recordAnalytics({ eventName: "job_quote_sent", userId: access.session.user.id, targetType: "quote", targetId: created.rows[0].id, metadata: { requestId, totalCents, deliveryMethod } });
     const providerQuoteCount = await database.query<{ count: number }>("SELECT count(*)::int AS count FROM quotes WHERE provider_id::text = $1", [access.providerId]);
     if (providerQuoteCount.rows[0]?.count === 1) await recordAnalytics({ eventName: "first_quote_sent", userId: access.session.user.id, targetType: "quote", targetId: created.rows[0].id });
-    if (matched.customer_notifications) await sendTransactionalEmail({ to: matched.customer_email, userId: matched.customer_id, emailType: `job_quote_${created.rows[0].id}`, idempotencyKey: `job-quote-${created.rows[0].id}`, subject: "You received a new BubsBookings quote", heading: "A provider responded to your service request", message: `${access.session.user.name || "A local provider"} sent a $${total.toFixed(2)} quote. Compare the details before accepting.`, actionLabel: "Review quote", actionUrl: "/account/requests" });
+    if (matched.customer_notifications) await sendTransactionalEmail({ to: matched.customer_email, userId: matched.customer_id, emailType: `job_quote_${created.rows[0].id}`, idempotencyKey: `job-quote-${created.rows[0].id}`, subject: "You received a new BubsBookings quote", heading: "A provider responded to your service request", message: `${access.session.user.name || "A provider"} sent a $${total.toFixed(2)} quote. Compare the details before accepting.`, actionLabel: "Review quote", actionUrl: "/account/requests" });
     return NextResponse.json({ id: created.rows[0].id }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK");

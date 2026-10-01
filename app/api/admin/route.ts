@@ -60,7 +60,7 @@ async function loadDashboard() {
        LIMIT 75`,
     ),
     database.query(
-      `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.is_active, s.price_cents,
+      `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.delivery_type, s.is_active, s.price_cents,
               s.created_at, s.business_name, p.city, p.state, p.id::text AS provider_id
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id

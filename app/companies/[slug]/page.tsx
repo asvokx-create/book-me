@@ -11,9 +11,10 @@ import MobileSiteNav from "@/components/mobile-site-nav";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const company = await getCompanyBySlug((await params).slug);
   if (!company) return { title: "Company not found" };
+  const serviceAvailability = company.services.some((service) => service.deliveryType !== "IN_PERSON") ? "including remote options" : `across ${company.locations.map((location) => `${location.city}, ${location.state}`).join(", ")}`;
   return {
     title: `${company.name} services`,
-    description: `View every service offered by ${company.name} across ${company.locations.map((location) => `${location.city}, ${location.state}`).join(", ")}.`,
+    description: `View every service offered by ${company.name}, ${serviceAvailability}.`,
     alternates: { canonical: `/companies/${company.slug}` },
   };
 }

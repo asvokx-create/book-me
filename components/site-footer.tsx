@@ -48,7 +48,7 @@ export default function SiteFooter() {
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#a9c3b4]">Your neighborhood marketplace</p>
               <h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-[-.045em] sm:text-4xl">Good help should never feel far away.</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-[#aec3b8]">Find local service providers, compare your options clearly, and keep every booking in one secure place.</p>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-[#aec3b8]">Find local or remote service providers, compare your options clearly, and keep every booking in one secure place.</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link href="/services" className="rounded-full bg-[#f1e45c] px-6 py-3.5 text-sm font-bold text-[#173d2e] hover:bg-[#fff47c]">Find local help</Link>
@@ -56,7 +56,7 @@ export default function SiteFooter() {
             </div>
           </div>
           <div className="relative mt-7 grid gap-3 border-t border-white/10 pt-6 text-xs font-semibold text-[#bfd0c7] sm:grid-cols-3">
-            <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Local-first marketplace</p>
+            <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Local and remote marketplace</p>
             <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Stripe-powered payments</p>
             <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Real booking support</p>
           </div>
@@ -65,7 +65,7 @@ export default function SiteFooter() {
         <div className="grid gap-10 py-11 sm:grid-cols-2 lg:grid-cols-[1.35fr_.8fr_.8fr_.8fr]">
           <div>
             <Link href="/" aria-label="BubsBookings" className="flex w-fit items-center gap-3 text-xl font-bold tracking-[-.03em]"><BrandLockup /></Link>
-            <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local services, safer conversations, clear choices—and a simpler way to get things done.</p>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local and remote services, safer conversations, clear choices—and a simpler way to get things done.</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <BugReportButton />
               <Link href="/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-[#c8d7cf] hover:bg-white/10 hover:text-white">Contact support</Link>
@@ -77,7 +77,7 @@ export default function SiteFooter() {
         </div>
 
         <div className="flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-[#7f9b8c] sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} BubsBookings. Built for local people and local work.</p>
+          <p>© {new Date().getFullYear()} BubsBookings. Built for local and remote work.</p>
           <p>Connecting local communities across the United States</p>
         </div>
       </div>

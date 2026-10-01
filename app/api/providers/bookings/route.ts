@@ -11,7 +11,7 @@ export async function GET() {
     price_cents: number; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string; previous_booking_count: number; plan: "starter" | "pro" | "business" | "owner";
   }>(
     `SELECT b.id::text, u.name AS customer, u.image AS customer_image, s.title AS service, b.starts_at,
-            CASE WHEN b.status IN ('confirmed', 'completed') OR EXISTS (
+            CASE WHEN b.delivery_method = 'REMOTE' THEN 'Remote service' WHEN b.status IN ('confirmed', 'completed') OR EXISTS (
               SELECT 1 FROM booking_events confirmed_event
               WHERE confirmed_event.booking_id = b.id AND confirmed_event.event_type IN ('confirmed', 'reschedule_approved')
             ) THEN b.service_address ELSE

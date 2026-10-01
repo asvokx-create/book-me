@@ -9,7 +9,7 @@ type QueueItem = {
   job_request_id: string;
   email: string;
   opportunity_notifications: boolean;
-  payload: { category?: string; city?: string; state?: string };
+  payload: { category?: string; city?: string; state?: string; deliveryType?: "IN_PERSON" | "REMOTE" | "EITHER" };
   dedupe_key: string;
   attempts: number;
 };
@@ -95,14 +95,15 @@ export async function processJobRequestNotificationQueue(limit = 50) {
       continue;
     }
     const place = [item.payload.city, item.payload.state].filter(Boolean).join(", ");
+    const isRemote = item.payload.deliveryType === "REMOTE";
     const result = await sendTransactionalEmail({
       to: item.email,
       userId: item.user_id,
       emailType: "provider_opportunity",
       idempotencyKey: item.dedupe_key,
       subject: `New ${item.payload.category || "service"} opportunity on BubsBookings`,
-      heading: "A customer needs help in your service area",
-      message: `${item.payload.category || "A service"} was requested${place ? ` near ${place}` : " nearby"}. Review the request before deciding whether to message the customer or send a free quote.`,
+      heading: isRemote ? "A customer needs remote help" : "A customer needs help in your service area",
+      message: `${item.payload.category || "A service"} was requested${isRemote ? " for remote delivery" : place ? ` near ${place}` : " nearby"}. Review the request before deciding whether to message the customer or send a free quote.`,
       actionLabel: "Review opportunity",
       actionUrl: `/provider/dashboard/opportunities?requestId=${encodeURIComponent(item.job_request_id)}`,
     });

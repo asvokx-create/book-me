@@ -68,15 +68,16 @@ export async function GET() {
     price_cents: number;
     duration_minutes: number;
     image_urls: string[] | null;
-    location_id: string;
-    location_name: string;
-    city: string;
-    state: string;
+    location_id: string | null;
+    location_name: string | null;
+    city: string | null;
+    state: string | null;
     created_at: Date;
     view_count: number;
+    delivery_type: "IN_PERSON" | "REMOTE" | "BOTH";
   }>(
     `SELECT s.id::text, s.company_id::text, company.slug AS company_slug, company.name AS business_name,
-            s.slug, s.title, s.category, s.price_cents, s.duration_minutes, s.created_at,
+            s.slug, s.title, s.category, s.price_cents, s.duration_minutes, s.created_at, s.delivery_type,
             location.id::text AS location_id, location.name AS location_name, location.city, location.state,
             COALESCE((
               SELECT count(*)::int
@@ -95,7 +96,7 @@ export async function GET() {
             ), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_companies company ON company.id = s.company_id AND company.is_active = true
-     JOIN provider_locations location ON location.id = s.location_id AND location.is_active = true
+     LEFT JOIN provider_locations location ON location.id = s.location_id AND location.is_active = true
      WHERE s.provider_id::text = $1 AND s.is_active = true
        AND ($2::text IS NULL OR company.name = $2)
      ORDER BY s.created_at DESC`,
@@ -116,7 +117,8 @@ export async function GET() {
     imageUrls: service.image_urls ?? [],
     locationId: service.location_id,
     locationName: service.location_name,
-    location: `${service.city}, ${service.state}`,
+    location: service.delivery_type === "REMOTE" ? "Available online" : `${service.city}, ${service.state}`,
+    deliveryType: service.delivery_type,
   }));
   const availabilityResult = await database.query<{
     service_id: string | null;

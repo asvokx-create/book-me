@@ -14,7 +14,7 @@ import ServiceSearchAssist from "@/components/service-search-assist";
 import HomeHeroPreview from "@/components/home-hero-preview";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Find and book local services", description: "Compare local service listings, message providers, and request bookings across the United States.", alternates: { canonical: "/" } };
+export const metadata: Metadata = { title: "Find and book local or remote services", description: "Compare in-person and remote service listings, message providers, and request bookings across the United States.", alternates: { canonical: "/" } };
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -31,7 +31,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const state = statePart?.trim() || "";
   const servicesWithinRange = await getServices(location ? { location, radiusMiles: radius, limit: 50 } : { limit: 50 });
   const cityServices = location ? servicesWithinRange.filter((service) =>
-    service.city.trim().toLowerCase() === city.toLowerCase()
+    service.deliveryType !== "REMOTE" && service.city.trim().toLowerCase() === city.toLowerCase()
       && (!state || service.state.trim().toLowerCase() === state.toLowerCase()),
   ) : [];
   const cityServiceIds = new Set(cityServices.map((service) => service.id));
@@ -44,6 +44,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const nearbyParams = new URLSearchParams({ radius: String(radius) });
   if (location) nearbyParams.set("location", location);
   const nearbyServicesHref = `/services?${nearbyParams.toString()}#service-listings`;
+  const remoteServicesHref = "/services?delivery=REMOTE&sort=newest#service-listings";
   const requestParams = new URLSearchParams({ radius: String(radius) });
   if (location) requestParams.set("location", location);
   const requestHref = `/requests?${requestParams.toString()}`;
@@ -77,7 +78,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_.65fr] lg:gap-14">
         <div className="max-w-3xl">
           <p className="home-hero-eyebrow mb-5 inline-flex items-center gap-2 rounded-full border border-[#183126]/10 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#4d6b59] shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-[#69a67e]" /> Local help, one simple booking
+            <span className="h-2 w-2 rounded-full bg-[#69a67e]" /> Help nearby or online, one simple booking
           </p>
 
           <h1 className="type-hero">
@@ -85,10 +86,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </h1>
 
           <p className="home-hero-copy mt-6 max-w-2xl text-lg leading-8 text-[#5a6d63]">
-            Discover local pros, compare your options, and request the right help—all in one simple place.
+            Discover local and remote professionals, compare your options, and request the right help—all in one simple place.
           </p>
           <div className="home-hero-points mt-7 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#4e675a]">
-            <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Local professionals</span>
+            <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Local and remote professionals</span>
             <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Stripe-powered payments</span>
             <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#dfeade] text-[11px]">✓</span>Real booking support</span>
           </div>
@@ -106,7 +107,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             Find a pro
           </button>
         </form>
-        <div className="home-request-banner relative z-0 mt-4 flex max-w-5xl flex-col items-center justify-between gap-3 rounded-2xl border border-[#183126]/10 bg-white/65 px-5 py-4 text-center backdrop-blur sm:flex-row sm:text-left"><div><p className="text-sm font-bold">Not sure which listing fits?</p><p className="mt-1 text-xs text-[#63756b]">Share what you need once and receive free quotes from local providers.</p></div><Link href={requestHref} className="min-h-11 shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>
+        <div className="mt-3 max-w-5xl text-center sm:text-left"><Link href={remoteServicesHref} className="inline-flex min-h-10 items-center rounded-full border border-[#183126]/12 bg-white/70 px-4 py-2 text-sm font-bold transition hover:bg-white">Browse services available online →</Link></div>
+        <div className="home-request-banner relative z-0 mt-4 flex max-w-5xl flex-col items-center justify-between gap-3 rounded-2xl border border-[#183126]/10 bg-white/65 px-5 py-4 text-center backdrop-blur sm:flex-row sm:text-left"><div><p className="text-sm font-bold">Not sure which listing fits?</p><p className="mt-1 text-xs text-[#63756b]">Share what you need once and receive free quotes from eligible providers.</p></div><Link href={requestHref} className="min-h-11 shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>
         </div>
       </section>
 
@@ -148,7 +150,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       <section className="home-all-services home-marketplace border-y border-[#183126]/8 bg-[#eef3ea]/70">
         <div className="site-container px-4 pb-12 pt-7 sm:px-6 sm:pb-16 sm:pt-9">
           <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-            <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">{location ? "More around you" : "Current marketplace"}</p><h2 className="mt-2 text-3xl font-bold tracking-[-.04em]">All services</h2><p className="mt-2 text-sm text-[#687970]">{location ? `More providers serving locations within ${radius} miles of ${city}.` : "Browse active listings across BubsBookings, or choose your city above for local results."}</p></div>
+            <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">{location ? "More available to you" : "Current marketplace"}</p><h2 className="mt-2 text-3xl font-bold tracking-[-.04em]">All services</h2><p className="mt-2 text-sm text-[#687970]">{location ? `More local providers within ${radius} miles of ${city}, plus remote services available online.` : "Browse active local and remote listings across BubsBookings, or choose your city above for local results."}</p></div>
             <Link href={nearbyServicesHref} className="home-section-action shrink-0 rounded-full border border-[#183126]/12 bg-white px-5 py-3 text-sm font-bold shadow-sm transition hover:bg-[#eee25a]">{location ? `Browse all within ${radius} miles` : "Browse all services"} →</Link>
           </div>
 
@@ -170,7 +172,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <div className="home-business-card rounded-2xl bg-[#f3ed74] p-5 text-[#183126]">
             <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#627065]">✨ For creators &amp; affiliates</p>
             <h2 className="mt-1.5 text-xl font-bold tracking-[-.03em]">Share BubsBookings. Earn when providers succeed.</h2>
-            <p className="mt-2 text-xs leading-5 text-[#52655a]">Refer real local providers and earn from eligible BubsBookings fee revenue after they complete qualifying paid work.</p>
+            <p className="mt-2 text-xs leading-5 text-[#52655a]">Refer real service providers and earn from eligible BubsBookings fee revenue after they complete qualifying paid work.</p>
             <Link href="/partners" className="mt-3 inline-flex rounded-full border border-[#183126]/20 bg-white/45 px-3.5 py-2 text-xs font-bold transition hover:bg-white/70">Become a creator partner →</Link>
           </div>
         </div>
@@ -188,7 +190,7 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
     <Link href={`/services/${service.slug}`} className="block" aria-label={`View ${service.title}`}>
       <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
         {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-        {badge && <span className="home-preview-badge absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{badge}</span>}
+        {(badge || service.deliveryType === "REMOTE") && <span className="home-preview-badge absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{service.deliveryType === "REMOTE" ? "Available online" : badge}</span>}
         {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80 transition duration-300 group-hover:scale-105">{visual.art}</span>}
       </div>
     </Link>
@@ -198,7 +200,7 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
           <div className="min-w-0"><Link href={`/services/${service.slug}`}><h3 className="mt-1 truncate text-lg font-semibold">{service.title}</h3></Link><p className="mt-1 truncate text-sm text-zinc-500">Provider: {service.provider}</p>{service.providerProfileVisible && <Link href={`/providers/${service.providerSlug}`} className="mt-2 inline-flex text-xs font-bold text-[#4f6d5a] underline underline-offset-4">View provider profile</Link>}</div>
           <div className="shrink-0 text-right"><p className="font-bold">${service.price}</p><p className="text-xs text-zinc-500">starting</p></div>
         </div>
-        <div className="mt-5 flex items-center gap-2 text-sm text-zinc-500"><span>📍</span><span>{service.city}, {service.state}{distanceLabel && ` · ${distanceLabel}`}</span></div>
+        <div className="mt-5 flex items-center gap-2 text-sm text-zinc-500"><span>{service.deliveryType === "REMOTE" ? "⌁" : "📍"}</span><span>{service.deliveryType === "REMOTE" ? "Remote · Available online" : `${service.city}, ${service.state}${distanceLabel && ` · ${distanceLabel}`}`}{service.deliveryType === "BOTH" && " · Remote available"}</span></div>
       </div>
     <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />
   </article>;

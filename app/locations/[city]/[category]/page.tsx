@@ -18,7 +18,7 @@ async function getPageData(params: LocalCategoryPageProps["params"]) {
   const category = getServiceCategoryBySlug(categorySlug);
   if (!area || !category) return null;
   const location = serviceAreaLabel(area);
-  const services = await getServices({ category, location, radiusMiles: 25, sort: "nearest", limit: 24 });
+  const services = await getServices({ category, delivery: "IN_PERSON", location, radiusMiles: 25, sort: "nearest", limit: 24 });
   return { area, category, location, services };
 }
 

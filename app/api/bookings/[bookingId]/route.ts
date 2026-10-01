@@ -17,7 +17,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   const { bookingId } = await context.params;
   const result = await database.query<{
     id: string; customer_id: string; customer_name: string; provider_id: string; provider_user_id: string; provider_name: string; owner_name: string;
-    service_id: string; service_slug: string; service_title: string; service_location_id: string; category: string; starts_at: Date; ends_at: Date;
+    service_id: string; service_slug: string; service_title: string; service_location_id: string | null; category: string; starts_at: Date; ends_at: Date;
     service_address: string; service_city: string | null; service_state: string | null; service_postal_code: string | null;
     access_instructions: string; notes: string; booking_answers: Record<string, string>; price_cents: number; status: string; was_confirmed: boolean; cancelled_by: string | null;
     cancellation_reason: string | null; late_cancellation: boolean; cancellation_window_hours: number;
@@ -33,11 +33,11 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     refund_failure_reason: string | null; payment_release_status: string; platform_fee_cents: number;
     customer_service_fee_cents: number; customer_service_fee_refunded_cents: number;
     provider_payout_cents: number; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
-    payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null;
+    payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null; delivery_method: "IN_PERSON" | "REMOTE";
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text, p.user_id AS provider_user_id,
             s.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title, s.location_id::text AS service_location_id,
-            s.category, b.starts_at, b.ends_at, b.service_address, b.service_city, b.service_state, b.service_postal_code,
+            s.category, b.starts_at, b.ends_at, b.service_address, b.service_city, b.service_state, b.service_postal_code, b.delivery_method,
             b.access_instructions, b.notes, b.booking_answers, b.price_cents, b.status,
             EXISTS (SELECT 1 FROM booking_events confirmed_event WHERE confirmed_event.booking_id = b.id AND confirmed_event.event_type IN ('confirmed', 'reschedule_approved')) AS was_confirmed,
             b.cancelled_by, b.cancellation_reason, b.late_cancellation, p.cancellation_window_hours,
@@ -88,15 +88,15 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   const canSeeExactAddress = viewerRole === "customer" || ["confirmed", "completed"].includes(row.status) || row.was_confirmed;
   const team = viewerRole !== "provider" ? [] : (await database.query<{ id: string; name: string }>(
     `SELECT member.id::text, member.name FROM provider_team_members member
-     JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id
-     WHERE member.provider_id::text = $1 AND assigned_location.location_id::text = $2 AND member.status = 'active' ORDER BY member.name`, [row.provider_id, row.service_location_id])).rows;
+     WHERE member.provider_id::text = $1 AND ($2::text IS NULL OR EXISTS (SELECT 1 FROM provider_team_member_locations assigned_location WHERE assigned_location.team_member_id = member.id AND assigned_location.location_id::text = $2)) AND member.status = 'active' ORDER BY member.name`, [row.provider_id, row.service_location_id])).rows;
   return NextResponse.json({ booking: {
     id: row.id, viewerRole, customerName: row.customer_name,
     providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceSlug: row.service_slug,
     serviceTitle: row.service_title, category: row.category, startsAt: row.starts_at, endsAt: row.ends_at,
-    location: canSeeExactAddress ? row.service_address : approximateLocation.trim() || "Address available after acceptance",
-    addressIsApproximate: !canSeeExactAddress,
-    accessInstructions: canSeeExactAddress ? row.access_instructions : "",
+    deliveryMethod: row.delivery_method,
+    location: row.delivery_method === "REMOTE" ? "Remote service" : canSeeExactAddress ? row.service_address : approximateLocation.trim() || "Address available after acceptance",
+    addressIsApproximate: row.delivery_method !== "REMOTE" && !canSeeExactAddress,
+    accessInstructions: row.delivery_method !== "REMOTE" && canSeeExactAddress ? row.access_instructions : "",
     notes: row.notes, bookingAnswers: row.booking_answers ?? {}, price: row.price_cents / 100,
     customerServiceFee: (["paid", "refunded"] as string[]).includes(row.payment_status)
       ? row.customer_service_fee_cents / 100

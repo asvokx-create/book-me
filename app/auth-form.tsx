@@ -19,6 +19,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [remoteOnly, setRemoteOnly] = useState(false);
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [confirmedAge, setConfirmedAge] = useState(false);
@@ -66,11 +67,12 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
     }
     if (!isLogin) {
       const normalized = normalizeAccountLocation({ city, state, postalCode, country: "United States" });
-      if (!normalized.location) {
+      if ((!remoteOnly || isProviderIntent) && !normalized.location) {
         setError(normalized.error ?? "Enter your city, state, and ZIP code before creating an account.");
         return;
       }
-      sessionStorage.setItem("bubsbookings-pending-account-location", JSON.stringify(normalized.location));
+      if (normalized.location) sessionStorage.setItem("bubsbookings-pending-account-location", JSON.stringify(normalized.location));
+      else sessionStorage.removeItem("bubsbookings-pending-account-location");
     }
 
     setError("");
@@ -102,7 +104,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
     }
     const phoneDigits = phone.replace(/\D/g, "");
     const normalizedLocation = isLogin ? null : normalizeAccountLocation({ city, state, postalCode, country: "United States" });
-    if (!isLogin && !normalizedLocation?.location) {
+    if (!isLogin && (!remoteOnly || isProviderIntent) && !normalizedLocation?.location) {
       setError(normalizedLocation?.error ?? "Enter your city, state, and ZIP code.");
       return;
     }
@@ -134,10 +136,10 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       password,
       name: name.trim(),
       phone: phone.trim(),
-      city: normalizedLocation!.location!.city,
-      state: normalizedLocation!.location!.state,
-      postalCode: normalizedLocation!.location!.postalCode,
-      country: normalizedLocation!.location!.country,
+      city: normalizedLocation?.location?.city ?? "",
+      state: normalizedLocation?.location?.state ?? "",
+      postalCode: normalizedLocation?.location?.postalCode ?? "",
+      country: normalizedLocation?.location?.country ?? "United States",
       ...createPolicyConsentFields(),
       callbackURL: redirectTo,
     });
@@ -169,10 +171,10 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       <div className="text-center">
         <p className="text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{isProviderIntent ? "Provider setup" : isLogin ? "Welcome back" : "Join BubsBookings"}</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-.04em]">{isProviderIntent ? (isLogin ? "Log in to continue provider setup" : "Create your provider account") : isLogin ? "Log in to your account" : "Create your account"}</h1>
-        <p className="mt-3 text-sm leading-6 text-[#718078]">{isProviderIntent ? "Set up your provider profile, services, availability, and Stripe payouts after you sign in." : isLogin ? "Manage bookings and connect with your favorite local pros." : "Find local service providers and keep every booking in one place."}</p>
+        <p className="mt-3 text-sm leading-6 text-[#718078]">{isProviderIntent ? "Set up your provider profile, services, availability, and Stripe payouts after you sign in." : isLogin ? "Manage bookings and connect with your favorite providers." : "Find local or remote service providers and keep every booking in one place."}</p>
       </div>
 
-      {!isLogin && <div className="mt-6" aria-label={`Signup step ${signupStep} of 2`}><div className="flex items-center gap-2" aria-hidden="true"><span className="h-1.5 flex-1 rounded-full bg-[#183126]" /><span className={`h-1.5 flex-1 rounded-full ${signupStep === 2 ? "bg-[#183126]" : "bg-[#dfe6dc]"}`} /></div><h2 ref={stepHeadingRef} tabIndex={-1} className="mt-3 text-sm font-bold outline-none">Step {signupStep} of 2 · {signupStep === 1 ? "Account details" : "Location and agreements"}</h2><p className="mt-1 text-xs leading-5 text-[#718078]">{signupStep === 1 ? "Enter your account details, then continue." : signupMethod === "google" ? "Add your general location and accept the required agreements before continuing with Google." : "Add your general location and accept the required agreements to finish."}</p></div>}
+      {!isLogin && <div className="mt-6" aria-label={`Signup step ${signupStep} of 2`}><div className="flex items-center gap-2" aria-hidden="true"><span className="h-1.5 flex-1 rounded-full bg-[#183126]" /><span className={`h-1.5 flex-1 rounded-full ${signupStep === 2 ? "bg-[#183126]" : "bg-[#dfe6dc]"}`} /></div><h2 ref={stepHeadingRef} tabIndex={-1} className="mt-3 text-sm font-bold outline-none">Step {signupStep} of 2 · {signupStep === 1 ? "Account details" : "Preferences and agreements"}</h2><p className="mt-1 text-xs leading-5 text-[#718078]">{signupStep === 1 ? "Enter your account details, then continue." : isProviderIntent ? "Add your general location and accept the required agreements to continue provider setup." : signupMethod === "google" ? "Choose your discovery preference and accept the required agreements before continuing with Google." : "Choose your discovery preference and accept the required agreements to finish."}</p></div>}
 
       {(isLogin || signupStep === 1) && <div className="mt-7">
         <SocialButton enabled={socialProviders.google} loading={socialLoading === "google"} disabled={Boolean(socialLoading)} onClick={() => void continueWith("google")} />
@@ -182,7 +184,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       <form onSubmit={submit} className="space-y-4">
         {!isLogin && signupStep === 1 && <label className="block"><span className="mb-2 block text-sm font-bold">Full name</span><input required autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your full name" className={inputClass} /></label>}
         {(isLogin || signupStep === 1) && <label className="block"><span className="mb-2 block text-sm font-bold">Email address</span><input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={inputClass} /></label>}
-        {!isLogin && signupStep === 2 && <fieldset className="rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><legend className="px-1 text-sm font-bold">General account location</legend><p className="mb-4 text-xs leading-5 text-[#718078]">Used to show relevant local services. This is separate from a booking street address or provider service area.</p><div className="grid gap-4"><label className="block"><span className="mb-2 block text-sm font-bold">City</span><input required autoComplete="address-level2" value={city} onChange={(event) => setCity(event.target.value)} placeholder="Seattle" className={inputClass} /></label><div className="grid grid-cols-[minmax(0,.75fr)_minmax(0,1.25fr)] gap-3"><label className="block"><span className="mb-2 block text-sm font-bold">State</span><input required maxLength={2} autoComplete="address-level1" value={state} onChange={(event) => setState(event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} placeholder="WA" className={inputClass} /></label><label className="block"><span className="mb-2 block text-sm font-bold">ZIP code</span><input required inputMode="numeric" maxLength={10} pattern="[0-9]{5}(-[0-9]{4})?" autoComplete="postal-code" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="98101" className={inputClass} /></label></div><label className="block"><span className="mb-2 block text-sm font-bold">Country</span><input readOnly autoComplete="country-name" value="United States" className={`${inputClass} cursor-not-allowed text-[#718078]`} /></label></div></fieldset>}
+        {!isLogin && signupStep === 2 && <fieldset className="rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-4"><legend className="px-1 text-sm font-bold">Service discovery</legend><p className="mb-4 text-xs leading-5 text-[#718078]">A general location personalizes local discovery. It is separate from a booking address or provider service area.</p>{!isProviderIntent && <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl bg-white p-3"><input type="checkbox" checked={remoteOnly} onChange={(event) => setRemoteOnly(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#183126]" /><span className="text-sm font-semibold">I only need remote services right now<span className="mt-1 block text-xs font-normal leading-5 text-[#718078]">Skip location for now. You can add one later for nearby recommendations.</span></span></label>}{(!remoteOnly || isProviderIntent) && <div className="grid gap-4"><label className="block"><span className="mb-2 block text-sm font-bold">City</span><input required autoComplete="address-level2" value={city} onChange={(event) => setCity(event.target.value)} placeholder="Seattle" className={inputClass} /></label><div className="grid grid-cols-[minmax(0,.75fr)_minmax(0,1.25fr)] gap-3"><label className="block"><span className="mb-2 block text-sm font-bold">State</span><input required maxLength={2} autoComplete="address-level1" value={state} onChange={(event) => setState(event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} placeholder="WA" className={inputClass} /></label><label className="block"><span className="mb-2 block text-sm font-bold">ZIP code</span><input required inputMode="numeric" maxLength={10} pattern="[0-9]{5}(-[0-9]{4})?" autoComplete="postal-code" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="98101" className={inputClass} /></label></div><label className="block"><span className="mb-2 block text-sm font-bold">Country</span><input readOnly autoComplete="country-name" value="United States" className={`${inputClass} cursor-not-allowed text-[#718078]`} /></label></div>}</fieldset>}
         {!isLogin && signupStep === 1 && <label className="block"><span className="mb-2 block text-sm font-bold">Phone number <span className="font-normal text-[#718078]">(optional)</span></span><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(formatUsPhone(event.target.value))} placeholder="(425) 555-0123" className={inputClass} /><span className="mt-2 block text-xs text-[#849189]">Used for booking updates and provider communication.</span></label>}
         {(isLogin || signupStep === 1) && <label className="block"><span className="mb-2 flex items-center justify-between text-sm font-bold">Password {isLogin && <Link href="/forgot-password" className="rounded-full px-2 py-1 text-xs text-[#5a7563] underline decoration-[#c7bb41] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Forgot password?</Link>}</span><input required type="password" minLength={isLogin ? 1 : 12} maxLength={128} autoComplete={isLogin ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isLogin ? "Your password" : "At least 12 characters"} className={inputClass} /></label>}
         {(isLogin || signupStep === 1) && <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] px-4 py-3"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#183126]" /><span className="text-sm font-semibold">Keep me signed in on this device</span></label>}

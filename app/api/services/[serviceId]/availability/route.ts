@@ -26,9 +26,8 @@ export async function GET(request: Request, context: RouteContext<"/api/services
          UNION ALL
          SELECT si.provider_id, member.id AS member_id, si.duration_minutes,
                 hours.weekday, hours.start_time, hours.end_time, hours.timezone
-         FROM service_info si JOIN provider_team_member_locations assigned_location ON assigned_location.location_id = si.location_id
-         JOIN provider_team_members member ON member.id = assigned_location.team_member_id
-           AND member.provider_id = si.provider_id AND member.status = 'active'
+         FROM service_info si JOIN provider_team_members member ON member.provider_id = si.provider_id AND member.status = 'active'
+           AND (si.location_id IS NULL OR EXISTS (SELECT 1 FROM provider_team_member_locations assigned_location WHERE assigned_location.team_member_id = member.id AND assigned_location.location_id = si.location_id))
          JOIN team_member_availability hours ON hours.team_member_id = member.id
        ), days AS (
          SELECT generated::date AS date
@@ -88,9 +87,8 @@ export async function GET(request: Request, context: RouteContext<"/api/services
        UNION ALL
        SELECT si.provider_id, member.id AS member_id, si.duration_minutes,
               hours.weekday, hours.start_time, hours.end_time, hours.timezone
-       FROM service_info si JOIN provider_team_member_locations assigned_location ON assigned_location.location_id = si.location_id
-       JOIN provider_team_members member ON member.id = assigned_location.team_member_id
-         AND member.provider_id = si.provider_id AND member.status = 'active'
+       FROM service_info si JOIN provider_team_members member ON member.provider_id = si.provider_id AND member.status = 'active'
+         AND (si.location_id IS NULL OR EXISTS (SELECT 1 FROM provider_team_member_locations assigned_location WHERE assigned_location.team_member_id = member.id AND assigned_location.location_id = si.location_id))
        JOIN team_member_availability hours ON hours.team_member_id = member.id
      ), generated_slots AS (
        SELECT sh.provider_id, sh.member_id, sh.duration_minutes, sh.timezone,

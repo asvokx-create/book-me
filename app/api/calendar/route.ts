@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     assigned_team_member_id: string | null; assigned_team_member_ids: string[]; assignee_name: string;
   }>(role === "provider" ?
     `SELECT b.id::text, s.title, u.name AS person, b.starts_at, b.ends_at,
-            CASE WHEN b.status = 'requested' THEN
+            CASE WHEN b.delivery_method = 'REMOTE' THEN 'Remote service' WHEN b.status = 'requested' THEN
               COALESCE(NULLIF(trim(concat_ws(' ', concat_ws(', ', b.service_city, b.service_state), b.service_postal_code)), ''), 'Address available after acceptance')
               ELSE b.service_address END AS location,
             b.status,

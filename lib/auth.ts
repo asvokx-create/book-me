@@ -94,6 +94,8 @@ export const auth = betterAuth({
             !Number.isFinite(aiSafetyAcknowledgedAt)
           ) return false;
           if (context?.path === "/sign-up/email") {
+            const hasNoLocation = !String(user.city ?? "").trim() && !String(user.state ?? "").trim() && !String(user.postalCode ?? "").trim();
+            if (hasNoLocation) return { data: { country: "United States" } };
             const normalized = normalizeAccountLocation({
               city: user.city,
               state: user.state,

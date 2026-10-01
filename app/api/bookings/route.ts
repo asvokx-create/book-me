@@ -7,6 +7,7 @@ import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { recordAnalytics } from "@/lib/analytics";
 import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "@/lib/booking-financials";
+import { isServiceDeliveryType, serviceSupportsMethod, type BookingDeliveryMethod, type ServiceDeliveryType } from "@/lib/service-delivery";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -18,12 +19,12 @@ export async function GET() {
 
   const result = await database.query<{
     id: string; service_id: string; provider_id: string; service: string; service_slug: string; category: string; provider: string;
-    starts_at: Date; price_cents: number; location: string; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string;
+    starts_at: Date; price_cents: number; location: string; delivery_method: BookingDeliveryMethod; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string;
   }>(
     `SELECT b.id::text, s.id::text AS service_id, p.id::text AS provider_id,
             s.title AS service, s.slug AS service_slug, s.category,
             s.business_name AS provider, b.starts_at, b.price_cents,
-            b.service_address AS location, b.status,
+            b.service_address AS location, b.delivery_method, b.status,
             COALESCE((SELECT string_agg(CASE WHEN assigned.is_owner THEN owner_user.name ELSE assigned_member.name END, ', ' ORDER BY assigned.is_owner DESC, assigned_member.name)
               FROM booking_assignees assigned LEFT JOIN provider_team_members assigned_member ON assigned_member.id = assigned.team_member_id
               WHERE assigned.booking_id = b.id), COALESCE(member.name, owner_user.name)) AS assignee_name
@@ -40,7 +41,7 @@ export async function GET() {
     id: row.id, serviceId: row.service_id, providerId: row.provider_id,
     service: row.service, serviceSlug: row.service_slug, category: row.category,
     provider: row.provider, startsAt: row.starts_at, price: row.price_cents / 100,
-    location: row.location, state: row.status,
+    location: row.location, deliveryMethod: row.delivery_method, state: row.status,
     assigneeName: row.assignee_name,
   })) });
 }
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many booking requests. Please wait a minute and try again." }, { status: 429 });
   }
 
-  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; addressLine1?: unknown; addressLine2?: unknown; city?: unknown; state?: unknown; postalCode?: unknown; accessInstructions?: unknown; notes?: unknown; answers?: unknown; parentBookingId?: unknown };
+  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; deliveryMethod?: unknown; addressLine1?: unknown; addressLine2?: unknown; city?: unknown; state?: unknown; postalCode?: unknown; accessInstructions?: unknown; notes?: unknown; answers?: unknown; parentBookingId?: unknown };
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const date = typeof body.date === "string" ? body.date : "";
   const time = typeof body.time === "string" ? body.time : "";
@@ -62,18 +63,18 @@ export async function POST(request: Request) {
   const state = typeof body.state === "string" ? body.state.trim().toUpperCase() : "";
   const postalCode = typeof body.postalCode === "string" ? body.postalCode.trim() : "";
   const accessInstructions = typeof body.accessInstructions === "string" ? body.accessInstructions.trim() : "";
-  const location = [addressLine1, addressLine2, `${city}, ${state} ${postalCode}`].filter(Boolean).join(", ");
+  const requestedDeliveryMethod = body.deliveryMethod === "REMOTE" || body.deliveryMethod === "IN_PERSON" ? body.deliveryMethod as BookingDeliveryMethod : "";
   const notes = typeof body.notes === "string" ? body.notes.trim() : "";
   const submittedAnswers = body.answers && typeof body.answers === "object" && !Array.isArray(body.answers) ? body.answers as Record<string, unknown> : {};
   const parentBookingId = typeof body.parentBookingId === "string" ? body.parentBookingId : "";
-  if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !addressLine1 || addressLine1.length > 120 || addressLine2.length > 80 || !city || city.length > 80 || !usStateCodes.has(state) || !/^\d{5}(?:-\d{4})?$/.test(postalCode) || accessInstructions.length > 500 || location.length > 320 || notes.length > 1000) {
-    return NextResponse.json({ error: "Complete the service address, date, and time fields." }, { status: 400 });
+  if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !requestedDeliveryMethod || addressLine1.length > 120 || addressLine2.length > 80 || city.length > 80 || accessInstructions.length > 500 || notes.length > 1000) {
+    return NextResponse.json({ error: "Complete the delivery, date, and time fields." }, { status: 400 });
   }
   const serviceResult = await database.query<{
     id: string; provider_id: string; duration_minutes: number; price_cents: number;
-    timezone: string; provider_user_id: string; title: string; booking_questions: unknown; plan: BookingFinancialPlan;
+    timezone: string; provider_user_id: string; title: string; booking_questions: unknown; plan: BookingFinancialPlan; delivery_type: ServiceDeliveryType;
   }>(
-    `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title,
+    `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title, s.delivery_type,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions,
             COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id AND (service_id = s.id OR service_id IS NULL) ORDER BY (service_id = s.id) DESC LIMIT 1),
                      (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id WHERE member.provider_id = p.id AND assigned_location.location_id = s.location_id LIMIT 1),
@@ -87,6 +88,11 @@ export async function POST(request: Request) {
   );
   const service = serviceResult.rows[0];
   if (!service) return NextResponse.json({ error: "This provider is not available on that day." }, { status: 409 });
+  if (!isServiceDeliveryType(service.delivery_type) || !serviceSupportsMethod(service.delivery_type, requestedDeliveryMethod)) return NextResponse.json({ error: "That delivery method is not available for this service." }, { status: 400 });
+  const isRemote = requestedDeliveryMethod === "REMOTE";
+  if (!isRemote && (!addressLine1 || !city || !usStateCodes.has(state) || !/^\d{5}(?:-\d{4})?$/.test(postalCode))) return NextResponse.json({ error: "Complete the US service address." }, { status: 400 });
+  const location = isRemote ? "Remote service" : [addressLine1, addressLine2, `${city}, ${state} ${postalCode}`].filter(Boolean).join(", ");
+  if (location.length > 320) return NextResponse.json({ error: "The service address is too long." }, { status: 400 });
   if (parentBookingId) {
     const prior = await database.query(`SELECT 1 FROM bookings WHERE id::text = $1 AND customer_id = $2 AND service_id::text = $3 AND status = 'completed'`, [parentBookingId, session.user.id, serviceId]);
     if (!prior.rows[0]) return NextResponse.json({ error: "That completed booking cannot be repeated." }, { status: 400 });
@@ -125,10 +131,12 @@ export async function POST(request: Request) {
            )))
          UNION ALL
          SELECT member.id, member.name, hours.weekday, hours.start_time, hours.end_time, hours.timezone, 1 AS priority
-         FROM provider_team_members member JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id
-         JOIN team_member_availability hours ON hours.team_member_id = member.id
+         FROM provider_team_members member JOIN team_member_availability hours ON hours.team_member_id = member.id
          WHERE member.provider_id::text = $1 AND member.status = 'active'
-           AND assigned_location.location_id = (SELECT location_id FROM services WHERE id::text = $5)
+           AND ((SELECT location_id FROM services WHERE id::text = $5) IS NULL OR EXISTS (
+             SELECT 1 FROM provider_team_member_locations assigned_location
+             WHERE assigned_location.team_member_id = member.id AND assigned_location.location_id = (SELECT location_id FROM services WHERE id::text = $5)
+           ))
        )
        SELECT staff.member_id::text, staff.name FROM staff_hours staff
        WHERE staff.weekday = EXTRACT(DOW FROM $2::timestamptz AT TIME ZONE staff.timezone)
@@ -156,13 +164,13 @@ export async function POST(request: Request) {
           service_address_line1, service_address_line2, service_city, service_state, service_postal_code,
           access_instructions, notes, price_cents, assigned_team_member_id, booking_answers,
           provider_plan_snapshot, provider_fee_basis_points, platform_fee_cents, provider_payout_cents,
-          customer_service_fee_cents, customer_total_cents, parent_booking_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), $9, $10, $11, NULLIF($12, ''), $13, $14, $15::uuid, $16::jsonb,
-          $17, $18, $19, $20, $21, $22, NULLIF($23, '')::uuid)
+          customer_service_fee_cents, customer_total_cents, parent_booking_id, delivery_method)
+       VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), $13, $14, $15::uuid, $16::jsonb,
+          $17, $18, $19, $20, $21, $22, NULLIF($23, '')::uuid, $24)
        RETURNING id::text`,
       [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, service.price_cents, candidate.rows[0].member_id, JSON.stringify(answers),
         financialSnapshot.providerPlan, financialSnapshot.providerFeeBasisPoints, financialSnapshot.providerFeeCents,
-        financialSnapshot.providerNetCents, financialSnapshot.customerServiceFeeCents, financialSnapshot.customerTotalCents, parentBookingId],
+        financialSnapshot.providerNetCents, financialSnapshot.customerServiceFeeCents, financialSnapshot.customerTotalCents, parentBookingId, requestedDeliveryMethod],
     );
     const bookingId = created.rows[0].id;
     await client.query(
@@ -198,7 +206,8 @@ export async function POST(request: Request) {
     );
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: "booking_created", targetType: "booking", targetId: bookingId });
-    await recordAnalytics({ eventName: "booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId });
+    await recordAnalytics({ eventName: "booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { deliveryMethod: requestedDeliveryMethod } });
+    await recordAnalytics({ eventName: isRemote ? "remote_booking_requested" : "local_booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId });
     const providerBookingCount = await database.query<{ count: number }>("SELECT count(*)::int AS count FROM bookings WHERE provider_id::text = $1", [service.provider_id]);
     if (providerBookingCount.rows[0]?.count === 1) await recordAnalytics({ eventName: "first_booking_received", userId: service.provider_user_id, targetType: "booking", targetId: bookingId });
     if (parentBookingId) await recordAnalytics({ eventName: "customer_rebooked", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { parentBookingId } });

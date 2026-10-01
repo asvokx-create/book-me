@@ -20,6 +20,14 @@ export const SERVICE_CATEGORIES = [
   "Appliance repair",
   "Plumbing",
   "Electrical",
+  "Graphic design",
+  "Video editing",
+  "Web development",
+  "Writing & editing",
+  "Digital marketing",
+  "Virtual assistance",
+  "Consulting",
+  "Bookkeeping",
 ] as const;
 
 export const FEATURED_SERVICE_CATEGORIES = SERVICE_CATEGORIES.slice(0, 5);
@@ -46,6 +54,14 @@ export const SERVICE_SEARCH_ALIASES: Partial<Record<(typeof SERVICE_CATEGORIES)[
   "Appliance repair": ["appliance technician", "washer repair", "dryer repair", "refrigerator repair"],
   Plumbing: ["plumber", "pipe repair", "drain repair", "faucet repair", "toilet repair"],
   Electrical: ["electrician", "electrical repair", "wiring", "outlet repair", "light installation"],
+  "Graphic design": ["designer", "logo design", "branding", "illustration"],
+  "Video editing": ["video editor", "post production", "reels editing"],
+  "Web development": ["website", "web developer", "website design", "software development"],
+  "Writing & editing": ["writer", "copywriting", "proofreading", "content writing"],
+  "Digital marketing": ["marketing", "seo", "social media", "ads management"],
+  "Virtual assistance": ["virtual assistant", "admin support", "remote assistant"],
+  Consulting: ["consultant", "business consultant", "strategy"],
+  Bookkeeping: ["bookkeeper", "accounting help", "books"],
 };
 
 function normalizeSearchText(value: string) {
@@ -115,4 +131,12 @@ export const SERVICE_CATEGORY_ICONS: Record<string, string> = {
   "Appliance repair": "🔧",
   Plumbing: "🚿",
   Electrical: "⚡",
+  "Graphic design": "🎨",
+  "Video editing": "🎬",
+  "Web development": "🌐",
+  "Writing & editing": "✍️",
+  "Digital marketing": "📣",
+  "Virtual assistance": "🗂️",
+  Consulting: "💬",
+  Bookkeeping: "🧾",
 };

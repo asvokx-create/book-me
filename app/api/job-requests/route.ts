@@ -11,13 +11,14 @@ import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 import { findUsCity } from "@/lib/us-cities";
 import { normalizeUsZipCode, resolveUsZipCode } from "@/lib/us-zip-codes";
 import { zonedDateTimeToUtc } from "@/lib/zoned-date-time";
+import { isRequestDeliveryType, type RequestDeliveryType, type ServiceDeliveryType } from "@/lib/service-delivery";
 
 type RequestRow = {
   id: string; customer_id: string; category: string; title: string; description: string;
-  city: string; state: string; postal_code: string; preferred_starts_at: Date; preferred_time_zone: string | null; is_flexible: boolean;
+  city: string | null; state: string | null; postal_code: string | null; delivery_type: RequestDeliveryType; preferred_starts_at: Date; preferred_time_zone: string | null; is_flexible: boolean;
   budget_min_cents: number | null; budget_max_cents: number | null; status: string; expires_at: Date;
   created_at: Date; service_address_line1?: string; service_address_line2?: string | null;
-  matched_service_id?: string; matched_service_title?: string; distance_miles?: number;
+  matched_service_id?: string; matched_service_title?: string; matched_service_delivery_type?: ServiceDeliveryType; distance_miles?: number;
   conversation_id?: string | null; match_status?: string; viewed_at?: Date | null; responded_at?: Date | null;
 };
 
@@ -27,10 +28,11 @@ type QuoteRow = {
   expires_at: Date | null; status: string; booking_id: string | null; created_at: Date;
   conversation_id: string | null; public_slug: string | null; public_profile_enabled: boolean; is_verified: boolean;
   average_rating: number | null; review_count: number;
+  delivery_method: "IN_PERSON" | "REMOTE";
 };
 
 function mapQuote(row: QuoteRow) {
-  return { id: row.id, requestId: row.job_request_id, providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceTitle: row.service_title, version: row.version, title: row.title, description: row.description, lineItems: Array.isArray(row.line_items) ? row.line_items : [], total: row.total_cents / 100, notes: row.notes, expiresAt: row.expires_at, status: row.status, bookingId: row.booking_id, createdAt: row.created_at, conversationId: row.conversation_id, publicProfileHref: row.public_profile_enabled && row.public_slug ? `/providers/${row.public_slug}` : null, verified: row.is_verified, averageRating: row.average_rating, reviewCount: row.review_count };
+  return { id: row.id, requestId: row.job_request_id, providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceTitle: row.service_title, version: row.version, title: row.title, description: row.description, lineItems: Array.isArray(row.line_items) ? row.line_items : [], total: row.total_cents / 100, notes: row.notes, expiresAt: row.expires_at, status: row.status, bookingId: row.booking_id, createdAt: row.created_at, conversationId: row.conversation_id, publicProfileHref: row.public_profile_enabled && row.public_slug ? `/providers/${row.public_slug}` : null, verified: row.is_verified, averageRating: row.average_rating, reviewCount: row.review_count, deliveryMethod: row.delivery_method };
 }
 
 async function quotesFor(requestIds: string[], providerId?: string) {
@@ -38,7 +40,7 @@ async function quotesFor(requestIds: string[], providerId?: string) {
   const result = await database.query<QuoteRow>(
     `SELECT quote.id::text, quote.job_request_id::text, quote.provider_id::text,
             provider.business_name AS provider_name, quote.service_id::text, service.title AS service_title,
-            quote.version, quote.title, quote.description, quote.line_items, quote.total_cents, quote.notes,
+            quote.version, quote.title, quote.description, quote.line_items, quote.total_cents, quote.notes, COALESCE(quote.delivery_method, 'IN_PERSON') AS delivery_method,
             quote.expires_at, CASE WHEN quote.status = 'sent' AND quote.expires_at <= now() THEN 'expired' ELSE quote.status END AS status,
             quote.booking_id::text, quote.created_at, COALESCE(quote.conversation_id, match.conversation_id)::text AS conversation_id,
             provider.public_slug, provider.public_profile_enabled, provider.is_verified,
@@ -71,9 +73,9 @@ export async function GET(request: Request) {
     if (!access) return NextResponse.json({ error: "Provider access not found." }, { status: 403 });
     const result = await database.query<RequestRow>(
       `SELECT request.id::text, request.customer_id, request.category, request.title, request.description,
-              request.city, request.state, request.postal_code, request.preferred_starts_at, request.preferred_time_zone, request.is_flexible,
+              request.city, request.state, request.postal_code, request.delivery_type, request.preferred_starts_at, request.preferred_time_zone, request.is_flexible,
               request.budget_min_cents, request.budget_max_cents, request.status, request.expires_at, request.created_at,
-              match.service_id::text AS matched_service_id, service.title AS matched_service_title, match.distance_miles,
+              match.service_id::text AS matched_service_id, service.title AS matched_service_title, service.delivery_type AS matched_service_delivery_type, match.distance_miles,
               match.conversation_id::text, match.status AS match_status, match.viewed_at, match.responded_at
        FROM job_request_matches match
        JOIN job_requests request ON request.id = match.request_id
@@ -102,19 +104,19 @@ export async function GET(request: Request) {
     const metrics = metricResult.rows[0] ?? { opportunities: 0, responded: 0, accepted: 0, average_response_minutes: null };
     return NextResponse.json({
       metrics: { opportunities: metrics.opportunities, responded: metrics.responded, accepted: metrics.accepted, responseRate: metrics.opportunities >= 5 ? Math.round((metrics.responded / metrics.opportunities) * 100) : null, averageResponseMinutes: metrics.responded >= 3 ? Math.round(metrics.average_response_minutes ?? 0) : null, sampleProtected: metrics.opportunities < 5 },
-      requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, city: item.city, state: item.state, postalCode: item.postal_code, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, matchedServiceId: item.matched_service_id, matchedServiceTitle: item.matched_service_title, distanceMiles: item.distance_miles, conversationId: item.conversation_id, matchStatus: item.match_status, viewedAt: item.viewed_at, respondedAt: item.responded_at, quotes: groupedQuotes.get(item.id) ?? [] })),
+      requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, city: item.city, state: item.state, postalCode: item.postal_code, deliveryType: item.delivery_type, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, matchedServiceId: item.matched_service_id, matchedServiceTitle: item.matched_service_title, matchedServiceDeliveryType: item.matched_service_delivery_type, distanceMiles: item.distance_miles, conversationId: item.conversation_id, matchStatus: item.match_status, viewedAt: item.viewed_at, respondedAt: item.responded_at, quotes: groupedQuotes.get(item.id) ?? [] })),
     });
   }
 
   const result = await database.query<RequestRow>(
-    `SELECT id::text, customer_id, category, title, description, city, state, postal_code,
+    `SELECT id::text, customer_id, category, title, description, city, state, postal_code, delivery_type,
             service_address_line1, service_address_line2, preferred_starts_at, preferred_time_zone, is_flexible,
             budget_min_cents, budget_max_cents, status, expires_at, created_at
      FROM job_requests WHERE customer_id = $1 ORDER BY created_at DESC`,
     [session.user.id],
   );
   const groupedQuotes = await quotesFor(result.rows.map((item) => item.id));
-  return NextResponse.json({ requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, addressLine1: item.service_address_line1, addressLine2: item.service_address_line2 ?? "", city: item.city, state: item.state, postalCode: item.postal_code, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, quotes: groupedQuotes.get(item.id) ?? [] })) });
+  return NextResponse.json({ requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, addressLine1: item.service_address_line1, addressLine2: item.service_address_line2 ?? "", city: item.city, state: item.state, postalCode: item.postal_code, deliveryType: item.delivery_type, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, quotes: groupedQuotes.get(item.id) ?? [] })) });
 }
 
 export async function POST(request: Request) {
@@ -125,6 +127,7 @@ export async function POST(request: Request) {
   const category = typeof body.category === "string" && SERVICE_CATEGORIES.includes(body.category as typeof SERVICE_CATEGORIES[number]) ? body.category : "";
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
+  const deliveryType = isRequestDeliveryType(body.deliveryType) ? body.deliveryType : "IN_PERSON";
   const addressLine1 = typeof body.addressLine1 === "string" ? body.addressLine1.trim() : "";
   const addressLine2 = typeof body.addressLine2 === "string" ? body.addressLine2.trim() : "";
   const cityInput = typeof body.city === "string" ? body.city.trim() : "";
@@ -137,23 +140,27 @@ export async function POST(request: Request) {
   const budgetMin = body.budgetMin === "" || body.budgetMin == null ? null : Number(body.budgetMin);
   const budgetMax = body.budgetMax === "" || body.budgetMax == null ? null : Number(body.budgetMax);
   const preferredStartsAt = zonedDateTimeToUtc(date, time, timeZone);
-  const zipPlace = postalCode ? await resolveUsZipCode(postalCode) : undefined;
-  const place = zipPlace ?? findUsCity(`${cityInput}, ${stateInput}`);
-  if (!category || title.length < 3 || title.length > 120 || description.length < 20 || description.length > 3000 || !addressLine1 || addressLine1.length > 120 || addressLine2.length > 80 || !postalCode || !place || !preferredStartsAt || preferredStartsAt.getTime() < Date.now() || (budgetMin !== null && (!Number.isFinite(budgetMin) || budgetMin < 0)) || (budgetMax !== null && (!Number.isFinite(budgetMax) || budgetMax < (budgetMin ?? 0)))) return NextResponse.json({ error: "Complete the service, location, schedule, and optional budget with valid information." }, { status: 400 });
-  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "job_request", fields: [title, description, addressLine1, addressLine2] });
+  const requiresLocation = deliveryType !== "REMOTE";
+  const zipPlace = requiresLocation && postalCode ? await resolveUsZipCode(postalCode) : undefined;
+  const place = requiresLocation ? zipPlace ?? findUsCity(`${cityInput}, ${stateInput}`) : undefined;
+  if (!category || title.length < 3 || title.length > 120 || description.length < 20 || description.length > 3000 || (requiresLocation && (!addressLine1 || !postalCode || !place)) || addressLine1.length > 120 || addressLine2.length > 80 || !preferredStartsAt || preferredStartsAt.getTime() < Date.now() || (budgetMin !== null && (!Number.isFinite(budgetMin) || budgetMin < 0)) || (budgetMax !== null && (!Number.isFinite(budgetMax) || budgetMax < (budgetMin ?? 0)))) return NextResponse.json({ error: "Complete the service, delivery, schedule, and optional budget with valid information." }, { status: 400 });
+  const safety = await checkAndRecordContent({ userId: session.user.id, surface: "job_request", fields: [title, description, ...(requiresLocation ? [addressLine1, addressLine2] : [])] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
   const candidateResult = await database.query<{
-    provider_id: string; provider_user_id: string; service_id: string; latitude: number; longitude: number;
-    service_radius_miles: number; explicit_match: boolean;
+    provider_id: string; provider_user_id: string; service_id: string; latitude: number | null; longitude: number | null;
+    service_radius_miles: number | null; explicit_match: boolean; delivery_type: ServiceDeliveryType;
   }>(
     `SELECT provider.id::text AS provider_id, provider.user_id AS provider_user_id, service.id::text AS service_id,
-            location.latitude, location.longitude, location.service_radius_miles,
-            EXISTS(SELECT 1 FROM provider_location_service_areas area WHERE area.location_id = location.id
-              AND ((area.area_type = 'zip' AND area.postal_code = $2) OR lower(area.city || ', ' || area.state) = lower($3))) AS explicit_match
+            location.latitude, location.longitude, location.service_radius_miles, service.delivery_type,
+            COALESCE(EXISTS(SELECT 1 FROM provider_location_service_areas area WHERE area.location_id = location.id
+              AND ((area.area_type = 'zip' AND area.postal_code = $2) OR lower(area.city || ', ' || area.state) = lower($3))), false) AS explicit_match
      FROM services service JOIN provider_profiles provider ON provider.id = service.provider_id AND provider.is_active = true
-     JOIN provider_locations location ON location.id = service.location_id AND location.is_active = true
+     LEFT JOIN provider_locations location ON location.id = service.location_id AND location.is_active = true
      WHERE service.is_active = true AND lower(service.category) = lower($1)
+       AND (($6 = 'REMOTE' AND service.delivery_type IN ('REMOTE','BOTH'))
+         OR ($6 = 'IN_PERSON' AND service.delivery_type IN ('IN_PERSON','BOTH'))
+         OR ($6 = 'EITHER'))
        AND provider.is_verified = true AND provider.screening_status = 'passed'
        AND provider.stripe_charges_enabled = true AND provider.stripe_payouts_enabled = true
        AND NOT EXISTS (
@@ -171,13 +178,14 @@ export async function POST(request: Request) {
              AND (($5::timestamptz + make_interval(mins => service.duration_minutes)) AT TIME ZONE slot.timezone)::time <= slot.end_time
          ))
      ORDER BY service.created_at DESC LIMIT 250`,
-    [category, postalCode, `${place.city}, ${place.state}`, flexible, preferredStartsAt],
+    [category, postalCode, place ? `${place.city}, ${place.state}` : "", flexible, preferredStartsAt, deliveryType],
   );
   const matched = new Map<string, { providerId: string; providerUserId: string; serviceId: string; distance: number }>();
   for (const candidate of candidateResult.rows) {
-    if (!Number.isFinite(candidate.latitude) || !Number.isFinite(candidate.longitude)) continue;
-    const distance = distanceMiles(place, { latitude: candidate.latitude, longitude: candidate.longitude });
-    if (!candidate.explicit_match && distance > candidate.service_radius_miles) continue;
+    const canMatchRemotely = candidate.delivery_type === "REMOTE" || (candidate.delivery_type === "BOTH" && deliveryType !== "IN_PERSON");
+    if (!canMatchRemotely && (!place || !Number.isFinite(candidate.latitude) || !Number.isFinite(candidate.longitude))) continue;
+    const distance = canMatchRemotely ? 0 : distanceMiles(place!, { latitude: candidate.latitude!, longitude: candidate.longitude! });
+    if (!canMatchRemotely && !candidate.explicit_match && distance > (candidate.service_radius_miles ?? 0)) continue;
     const existing = matched.get(candidate.provider_id);
     if (!existing || distance < existing.distance) matched.set(candidate.provider_id, { providerId: candidate.provider_id, providerUserId: candidate.provider_user_id, serviceId: candidate.service_id, distance });
   }
@@ -187,9 +195,9 @@ export async function POST(request: Request) {
     await client.query("BEGIN");
     const created = await client.query<{ id: string }>(
       `INSERT INTO job_requests (customer_id, category, title, description, service_address_line1, service_address_line2,
-         city, state, postal_code, latitude, longitude, preferred_starts_at, preferred_time_zone, is_flexible, budget_min_cents, budget_max_cents)
-       VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id::text`,
-      [session.user.id, category, title, description, addressLine1, addressLine2, place.city, place.state, postalCode, place.latitude, place.longitude, preferredStartsAt, timeZone, flexible, budgetMin === null ? null : Math.round(budgetMin * 100), budgetMax === null ? null : Math.round(budgetMax * 100)],
+         city, state, postal_code, latitude, longitude, preferred_starts_at, preferred_time_zone, is_flexible, budget_min_cents, budget_max_cents, delivery_type)
+       VALUES ($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),$7,$8,NULLIF($9,''),$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id::text`,
+      [session.user.id, category, title, description, addressLine1, addressLine2, place?.city ?? null, place?.state ?? null, postalCode, place?.latitude ?? null, place?.longitude ?? null, preferredStartsAt, timeZone, flexible, budgetMin === null ? null : Math.round(budgetMin * 100), budgetMax === null ? null : Math.round(budgetMax * 100), deliveryType],
     );
     const requestId = created.rows[0].id;
     for (const item of matched.values()) {
@@ -203,21 +211,22 @@ export async function POST(request: Request) {
       await client.query("INSERT INTO job_request_matches (request_id, provider_id, service_id, distance_miles, conversation_id) VALUES ($1,$2,$3,$4,$5)", [requestId, item.providerId, item.serviceId, item.distance, conversation.rows[0].id]);
       await client.query(
         `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
-         SELECT $1,'job_request_match','New service request in your area',$2,$4,$3
+         SELECT $1,'job_request_match','New service request',$2,$4,$3
          WHERE COALESCE((SELECT opportunity_notifications FROM user_settings WHERE user_id = $1), true)
          ON CONFLICT (dedupe_key) DO NOTHING`,
-        [item.providerUserId, `${category} request near ${place.city}, ${place.state}. Responding and quoting are free.`, `job-request-${requestId}-${item.providerId}`, `/provider/dashboard/opportunities?requestId=${requestId}`],
+        [item.providerUserId, deliveryType === "REMOTE" ? `Remote ${category.toLowerCase()} request. Responding and quoting are free.` : `${category} request near ${place?.city}, ${place?.state}. Responding and quoting are free.`, `job-request-${requestId}-${item.providerId}`, `/provider/dashboard/opportunities?requestId=${requestId}`],
       );
       await client.query(
         `INSERT INTO job_request_notification_queue (user_id, job_request_id, kind, payload, dedupe_key)
          VALUES ($1,$2,'provider_opportunity',$3::jsonb,$4) ON CONFLICT (dedupe_key) DO NOTHING`,
-        [item.providerUserId, requestId, JSON.stringify({ category, city: place.city, state: place.state }), `job-request-email-${requestId}-${item.providerId}`],
+        [item.providerUserId, requestId, JSON.stringify({ category, deliveryType, city: place?.city ?? null, state: place?.state ?? null }), `job-request-email-${requestId}-${item.providerId}`],
       );
     }
     await client.query("UPDATE job_requests SET matching_status = 'completed', matching_completed_at = now(), matched_provider_count = $2 WHERE id::text = $1", [requestId, matched.size]);
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: "job_request_created", targetType: "job_request", targetId: requestId });
-    await recordAnalytics({ eventName: "job_request_created", userId: session.user.id, targetType: "job_request", targetId: requestId, metadata: { category, city: place.city, state: place.state, matchedProviders: matched.size } });
+    await recordAnalytics({ eventName: "job_request_created", userId: session.user.id, targetType: "job_request", targetId: requestId, metadata: { category, deliveryType, city: place?.city ?? null, state: place?.state ?? null, matchedProviders: matched.size } });
+    await recordAnalytics({ eventName: deliveryType === "REMOTE" ? "remote_request_created" : "local_request_created", userId: session.user.id, targetType: "job_request", targetId: requestId });
     return NextResponse.json({ id: requestId, matchedProviders: matched.size }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK");

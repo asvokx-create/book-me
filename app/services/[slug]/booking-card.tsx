@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import BookingDatePicker from "@/components/booking-date-picker";
+import type { ServiceDeliveryType } from "@/lib/service-delivery";
 
 type BookingCardProps = {
   serviceId: string;
@@ -21,6 +22,7 @@ type BookingCardProps = {
   bookingDisabled?: boolean;
   parentBookingId?: string;
   requestAnotherTimeHref: string;
+  deliveryType: ServiceDeliveryType;
 };
 
 function formatTime(time: string) {
@@ -29,7 +31,8 @@ function formatTime(time: string) {
   return `${hours % 12 || 12}:${minutes} ${hours >= 12 ? "PM" : "AM"}`;
 }
 
-export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, serviceCity, serviceState, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false, parentBookingId = "", requestAnotherTimeHref }: BookingCardProps) {
+export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, serviceCity, serviceState, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false, parentBookingId = "", requestAnotherTimeHref, deliveryType }: BookingCardProps) {
+  const [deliveryMethod, setDeliveryMethod] = useState<"IN_PERSON" | "REMOTE" | "">(deliveryType === "BOTH" ? "" : deliveryType);
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
   const [city, setCity] = useState(serviceCity);
@@ -54,10 +57,15 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
       setShowFullyBooked(true);
       return;
     }
-    if (!addressLine1.trim() || !city.trim() || !/^[A-Za-z]{2}$/.test(state.trim()) || !/^\d{5}(?:-\d{4})?$/.test(postalCode.trim()) || !date) {
+    if (!deliveryMethod) {
+      setError("Choose whether you want this service in person or remotely.");
+      return;
+    }
+    if (deliveryMethod === "IN_PERSON" && (!addressLine1.trim() || !city.trim() || !/^[A-Za-z]{2}$/.test(state.trim()) || !/^\d{5}(?:-\d{4})?$/.test(postalCode.trim()))) {
       setError("Add a complete US service address and date to see available times.");
       return;
     }
+    if (!date) { setError("Choose a date to see available times."); return; }
     setError("");
     setLoading(true);
     const response = await fetch(`/api/services/${serviceId}/availability?date=${encodeURIComponent(date)}`).catch(() => null);
@@ -87,7 +95,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serviceId, date, time, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, answers, parentBookingId }),
+      body: JSON.stringify({ serviceId, date, time, deliveryMethod, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, answers, parentBookingId }),
     }).catch(() => null);
     if (!response) {
       setLoading(false);
@@ -118,7 +126,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         <div className="mt-6 rounded-2xl bg-[#f7f6f1] p-4 text-left">
           <p className="text-xs font-bold uppercase tracking-wider text-[#78867f]">Booking summary</p>
           <p className="mt-2 font-bold">{serviceTitle}</p>
-          <p className="mt-1 text-sm text-[#6c7b74]">{addressLine1}{addressLine2 ? `, ${addressLine2}` : ""}, {city}, {state.toUpperCase()} {postalCode} · from ${price}</p>
+          <p className="mt-1 text-sm text-[#6c7b74]">{deliveryMethod === "REMOTE" ? "Remote service" : <>{addressLine1}{addressLine2 ? `, ${addressLine2}` : ""}, {city}, {state.toUpperCase()} {postalCode}</>} · from ${price}</p>
         </div>
         <Link href="/account" className="mt-5 block w-full rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#294a3a]">View my bookings</Link>
         <button onClick={() => { setStep("details"); setTime(""); setTimeSlots([]); }} className="mt-6 rounded-full px-4 py-2 text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Make another request</button>
@@ -140,7 +148,8 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
 
       <form onSubmit={checkAvailability} className="mt-7 space-y-3">
         {bookingQuestions.map((question) => <label key={question} className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">{question}</span><textarea required={!bookingDisabled} value={answers[question] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [question]: event.target.value }))} maxLength={500} rows={2} className="w-full resize-none rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label>)}
-        <section className="rounded-2xl bg-[#f5f7f2] p-4">
+        {deliveryType === "BOTH" && <fieldset className="rounded-2xl bg-[#f5f7f2] p-4"><legend className="px-1 text-sm font-bold">How would you like this service?</legend><div className="mt-3 grid grid-cols-2 gap-2">{(["IN_PERSON", "REMOTE"] as const).map((method) => <label key={method} className={`flex min-h-12 cursor-pointer items-center justify-center rounded-xl border px-3 text-center text-sm font-bold ${deliveryMethod === method ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/15 bg-white"}`}><input type="radio" className="sr-only" name="deliveryMethod" value={method} checked={deliveryMethod === method} onChange={() => { setDeliveryMethod(method); setError(""); }} />{method === "REMOTE" ? "Remote / online" : "In person"}</label>)}</div></fieldset>}
+        {deliveryMethod !== "REMOTE" && <section className="rounded-2xl bg-[#f5f7f2] p-4">
           <div className="mb-4 flex items-start gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-sm">⌖</span><div><h3 className="text-sm font-bold">Where do you need the service?</h3><p className="mt-0.5 text-xs leading-5 text-[#6d7c75]">Your street address stays private until the provider accepts.</p></div></div>
           <div className="space-y-3">
             <label className="block"><span className="sr-only">Street address</span><input required={!bookingDisabled} autoComplete="address-line1" maxLength={120} value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} placeholder="Street address" className="w-full rounded-xl border border-[#183126]/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label>
@@ -148,7 +157,8 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
             <div className="grid grid-cols-[84px_1fr] gap-2"><label className="block"><span className="sr-only">State</span><input required={!bookingDisabled} autoComplete="address-level1" inputMode="text" maxLength={2} value={state} onChange={(event) => setState(event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} placeholder="State" className="w-full rounded-xl border border-[#183126]/15 bg-white px-3 py-3 text-sm uppercase outline-none focus:border-[#4d725d]" /></label><label className="block"><span className="sr-only">ZIP code</span><input required={!bookingDisabled} autoComplete="postal-code" inputMode="numeric" maxLength={10} pattern="[0-9]{5}(-[0-9]{4})?" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="ZIP code" className="w-full rounded-xl border border-[#183126]/15 bg-white px-4 py-3 text-sm outline-none focus:border-[#4d725d]" /></label></div>
             <details className="group rounded-xl border border-[#183126]/10 bg-white"><summary className="booking-detail-toggle cursor-pointer list-none font-bold text-[#52665b] marker:hidden">+ Add unit or arrival instructions</summary><div className="space-y-3 border-t border-[#183126]/8 p-3"><label className="block"><span className="mb-1.5 block text-xs font-bold">Apartment, unit, or suite</span><input autoComplete="address-line2" maxLength={80} value={addressLine2} onChange={(event) => setAddressLine2(event.target.value)} placeholder="Apt 4B" className="w-full rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none focus:border-[#4d725d]" /></label><label className="block"><span className="mb-1.5 block text-xs font-bold">Arrival or parking instructions</span><textarea value={accessInstructions} onChange={(event) => setAccessInstructions(event.target.value)} maxLength={500} rows={2} placeholder="Parking, entrance, or other helpful directions. No alarm or access codes." className="w-full resize-none rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none focus:border-[#4d725d]" /></label></div></details>
           </div>
-        </section>
+        </section>}
+        {deliveryMethod === "REMOTE" && <section className="rounded-2xl bg-[#f5f7f2] p-4"><div className="flex items-start gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-sm">⌁</span><div><h3 className="text-sm font-bold">Remote service</h3><p className="mt-0.5 text-xs leading-5 text-[#6d7c75]">No street address is needed. After confirmation, use BubsBookings messages to coordinate the provider&apos;s approved meeting or delivery method.</p></div></div></section>}
         <details className="rounded-2xl border border-[#183126]/10 bg-white"><summary className="booking-detail-toggle cursor-pointer list-none font-bold text-[#52665b] marker:hidden">+ Add booking notes</summary><div className="border-t border-[#183126]/8 p-3"><label className="block"><span className="sr-only">Booking notes</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={3} placeholder="Describe what you need or anything the provider should know. Keep addresses, passwords, and payment information out of this box." className="w-full resize-none rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label></div></details>
         <div className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Preferred date</span>

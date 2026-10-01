@@ -33,7 +33,7 @@ type Account = {
 };
 type Listing = {
   id: string; slug: string; title: string; category: string; description: string; is_active: boolean; price_cents: number;
-  created_at: string; business_name: string; city: string; state: string; provider_id: string;
+  created_at: string; business_name: string; city: string; state: string; provider_id: string; delivery_type: "IN_PERSON" | "REMOTE" | "BOTH";
 };
 type Review = {
   id: string; rating: number; body: string; is_hidden: boolean; created_at: string;
@@ -139,6 +139,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [accountSearch, setAccountSearch] = useState("");
+  const [listingDeliveryFilter, setListingDeliveryFilter] = useState<"ALL" | "IN_PERSON" | "REMOTE" | "BOTH">("ALL");
   const [pendingAction, setPendingAction] = useState<AdminActionOptions | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [accountDetails, setAccountDetails] = useState<AccountDetails | null>(null);
@@ -243,6 +244,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
     return [account.id, account.name, account.email, account.role, account.business_name ?? ""]
       .some((value) => value.toLocaleLowerCase().includes(normalizedAccountSearch));
   }) ?? [];
+  const filteredListings = data?.listings.filter((listing) => listingDeliveryFilter === "ALL" || listing.delivery_type === listingDeliveryFilter) ?? [];
   const statCards = data ? [
     { label: "Total accounts", value: data.stats.users, detail: "Customers and providers" },
     { label: "Active providers", value: data.stats.active_providers, detail: "Visible businesses" },
@@ -422,9 +424,12 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
           )}
 
           {data && section === "listings" && (
-            <div className="grid gap-4 xl:grid-cols-2">
-              {data.listings.map((listing) => <article key={listing.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6"><div className="flex h-full flex-col"><div className="flex flex-wrap items-center gap-2"><StatusPill value={listing.is_active ? "active" : "inactive"} /><span className="text-xs font-bold uppercase tracking-wider text-[#718078]">{listing.category}</span></div><h2 className="mt-3 text-xl font-bold">{listing.title}</h2><p className="mt-1 text-sm text-[#718078]">{listing.business_name} · {listing.city}, {listing.state} · {"$" + (listing.price_cents / 100).toFixed(0)}</p><p className="mt-2 line-clamp-2 text-sm leading-6 text-[#64756c]">{listing.description}</p><p className="mt-2 text-xs text-[#8a9690]">Added {formatDate(listing.created_at)}</p><div className="admin-action-row mt-5 flex flex-wrap gap-2"><Link href={`/admin/listings/${listing.id}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View listing</Link><button disabled={busyId === listing.id} onClick={() => void runAction({ action: "listing_safety_scan", targetId: listing.id, successText: "Safety review completed." })} className="rounded-full bg-[#eee25a] px-4 py-2 text-xs font-bold transition hover:bg-[#e1d43d] disabled:opacity-50">{busyId === listing.id ? "Checking…" : "Run safety check"}</button><button disabled={busyId === listing.id} onClick={() => void runAction({ action: "listing_status", targetId: listing.id, status: listing.is_active ? "inactive" : "active", confirmText: listing.is_active ? "Remove this listing from the marketplace?" : "Restore this listing to the marketplace?", successText: listing.is_active ? "Listing removed." : "Listing restored." })} className={"rounded-full px-4 py-2 text-xs font-bold transition " + (listing.is_active ? "bg-[#fff0e7] text-[#9a4e25] hover:bg-[#f8d9ca]" : "bg-[#34704a] text-white hover:bg-[#285b3b]")}>{listing.is_active ? "Remove" : "Restore"}</button></div></div></article>)}
-              {data.listings.length === 0 && <EmptyState title="No listings yet" body="Provider services will appear here." />}
+            <div className="space-y-4">
+              <div className="flex flex-col justify-between gap-3 rounded-[1.7rem] border border-[#183126]/10 bg-white p-5 sm:flex-row sm:items-center"><div><h2 className="font-bold">Filter listings by delivery</h2><p className="mt-1 text-xs text-[#718078]">Review local, remote, or dual-delivery services.</p></div><label className="text-xs font-bold">Delivery type<select value={listingDeliveryFilter} onChange={(event) => setListingDeliveryFilter(event.target.value as typeof listingDeliveryFilter)} className="ml-3 min-h-11 rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-3 text-sm"><option value="ALL">All</option><option value="IN_PERSON">In person</option><option value="REMOTE">Remote</option><option value="BOTH">Both</option></select></label></div>
+              <div className="grid gap-4 xl:grid-cols-2">
+              {filteredListings.map((listing) => <article key={listing.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6"><div className="flex h-full flex-col"><div className="flex flex-wrap items-center gap-2"><StatusPill value={listing.is_active ? "active" : "inactive"} /><StatusPill value={listing.delivery_type === "REMOTE" ? "remote" : listing.delivery_type === "BOTH" ? "remote or in person" : "in person"} /><span className="text-xs font-bold uppercase tracking-wider text-[#718078]">{listing.category}</span></div><h2 className="mt-3 text-xl font-bold">{listing.title}</h2><p className="mt-1 text-sm text-[#718078]">{listing.business_name} · {listing.delivery_type === "REMOTE" ? "Available online" : `${listing.city}, ${listing.state}`} · {"$" + (listing.price_cents / 100).toFixed(0)}</p><p className="mt-2 line-clamp-2 text-sm leading-6 text-[#64756c]">{listing.description}</p><p className="mt-2 text-xs text-[#8a9690]">Added {formatDate(listing.created_at)}</p><div className="admin-action-row mt-5 flex flex-wrap gap-2"><Link href={`/admin/listings/${listing.id}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View listing</Link><button disabled={busyId === listing.id} onClick={() => void runAction({ action: "listing_safety_scan", targetId: listing.id, successText: "Safety review completed." })} className="rounded-full bg-[#eee25a] px-4 py-2 text-xs font-bold transition hover:bg-[#e1d43d] disabled:opacity-50">{busyId === listing.id ? "Checking…" : "Run safety check"}</button><button disabled={busyId === listing.id} onClick={() => void runAction({ action: "listing_status", targetId: listing.id, status: listing.is_active ? "inactive" : "active", confirmText: listing.is_active ? "Remove this listing from the marketplace?" : "Restore this listing to the marketplace?", successText: listing.is_active ? "Listing removed." : "Listing restored." })} className={"rounded-full px-4 py-2 text-xs font-bold transition " + (listing.is_active ? "bg-[#fff0e7] text-[#9a4e25] hover:bg-[#f8d9ca]" : "bg-[#34704a] text-white hover:bg-[#285b3b]")}>{listing.is_active ? "Remove" : "Restore"}</button></div></div></article>)}
+              {filteredListings.length === 0 && <EmptyState title="No matching listings" body="No listings use this delivery type yet." />}
+              </div>
             </div>
           )}
 

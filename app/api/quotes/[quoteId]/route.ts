@@ -22,12 +22,12 @@ export async function PATCH(request: Request, context: RouteContext<"/api/quotes
     const result = await client.query<{
       id: string; customer_id: string; provider_id: string; provider_user_id: string; service_id: string; job_request_id: string;
       booking_id: string | null; quote_status: string; total_cents: number; request_status: string; preferred_starts_at: Date;
-      address_line1: string; address_line2: string | null; city: string; state: string; postal_code: string; description: string;
+      address_line1: string | null; address_line2: string | null; city: string | null; state: string | null; postal_code: string | null; description: string; delivery_method: "IN_PERSON" | "REMOTE";
       duration_minutes: number; service_title: string; plan: BookingFinancialPlan;
     }>(
       `SELECT quote.id::text, quote.customer_id, quote.provider_id::text, provider.user_id AS provider_user_id,
               quote.service_id::text, quote.job_request_id::text, quote.booking_id::text, quote.status AS quote_status,
-              quote.total_cents, request.status AS request_status, request.preferred_starts_at,
+              quote.total_cents, request.status AS request_status, request.preferred_starts_at, COALESCE(quote.delivery_method, 'IN_PERSON') AS delivery_method,
               request.service_address_line1 AS address_line1, request.service_address_line2 AS address_line2,
               request.city, request.state, request.postal_code, request.description,
               service.duration_minutes, service.title AS service_title, provider.plan
@@ -59,14 +59,14 @@ export async function PATCH(request: Request, context: RouteContext<"/api/quotes
     );
     if (conflict.rows[0]) { await client.query("ROLLBACK"); return NextResponse.json({ error: "That time was just booked. Ask the provider to send a revised quote with another time." }, { status: 409 }); }
     const snapshot = calculateBookingFinancialSnapshot(quote.total_cents, quote.plan);
-    const formattedAddress = [quote.address_line1, quote.address_line2, `${quote.city}, ${quote.state} ${quote.postal_code}`].filter(Boolean).join(", ");
+    const formattedAddress = quote.delivery_method === "REMOTE" ? "Remote service" : [quote.address_line1, quote.address_line2, `${quote.city}, ${quote.state} ${quote.postal_code}`].filter(Boolean).join(", ");
     const created = await client.query<{ id: string }>(
       `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, status, service_address,
          service_address_line1, service_address_line2, service_city, service_state, service_postal_code, notes, price_cents,
          source_job_request_id, source_quote_id, provider_plan_snapshot, provider_fee_basis_points, platform_fee_cents,
-         provider_payout_cents, customer_service_fee_cents, customer_total_cents)
-       VALUES ($1,$2,$3,$4,$5,'confirmed',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING id::text`,
-      [session.user.id, quote.provider_id, quote.service_id, startsAt, endsAt, formattedAddress, quote.address_line1, quote.address_line2, quote.city, quote.state, quote.postal_code, quote.description, quote.total_cents, quote.job_request_id, quoteId, snapshot.providerPlan, snapshot.providerFeeBasisPoints, snapshot.providerFeeCents, snapshot.providerNetCents, snapshot.customerServiceFeeCents, snapshot.customerTotalCents],
+         provider_payout_cents, customer_service_fee_cents, customer_total_cents, delivery_method)
+       VALUES ($1,$2,$3,$4,$5,'confirmed',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id::text`,
+      [session.user.id, quote.provider_id, quote.service_id, startsAt, endsAt, formattedAddress, quote.address_line1, quote.address_line2, quote.city, quote.state, quote.postal_code, quote.description, quote.total_cents, quote.job_request_id, quoteId, snapshot.providerPlan, snapshot.providerFeeBasisPoints, snapshot.providerFeeCents, snapshot.providerNetCents, snapshot.customerServiceFeeCents, snapshot.customerTotalCents, quote.delivery_method],
     );
     const bookingId = created.rows[0].id;
     await client.query("INSERT INTO booking_assignees (booking_id, is_owner) VALUES ($1, true)", [bookingId]);

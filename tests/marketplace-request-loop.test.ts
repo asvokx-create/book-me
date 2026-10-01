@@ -68,7 +68,7 @@ test("search context, notification controls, and admin trace are connected", () 
   const settings = source("app/account/settings/settings-form.tsx");
   const admin = source("app/admin/requests/page.tsx");
   assert.match(requestsPage, /params\.location/);
-  assert.match(servicesPage, /\.\.\.\(location \? \{ location \} : \{\}\)/);
+  assert.match(servicesPage, /delivery !== "REMOTE" && location \? \{ location, radiusMiles: radius \} : \{\}/);
   assert.match(settings, /Service-request responses/);
   assert.match(settings, /Matched opportunities/);
   assert.match(admin, /Exact addresses and customer contact details are not shown/);

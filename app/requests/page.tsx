@@ -6,7 +6,7 @@ import MobileSiteNav from "@/components/mobile-site-nav";
 import PostJobForm from "@/components/post-job-form";
 import BackButton from "@/components/back-button";
 
-export const metadata: Metadata = { title: "Request a service", description: "Tell local providers what you need and receive free quotes without lead fees." };
+export const metadata: Metadata = { title: "Request a service", description: "Tell eligible local or remote providers what you need and receive free quotes without lead fees." };
 
 function value(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] ?? "" : value ?? ""; }
 
@@ -17,8 +17,10 @@ export default async function PostAJobPage({ searchParams }: PageProps<"/request
   const initialCity = locationParts?.[1]?.trim() ?? "";
   const initialState = locationParts?.[2]?.toUpperCase() ?? "";
   const initialPostalCode = /^\d{5}(?:-\d{4})?$/.test(location) ? location : "";
+  const requestedDelivery = value(params.delivery);
+  const initialDelivery = requestedDelivery === "REMOTE" || requestedDelivery === "EITHER" ? requestedDelivery : "IN_PERSON";
   return <main className="min-h-screen bg-[#f4f4ef] text-[#183126]"><header className="border-b border-[#183126]/10 bg-white"><div className="narrow-mobile-header mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-8"><Link href="/" aria-label="BubsBookings home"><BrandLockup compact priority /></Link><div className="flex items-center gap-2"><AccountNav /><MobileSiteNav /></div></div></header>
     <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-8 sm:pt-8"><BackButton label="Back to services" fallbackHref="/services" /></div>
-    <section className="mx-auto grid max-w-6xl gap-8 px-4 py-9 sm:px-8 sm:py-14 lg:grid-cols-[.75fr_1.25fr] lg:items-start"><div className="lg:sticky lg:top-8"><span className="inline-flex rounded-full bg-[#eee25a] px-3 py-1.5 text-xs font-bold">No lead fees. No charge to chat.</span><h1 className="type-page-title mt-5">One request.<br />Local pros come to you.</h1><p className="mt-5 max-w-lg text-lg leading-8 text-[#61736a]">Describe the work once, receive clear quotes, and only book when you find the right fit.</p><div className="mt-7 grid gap-3 text-sm"><p className="flex gap-3"><span className="font-bold text-[#3f8a5b]">✓</span>Your address stays private until you book</p><p className="flex gap-3"><span className="font-bold text-[#3f8a5b]">✓</span>Providers pay nothing to respond or quote</p><p className="flex gap-3"><span className="font-bold text-[#3f8a5b]">✓</span>Booking payments are processed through Stripe</p></div></div><PostJobForm initialCategory={value(params.category)} initialTitle={value(params.title)} initialCity={initialCity} initialState={initialState} initialPostalCode={initialPostalCode} /></section>
+    <section className="mx-auto grid max-w-6xl gap-8 px-4 py-9 sm:px-8 sm:py-14 lg:grid-cols-[.75fr_1.25fr] lg:items-start"><div className="lg:sticky lg:top-8"><span className="inline-flex rounded-full bg-[#eee25a] px-3 py-1.5 text-xs font-bold">No lead fees. No charge to chat.</span><h1 className="type-page-title mt-5">One request.<br />The right pros find you.</h1><p className="mt-5 max-w-lg text-lg leading-8 text-[#61736a]">Describe the work once, choose local or remote delivery, receive clear quotes, and only book when you find the right fit.</p><div className="mt-7 grid gap-3 text-sm"><p className="flex gap-3"><span className="font-bold text-[#3f8a5b]">✓</span>Remote requests never require a street address</p><p className="flex gap-3"><span className="font-bold text-[#3f8a5b]">✓</span>Providers pay nothing to respond or quote</p><p className="flex gap-3"><span className="font-bold text-[#3f8a5b]">✓</span>Booking payments are processed through Stripe</p></div></div><PostJobForm initialCategory={value(params.category)} initialTitle={value(params.title)} initialCity={initialCity} initialState={initialState} initialPostalCode={initialPostalCode} initialDelivery={initialDelivery} /></section>
   </main>;
 }

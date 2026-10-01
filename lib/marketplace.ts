@@ -4,6 +4,7 @@ import { database, isDatabaseConfigured } from "./database";
 import { distanceMiles } from "./service-areas";
 import { findUsCity } from "./us-cities";
 import { getServiceCategorySearchMatches } from "./service-categories";
+import type { ServiceDeliveryType } from "./service-delivery";
 
 const PRIORITY_DISTANCE_BAND_MILES = 10;
 
@@ -12,6 +13,8 @@ export type ServiceListing = {
   slug: string;
   title: string;
   category: string;
+  deliveryType: ServiceDeliveryType;
+  remoteDeliveryDetails: string;
   description: string;
   price: number;
   durationMinutes: number;
@@ -50,6 +53,8 @@ type ServiceRow = {
   slug: string;
   title: string;
   category: string;
+  delivery_type: ServiceDeliveryType;
+  remote_delivery_details: string;
   description: string;
   price_cents: number;
   duration_minutes: number;
@@ -81,6 +86,8 @@ function mapService(row: ServiceRow): ServiceListing {
     slug: row.slug,
     title: row.title,
     category: row.category,
+    deliveryType: row.delivery_type,
+    remoteDeliveryDetails: row.remote_delivery_details,
     description: row.description,
     price: row.price_cents / 100,
     durationMinutes: row.duration_minutes,
@@ -107,7 +114,7 @@ function mapService(row: ServiceRow): ServiceListing {
   };
 }
 
-export async function getServices(options: { query?: string; category?: string; location?: string; radiusMiles?: number; maxPrice?: number; maxDuration?: number; sort?: string; limit?: number } = {}) {
+export async function getServices(options: { query?: string; category?: string; delivery?: "ALL" | ServiceDeliveryType | "IN_PERSON" | "REMOTE"; location?: string; radiusMiles?: number; maxPrice?: number; maxDuration?: number; sort?: string; limit?: number } = {}) {
   if (!isDatabaseConfigured()) return [];
 
   const values: Array<string | number | string[]> = [];
@@ -115,6 +122,9 @@ export async function getServices(options: { query?: string; category?: string; 
   const requestedLimit = options.limit ?? 50;
   const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), 250) : undefined;
   const searchOrigin = options.location && radiusMiles ? findUsCity(options.location) : undefined;
+  if (options.delivery === "REMOTE") conditions.push("s.delivery_type IN ('REMOTE','BOTH')");
+  else if (options.delivery === "IN_PERSON") conditions.push("s.delivery_type IN ('IN_PERSON','BOTH')");
+  else if (options.delivery === "BOTH") conditions.push("s.delivery_type = 'BOTH'");
   if (options.category && options.category !== "All services") {
     values.push(options.category);
     conditions.push(`LOWER(s.category) = LOWER($${values.length})`);
@@ -130,7 +140,7 @@ export async function getServices(options: { query?: string; category?: string; 
       conditions.push(`(s.title ILIKE $${textSearchParameter} OR s.category ILIKE $${textSearchParameter} OR s.description ILIKE $${textSearchParameter} OR s.business_name ILIKE $${textSearchParameter})`);
     }
   }
-  if (options.location && !searchOrigin) {
+  if (options.location && !searchOrigin && options.delivery !== "REMOTE") {
     const city = options.location.split(",")[0]?.trim();
     if (city) {
       values.push(city);
@@ -150,7 +160,7 @@ export async function getServices(options: { query?: string; category?: string; 
   const planPriority = "CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN 0 ELSE 1 END";
   const orderBy = options.sort === "price-low" ? `s.price_cents ASC, ${planPriority}, s.created_at DESC` : options.sort === "price-high" ? `s.price_cents DESC, ${planPriority}, s.created_at DESC` : `${planPriority}, s.created_at DESC`;
   const result = await database.query<ServiceRow>(
-    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
+    `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, company.slug AS company_slug,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
@@ -173,8 +183,10 @@ export async function getServices(options: { query?: string; category?: string; 
     values,
   );
   const services = result.rows.map(mapService);
-  if (!searchOrigin || !radiusMiles) return services;
+  if (!searchOrigin || !radiusMiles || options.delivery === "REMOTE") return services;
   const nearbyServices = services.flatMap((service) => {
+    if (service.deliveryType === "REMOTE") return [{ ...service }];
+    if (service.deliveryType === "BOTH" && options.delivery !== "IN_PERSON") return [{ ...service }];
     const serviceArea = findUsCity(`${service.city}, ${service.state}`);
     if (!serviceArea) return [];
     const distance = distanceMiles(searchOrigin, serviceArea);
@@ -182,7 +194,8 @@ export async function getServices(options: { query?: string; category?: string; 
     return ((distance <= radiusMiles && distance <= service.serviceRadiusMiles) || explicitAreaMatch) ? [{ ...service, distanceMiles: distance }] : [];
   });
   if (options.sort === "nearest" || !options.sort) nearbyServices.sort((left, right) =>
-    Math.floor((left.distanceMiles ?? 0) / PRIORITY_DISTANCE_BAND_MILES)
+    Number(left.distanceMiles === undefined) - Number(right.distanceMiles === undefined)
+      || Math.floor((left.distanceMiles ?? 0) / PRIORITY_DISTANCE_BAND_MILES)
       - Math.floor((right.distanceMiles ?? 0) / PRIORITY_DISTANCE_BAND_MILES)
       || Number(right.priorityPlacement) - Number(left.priorityPlacement)
       || (left.distanceMiles ?? 0) - (right.distanceMiles ?? 0));
@@ -192,7 +205,7 @@ export async function getServices(options: { query?: string; category?: string; 
 export async function getServiceBySlug(slug: string): Promise<ServiceDetails | null> {
   if (!isDatabaseConfigured()) return null;
   const result = await database.query<ServiceRow>(
-    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
+    `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, company.slug AS company_slug,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
@@ -240,7 +253,7 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
 export async function getServiceById(id: string) {
   if (!isDatabaseConfigured()) return null;
   const result = await database.query<ServiceRow>(
-    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
+    `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
@@ -333,7 +346,8 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
         FROM provider_location_service_areas area
         JOIN provider_locations location ON location.id = area.location_id
         JOIN provider_companies company ON company.id = location.company_id
-        WHERE company.provider_id = $1 AND company.is_active = true AND location.is_active = true) AS service_areas,
+        WHERE company.provider_id = $1 AND company.is_active = true AND location.is_active = true
+          AND EXISTS (SELECT 1 FROM services local_service WHERE local_service.location_id = location.id AND local_service.is_active = true AND local_service.delivery_type IN ('IN_PERSON','BOTH'))) AS service_areas,
        (SELECT array_agg(DISTINCT availability.weekday ORDER BY availability.weekday)
         FROM availability WHERE availability.provider_id = $1) AS available_weekdays`,
     [provider.id],
@@ -367,6 +381,8 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
     highlights: provider.provider_highlights ?? [],
     completedBookingCount: Number(evidence?.completed_booking_count ?? 0),
     serviceAreas: evidence?.service_areas ?? [],
+    hasRemoteServices: services.some((service) => service.deliveryType === "REMOTE" || service.deliveryType === "BOTH"),
+    hasInPersonServices: services.some((service) => service.deliveryType === "IN_PERSON" || service.deliveryType === "BOTH"),
     availableWeekdays: evidence?.available_weekdays ?? [],
     portfolio: portfolioResult.rows.map((item) => ({ id: item.id, url: item.public_url, caption: item.caption, altText: item.alt_text, serviceId: item.service_id, serviceTitle: item.service_title })),
     reviews: reviewsResult.rows.map((review) => ({ id: review.id, rating: review.rating, body: review.body, customerName: privateCustomerName(review.customer_name), serviceTitle: review.service_title, createdAt: review.created_at })),
@@ -376,7 +392,7 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
 
 async function getServicesForProvider(providerId: string) {
   const result = await database.query<ServiceRow>(
-    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
+    `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
@@ -400,7 +416,7 @@ async function getServicesForProvider(providerId: string) {
 export async function getFavoriteServices(customerId: string) {
   if (!isDatabaseConfigured()) return [];
   const result = await database.query<ServiceRow>(
-    `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.price_cents,
+    `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,

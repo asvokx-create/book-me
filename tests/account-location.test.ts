@@ -17,12 +17,14 @@ test("general account locations normalize and validate U.S. values", () => {
   assert.equal(accountLocationSourceLabel("BROWSER_LOCATION_CONFIRMED"), "Browser location confirmed");
 });
 
-test("signup requires a general location and discloses why it is collected", () => {
+test("signup collects a general location for local discovery but lets remote-only customers defer it", () => {
   const form = read("app/auth-form.tsx");
   assert.match(form, /autoComplete="address-level2"/);
   assert.match(form, /autoComplete="address-level1"/);
   assert.match(form, /autoComplete="postal-code"/);
-  assert.match(form, /city: normalizedLocation!\.location!\.city/);
+  assert.match(form, /I only need remote services right now/);
+  assert.match(form, /city: normalizedLocation\?\.location\?\.city \?\? ""/);
+  assert.match(read("lib/auth.ts"), /hasNoLocation/);
   assert.match(form, /Terms of Service/);
   assert.match(form, /Privacy Policy/);
 });

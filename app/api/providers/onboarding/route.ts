@@ -17,6 +17,7 @@ import { sendFirstListingSuccessEmail } from "@/lib/provider-success-email";
 import { recordAnalytics } from "@/lib/analytics";
 import { AFFILIATE_COOKIE, lockAffiliateAttribution, normalizeAffiliateCode } from "@/lib/affiliates";
 import { slugifyProviderName } from "@/lib/provider-profile-options";
+import { isServiceDeliveryType } from "@/lib/service-delivery";
 
 const weekdayNumbers: Record<string, number> = {
   Sun: 0,
@@ -48,14 +49,21 @@ export async function POST(request: Request) {
   const business = typeof body.business === "string" ? body.business.trim() : "";
   const requestedLocationId = typeof body.locationId === "string" ? body.locationId.trim() : "";
   const category = typeof body.category === "string" ? body.category.trim() : "";
-  const serviceArea = typeof body.city === "string" ? body.city.trim() : "";
+  const submittedServiceArea = typeof body.city === "string" ? body.city.trim() : "";
+  const deliveryType = isServiceDeliveryType(body.deliveryType) ? body.deliveryType : "IN_PERSON";
+  const remoteDeliveryDetails = typeof body.remoteDeliveryDetails === "string" ? body.remoteDeliveryDetails.trim().slice(0, 1000) : "";
+  const accountLocation = await database.query<{ city: string | null; state: string | null }>(
+    `SELECT location_city AS city, location_state AS state FROM "user" WHERE id=$1`, [session.user.id],
+  );
+  const accountArea = [accountLocation.rows[0]?.city, accountLocation.rows[0]?.state].filter(Boolean).join(", ");
+  const serviceArea = submittedServiceArea || accountArea;
   const coordinates = findUsCity(serviceArea);
   const service = typeof body.service === "string" ? body.service.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
   const durationMinutes = Number(body.durationMinutes);
   const phone = typeof body.phone === "string" ? body.phone.replace(/\D/g, "") : "";
   const price = Number(body.price);
-  const serviceRadiusMiles = Number(body.serviceRadiusMiles ?? 25);
+  const serviceRadiusMiles = deliveryType === "REMOTE" ? 25 : Number(body.serviceRadiusMiles ?? 25);
   const acceptedProviderAgreement = body.acceptedProviderAgreement === true;
   const referralCode = normalizeAffiliateCode(body.referralCode);
   const availabilitySlots = Array.isArray(body.availabilitySlots) ? body.availabilitySlots.flatMap((slot) => {
@@ -68,7 +76,7 @@ export async function POST(request: Request) {
   }) : [];
   const validTime = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-  if (!business || !category || category.length > 80 || !serviceArea || !coordinates || !service || !description || phone.length !== 10 || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 2_147_483_647 || availabilitySlots.length === 0 || availabilitySlots.some((slot) => !validTime.test(slot.startTime) || !validTime.test(slot.endTime) || slot.startTime >= slot.endTime)) {
+  if (!business || !category || category.length > 80 || !serviceArea || !coordinates || !service || !description || phone.length !== 10 || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 2_147_483_647 || remoteDeliveryDetails.length > 1000 || availabilitySlots.length === 0 || availabilitySlots.some((slot) => !validTime.test(slot.startTime) || !validTime.test(slot.endTime) || slot.startTime >= slot.endTime)) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "provider-onboarding", limit: 6, windowSeconds: 3600 })) return NextResponse.json({ error: "Too many setup attempts. Please try again later." }, { status: 429 });
@@ -115,7 +123,7 @@ export async function POST(request: Request) {
   const state = locationParts.length > 1 ? locationParts.pop()! : "WA";
   const city = locationParts.join(", ") || serviceArea;
   const existing = existingProfile.rows[0];
-  if (existing && !PLAN_ENTITLEMENTS[plan].multipleLocations && `${existing.city}, ${existing.state}`.toLowerCase() !== `${city}, ${state}`.toLowerCase()) {
+  if (deliveryType !== "REMOTE" && existing && !PLAN_ENTITLEMENTS[plan].multipleLocations && `${existing.city}, ${existing.state}`.toLowerCase() !== `${city}, ${state}`.toLowerCase()) {
     return NextResponse.json({ error: "Starter uses one shared service location. Use your existing location or upgrade to Pro for multiple locations.", upgradeRequired: true }, { status: 403 });
   }
   const client = await database.connect();
@@ -209,10 +217,10 @@ export async function POST(request: Request) {
     }
 
     const serviceResult = await client.query<{ id: string }>(
-      `INSERT INTO services (provider_id, company_id, location_id, business_name, slug, category, title, description, price_cents, duration_minutes, city, state, latitude, longitude)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `INSERT INTO services (provider_id, company_id, location_id, business_name, slug, category, delivery_type, remote_delivery_details, title, description, price_cents, duration_minutes, city, state, latitude, longitude)
+       VALUES ($1, $2, CASE WHEN $7='REMOTE' THEN NULL ELSE $3::uuid END, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING id::text`,
-      [providerId, companyId, serviceLocation.id, business, slugify(service), category, service, description, Math.round(price * 100), durationMinutes, serviceLocation.city, serviceLocation.state, serviceLocation.latitude, serviceLocation.longitude],
+      [providerId, companyId, serviceLocation.id, business, slugify(service), category, deliveryType, remoteDeliveryDetails, service, description, Math.round(price * 100), durationMinutes, serviceLocation.city, serviceLocation.state, serviceLocation.latitude, serviceLocation.longitude],
     );
 
     if (!existing) {
@@ -248,7 +256,8 @@ export async function POST(request: Request) {
       });
     }
     if (!existing) await recordAnalytics({ eventName: "provider_profile_completed", userId: session.user.id, targetType: "provider", targetId: providerId });
-    if (isFirstListing) await recordAnalytics({ eventName: "first_listing_created", userId: session.user.id, targetType: "service", targetId: serviceResult.rows[0].id, metadata: { category, city, state } });
+    if (isFirstListing) await recordAnalytics({ eventName: "first_listing_created", userId: session.user.id, targetType: "service", targetId: serviceResult.rows[0].id, metadata: { category, deliveryType, ...(deliveryType === "REMOTE" ? {} : { city, state }) } });
+    await recordAnalytics({ eventName: `${deliveryType.toLowerCase()}_listing_created`, userId: session.user.id, targetType: "service", targetId: serviceResult.rows[0].id, metadata: { category } });
     const response = NextResponse.json({ ok: true, serviceId: serviceResult.rows[0].id });
     if (affiliateAttributionLocked) response.cookies.delete(AFFILIATE_COOKIE);
     return response;
