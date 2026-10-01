@@ -69,3 +69,56 @@ test("local SEO pages exclude remote-only listings while the sitemap keeps every
   assert.match(source("app/locations/[city]/[category]/page.tsx"), /delivery: "IN_PERSON"/);
   assert.match(source("app/sitemap.ts"), /getServices\(\{ limit: 1000 \}\)/);
 });
+
+test("provider acquisition and guidance welcome local and remote professionals", () => {
+  const join = source("app/providers/join/page.tsx");
+  const guides = source("lib/guides.ts");
+  const footer = source("components/site-footer.tsx");
+  assert.match(join, /For service providers/);
+  assert.match(join, /offer services locally or remotely/);
+  assert.match(join, /Offer services in person, remotely, or both/);
+  assert.doesNotMatch(join, /For local professionals|connect with nearby customers/);
+  assert.match(guides, /Remote listings do not use customer distance or a travel radius/);
+  assert.match(footer, /Your service marketplace/);
+  assert.match(footer, />Find services</);
+});
+
+test("homepage search asks for delivery type before using local controls", () => {
+  const search = source("components/home-service-search.tsx");
+  const home = source("app/page.tsx");
+  assert.match(search, /name="delivery"/);
+  assert.match(search, /delivery !== "REMOTE"/);
+  assert.match(search, /Search without a distance limit/);
+  assert.match(home, /HomeServiceSearch/);
+  assert.doesNotMatch(home, /join the local availability list/);
+});
+
+test("remote provider profiles avoid blank local areas and label every service", () => {
+  const profile = source("app/providers/[slug]/page.tsx");
+  assert.match(profile, /Remote services available across the supported U\.S\. marketplace/);
+  assert.match(profile, /provider\.hasInPersonServices/);
+  assert.match(profile, /deliveryLabel\(service\.deliveryType\)/);
+  assert.match(profile, /provider\.hasInPersonServices \? "ProfessionalService" : "Organization"/);
+});
+
+test("screening badges use the current automated result and material edits refresh it", () => {
+  const marketplace = source("lib/marketplace.ts");
+  const listing = source("app/services/[slug]/page.tsx");
+  const listingRoute = source("app/api/providers/services/[serviceId]/route.ts");
+  const locationRoute = source("app/api/providers/locations/route.ts");
+  const accountRoute = source("app/api/account/settings/route.ts");
+  assert.match(marketplace, /row\.is_verified && row\.screening_status === "passed"/);
+  assert.match(marketplace, /provider\.is_verified && provider\.screening_status === "passed"/);
+  assert.doesNotMatch(listing, /Automated profile checks last ran/);
+  assert.match(listingRoute, /runAutomatedProviderVerification/);
+  assert.match(locationRoute, /runAutomatedProviderVerification/);
+  assert.match(accountRoute, /verificationRelevantChanged/);
+});
+
+test("remote-only provider settings do not present a working-radius control", () => {
+  const settings = source("components/provider-trust-settings.tsx");
+  const providerApi = source("app/api/providers/me/route.ts");
+  assert.match(settings, /initial\.hasInPersonServices \?/);
+  assert.match(settings, /Your active services are remote/);
+  assert.match(providerApi, /hasInPersonServices: services\.some/);
+});

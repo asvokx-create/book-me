@@ -17,7 +17,7 @@ function getParam(value: string | string[] | undefined) {
 
 const providerWorkflow = [
   ["Create your profile", "Add your business information and choose the company that owns each listing."],
-  ["List your services", "Set the service area, starting price, duration, photos, availability, and booking questions."],
+  ["List your services", "Choose in-person, remote, or both, then set pricing, availability, photos, and the details customers need."],
   ["Receive inquiries", "Customers can ask about a service without creating a charge for you."],
   ["Chat and send quotes", "Clarify the scope and send a price before either side commits."],
   ["Get booked", "Accept work that fits your schedule and let the customer pay through Stripe."],
@@ -28,7 +28,7 @@ const providerWorkflow = [
 const providerFaqs = [
   ["Do I pay for a lead?", "No. Customer inquiries, replies, and quotes do not create a charge."],
   ["When does a booking fee apply?", "The plan percentage applies only to a paid marketplace booking. Starter is $0 per month with a 10% booking fee. Pro is $9.99 per month after any eligible trial with a 6% booking fee."],
-  ["Can I choose where and when I work?", "Yes. You control your service area, availability, offerings, and starting prices."],
+  ["Can I choose how and when I work?", "Yes. Offer services in person, remotely, or both, and control your availability, pricing, and service area where applicable."],
   ["Does BubsBookings guarantee work?", "No. Demand varies by category and location, and joining does not guarantee inquiries or bookings."],
 ] as const;
 
@@ -50,10 +50,10 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
 
       <section className="mx-auto grid max-w-6xl gap-12 px-6 py-12 lg:grid-cols-[.8fr_1.2fr] lg:py-20">
         <div className="lg:pt-10">
-          <p className="text-xs font-bold uppercase tracking-[.16em] text-[#61756a]">For local professionals</p>
+          <p className="text-xs font-bold uppercase tracking-[.16em] text-[#61756a]">For service providers</p>
           {planName && <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#edf3e7] px-4 py-2 text-xs font-bold"><span className="h-2 w-2 rounded-full bg-[#5b9870]" />{planName} plan selected <Link href="/pricing" className="ml-1 underline underline-offset-2">Change</Link></div>}
           <h1 className="type-page-title mt-3">Do great work.<br /><span className="underline decoration-[#eee25a] decoration-[9px] underline-offset-[-3px]">Get booked.</span></h1>
-          <p className="mt-6 max-w-md text-lg leading-8 text-[#617169]">Create your profile, set your own services and schedule, and connect with nearby customers looking for your skills.</p>
+          <p className="mt-6 max-w-md text-lg leading-8 text-[#617169]">Create your profile, offer services locally or remotely, connect with customers, send quotes, and manage bookings in one place.</p>
           <div className="mt-7 max-w-md rounded-[1.5rem] border border-[#d7ca4d]/45 bg-[#fff9cf] p-5"><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#716a31]">A fairer way to get booked</p><h2 className="mt-2 text-xl font-bold">No lead fees. No charge to chat.</h2><p className="mt-2 text-sm leading-6 text-[#5f6e62]">Customer inquiries, replies, and quotes are free. Your plan&apos;s booking fee applies to paid bookings—not to conversations that go nowhere.</p><Link href="/pricing#plans" className="mt-3 inline-flex text-sm font-bold underline decoration-[#b4a52d] decoration-2 underline-offset-4">See transparent pricing →</Link></div>
           <div className="mt-9 space-y-4">
             {["Message customers and send quotes for free", "Keep control of your pricing", "Choose when and where you work", "Build trust with verified reviews"].map((benefit) => <div key={benefit} className="flex items-center gap-3 text-sm font-semibold"><span className="grid h-7 w-7 place-items-center rounded-full bg-[#dfeee2] text-[#37724c]">✓</span>{benefit}</div>)}
@@ -63,7 +63,7 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
           <p className="text-xs font-bold uppercase tracking-[.15em] text-[#687970]">Start your provider profile</p>
           <h2 className="mt-3 text-3xl font-bold tracking-[-.04em]">Create an account, then publish your first service.</h2>
           <p className="mt-4 text-sm leading-7 text-[#617169]">Choose Starter at $0 per month with a 10% fee on paid bookings, or Pro at $9.99 per month after any eligible trial with a 6% fee on paid bookings. Inquiries, messages, and quotes are free on both plans.</p>
-          <ol className="mt-6 space-y-4 text-sm"><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">1</span><span><strong>Create your account.</strong><br /><span className="text-[#687970]">Use email or an available sign-in option.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">2</span><span><strong>Add your business and service.</strong><br /><span className="text-[#687970]">Set your location, price, duration, photos, and availability.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">3</span><span><strong>Receive real customer requests.</strong><br /><span className="text-[#687970]">Ask questions, send quotes, and accept work that fits.</span></span></li></ol>
+          <ol className="mt-6 space-y-4 text-sm"><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">1</span><span><strong>Create your account.</strong><br /><span className="text-[#687970]">Use email or an available sign-in option.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">2</span><span><strong>Add your business and service.</strong><br /><span className="text-[#687970]">Choose in-person, remote, or both, then add pricing, photos, and availability.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">3</span><span><strong>Receive real customer requests.</strong><br /><span className="text-[#687970]">Ask questions, send quotes, and accept work that fits.</span></span></li></ol>
           <Link href={`/signup?redirect=${encodeURIComponent(returnPath)}`} className="mt-7 flex w-full items-center justify-center rounded-full bg-[#eee25a] px-6 py-3.5 font-bold text-[#183126]">Create provider account</Link>
           <p className="mt-4 text-center text-sm text-[#687970]">Already have an account? <Link href={`/login?redirect=${encodeURIComponent(returnPath)}`} className="font-bold text-[#183126] underline decoration-[#c9be45] decoration-2 underline-offset-4">Log in</Link></p>
         </aside>}

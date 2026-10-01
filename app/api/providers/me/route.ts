@@ -164,6 +164,7 @@ export async function GET() {
     cancellationPolicy: provider.cancellation_policy,
     noShowPolicy: provider.no_show_policy,
     serviceRadiusMiles: provider.service_radius_miles,
+    hasInPersonServices: services.some((service) => service.deliveryType === "IN_PERSON" || service.deliveryType === "BOTH"),
     publicProfileSlug: provider.public_profile_slug,
     publicProfileVisible: provider.public_profile_visible,
     service: services[0] ?? null,

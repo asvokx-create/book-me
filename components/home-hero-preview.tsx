@@ -105,8 +105,8 @@ export default function HomeHeroPreview({ href, city, hasLocation }: HomeHeroPre
       <div className="home-preview-float absolute -bottom-5 -left-7 flex items-center gap-3 rounded-2xl px-4 py-3">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/10 text-lg" aria-hidden="true">⌂</span>
         <span>
-          <span className="block text-[10px] font-extrabold uppercase tracking-[.1em]">Built for your neighborhood</span>
-          <span className="mt-0.5 block text-sm font-bold">Local help, without the hassle.</span>
+          <span className="block text-[10px] font-extrabold uppercase tracking-[.1em]">Help nearby or online</span>
+          <span className="mt-0.5 block text-sm font-bold">The right service, without the hassle.</span>
         </span>
       </div>
     </div>

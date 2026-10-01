@@ -57,6 +57,7 @@ type ProviderSummary = {
   cancellationPolicy: string;
   noShowPolicy: string;
   serviceRadiusMiles: number;
+  hasInPersonServices: boolean;
   publicProfileSlug: string;
   publicProfileVisible: boolean;
 };

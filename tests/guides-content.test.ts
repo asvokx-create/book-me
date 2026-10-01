@@ -14,7 +14,8 @@ test("guides and homepage explain current marketplace, partner, and payout behav
   assert.match(guides, /A click or signup does not create earnings/);
   assert.match(guides, /does not pay 20% of the provider’s service price/);
   assert.match(guides, /protected amount is based on recorded unpaid affiliate obligations/);
-  assert.match(guides, /A marketplace service request is posted by a customer/);
+  assert.match(guides, /A marketplace request is matched by category and delivery type/);
+  assert.match(guides, /a private street address is never needed for remote work/);
   assert.match(guides, /This process is not an escrow, trust, deposit, or bank account/);
   assert.match(indexPage, /audienceValue === "partners"/);
   assert.match(indexPage, /For partners/);

@@ -5,13 +5,12 @@ import { getServices, getServiceVisual, type ServiceListing } from "@/lib/market
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
 import { FEATURED_SERVICE_CATEGORIES } from "@/lib/service-categories";
-import LocationFilter from "@/components/location-filter";
 import ServiceCategoryIcon from "@/components/service-category-icon";
 import UpcomingCategoryCard from "@/components/upcoming-category-card";
 import { getContextualLocation } from "@/lib/request-location";
 import MobileSiteNav from "@/components/mobile-site-nav";
-import ServiceSearchAssist from "@/components/service-search-assist";
 import HomeHeroPreview from "@/components/home-hero-preview";
+import HomeServiceSearch from "@/components/home-service-search";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Find and book local or remote services", description: "Compare in-person and remote service listings, message providers, and request bookings across the United States.", alternates: { canonical: "/" } };
@@ -23,6 +22,8 @@ function getParam(value: string | string[] | undefined) {
 export default async function Home({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
   const requestedLocation = getParam(params.location);
+  const requestedDelivery = getParam(params.delivery).toUpperCase();
+  const initialDelivery = requestedDelivery === "REMOTE" || requestedDelivery === "IN_PERSON" ? requestedDelivery : "ALL";
   const location = await getContextualLocation(requestedLocation);
   const requestedRadius = Number(getParam(params.radius));
   const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 250 ? requestedRadius : 25;
@@ -98,15 +99,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <HomeHeroPreview href={nearbyServicesHref} city={city} hasLocation={Boolean(location)} />
         </div>
 
-        <form action="/services" className="home-search-bar relative z-40 mt-12 flex max-w-5xl flex-col gap-2 overflow-visible rounded-3xl border border-white bg-white/92 p-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl md:flex-row md:items-center md:rounded-full">
-          <ServiceSearchAssist id="home-service-search" placeholder="What service do you need?" className="home-search-input flex flex-1 items-center rounded-full px-6 sm:px-7" inputClassName="w-full py-4 outline-none" iconClassName="home-search-icon mr-4 grid h-9 w-9 shrink-0 place-items-center rounded-full text-base" />
-
-          <div className="home-search-location md:min-w-[330px]"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div>
-
-          <button type="submit" className="home-search-submit rounded-full bg-[#eee25a] px-8 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b]">
-            Find a pro
-          </button>
-        </form>
+        <HomeServiceSearch initialDelivery={initialDelivery} initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} />
         <div className="mt-3 max-w-5xl text-center sm:text-left"><Link href={remoteServicesHref} className="inline-flex min-h-10 items-center rounded-full border border-[#183126]/12 bg-white/70 px-4 py-2 text-sm font-bold transition hover:bg-white">Browse services available online →</Link></div>
         <div className="home-request-banner relative z-0 mt-4 flex max-w-5xl flex-col items-center justify-between gap-3 rounded-2xl border border-[#183126]/10 bg-white/65 px-5 py-4 text-center backdrop-blur sm:flex-row sm:text-left"><div><p className="text-sm font-bold">Not sure which listing fits?</p><p className="mt-1 text-xs text-[#63756b]">Share what you need once and receive free quotes from eligible providers.</p></div><Link href={requestHref} className="min-h-11 shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>
         </div>
@@ -133,7 +126,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             return <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} aria-label={count > 0 ? `Browse ${category}` : `Join the availability list for ${category}`} className={`home-category-card group relative overflow-hidden rounded-[1.75rem] border p-5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/60 ${count > 0 ? "border-[#183126]/10 bg-white shadow-[0_4px_20px_rgba(24,49,38,.04)] transition duration-300 hover:border-[#4f765f]/25 hover:bg-[#fbfcf8] hover:shadow-[0_18px_36px_rgba(24,49,38,.12)]" : "home-category-card--empty border-dashed border-[#183126]/10 bg-white/55 transition hover:border-[#6d8d78] hover:bg-white/80"}`}>{card}</Link>;
           })}
         </div> : <div className="rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-8 text-center"><p className="font-bold">Providers are joining this area</p><p className="mt-2 text-sm text-[#687970]">Request the service you need and we’ll use that demand to guide local provider recruiting.</p><Link href={requestHref} className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>}
-        {upcomingCategories.length > 0 && <div className="home-upcoming-panel mt-8 rounded-[2rem] border border-dashed border-[#183126]/12 bg-white/45 p-4 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">More services coming soon</p><p className="mt-1 text-sm text-[#65766d]">Choose a category to request it or join the local availability list.</p></div><Link href={requestHref} className="text-sm font-bold underline decoration-[#c7bb41] decoration-2 underline-offset-4">Request a service</Link></div><div className="home-upcoming-grid mt-4 grid gap-2">{upcomingCategories.map((category) => { const categoryParams = new URLSearchParams({ category, radius: String(radius) }); if (location) categoryParams.set("location", location); return <UpcomingCategoryCard key={category} category={category} href={`/services?${categoryParams.toString()}#service-listings`} />; })}</div></div>}
+        {upcomingCategories.length > 0 && <div className="home-upcoming-panel mt-8 rounded-[2rem] border border-dashed border-[#183126]/12 bg-white/45 p-4 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">More services coming soon</p><p className="mt-1 text-sm text-[#65766d]">Choose a category to request it or help us understand what customers need next.</p></div><Link href={requestHref} className="text-sm font-bold underline decoration-[#c7bb41] decoration-2 underline-offset-4">Request a service</Link></div><div className="home-upcoming-grid mt-4 grid gap-2">{upcomingCategories.map((category) => { const categoryParams = new URLSearchParams({ category, radius: String(radius) }); if (location) categoryParams.set("location", location); return <UpcomingCategoryCard key={category} category={category} href={`/services?${categoryParams.toString()}#service-listings`} />; })}</div></div>}
       </section>
 
       {location && <section id="nearby-listings" className="home-marketplace site-container scroll-mt-24 px-4 pb-2 sm:px-6 sm:pb-3">

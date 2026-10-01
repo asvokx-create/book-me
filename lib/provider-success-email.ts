@@ -24,7 +24,7 @@ export function sendFirstListingSuccessEmail(input: FirstListingEmailInput) {
     tips: [
       "Add 3–5 bright, recent photos that show the quality of your real work.",
       "Explain exactly what the starting price includes so customers can book confidently.",
-      "Keep your availability and service area current to avoid requests you cannot accept.",
+      "Keep your availability, delivery method, and service area where applicable current so you receive requests you can accept.",
       "Reply quickly and professionally—fast responses build trust and help win bookings.",
       "Connect Stripe before your first job so customer payments and payouts are ready.",
       "After a great job, invite the customer to leave an honest BubsBookings review.",

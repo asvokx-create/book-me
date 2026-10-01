@@ -70,11 +70,12 @@ test("first-visit browser location approval reloads the marketplace with the res
 test("search assistance finds related service categories from two typed characters", () => {
   assert.ok(getServiceCategorySearchMatches("ca").includes("Car detailing"));
   const searchAssist = read("components/service-search-assist.tsx");
-  const home = read("app/page.tsx");
+  const homeSearch = read("components/home-service-search.tsx");
   assert.match(searchAssist, /role="combobox"/);
   assert.match(searchAssist, /role="listbox"/);
   assert.match(searchAssist, /requestSubmit/);
-  assert.match(home, /home-search-bar relative z-40/);
+  assert.match(homeSearch, /home-search-bar relative z-40/);
+  assert.match(homeSearch, /<option value="REMOTE">Remote<\/option>/);
 });
 
 test("location action remains readable when enabled or disabled", () => {

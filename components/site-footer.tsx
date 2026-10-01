@@ -46,12 +46,12 @@ export default function SiteFooter() {
           <div aria-hidden="true" className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#eee25a]/10 blur-3xl" />
           <div className="relative grid items-end gap-7 lg:grid-cols-[1fr_auto]">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#a9c3b4]">Your neighborhood marketplace</p>
+              <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#a9c3b4]">Your service marketplace</p>
               <h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-[-.045em] sm:text-4xl">Good help should never feel far away.</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-[#aec3b8]">Find local or remote service providers, compare your options clearly, and keep every booking in one secure place.</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href="/services" className="rounded-full bg-[#f1e45c] px-6 py-3.5 text-sm font-bold text-[#173d2e] hover:bg-[#fff47c]">Find local help</Link>
+              <Link href="/services" className="rounded-full bg-[#f1e45c] px-6 py-3.5 text-sm font-bold text-[#173d2e] hover:bg-[#fff47c]">Find services</Link>
               <Link href="/providers/join" className="rounded-full border border-white/20 bg-white/8 px-6 py-3.5 text-sm font-bold hover:border-white/30 hover:bg-white/14">List your service</Link>
             </div>
           </div>
