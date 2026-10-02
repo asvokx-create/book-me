@@ -19,11 +19,42 @@ function programTerms(body: Record<string, unknown>) {
   const hold = Number(body.holdDays);
   const minimum = Math.round(Number(body.minimumPayout) * 100);
   const milestoneBonusesEnabled = body.milestoneBonusesEnabled === undefined ? null : body.milestoneBonusesEnabled === true;
+  const programType = body.programType === "custom" ? "custom" : "standard";
+  const activationBonusEnabled = body.activationBonusEnabled === undefined ? activation > 0 : body.activationBonusEnabled === true;
+  const revenueShareEnabled = body.revenueShareEnabled === undefined ? shareBps > 0 && duration > 0 : body.revenueShareEnabled === true;
+  const customCampaignEnabled = body.customCampaignEnabled === true;
   const valid = Boolean(name)
     && [activation, shareBps, duration, attribution, hold, minimum].every(Number.isInteger)
     && activation >= 0 && shareBps >= 0 && shareBps <= 10000 && duration >= 0
     && attribution >= 1 && attribution <= 365 && hold >= 0 && hold <= 365 && minimum >= 0;
-  return valid ? { name, description, activation, shareBps, duration, attribution, hold, minimum, milestoneBonusesEnabled } : null;
+  return valid ? { name, description, activation, shareBps, duration, attribution, hold, minimum, milestoneBonusesEnabled,
+    programType, activationBonusEnabled, revenueShareEnabled, customCampaignEnabled } : null;
+}
+
+function compensationTerms(body: Record<string, unknown>) {
+  const compensationType = body.compensationType === "custom" ? "custom" : "standard";
+  const activationBonusEnabled = body.activationBonusEnabled === true;
+  const milestoneBonusesEnabled = body.milestoneBonusesEnabled === true;
+  const revenueShareEnabled = body.revenueShareEnabled === true;
+  const customCampaignEnabled = body.customCampaignEnabled === true;
+  const activationBonusCents = Math.round(Number(body.activationBonus) * 100);
+  const revenueShareBasisPoints = Math.round(Number(body.revenueSharePercent) * 100);
+  const revenueShareDurationMonths = Number(body.durationMonths);
+  const minimumPayoutCents = Math.round(Number(body.minimumPayout) * 100);
+  const customCampaignAmountCents = Math.round(Number(body.customCampaignAmount) * 100);
+  const customCampaignStartsOn = typeof body.customCampaignStartsOn === "string" && body.customCampaignStartsOn ? body.customCampaignStartsOn : null;
+  const customCampaignEndsOn = typeof body.customCampaignEndsOn === "string" && body.customCampaignEndsOn ? body.customCampaignEndsOn : null;
+  const customCampaignNotes = typeof body.customCampaignNotes === "string" ? body.customCampaignNotes.trim().slice(0, 2000) : "";
+  const numbers = [activationBonusCents,revenueShareBasisPoints,revenueShareDurationMonths,minimumPayoutCents,customCampaignAmountCents];
+  const valid = numbers.every(Number.isInteger) && numbers.every(value=>value>=0) && revenueShareBasisPoints<=10000
+    && (!revenueShareEnabled || (revenueShareBasisPoints>0 && revenueShareDurationMonths>0))
+    && (!customCampaignEnabled || (customCampaignAmountCents>0 && Boolean(customCampaignStartsOn) && Boolean(customCampaignEndsOn)))
+    && (!customCampaignStartsOn || /^\d{4}-\d{2}-\d{2}$/.test(customCampaignStartsOn))
+    && (!customCampaignEndsOn || /^\d{4}-\d{2}-\d{2}$/.test(customCampaignEndsOn))
+    && (!customCampaignStartsOn || !customCampaignEndsOn || customCampaignEndsOn>=customCampaignStartsOn);
+  return valid ? { compensationType,activationBonusEnabled,milestoneBonusesEnabled,revenueShareEnabled,customCampaignEnabled,
+    activationBonusCents,revenueShareBasisPoints,revenueShareDurationMonths,minimumPayoutCents,
+    customCampaignAmountCents,customCampaignStartsOn,customCampaignEndsOn,customCampaignNotes } : null;
 }
 
 async function dashboard() {
@@ -39,6 +70,7 @@ async function dashboard() {
     database.query(`SELECT id::text, name, description, activation_bonus_cents, revenue_share_basis_points,
       revenue_share_duration_months, revenue_share_starts_at, attribution_window_days, hold_period_days,
       minimum_payout_cents, payout_schedule, eligible_provider_plans, eligible_revenue_types, status, starts_at, ends_at,
+      program_type, activation_bonus_enabled, revenue_share_enabled, custom_campaign_enabled,
       milestone_bonuses_enabled, active_provider_required_bookings, milestone_thresholds, milestone_bonus_cents
       FROM affiliate_programs ORDER BY created_at DESC`),
     database.query(`SELECT affiliate.id::text, affiliate.display_name, affiliate.email, affiliate.affiliate_code,
@@ -46,10 +78,20 @@ async function dashboard() {
       affiliate.x_url, affiliate.facebook_url, affiliate.other_social_url,
       affiliate.primary_audience, affiliate.promotion_plan, affiliate.audience_size, affiliate.admin_notes,
       affiliate.payment_status, affiliate.tax_onboarding_status, affiliate.applied_at, affiliate.approved_at,
-      affiliate.milestone_bonuses_override, affiliate.milestone_backfill_approved,
+      affiliate.compensation_type, affiliate.milestone_bonuses_override, affiliate.milestone_backfill_approved,
+      affiliate.activation_bonus_enabled_override, affiliate.revenue_share_enabled_override,
+      affiliate.custom_campaign_enabled_override, affiliate.custom_campaign_amount_cents,
+      affiliate.custom_campaign_starts_on, affiliate.custom_campaign_ends_on, affiliate.custom_campaign_notes,
       affiliate.stripe_account_id,affiliate.stripe_connect_mode,affiliate.stripe_details_submitted,
       affiliate.stripe_payouts_enabled,cardinality(affiliate.stripe_requirements_due)::int AS stripe_requirements_count,
       program.id::text AS program_id, program.name AS program_name,
+      COALESCE(affiliate.activation_bonus_enabled_override,program.activation_bonus_enabled,false) AS activation_bonus_enabled,
+      COALESCE(affiliate.revenue_share_enabled_override,program.revenue_share_enabled,false) AS revenue_share_enabled,
+      COALESCE(affiliate.custom_campaign_enabled_override,program.custom_campaign_enabled,false) AS custom_campaign_enabled,
+      COALESCE(affiliate.activation_bonus_override_cents,program.activation_bonus_cents) AS activation_bonus_cents,
+      COALESCE(affiliate.revenue_share_override_basis_points,program.revenue_share_basis_points) AS revenue_share_basis_points,
+      COALESCE(affiliate.revenue_share_duration_override_months,program.revenue_share_duration_months) AS revenue_share_duration_months,
+      COALESCE(affiliate.minimum_payout_override_cents,program.minimum_payout_cents) AS minimum_payout_cents,
       COALESCE(affiliate.milestone_bonuses_override,program.milestone_bonuses_enabled,false) AS milestone_bonuses_enabled,
       program.milestone_thresholds, program.milestone_bonus_cents,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id) AS clicks,
@@ -165,10 +207,13 @@ export async function POST(request: Request) {
   const terms = programTerms(body);
   if (!terms) return NextResponse.json({ error: "Enter valid program terms." }, { status: 400 });
   try {
-    const result = await database.query<{ id: string }>(`INSERT INTO affiliate_programs (name, description, activation_bonus_cents,
+    const result = await database.query<{ id: string }>(`INSERT INTO affiliate_programs (name, description, program_type,
+        activation_bonus_enabled, activation_bonus_cents, revenue_share_enabled,
         revenue_share_basis_points, revenue_share_duration_months, attribution_window_days, hold_period_days,
-        minimum_payout_cents, milestone_bonuses_enabled, status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft') RETURNING id::text`, [terms.name,terms.description,terms.activation,terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum,terms.milestoneBonusesEnabled]);
+        minimum_payout_cents, milestone_bonuses_enabled, custom_campaign_enabled, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'draft') RETURNING id::text`,
+    [terms.name,terms.description,terms.programType,terms.activationBonusEnabled,terms.activation,terms.revenueShareEnabled,
+      terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum,terms.milestoneBonusesEnabled,terms.customCampaignEnabled]);
     await audit(session.user.id, "program_created", "affiliate_program", result.rows[0].id, terms);
     return NextResponse.json({ ok: true, id: result.rows[0].id });
   } catch (error) {
@@ -207,17 +252,49 @@ export async function PATCH(request: Request) {
       const code = normalizeAffiliateCode(body.code);
       if (["approved","active"].includes(status) && !isSafeAffiliateCode(code)) throw new Error("CODE");
       const requestedProgramId = typeof body.programId === "string" ? body.programId : "";
+      let reviewedTerms: ReturnType<typeof compensationTerms> = null;
       if (["approved","active"].includes(status)) {
         if (!requestedProgramId) throw new Error("PROGRAM");
-        const selectedProgram = await client.query("SELECT 1 FROM affiliate_programs WHERE id::text=$1 AND status='enabled'", [requestedProgramId]);
+        const selectedProgram = await client.query<{
+          program_type:"standard"|"custom";activation_bonus_enabled:boolean;milestone_bonuses_enabled:boolean;
+          revenue_share_enabled:boolean;custom_campaign_enabled:boolean;activation_bonus_cents:number;
+          revenue_share_basis_points:number;revenue_share_duration_months:number;minimum_payout_cents:number;
+        }>(`SELECT program_type,activation_bonus_enabled,milestone_bonuses_enabled,revenue_share_enabled,
+          custom_campaign_enabled,activation_bonus_cents,revenue_share_basis_points,revenue_share_duration_months,
+          minimum_payout_cents FROM affiliate_programs WHERE id::text=$1 AND status='enabled'`, [requestedProgramId]);
         if (!selectedProgram.rowCount) throw new Error("PROGRAM");
+        if (body.compensationConfigured === true) reviewedTerms = compensationTerms(body);
+        else if (status === "approved") {
+          const defaults=selectedProgram.rows[0];
+          reviewedTerms=compensationTerms({compensationType:defaults.program_type,
+            activationBonusEnabled:defaults.activation_bonus_enabled,milestoneBonusesEnabled:defaults.milestone_bonuses_enabled,
+            revenueShareEnabled:defaults.revenue_share_enabled,customCampaignEnabled:defaults.custom_campaign_enabled,
+            activationBonus:defaults.activation_bonus_cents/100,revenueSharePercent:defaults.revenue_share_basis_points/100,
+            durationMonths:defaults.revenue_share_duration_months,minimumPayout:defaults.minimum_payout_cents/100,
+            customCampaignAmount:0,customCampaignStartsOn:"",customCampaignEndsOn:""});
+        }
+        if ((body.compensationConfigured === true || status === "approved") && !reviewedTerms) throw new Error("INVALID");
       }
       const result = await client.query(`UPDATE affiliate_profiles SET status=$2, affiliate_code=CASE WHEN $3='' THEN affiliate_code ELSE $3 END,
         program_id=COALESCE($4::uuid, program_id), approved_at=CASE WHEN $2 IN ('approved','active') THEN COALESCE(approved_at,now()) ELSE approved_at END,
-        activated_at=CASE WHEN $2='active' THEN COALESCE(activated_at,now()) ELSE activated_at END, admin_notes=CASE WHEN $5='' THEN admin_notes ELSE $5 END
-        WHERE id::text=$1`, [targetId,status,code,requestedProgramId||null,reason]);
+        activated_at=CASE WHEN $2='active' THEN COALESCE(activated_at,now()) ELSE activated_at END, admin_notes=CASE WHEN $5='' THEN admin_notes ELSE $5 END,
+        compensation_type=COALESCE($6,compensation_type),activation_bonus_enabled_override=COALESCE($7,activation_bonus_enabled_override),
+        milestone_bonuses_override=COALESCE($8,milestone_bonuses_override),revenue_share_enabled_override=COALESCE($9,revenue_share_enabled_override),
+        custom_campaign_enabled_override=COALESCE($10,custom_campaign_enabled_override),activation_bonus_override_cents=COALESCE($11,activation_bonus_override_cents),
+        revenue_share_override_basis_points=COALESCE($12,revenue_share_override_basis_points),revenue_share_duration_override_months=COALESCE($13,revenue_share_duration_override_months),
+        minimum_payout_override_cents=COALESCE($14,minimum_payout_override_cents),custom_campaign_amount_cents=COALESCE($15,custom_campaign_amount_cents),
+        custom_campaign_starts_on=COALESCE($16::date,custom_campaign_starts_on),custom_campaign_ends_on=COALESCE($17::date,custom_campaign_ends_on),
+        custom_campaign_notes=CASE WHEN $18='' THEN custom_campaign_notes ELSE $18 END,
+        milestone_backfill_approved=CASE WHEN $2 IN ('approved','active') AND $8=true THEN true ELSE milestone_backfill_approved END
+        WHERE id::text=$1`, [targetId,status,code,requestedProgramId||null,reason,
+        reviewedTerms?.compensationType??null,reviewedTerms?.activationBonusEnabled??null,reviewedTerms?.milestoneBonusesEnabled??null,
+        reviewedTerms?.revenueShareEnabled??null,reviewedTerms?.customCampaignEnabled??null,reviewedTerms?.activationBonusCents??null,
+        reviewedTerms?.revenueShareBasisPoints??null,reviewedTerms?.revenueShareDurationMonths??null,reviewedTerms?.minimumPayoutCents??null,
+        reviewedTerms?.customCampaignAmountCents??null,reviewedTerms?.customCampaignStartsOn??null,reviewedTerms?.customCampaignEndsOn??null,
+        reviewedTerms?.customCampaignNotes??""]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
-      await audit(session.user.id, "affiliate_status_changed", "affiliate", targetId, { status, code, programId: requestedProgramId||null, reason }, client);
+      if (reviewedTerms) await syncCompensationCampaign(client,targetId,requestedProgramId,code,reviewedTerms,session.user.id);
+      await audit(session.user.id, "affiliate_status_changed", "affiliate", targetId, { status, code, programId: requestedProgramId||null, compensation:reviewedTerms, reason }, client);
     } else if (action === "campaign_status") {
       const status = typeof body.status === "string" ? body.status : "";
       if (!new Set(["planned","approved","paid","cancelled"]).has(status)) throw new Error("INVALID");
@@ -229,22 +306,33 @@ export async function PATCH(request: Request) {
       if (!result.rowCount) throw new Error("NOT_FOUND");
       await audit(session.user.id,"creator_campaign_status_changed","creator_campaign",targetId,{status,reason},client);
     } else if (action === "affiliate_overrides") {
-      const bonus = body.activationBonus === "" || body.activationBonus == null ? null : Math.round(Number(body.activationBonus) * 100);
-      const share = body.revenueSharePercent === "" || body.revenueSharePercent == null ? null : Math.round(Number(body.revenueSharePercent) * 100);
-      const duration = body.durationMonths === "" || body.durationMonths == null ? null : Number(body.durationMonths);
-      const minimum = body.minimumPayout === "" || body.minimumPayout == null ? null : Math.round(Number(body.minimumPayout) * 100);
-      if ([bonus,share,duration,minimum].some(value => value !== null && (!Number.isInteger(value) || value < 0)) || (share !== null && share > 10000)) throw new Error("INVALID");
-      const result = await client.query(`UPDATE affiliate_profiles SET activation_bonus_override_cents=$2,
-        revenue_share_override_basis_points=$3,revenue_share_duration_override_months=$4,minimum_payout_override_cents=$5,
-        admin_notes=CASE WHEN $6='' THEN admin_notes ELSE $6 END WHERE id::text=$1`, [targetId,bonus,share,duration,minimum,reason]);
+      const terms=compensationTerms(body);
+      if (!terms || !reason) throw new Error("INVALID");
+      const previous=await client.query<{milestone_bonuses_enabled:boolean;program_id:string;affiliate_code:string}>(`SELECT
+        COALESCE(affiliate.milestone_bonuses_override,program.milestone_bonuses_enabled,false) AS milestone_bonuses_enabled,
+        affiliate.program_id::text,affiliate.affiliate_code FROM affiliate_profiles affiliate
+        JOIN affiliate_programs program ON program.id=affiliate.program_id WHERE affiliate.id::text=$1 FOR UPDATE`,[targetId]);
+      if(!previous.rows[0])throw new Error("NOT_FOUND");
+      const result = await client.query(`UPDATE affiliate_profiles SET compensation_type=$2,activation_bonus_enabled_override=$3,
+        milestone_bonuses_override=$4,revenue_share_enabled_override=$5,custom_campaign_enabled_override=$6,
+        activation_bonus_override_cents=$7,revenue_share_override_basis_points=$8,revenue_share_duration_override_months=$9,
+        minimum_payout_override_cents=$10,custom_campaign_amount_cents=$11,custom_campaign_starts_on=$12::date,
+        custom_campaign_ends_on=$13::date,custom_campaign_notes=$14,
+        milestone_backfill_approved=CASE WHEN $4=true AND $15=false THEN false ELSE milestone_backfill_approved END,
+        admin_notes=concat_ws(E'\n',NULLIF(admin_notes,''),$16) WHERE id::text=$1`,
+      [targetId,terms.compensationType,terms.activationBonusEnabled,terms.milestoneBonusesEnabled,terms.revenueShareEnabled,
+        terms.customCampaignEnabled,terms.activationBonusCents,terms.revenueShareBasisPoints,terms.revenueShareDurationMonths,
+        terms.minimumPayoutCents,terms.customCampaignAmountCents,terms.customCampaignStartsOn,terms.customCampaignEndsOn,
+        terms.customCampaignNotes,previous.rows[0].milestone_bonuses_enabled,reason]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
-      await audit(session.user.id, "affiliate_overrides_changed", "affiliate", targetId, { bonus, share, duration, minimum, reason }, client);
+      await syncCompensationCampaign(client,targetId,previous.rows[0].program_id,previous.rows[0].affiliate_code,terms,session.user.id);
+      await audit(session.user.id, "affiliate_overrides_changed", "affiliate", targetId, { compensation:terms, reason }, client);
     } else if (action === "affiliate_milestones") {
       const enabled = body.enabled === true;
-      const result = await client.query(`UPDATE affiliate_profiles SET milestone_bonuses_override=$2 WHERE id::text=$1`, [targetId,enabled]);
+      const result = await client.query(`UPDATE affiliate_profiles SET milestone_bonuses_override=$2,
+        milestone_backfill_approved=CASE WHEN $2 THEN false ELSE milestone_backfill_approved END WHERE id::text=$1`, [targetId,enabled]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
       await audit(session.user.id,"affiliate_milestones_changed","affiliate",targetId,{enabled,reason},client);
-      if (enabled) await evaluateAffiliateMilestonesForAffiliate(targetId,client);
     } else if (action === "milestone_backfill_approve") {
       if (!reason) throw new Error("INVALID");
       const result = await client.query(`UPDATE affiliate_profiles SET milestone_backfill_approved=true,
@@ -273,10 +361,14 @@ export async function PATCH(request: Request) {
     } else if (action === "program_update") {
       const terms = programTerms(body);
       if (!terms) throw new Error("INVALID");
-      const result = await client.query(`UPDATE affiliate_programs SET name=$2,description=$3,activation_bonus_cents=$4,
-        revenue_share_basis_points=$5,revenue_share_duration_months=$6,attribution_window_days=$7,
-        hold_period_days=$8,minimum_payout_cents=$9,milestone_bonuses_enabled=COALESCE($10,milestone_bonuses_enabled) WHERE id::text=$1`,
-      [targetId,terms.name,terms.description,terms.activation,terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum,terms.milestoneBonusesEnabled]);
+      const result = await client.query(`UPDATE affiliate_programs SET name=$2,description=$3,program_type=$4,
+        activation_bonus_enabled=$5,activation_bonus_cents=$6,revenue_share_enabled=$7,
+        revenue_share_basis_points=$8,revenue_share_duration_months=$9,attribution_window_days=$10,
+        hold_period_days=$11,minimum_payout_cents=$12,milestone_bonuses_enabled=COALESCE($13,milestone_bonuses_enabled),
+        custom_campaign_enabled=$14 WHERE id::text=$1`,
+      [targetId,terms.name,terms.description,terms.programType,terms.activationBonusEnabled,terms.activation,
+        terms.revenueShareEnabled,terms.shareBps,terms.duration,terms.attribution,terms.hold,terms.minimum,
+        terms.milestoneBonusesEnabled,terms.customCampaignEnabled]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
       await audit(session.user.id,"program_updated","affiliate_program",targetId,terms,client);
     } else if (action === "commission_status") {
@@ -320,4 +412,28 @@ export async function PATCH(request: Request) {
 
 async function audit(actor: string, action: string, targetType: string, targetId: string, details: unknown, client: { query: typeof database.query } = database) {
   await client.query(`INSERT INTO affiliate_audit_log (actor_user_id,action,target_type,target_id,details) VALUES ($1,$2,$3,$4,$5::jsonb)`, [actor,action,targetType,targetId,JSON.stringify(details)]);
+}
+
+async function syncCompensationCampaign(
+  client:{query:typeof database.query}, affiliateId:string, programId:string, affiliateCode:string,
+  terms:NonNullable<ReturnType<typeof compensationTerms>>, actorId:string,
+) {
+  if (!terms.customCampaignEnabled) {
+    await client.query(`UPDATE creator_campaign_payments SET payment_status='cancelled'
+      WHERE affiliate_id::text=$1 AND is_compensation_default=true AND payment_status IN ('planned','approved')`,[affiliateId]);
+    return;
+  }
+  await client.query(`INSERT INTO creator_campaign_payments
+      (affiliate_id,program_id,campaign_name,fixed_amount_cents,payment_status,campaign_starts_on,campaign_ends_on,
+       affiliate_code,revenue_share_basis_points,revenue_share_duration_months,notes,created_by,is_compensation_default)
+    VALUES ($1,$2::uuid,'Partner compensation campaign',$3,'planned',$4::date,$5::date,$6,$7,$8,$9,$10,true)
+    ON CONFLICT (affiliate_id) WHERE is_compensation_default=true DO UPDATE SET
+      program_id=EXCLUDED.program_id,fixed_amount_cents=EXCLUDED.fixed_amount_cents,
+      campaign_starts_on=EXCLUDED.campaign_starts_on,campaign_ends_on=EXCLUDED.campaign_ends_on,
+      affiliate_code=EXCLUDED.affiliate_code,revenue_share_basis_points=EXCLUDED.revenue_share_basis_points,
+      revenue_share_duration_months=EXCLUDED.revenue_share_duration_months,notes=EXCLUDED.notes,
+      payment_status=CASE WHEN creator_campaign_payments.payment_status='paid' THEN 'paid' ELSE 'planned' END`,
+  [affiliateId,programId,terms.customCampaignAmountCents,terms.customCampaignStartsOn,terms.customCampaignEndsOn,
+    affiliateCode,terms.revenueShareEnabled?terms.revenueShareBasisPoints:null,
+    terms.revenueShareEnabled?terms.revenueShareDurationMonths:null,terms.customCampaignNotes,actorId]);
 }

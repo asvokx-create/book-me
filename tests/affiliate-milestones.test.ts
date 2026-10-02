@@ -54,9 +54,9 @@ test("milestone email and notification use stable idempotency keys", () => {
 test("affiliate dashboard places Provider Growth before setup and analytics content", () => {
   const page=readFileSync(new URL("../app/affiliate/page.tsx",import.meta.url),"utf8");
   const dashboardStart=page.indexOf('aria-label="Analytics date range"');
-  const milestonePosition=page.indexOf("{milestoneProgress ? <ProviderGrowthMilestones",dashboardStart);
+  const milestonePosition=page.indexOf("{profile.milestone_bonuses_enabled&&milestoneProgress ? <ProviderGrowthMilestones",dashboardStart);
   const stripeSetupPosition=page.indexOf("<AffiliateStripeSetup",dashboardStart);
-  const analyticsPosition=page.indexOf('[["Clicks", stats.clicks]',dashboardStart);
+  const analyticsPosition=page.indexOf("{metrics.map",dashboardStart);
   const linkBuilderPosition=page.indexOf("<AffiliateLinkBuilder",dashboardStart);
   assert.ok(milestonePosition > dashboardStart);
   assert.ok(milestonePosition < stripeSetupPosition);

@@ -13,7 +13,6 @@ test("every partner action control is wired to its matching admin API action", (
     "affiliate_payment_readiness",
     "manual_adjustment",
     "affiliate_overrides",
-    "affiliate_milestones",
     "milestone_backfill_approve",
   ]) {
     assert.match(component,new RegExp(`action:\\s*"${action}"`));
@@ -28,7 +27,8 @@ test("consequential actions are validated, audited, and refresh the dashboard", 
   assert.match(route,/affiliate_payment_readiness_changed/);
   assert.match(route,/manual_adjustment_created/);
   assert.match(route,/affiliate_overrides_changed/);
-  assert.match(route,/affiliate_milestones_changed/);
+  assert.match(component,/name="milestoneBonusesEnabled"/);
+  assert.match(route,/milestone_bonuses_override/);
   assert.match(route,/milestone_backfill_approved/);
 });
 

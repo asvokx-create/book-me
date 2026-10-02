@@ -125,6 +125,7 @@ async function evaluateAffiliateMilestonesInTransaction(affiliateId: string, cli
   await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`affiliate-milestones:${affiliateId}`]);
   const progress = await getAffiliateMilestoneProgress(affiliateId, client);
   if (!progress) return { created: 0, reversed: 0, activeProviderCount: 0 };
+  if (!progress.enabled) return { created: 0, reversed: 0, activeProviderCount: progress.activeProviderCount };
 
   let reversed = 0;
   for (const achievement of progress.achievements.filter((item) => !item.reversedAt && item.threshold > progress.activeProviderCount)) {
@@ -147,7 +148,7 @@ async function evaluateAffiliateMilestonesInTransaction(affiliateId: string, cli
     reversed += 1;
   }
 
-  if (!progress.enabled || !progress.backfillApproved || progress.affiliateStatus !== "active") {
+  if (!progress.backfillApproved || progress.affiliateStatus !== "active") {
     return { created: 0, reversed, activeProviderCount: progress.activeProviderCount };
   }
   const trigger = await client.query<{ referral_id: string; provider_id: string }>(`${activeProviderCte}
@@ -217,6 +218,7 @@ export async function processAffiliateMilestoneEmails(limit = 25) {
     JOIN affiliate_profiles affiliate ON affiliate.id=achievement.affiliate_id
     JOIN affiliate_programs program ON program.id=affiliate.program_id
     WHERE achievement.email_sent_at IS NULL AND achievement.reversed_at IS NULL AND achievement.email_attempt_count < 5
+      AND COALESCE(affiliate.milestone_bonuses_override,program.milestone_bonuses_enabled,false)=true
     ORDER BY achievement.created_at LIMIT $1`, [limit]);
   let sent = 0;
   for (const item of queued.rows) {

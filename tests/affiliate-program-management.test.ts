@@ -20,7 +20,7 @@ test("approval requires an explicit enabled affiliate program", () => {
   assert.match(adminComponent, /name="programId" required/);
   assert.match(adminComponent, /programs\.filter\(program=>program\.status==="enabled"/);
   assert.match(adminComponent, /programId:values\.programId/);
-  assert.match(adminRoute, /SELECT 1 FROM affiliate_programs WHERE id::text=\$1 AND status='enabled'/);
+  assert.match(adminRoute, /FROM affiliate_programs WHERE id::text=\$1 AND status='enabled'/);
   assert.match(adminRoute, /Choose an enabled affiliate program\./);
   assert.match(adminRoute, /programId: requestedProgramId\|\|null/);
 });

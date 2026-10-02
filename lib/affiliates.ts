@@ -44,9 +44,12 @@ export async function lockAffiliateAttribution(input: {
         activation_bonus_cents: number; revenue_share_basis_points: number; revenue_share_duration_months: number;
         revenue_share_starts_at: string; attribution_window_days: number; hold_period_days: number;
         minimum_payout_cents: number; eligible_provider_plans: string[]; eligible_revenue_types: string[];
+        activation_bonus_enabled:boolean;revenue_share_enabled:boolean;
         milestone_bonuses_enabled: boolean; active_provider_required_bookings: number;
       }>(`SELECT affiliate.id::text AS affiliate_id, program.id::text AS program_id, NULL::text AS click_id,
           affiliate.affiliate_code,
+          COALESCE(affiliate.activation_bonus_enabled_override,program.activation_bonus_enabled,false) AS activation_bonus_enabled,
+          COALESCE(affiliate.revenue_share_enabled_override,program.revenue_share_enabled,false) AS revenue_share_enabled,
           COALESCE(affiliate.activation_bonus_override_cents, program.activation_bonus_cents) AS activation_bonus_cents,
           COALESCE(affiliate.revenue_share_override_basis_points, program.revenue_share_basis_points) AS revenue_share_basis_points,
           COALESCE(affiliate.revenue_share_duration_override_months, program.revenue_share_duration_months) AS revenue_share_duration_months,
@@ -71,9 +74,12 @@ export async function lockAffiliateAttribution(input: {
           activation_bonus_cents: number; revenue_share_basis_points: number; revenue_share_duration_months: number;
           revenue_share_starts_at: string; attribution_window_days: number; hold_period_days: number;
           minimum_payout_cents: number; eligible_provider_plans: string[]; eligible_revenue_types: string[];
+          activation_bonus_enabled:boolean;revenue_share_enabled:boolean;
           milestone_bonuses_enabled: boolean; active_provider_required_bookings: number;
         }>(`SELECT affiliate.id::text AS affiliate_id, program.id::text AS program_id, click.id::text AS click_id,
             affiliate.affiliate_code,
+            COALESCE(affiliate.activation_bonus_enabled_override,program.activation_bonus_enabled,false) AS activation_bonus_enabled,
+            COALESCE(affiliate.revenue_share_enabled_override,program.revenue_share_enabled,false) AS revenue_share_enabled,
             COALESCE(affiliate.activation_bonus_override_cents, program.activation_bonus_cents) AS activation_bonus_cents,
             COALESCE(affiliate.revenue_share_override_basis_points, program.revenue_share_basis_points) AS revenue_share_basis_points,
             COALESCE(affiliate.revenue_share_duration_override_months, program.revenue_share_duration_months) AS revenue_share_duration_months,
@@ -102,17 +108,17 @@ export async function lockAffiliateAttribution(input: {
   const startAttribution = terms.revenue_share_starts_at === "provider_signup";
   const inserted = await input.client.query<{ id: string }>(`INSERT INTO affiliate_referrals (
       affiliate_id, provider_id, click_id, program_id, attribution_source, status,
-      activation_bonus_cents, revenue_share_basis_points, revenue_share_duration_months, revenue_share_starts_at,
+      activation_bonus_enabled, revenue_share_enabled, activation_bonus_cents, revenue_share_basis_points, revenue_share_duration_months, revenue_share_starts_at,
       attribution_window_days, hold_period_days, minimum_payout_cents, eligible_provider_plans, eligible_revenue_types,
       milestone_bonuses_enabled, active_provider_required_bookings,
       revenue_share_started_at, revenue_share_ends_at)
-    VALUES ($1, $2::uuid, $3::uuid, $4, $5, 'listing_published', $6, $7, $8, $9, $10, $11, $12, $13, $14,
-      $15, $16,
-      CASE WHEN $17 THEN now() ELSE NULL END,
-      CASE WHEN $17 THEN now() + make_interval(months => $8) ELSE NULL END)
+    VALUES ($1, $2::uuid, $3::uuid, $4, $5, 'listing_published', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+      $17, $18,
+      CASE WHEN $19 AND $7 THEN now() ELSE NULL END,
+      CASE WHEN $19 AND $7 THEN now() + make_interval(months => $10) ELSE NULL END)
     ON CONFLICT (provider_id) DO NOTHING RETURNING id::text`, [
     terms.affiliate_id, input.providerId, terms.click_id, terms.program_id, manualCode ? "manual" : "cookie",
-    terms.activation_bonus_cents, terms.revenue_share_basis_points, terms.revenue_share_duration_months,
+    terms.activation_bonus_enabled,terms.revenue_share_enabled,terms.activation_bonus_cents, terms.revenue_share_basis_points, terms.revenue_share_duration_months,
     terms.revenue_share_starts_at, terms.attribution_window_days, terms.hold_period_days,
     terms.minimum_payout_cents, terms.eligible_provider_plans, terms.eligible_revenue_types,
     terms.milestone_bonuses_enabled, terms.active_provider_required_bookings, startAttribution,
@@ -123,6 +129,7 @@ export async function lockAffiliateAttribution(input: {
 export async function syncAffiliateCommissionForBooking(bookingId: string, client: DbClient = database) {
   const result = await client.query<{
     referral_id: string; affiliate_id: string; provider_id: string; status: string; qualified_at: Date | null;
+    activation_bonus_enabled:boolean;revenue_share_enabled:boolean;
     activation_bonus_cents: number; revenue_share_basis_points: number; revenue_share_duration_months: number;
     revenue_share_starts_at: string; revenue_share_started_at: Date | null; revenue_share_ends_at: Date | null;
     hold_period_days: number; eligible_provider_plans: string[]; eligible_revenue_types: string[];
@@ -130,7 +137,8 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
     provider_plan_snapshot: string | null; platform_fee_cents: number; price_cents: number; refunded_amount_cents: number;
     stripe_payment_intent_id: string | null; stripe_dispute_status: string | null;
   }>(`SELECT referral.id::text AS referral_id, referral.affiliate_id::text, referral.provider_id::text,
-      referral.status, referral.qualified_at, referral.activation_bonus_cents, referral.revenue_share_basis_points,
+      referral.status, referral.qualified_at, referral.activation_bonus_enabled, referral.revenue_share_enabled,
+      referral.activation_bonus_cents, referral.revenue_share_basis_points,
       referral.revenue_share_duration_months, referral.revenue_share_starts_at,
       referral.revenue_share_started_at, referral.revenue_share_ends_at, referral.hold_period_days,
       referral.eligible_provider_plans, referral.eligible_revenue_types,
@@ -151,8 +159,8 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
   const eligibleRevenue = row.eligible_revenue_types.includes("provider_marketplace_fee") && row.eligible_provider_plans.includes(row.provider_plan_snapshot ?? "")
     ? calculateEligibleProviderFeeRevenue({ providerMarketplaceFeeCents: row.platform_fee_cents, bookingPriceCents: row.price_cents, refundedServiceAmountCents: row.refunded_amount_cents })
     : 0;
-  const targetShareAmount = eligibleBooking ? calculateAffiliateCommission(eligibleRevenue, row.revenue_share_basis_points) : 0;
-  const targetActivationAmount = eligibleBooking ? row.activation_bonus_cents : 0;
+  const targetShareAmount = eligibleBooking && row.revenue_share_enabled ? calculateAffiliateCommission(eligibleRevenue, row.revenue_share_basis_points) : 0;
+  const targetActivationAmount = eligibleBooking && row.activation_bonus_enabled ? row.activation_bonus_cents : 0;
   for (const kind of ["activation_bonus", "revenue_share"] as const) {
     const paid = await client.query<{ id: string; amount_cents: number; reversed_cents: number }>(`SELECT original.id::text, original.amount_cents,
         COALESCE((SELECT sum(-reversal.amount_cents)::int FROM affiliate_commissions reversal
@@ -187,7 +195,7 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
       AND commission_type IN ('activation_bonus','revenue_share')`, [bookingId]);
 
   let shareStart = row.revenue_share_started_at;
-  if (!shareStart && ["qualified", "first_completed_booking"].includes(row.revenue_share_starts_at)) shareStart = new Date();
+  if (row.revenue_share_enabled && !shareStart && ["qualified", "first_completed_booking"].includes(row.revenue_share_starts_at)) shareStart = new Date();
   const shareEnd = row.revenue_share_ends_at ?? (shareStart ? affiliateRevenueShareWindow(new Date(shareStart), row.revenue_share_duration_months).end : null);
   const now = new Date();
   const inShareWindow = Boolean(shareStart && shareEnd && now >= new Date(shareStart) && now < new Date(shareEnd));
@@ -200,13 +208,13 @@ export async function syncAffiliateCommissionForBooking(bookingId: string, clien
       revenue_share_ends_at = COALESCE(revenue_share_ends_at, $4)
     WHERE id = $1::uuid`, [row.referral_id, bookingId, shareStart, shareEnd]);
 
-  await client.query(`INSERT INTO affiliate_commissions (affiliate_id, referral_id, provider_id, booking_id, payment_reference,
+  if (row.activation_bonus_enabled && row.activation_bonus_cents > 0) await client.query(`INSERT INTO affiliate_commissions (affiliate_id, referral_id, provider_id, booking_id, payment_reference,
       commission_type, eligible_revenue_cents, amount_cents, status, eligible_at, payable_at)
     SELECT $1, $2, $3, $4::uuid, $5, 'activation_bonus', 0, $6, 'hold', now(), $7
     WHERE NOT EXISTS (SELECT 1 FROM affiliate_commissions WHERE referral_id = $2 AND commission_type = 'activation_bonus')
     ON CONFLICT (referral_id) WHERE commission_type = 'activation_bonus' DO NOTHING`,
     [row.affiliate_id, row.referral_id, row.provider_id, bookingId, row.stripe_payment_intent_id, row.activation_bonus_cents, payableAt]);
-  if (inShareWindow && shareAmount > 0) {
+  if (row.revenue_share_enabled && inShareWindow && shareAmount > 0) {
     await client.query(`INSERT INTO affiliate_commissions (affiliate_id, referral_id, provider_id, booking_id, payment_reference,
         commission_type, eligible_revenue_cents, commission_rate_basis_points, amount_cents, status, eligible_at, payable_at)
       VALUES ($1, $2, $3, $4::uuid, $5, 'revenue_share', $6, $7, $8, 'hold', now(), $9)
