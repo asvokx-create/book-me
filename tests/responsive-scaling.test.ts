@@ -91,3 +91,11 @@ test("narrow marketplace controls preserve readable text and stack before they c
   assert.match(sort, /sort-control flex min-h-11 max-w-full/);
   assert.match(sort, /sort-control-select min-w-0/);
 });
+
+test("the reusable support action keeps card spacing and a full touch target", () => {
+  const supportButton = read("components", "contact-support-button.tsx");
+  const account = read("app", "account", "page.tsx");
+
+  assert.match(supportButton, /inline-flex min-h-11 items-center justify-center/);
+  assert.match(account, /ContactSupportButton className="mt-4/);
+});
