@@ -25,6 +25,8 @@ export default function MobileSiteNav() {
   const [navigationAccess, setNavigationAccess] = useState<{ userId: string; isAdmin: boolean; isAffiliate: boolean } | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const triggerButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!session?.user.id) return;
@@ -45,15 +47,27 @@ export default function MobileSiteNav() {
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
+    const siteContent = document.getElementById("site-content");
+    const triggerButton = triggerButtonRef.current;
     document.body.style.overflow = "hidden";
+    if (siteContent) siteContent.inert = true;
     closeButtonRef.current?.focus();
     const closeWithEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Tab") return;
+      const focusable = drawerRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     window.addEventListener("keydown", closeWithEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
+      if (siteContent) siteContent.inert = false;
       window.removeEventListener("keydown", closeWithEscape);
+      triggerButton?.focus();
     };
   }, [open]);
 
@@ -76,9 +90,9 @@ export default function MobileSiteNav() {
   }
 
   return <>
-    <button type="button" aria-label="Open navigation menu" aria-expanded={open} onClick={() => setOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/10 bg-white/75 shadow-sm lg:hidden"><UiIcon name="menu" className="h-5 w-5" /></button>
-    {open && createPortal(<div className="fixed inset-0 z-[200] bg-[#10251c]/55 backdrop-blur-sm lg:hidden" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-      <nav aria-label="Mobile navigation" className="absolute inset-y-0 right-0 flex w-[min(88vw,22rem)] flex-col overflow-y-auto bg-[#f8f7f3] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] shadow-2xl">
+    <button ref={triggerButtonRef} type="button" aria-label="Open navigation menu" aria-controls="mobile-site-navigation" aria-expanded={open} onClick={() => setOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/10 bg-white/75 shadow-sm lg:hidden"><UiIcon name="menu" className="h-5 w-5" /></button>
+    {open && createPortal(<div className="fixed inset-0 z-[200] bg-[#10251c]/55 backdrop-blur-sm lg:hidden" role="dialog" aria-modal="true" aria-label="Site navigation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+      <nav ref={drawerRef} id="mobile-site-navigation" aria-label="Mobile navigation" className="absolute inset-y-0 right-0 flex w-[min(88vw,22rem)] flex-col overflow-y-auto bg-[#f8f7f3] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] shadow-2xl">
         <div className="flex items-center justify-between gap-4 border-b border-[#183126]/10 pb-4">
           <p className="text-xs font-extrabold uppercase tracking-[.15em] text-[#66796f]">Explore BubsBookings</p>
           <button ref={closeButtonRef} type="button" aria-label="Close navigation menu" onClick={() => setOpen(false)} className="grid h-11 w-11 place-items-center rounded-full bg-white shadow-sm"><UiIcon name="close" className="h-5 w-5" /></button>

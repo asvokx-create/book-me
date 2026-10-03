@@ -29,10 +29,19 @@ export default function HomeServiceSearch({
     <form action="/services" className="home-search-bar relative z-40 mt-12 flex w-full max-w-6xl flex-col gap-2 overflow-visible rounded-3xl border border-white bg-white/92 p-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl lg:flex-row lg:items-center lg:rounded-full">
       <ServiceSearchAssist id="home-service-search" placeholder="What service do you need?" className="home-search-input flex flex-1 items-center rounded-full px-6 sm:px-7 xl:min-w-[300px]" inputClassName="w-full py-4 outline-none" iconClassName="home-search-icon mr-4 grid h-9 w-9 shrink-0 place-items-center rounded-full text-base" />
 
-      <label className="home-search-delivery flex min-h-14 items-center gap-3 rounded-full border border-[#183126]/10 bg-[#f6f8f3] px-5 lg:min-w-[190px] xl:min-w-[220px]">
+      <input type="hidden" name="delivery" value={delivery} />
+      <div className="home-search-delivery-mobile" role="group" aria-label="Service delivery type">
+        {(["ALL", "IN_PERSON", "REMOTE"] as const).map((option) => (
+          <button key={option} type="button" aria-pressed={delivery === option} onClick={() => setDelivery(option)}>
+            {option === "ALL" ? "All" : option === "IN_PERSON" ? "In person" : "Remote"}
+          </button>
+        ))}
+      </div>
+
+      <label className="home-search-delivery home-search-delivery-desktop flex min-h-14 items-center gap-3 rounded-full border border-[#183126]/10 bg-[#f6f8f3] px-5 lg:min-w-[190px] xl:min-w-[220px]">
         <span className="home-search-delivery-icon grid h-9 w-9 shrink-0 place-items-center rounded-full" aria-hidden="true"><DeliveryIcon delivery={delivery}/></span>
         <span className="sr-only">Service delivery type</span>
-        <select name="delivery" value={delivery} onChange={(event) => setDelivery(event.target.value as HomeDeliveryFilter)} className="home-search-delivery-select min-w-0 flex-1 text-sm font-bold outline-none">
+        <select aria-label="Service delivery type" value={delivery} onChange={(event) => setDelivery(event.target.value as HomeDeliveryFilter)} className="home-search-delivery-select min-w-0 flex-1 text-sm font-bold outline-none">
           <option value="ALL">Any delivery type</option>
           <option value="IN_PERSON">In person</option>
           <option value="REMOTE">Remote</option>

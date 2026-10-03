@@ -1,6 +1,7 @@
 import BrandLockup from "@/components/brand-lockup";
 import Link from "next/link";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { getServices, getServiceVisual, type ServiceListing } from "@/lib/marketplace";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
@@ -11,6 +12,7 @@ import { getContextualLocation } from "@/lib/request-location";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import HomeHeroPreview from "@/components/home-hero-preview";
 import HomeServiceSearch from "@/components/home-service-search";
+import UiIcon from "@/components/ui-icon";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Find and book local or remote services", description: "Compare in-person and remote service listings, message providers, and request bookings across the United States.", alternates: { canonical: "/" } };
@@ -63,12 +65,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <Link href="/guides" className="site-nav-link">Guides</Link>
               <Link href="/pricing" className="site-nav-link">Pricing</Link>
             </nav>
-            <Link href="/pricing" className="hidden min-h-10 items-center justify-center rounded-full px-2.5 py-2 text-xs font-bold hover:bg-[#183126]/5 min-[430px]:inline-flex sm:px-3 sm:text-sm lg:hidden">Pricing</Link>
             <Link href="/providers/join" className="home-header-provider-link hidden rounded-full border border-[#183126]/10 bg-white/60 px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:border-[#183126]/20 hover:bg-white sm:block">
               List your service
             </Link>
             <MobileSiteNav />
-            <AccountNav />
+            <div className="home-header-account"><AccountNav /></div>
           </div>
         </div>
       </header>
@@ -109,7 +110,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <p className="text-xs font-bold uppercase tracking-[.16em] text-[#6b7c73]">{location ? "Explore nearby" : "Explore services"}</p>
         <div className="mb-7 mt-2 flex items-end justify-between gap-4"><h2 className="text-3xl font-bold tracking-[-.04em]">What can we take off your plate?</h2><Link href="/services?showFilters=1#all-filters" className="home-section-action shrink-0 rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a]">View all</Link></div>
 
-        {populatedCategories.length > 0 ? <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        {populatedCategories.length > 0 ? <div className="home-category-grid grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {populatedCategories.map((category) => {
             const count = categoryCounts.get(category) ?? 0;
             const card = <>
@@ -153,6 +154,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
       </section>
 
+      <div className="home-mobile-request site-container px-4 pb-6 sm:hidden">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-white px-4 py-3">
+          <div className="min-w-0"><p className="text-sm font-bold">Can’t find the right fit?</p><p className="mt-0.5 text-xs text-[#63756b]">Tell local providers what you need.</p></div>
+          <Link href={requestHref} className="shrink-0 rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white">Request</Link>
+        </div>
+      </div>
+
       <section className="home-promo-strip mt-5 bg-[#173d2e] text-white">
         <div className="site-container grid items-stretch gap-3 px-4 py-6 sm:px-6 md:grid-cols-2">
           <Link href="/promise" className="home-promise-card group rounded-2xl border border-white/12 bg-white/7 p-5 transition hover:bg-white/10">
@@ -181,7 +189,8 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
     : "";
   return <article className="home-service-card group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition duration-300 hover:border-[#547562]/25 hover:shadow-[0_18px_40px_rgba(24,49,38,.12)]">
     <Link href={`/services/${service.slug}`} className="block" aria-label={`View ${service.title}`}>
-      <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
+      <div role={service.imageUrls[0] ? undefined : "img"} aria-label={service.imageUrls[0] ? undefined : `${service.title} cover`} className={`relative h-56 overflow-hidden ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
+        {service.imageUrls[0] && <Image src={service.imageUrls[0]} alt={`${service.title} cover`} fill loading="lazy" unoptimized sizes="(max-width: 639px) 116px, (max-width: 1023px) 50vw, (max-width: 1535px) 33vw, 25vw" className="object-cover" />}
         {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
         {(badge || service.deliveryType === "REMOTE") && <span className="home-preview-badge absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold backdrop-blur">{service.deliveryType === "REMOTE" ? "Available online" : badge}</span>}
         {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80 transition duration-300 group-hover:scale-105">{visual.art}</span>}
@@ -193,7 +202,7 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
           <div className="min-w-0"><Link href={`/services/${service.slug}`}><h3 className="mt-1 truncate text-lg font-semibold">{service.title}</h3></Link><p className="mt-1 truncate text-sm text-zinc-500">Provider: {service.provider}</p>{service.providerProfileVisible && <Link href={`/providers/${service.providerSlug}`} className="mt-2 inline-flex text-xs font-bold text-[#4f6d5a] underline underline-offset-4">View provider profile</Link>}</div>
           <div className="shrink-0 text-right"><p className="font-bold">${service.price}</p><p className="text-xs text-zinc-500">starting</p></div>
         </div>
-        <div className="mt-5 flex items-center gap-2 text-sm text-zinc-500"><span>{service.deliveryType === "REMOTE" ? "⌁" : "📍"}</span><span>{service.deliveryType === "REMOTE" ? "Remote · Available online" : `${service.city}, ${service.state}${distanceLabel && ` · ${distanceLabel}`}`}{service.deliveryType === "BOTH" && " · Remote available"}</span></div>
+        <div className="mt-5 flex items-start gap-2 text-sm text-zinc-500"><UiIcon name={service.deliveryType === "REMOTE" ? "globe" : "map-pin"} className="mt-0.5 h-4 w-4 shrink-0" /><span>{service.deliveryType === "REMOTE" ? "Remote · Available online" : `${service.city}, ${service.state}${distanceLabel && ` · ${distanceLabel}`}`}{service.deliveryType === "BOTH" && " · Remote available"}</span></div>
       </div>
     <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-xl shadow-sm backdrop-blur" />
   </article>;
