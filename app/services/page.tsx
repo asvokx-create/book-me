@@ -105,7 +105,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
 
       <section style={{ animation: "none" }} className="services-hero relative z-40 border-b border-[#183126]/10">
         <div className="site-container-wide px-4 py-9 sm:px-8 sm:py-16">
-          <Link href="/" className="text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
+          <Link href="/" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
           <p className="mt-8 text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{delivery === "REMOTE" ? "Work with providers online" : location ? "Explore nearby" : "Explore services"}</p>
           <h1 className="type-page-title mt-2">Find the right help for the job.</h1>
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">{delivery === "REMOTE" ? "Compare remote providers, prices, and availability without a distance limit." : location ? `Compare local and online providers around ${location}.` : "Browse services available locally or online."}</p>
@@ -125,18 +125,20 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
 
       <section id="all-filters" style={{ animation: "none" }} className="site-container-wide relative z-0 scroll-mt-6 px-4 py-9 sm:px-8 sm:py-14">
         <div className="mb-5 flex flex-wrap items-center gap-2" role="group" aria-label="Service delivery filter">{(["ALL", "IN_PERSON", "REMOTE"] as const).map((value) => { const next = new URLSearchParams(); if (query) next.set("q", query); if (selectedCategory !== "All services") next.set("category", selectedCategory); if (value !== "ALL") next.set("delivery", value); if (location && value !== "REMOTE") next.set("location", location); if (value !== "REMOTE") next.set("radius", String(radius)); return <Link key={value} href={`/services?${next.toString()}${resultsAnchor}`} aria-current={delivery === value ? "page" : undefined} className={`min-h-11 rounded-full border px-5 py-3 text-sm font-bold ${delivery === value ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white"}`}>{value === "ALL" ? "All services" : deliveryLabel(value)}</Link>; })}</div>
-        <div className="mobile-scroll-row -mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0">
-          {quickCategories.map((category) => {
-            const active = category === selectedCategory;
-            return (
-              <Link key={category} href={serviceHref(category)} className={`shrink-0 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${active ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white hover:border-[#496958] hover:bg-[#edf3e7]"}`}>{category}</Link>
-            );
-          })}
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="mobile-scroll-row -ml-4 flex min-w-0 flex-1 snap-x gap-2 overflow-x-auto px-4 pb-3 sm:ml-0 sm:px-0">
+            {quickCategories.map((category) => {
+              const active = category === selectedCategory;
+              return (
+                <Link key={category} href={serviceHref(category)} className={`shrink-0 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${active ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white hover:border-[#496958] hover:bg-[#edf3e7]"}`}>{category}</Link>
+              );
+            })}
+          </div>
           <ServiceFiltersMenu initiallyOpen={showFilters}>
             <summary className="list-none rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-sm font-semibold transition hover:border-[#496958] hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">More filters <span className="inline-block transition group-open:rotate-180">⌄</span></summary>
             <div className="fixed inset-x-3 bottom-3 z-[80] max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_20px_55px_rgba(24,49,38,.15)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-8 sm:mt-3 sm:max-h-[min(40rem,calc(100dvh-7rem))] sm:w-[620px] sm:p-6">
               <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={serviceHref(category)} className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><span>{SERVICE_CATEGORY_ICONS[category] ?? "✨"}</span>{category}</Link>)}</div>
+              <div className="mt-4 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={serviceHref(category)} className={`flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><span className="shrink-0">{SERVICE_CATEGORY_ICONS[category] ?? "✨"}</span><span className="min-w-0 break-words">{category}</span></Link>)}</div>
               <form action={`/services${resultsAnchor}`} className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                 {query && <input type="hidden" name="q" value={query} />}{location && delivery !== "REMOTE" && <input type="hidden" name="location" value={location} />}{delivery !== "REMOTE" && <input type="hidden" name="radius" value={radius} />}{delivery !== "ALL" && <input type="hidden" name="delivery" value={delivery} />}{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}{sort !== (delivery === "REMOTE" ? "newest" : "nearest") && <input type="hidden" name="sort" value={sort} />}
                 <label><span className="mb-2 block text-xs font-bold">Maximum price</span><select name="maxPrice" defaultValue={maxPrice ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any price</option><option value="50">Up to $50</option><option value="100">Up to $100</option><option value="250">Up to $250</option><option value="500">Up to $500</option></select></label>
@@ -157,12 +159,12 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           {maxDuration && <Link href={removeFilter("maxDuration")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Est. up to {maxDuration >= 240 ? maxDuration === 480 ? "full day" : "half day" : `${maxDuration / 60} hr`} ×</Link>}
         </div>
 
-        <div id="service-listings" className="mt-8 flex scroll-mt-6 items-end justify-between gap-5 sm:scroll-mt-8">
-          <div>
+        <div id="service-listings" className="mt-8 flex scroll-mt-6 flex-col items-stretch gap-4 sm:scroll-mt-8 sm:flex-row sm:items-end sm:justify-between sm:gap-5">
+          <div className="min-w-0">
             <p className="text-sm text-[#6c7d74]">{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} found</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">{query ? `Results for “${query}”` : selectedCategory}</h2>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center"><SortSelect value={sort} remote={delivery === "REMOTE"} />{(query || selectedCategory !== "All services" || delivery !== "ALL" || maxPrice || maxDuration) && <Link href={clearFiltersHref} className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
+          <div className="flex min-w-0 flex-col items-start gap-2 sm:shrink-0 sm:flex-row sm:items-center"><SortSelect value={sort} remote={delivery === "REMOTE"} />{(query || selectedCategory !== "All services" || delivery !== "ALL" || maxPrice || maxDuration) && <Link href={clearFiltersHref} className="text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4">Clear filters</Link>}</div>
         </div>
 
         {filteredServices.length > 0 ? (

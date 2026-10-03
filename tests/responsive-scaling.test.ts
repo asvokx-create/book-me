@@ -70,3 +70,24 @@ test("upcoming service categories stay compact without collapsing their icons", 
   assert.match(categoryIcon, /shrink-0[^\"]*aspect-square/);
   assert.match(categoryIcon, /h-10 min-h-10 w-10 min-w-10/);
 });
+
+test("narrow marketplace controls preserve readable text and stack before they crowd", () => {
+  const home = read("components", "home-service-search.tsx");
+  const services = read("app", "services", "page.tsx");
+  const sort = read("components", "sort-select.tsx");
+  const filters = read("components", "service-filters-menu.tsx");
+  const css = read("app", "globals.css");
+
+  assert.match(home, /home-search-input flex flex-1/);
+  assert.match(css, /@media \(max-width: 360px\)[\s\S]*?\.home-search-input[\s\S]*?padding-inline: \.75rem/);
+  assert.match(css, /main > header a[\s\S]*?min-height: 2\.75rem/);
+  assert.match(css, /#all-filters:has\(details\[open\]\)[\s\S]*?z-index: 120/);
+  assert.match(services, /grid-cols-1 gap-2 min-\[400px\]:grid-cols-2 sm:grid-cols-3/);
+  assert.match(services, /mobile-scroll-row -ml-4 flex min-w-0 flex-1/);
+  assert.match(filters, /aria-label="Close filters"/);
+  assert.match(filters, /group-open:grid sm:group-open:hidden/);
+  assert.match(services, /flex min-w-0 items-center gap-2 rounded-xl/);
+  assert.match(services, /flex-col items-stretch gap-4[^"]*sm:flex-row[^"]*sm:items-end/);
+  assert.match(sort, /sort-control flex min-h-11 max-w-full/);
+  assert.match(sort, /sort-control-select min-w-0/);
+});

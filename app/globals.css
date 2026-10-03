@@ -1069,6 +1069,10 @@ main > section:nth-of-type(3) { animation-delay: 100ms; }
 
   .mobile-scroll-row::-webkit-scrollbar { display: none; }
 
+  #all-filters:has(details[open]) {
+    z-index: 120;
+  }
+
   .admin-action-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -1184,6 +1188,18 @@ html[data-theme="dark"] .expense-input:focus {
 @media (max-width: 360px) {
   .type-hero { font-size: 2.25rem; }
   .type-page-title { font-size: 1.9rem; }
+
+  .home-search-input {
+    padding-inline: .75rem !important;
+  }
+
+  .home-search-icon {
+    display: none;
+  }
+
+  .home-search-input input {
+    font-size: .9375rem !important;
+  }
 
   :where(main, footer) :where(a, button)[class*="px-6"],
   :where(main, footer) :where(a, button)[class*="px-7"],
@@ -2317,6 +2333,10 @@ html[data-theme="dark"] .account-page > header {
 
   main > header > div {
     min-height: 3.75rem;
+  }
+
+  main > header a {
+    min-height: 2.75rem;
   }
 
   :where(main, footer) :where(a, button)[class*="rounded-full"] {
