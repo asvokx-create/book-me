@@ -770,6 +770,36 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
   font-weight: 700;
 }
 
+.home-search-delivery {
+  background: #f6f8f3 !important;
+}
+
+.home-search-delivery-icon {
+  color: #285b43;
+  background: #e3efe5;
+}
+
+.home-search-delivery-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.home-search-delivery-select,
+.home-search-delivery-select:hover,
+.home-search-delivery-select:focus,
+.home-search-delivery-select:focus-visible {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  outline: none !important;
+}
+
+.home-search-delivery:focus-within {
+  border-color: rgba(18, 61, 45, .38) !important;
+  box-shadow: 0 0 0 3px rgba(91, 157, 112, .12);
+}
+
 .home-search-location {
   border-radius: 999px;
   background: rgba(255, 255, 255, .58);
@@ -1912,6 +1942,24 @@ html[data-theme="dark"] .home-search-input input::placeholder {
 html[data-theme="dark"] .home-search-icon {
   color: var(--brand) !important;
   background: var(--brand-soft);
+}
+
+html[data-theme="dark"] .home-search-delivery {
+  border-color: var(--border) !important;
+  background: var(--input) !important;
+}
+
+html[data-theme="dark"] .home-search-delivery-icon {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+html[data-theme="dark"] .home-search-delivery-select,
+html[data-theme="dark"] .home-search-delivery-select:hover,
+html[data-theme="dark"] .home-search-delivery-select:focus,
+html[data-theme="dark"] .home-search-delivery-select:focus-visible {
+  background: transparent !important;
+  color: var(--text-primary) !important;
 }
 
 html[data-theme="dark"] .home-search-location {
