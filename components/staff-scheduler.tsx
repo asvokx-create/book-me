@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-type Member = { id: string; name: string; status: "active" | "inactive" };
+type Member = { id: string; name: string; status: "pending" | "active" | "inactive" };
 type Slot = { memberId: string; weekday: number; startTime: string; endTime: string };
 type TimeOff = { id: string; memberId: string | null; startsAt: string; endsAt: string; reason: string };
 type Day = { weekday: number; enabled: boolean; startTime: string; endTime: string };

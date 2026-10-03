@@ -6,6 +6,8 @@ import { hasAdminAccess, isOwnerEmail } from "@/lib/admin";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getProviderAccess } from "@/lib/provider-access";
 import { enforceRateLimit } from "@/lib/request-security";
+import { sendTransactionalEmail } from "@/lib/email";
+import { totalTeamSeats } from "@/lib/team-seat-rules";
 
 async function currentProvider() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -48,23 +50,24 @@ export async function GET(request: Request) {
   const companyName = access.isOwner
     ? companies.includes(requestedCompany) ? requestedCompany : companies[0]
     : access.memberCompanyName ?? provider.business_name;
-  const result = await database.query<{ id: string; name: string; email: string; role: string; company_name: string; status: "active" | "inactive"; created_at: Date }>(
+  const result = await database.query<{ id: string; name: string; email: string; role: string; company_name: string; status: "pending" | "active"; created_at: Date }>(
     `SELECT id::text, name, email, role, company_name, status, created_at
-     FROM provider_team_members WHERE provider_id = $1 AND company_name = $2 AND status = 'active'
+     FROM provider_team_members WHERE provider_id = $1 AND company_name = $2 AND status IN ('pending', 'active')
      ORDER BY created_at`,
     [provider.id, companyName],
   );
-  const totalActive = await database.query<{ count: number }>(
-    "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",
+  const totalReserved = await database.query<{ count: number }>(
+    "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status IN ('pending', 'active')",
     [provider.id],
   );
-  const baseSeatLimit = PLAN_ENTITLEMENTS[provider.plan].teamSeatLimit;
+  const seatLimit = totalTeamSeats(provider.plan, provider.extra_team_seats);
   return NextResponse.json({
     members: result.rows.map((member) => ({ id: member.id, name: member.name, email: member.email, role: member.role, companyName: member.company_name, status: member.status, createdAt: member.created_at })),
     companies: access.isOwner ? companies : [companyName],
-    activeWorkerCount: totalActive.rows[0].count,
+    reservedWorkerCount: totalReserved.rows[0].count,
+    activeWorkerCount: totalReserved.rows[0].count,
     plan: provider.plan,
-    seatLimit: baseSeatLimit === null ? null : baseSeatLimit + (provider.plan === "pro" ? provider.extra_team_seats : 0),
+    seatLimit,
     extraTeamSeats: provider.plan === "pro" ? provider.extra_team_seats : 0,
     isOwner: access.isOwner,
     currentMemberId: access.memberId,
@@ -110,25 +113,25 @@ export async function POST(request: Request) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "Choose one of your active listing companies." }, { status: 400 });
     }
-    const baseSeats = PLAN_ENTITLEMENTS[provider.plan].teamSeatLimit;
-    const seats = baseSeats === null ? null : baseSeats + (provider.plan === "pro" ? provider.extra_team_seats : 0);
-    const countResult = await client.query<{ count: number; already_active: boolean }>(
+    const seats = totalTeamSeats(provider.plan, provider.extra_team_seats);
+    const countResult = await client.query<{ count: number; already_reserved: boolean }>(
       `SELECT count(DISTINCT lower(email))::int AS count,
-              COALESCE(bool_or(lower(email) = lower($2) AND status = 'active'), false) AS already_active
-       FROM provider_team_members WHERE provider_id = $1`,
+              COALESCE(bool_or(lower(email) = lower($2) AND status IN ('pending', 'active')), false) AS already_reserved
+       FROM provider_team_members WHERE provider_id = $1 AND status IN ('pending', 'active')`,
       [provider.id, email],
     );
     const workerLimit = seats === null ? null : Math.max(seats - 1, 0);
-    if (workerLimit !== null && !countResult.rows[0].already_active && countResult.rows[0].count >= workerLimit) {
+    if (workerLimit !== null && !countResult.rows[0].already_reserved && countResult.rows[0].count >= workerLimit) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: provider.plan === "starter" ? "Starter includes the owner only. Upgrade to Pro to add workers." : `Your ${PLAN_ENTITLEMENTS[provider.plan].name} plan currently allows ${workerLimit} workers. Add another employee seat from Billing for $0.50/month.`, upgradeRequired: true }, { status: 403 });
     }
-    const result = await client.query<{ id: string; created_at: Date }>(
-      `INSERT INTO provider_team_members (provider_id, company_id, company_name, name, email, role, user_id)
-       VALUES ($1, $2::uuid, $3, $4, $5, $6, (SELECT id FROM "user" WHERE lower(email) = lower($5) LIMIT 1))
-       ON CONFLICT (provider_id, company_name, email) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role, status = 'active',
+    const result = await client.query<{ id: string; status: "pending" | "active"; created_at: Date }>(
+      `INSERT INTO provider_team_members (provider_id, company_id, company_name, name, email, role, user_id, status)
+       VALUES ($1, $2::uuid, $3, $4, $5, $6, (SELECT id FROM "user" WHERE lower(email) = lower($5) AND "emailVerified" = true LIMIT 1), 'pending')
+       ON CONFLICT (provider_id, company_name, email) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role,
+         status = CASE WHEN provider_team_members.status = 'active' THEN 'active' ELSE 'pending' END,
          company_id = EXCLUDED.company_id, user_id = COALESCE(provider_team_members.user_id, EXCLUDED.user_id)
-       RETURNING id::text, created_at`,
+       RETURNING id::text, status, created_at`,
       [provider.id, validCompany.rows[0].id, companyName, name, email, role],
     );
     await client.query(
@@ -138,12 +141,24 @@ export async function POST(request: Request) {
        ON CONFLICT DO NOTHING`,
       [result.rows[0].id, validCompany.rows[0].id],
     );
-    const activeCount = await client.query<{ count: number }>(
-      "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",
+    const reservedCount = await client.query<{ count: number }>(
+      "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status IN ('pending', 'active')",
       [provider.id],
     );
     await client.query("COMMIT");
-    return NextResponse.json({ activeWorkerCount: activeCount.rows[0].count, member: { id: result.rows[0].id, name, email, role, companyName, status: "active", createdAt: result.rows[0].created_at } });
+    if (result.rows[0].status === "pending") {
+      await sendTransactionalEmail({
+        to: email,
+        subject: `${session.user.name} invited you to BubsBookings`,
+        heading: `Join ${companyName}`,
+        message: `${session.user.name} reserved a team seat for you. Sign in or create an account with this email address to accept the invitation and access the company workspace.`,
+        actionLabel: "Accept team invitation",
+        actionUrl: "/provider/dashboard/team",
+        emailType: "provider_team_invitation",
+        idempotencyKey: `provider-team-invite-${result.rows[0].id}`,
+      });
+    }
+    return NextResponse.json({ reservedWorkerCount: reservedCount.rows[0].count, activeWorkerCount: reservedCount.rows[0].count, member: { id: result.rows[0].id, name, email, role, companyName, status: result.rows[0].status, createdAt: result.rows[0].created_at } });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Team member add failed", error);
@@ -177,9 +192,9 @@ export async function DELETE(request: Request) {
   if (upcoming.rowCount) return NextResponse.json({ error: "Reassign this worker's upcoming bookings before removing them." }, { status: 409 });
   const result = await database.query("DELETE FROM provider_team_members WHERE id::text = $1 AND provider_id = $2", [memberId, provider.id]);
   if (!result.rowCount) return NextResponse.json({ error: "Team member not found." }, { status: 404 });
-  const activeCount = await database.query<{ count: number }>(
-    "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status = 'active'",
+  const reservedCount = await database.query<{ count: number }>(
+    "SELECT count(DISTINCT lower(email))::int AS count FROM provider_team_members WHERE provider_id = $1 AND status IN ('pending', 'active')",
     [provider.id],
   );
-  return NextResponse.json({ ok: true, activeWorkerCount: activeCount.rows[0].count });
+  return NextResponse.json({ ok: true, reservedWorkerCount: reservedCount.rows[0].count, activeWorkerCount: reservedCount.rows[0].count });
 }

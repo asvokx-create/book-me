@@ -79,6 +79,7 @@ type AccountDetails = {
     phone_verified: boolean; identity_verified: boolean; business_verified: boolean;
     screening_status: string; screening_score: number | null; screening_summary: string; screening_checked_at: string | null;
     stripe_subscription_status: string; stripe_charges_enabled: boolean; stripe_payouts_enabled: boolean;
+    extra_team_seats: number; reserved_worker_count: number;
     stripe_current_period_end: string | null; stripe_connected: boolean;
     provider_agreement_accepted_at: string | null; provider_agreement_version: string | null;
     pro_trial_used_at_test: string | null; pro_trial_used_at_live: string | null; created_at: string; updated_at: string;
@@ -595,6 +596,8 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             { label: "Safety screening", value: label(details.provider.screening_status) }, { label: "Screening score", value: details.provider.screening_score }, { label: "Screening checked", value: details.provider.screening_checked_at ? formatDate(details.provider.screening_checked_at) : null },
             { label: "Stripe connected", value: details.provider.stripe_connected }, { label: "Charges enabled", value: details.provider.stripe_charges_enabled }, { label: "Payouts enabled", value: details.provider.stripe_payouts_enabled },
             { label: "Subscription", value: label(details.provider.stripe_subscription_status) }, { label: "Current period ends", value: details.provider.stripe_current_period_end ? formatDate(details.provider.stripe_current_period_end) : null }, { label: "Live Pro trial used", value: details.provider.pro_trial_used_at_live ? formatDate(details.provider.pro_trial_used_at_live) : "No" },
+            { label: "Included team seats", value: details.provider.plan === "pro" ? 3 : PLAN_ENTITLEMENTS[details.provider.plan].teamSeatLimit ?? "Unlimited" }, { label: "Purchased extra seats", value: details.provider.extra_team_seats }, { label: "Seats used", value: details.provider.reserved_worker_count + 1 },
+            { label: "Extra seat cost", value: `$${(details.provider.extra_team_seats * 0.5).toFixed(2)}/month` },
             { label: "Provider agreement", value: details.provider.provider_agreement_accepted_at ? formatDate(details.provider.provider_agreement_accepted_at) : null }, { label: "Agreement version", value: details.provider.provider_agreement_version },
             { label: "Public profile", value: details.provider.public_profile_visible ? "Visible" : "Hidden" }, { label: "Public slug", value: details.provider.public_profile_slug }, { label: "Years experience", value: details.provider.years_experience },
           ]} />{details.provider.bio && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Business description</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{details.provider.bio}</p></div>}{details.provider.screening_summary && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Screening summary</p><p className="mt-2 text-sm leading-6">{details.provider.screening_summary}</p></div>}</div></details>}

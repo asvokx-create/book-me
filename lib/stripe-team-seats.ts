@@ -2,10 +2,9 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { getStripe, getStripeMode } from "@/lib/stripe";
+export { EXTRA_TEAM_SEAT_PRICE_CENTS, INCLUDED_PRO_TEAM_SEATS, MAX_EXTRA_TEAM_SEATS } from "@/lib/team-seat-rules";
+import { EXTRA_TEAM_SEAT_PRICE_CENTS } from "@/lib/team-seat-rules";
 
-export const INCLUDED_PRO_TEAM_SEATS = 3;
-export const EXTRA_TEAM_SEAT_PRICE_CENTS = 50;
-export const MAX_EXTRA_TEAM_SEATS = 97;
 export const TEAM_SEAT_LOOKUP_KEY = "bubs_pro_extra_team_seat_usd_monthly_v1";
 
 export function extraSeatQuantity(subscription: Stripe.Subscription) {
@@ -41,4 +40,3 @@ export async function getTeamSeatPriceId() {
   }, { idempotencyKey: `bubs-pro-team-seat-price-${getStripeMode()}` });
   return price.id;
 }
-

@@ -29,8 +29,16 @@
 
 ## Stripe webhook events
 
-- Keep the production webhook subscribed to Checkout payment events, subscription created/updated/deleted events, `customer.subscription.trial_will_end`, account updates, refunds, and failed PaymentIntents.
+- Keep the production webhook subscribed to Checkout payment events, subscription created/updated/deleted events, `customer.subscription.trial_will_end`, `invoice.paid`, `invoice.payment_failed`, account updates, refunds, and failed PaymentIntents.
 - Stripe sends `customer.subscription.trial_will_end` shortly before a Pro trial expires. Confirm the event is delivered so BubsBookings can send the provider an in-app and email renewal reminder.
+
+## Pro team seats
+
+- Pro includes three total seats: the provider owner plus two workers. Active workers and pending invitations both reserve a seat.
+- Extra seats are a licensed recurring subscription item at $0.50 USD per month. The application finds it using the Stripe lookup key `bubs_pro_extra_team_seat_usd_monthly_v1` and safely creates the product/price in the current Stripe mode if it does not exist. No dashboard-created price ID is required.
+- Seat increases and reductions use Stripe prorations. A reduction produces a Stripe billing credit/adjustment according to the subscription's invoice state; it does not issue an automatic cash refund.
+- A past-due invoice keeps Pro and team access during Stripe's retry grace period. An unpaid, ended, or deleted subscription returns the provider to Starter, stops the seat item with the parent subscription, and deactivates team access without deleting team records.
+- Before every release, test in Stripe test mode: 0, 1, 2, and 5 extra seats; an attempted reduction below reserved seats; a failed invoice followed by recovery; cancellation at period end; and the final subscription deletion webhook.
 
 ## Release check
 

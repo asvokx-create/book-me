@@ -43,6 +43,9 @@ export async function GET(
               business_verified, screening_status, screening_score, screening_summary,
               screening_checked_at, stripe_subscription_status, stripe_charges_enabled,
               stripe_payouts_enabled, stripe_current_period_end,
+              extra_team_seats,
+              (SELECT count(DISTINCT lower(member.email))::int FROM provider_team_members member
+               WHERE member.provider_id = provider_profiles.id AND member.status IN ('pending', 'active')) AS reserved_worker_count,
               (stripe_account_id IS NOT NULL) AS stripe_connected,
               provider_agreement_accepted_at, provider_agreement_version,
               pro_trial_used_at_test, pro_trial_used_at_live, public_profile_slug, public_profile_visible,

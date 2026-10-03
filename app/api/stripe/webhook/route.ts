@@ -6,6 +6,7 @@ import { getStripe, getStripeMode } from "@/lib/stripe";
 import { recordAnalytics } from "@/lib/analytics";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { extraSeatQuantity } from "@/lib/stripe-team-seats";
+import { subscriptionProvidesProAccess } from "@/lib/team-seat-rules";
 import { sendTransactionalEmail } from "@/lib/email";
 import { syncAffiliateCommissionForBooking } from "@/lib/affiliates";
 import { finalizeAffiliatePayoutTransfer, reverseAffiliatePayoutTransfer } from "@/lib/affiliate-payouts";
@@ -52,24 +53,57 @@ async function updateSubscription(subscription: Stripe.Subscription) {
   const providerId = subscription.metadata.providerId;
   const plan = subscription.metadata.plan;
   if (!providerId || !isPurchasableProviderPlan(plan)) return;
-  const active = subscription.status === "active" || subscription.status === "trialing";
+  const active = subscriptionProvidesProAccess(subscription.status);
   const periodEnd = subscription.status === "trialing"
     ? subscription.trial_end
     : subscription.items.data[0]?.current_period_end;
   const teamSeats = extraSeatQuantity(subscription);
   const mode = getStripeMode();
-  await database.query(`UPDATE provider_profiles SET
-      plan = CASE WHEN $4 THEN $3 ELSE 'starter' END,
-      stripe_subscription_id = $2,
-      stripe_subscription_checkout_session_id = NULL,
-      stripe_subscription_status = $5,
-      stripe_current_period_end = CASE WHEN $6::bigint IS NULL THEN NULL ELSE to_timestamp($6) END,
-      stripe_billing_mode = $7,
-      extra_team_seats = CASE WHEN $4 THEN $8 ELSE 0 END,
-      stripe_team_seat_item_id = CASE WHEN $4 THEN $9 ELSE NULL END,
-      pro_trial_used_at_test = CASE WHEN $5 = 'trialing' AND $7 = 'test' THEN COALESCE(pro_trial_used_at_test, now()) ELSE pro_trial_used_at_test END,
-      pro_trial_used_at_live = CASE WHEN $5 = 'trialing' AND $7 = 'live' THEN COALESCE(pro_trial_used_at_live, now()) ELSE pro_trial_used_at_live END
-    WHERE id::text = $1 AND plan <> 'owner'`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null, mode, teamSeats.quantity, teamSeats.itemId]);
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`UPDATE provider_profiles SET
+        plan = CASE WHEN $4 THEN $3 ELSE 'starter' END,
+        stripe_subscription_id = $2,
+        stripe_subscription_checkout_session_id = NULL,
+        stripe_subscription_status = $5,
+        stripe_current_period_end = CASE WHEN $6::bigint IS NULL THEN NULL ELSE to_timestamp($6) END,
+        stripe_billing_mode = $7,
+        extra_team_seats = CASE WHEN $4 THEN $8 ELSE 0 END,
+        stripe_team_seat_item_id = CASE WHEN $4 THEN $9 ELSE NULL END,
+        pro_trial_used_at_test = CASE WHEN $5 = 'trialing' AND $7 = 'test' THEN COALESCE(pro_trial_used_at_test, now()) ELSE pro_trial_used_at_test END,
+        pro_trial_used_at_live = CASE WHEN $5 = 'trialing' AND $7 = 'live' THEN COALESCE(pro_trial_used_at_live, now()) ELSE pro_trial_used_at_live END
+      WHERE id::text = $1 AND plan <> 'owner'`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null, mode, teamSeats.quantity, teamSeats.itemId]);
+    if (!active) {
+      await client.query("UPDATE provider_team_members SET status = 'inactive' WHERE provider_id::text = $1 AND status IN ('pending', 'active')", [providerId]);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+function invoiceSubscriptionId(invoice: Stripe.Invoice) {
+  const subscription = invoice.parent?.subscription_details?.subscription;
+  return idOf(subscription ?? null);
+}
+
+async function syncSubscriptionInvoice(invoice: Stripe.Invoice, paymentFailed: boolean) {
+  const subscriptionId = invoiceSubscriptionId(invoice);
+  if (!subscriptionId) return;
+  const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
+  if (subscription.metadata.kind !== "provider_subscription") return;
+  await updateSubscription(subscription);
+  if (!paymentFailed) return;
+  await database.query(`INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+    SELECT provider.user_id, 'billing', 'Pro payment needs attention',
+      'Stripe could not collect your Pro subscription payment. Update your payment method to avoid losing Pro and team access after the retry period.',
+      '/provider/dashboard/billing', $2
+    FROM provider_profiles provider WHERE provider.id::text = $1
+    ON CONFLICT (dedupe_key) DO NOTHING`, [subscription.metadata.providerId ?? "", `provider-invoice-failed-${invoice.id}`]);
 }
 
 async function notifyTrialWillEnd(subscription: Stripe.Subscription) {
@@ -430,12 +464,31 @@ async function processEvent(event: Stripe.Event) {
     case "customer.subscription.trial_will_end":
       await notifyTrialWillEnd(event.data.object);
       break;
+    case "invoice.paid":
+      await syncSubscriptionInvoice(event.data.object, false);
+      break;
+    case "invoice.payment_failed":
+      await syncSubscriptionInvoice(event.data.object, true);
+      break;
     case "customer.subscription.deleted": {
       const subscription = event.data.object;
-      await database.query(`UPDATE provider_profiles SET plan = 'starter', stripe_subscription_id = NULL,
-        stripe_subscription_checkout_session_id = NULL, stripe_subscription_status = $2,
-        stripe_current_period_end = NULL, extra_team_seats = 0, stripe_team_seat_item_id = NULL
-        WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $3 AND plan <> 'owner'`, [subscription.id, subscription.status, getStripeMode()]);
+      const client = await database.connect();
+      try {
+        await client.query("BEGIN");
+        const provider = await client.query<{ id: string }>(`UPDATE provider_profiles SET plan = 'starter', stripe_subscription_id = NULL,
+          stripe_subscription_checkout_session_id = NULL, stripe_subscription_status = $2,
+          stripe_current_period_end = NULL, extra_team_seats = 0, stripe_team_seat_item_id = NULL
+          WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $3 AND plan <> 'owner' RETURNING id::text`, [subscription.id, subscription.status, getStripeMode()]);
+        if (provider.rows[0]) {
+          await client.query("UPDATE provider_team_members SET status = 'inactive' WHERE provider_id::text = $1 AND status IN ('pending', 'active')", [provider.rows[0].id]);
+        }
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => undefined);
+        throw error;
+      } finally {
+        client.release();
+      }
       break;
     }
     case "account.updated": {

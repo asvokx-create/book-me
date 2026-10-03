@@ -12,15 +12,17 @@ export async function getProviderAccess() {
     `SELECT member.provider_id::text, member.id::text AS member_id, member.role, member.company_name
      FROM provider_team_members member
      JOIN provider_profiles provider ON provider.id = member.provider_id AND provider.is_active = true
-     WHERE member.status = 'active'
+     WHERE member.status IN ('pending', 'active')
        AND provider.user_id <> $1
+       AND $3::boolean = true
        AND (member.user_id = $1 OR (member.user_id IS NULL AND lower(member.email) = lower($2)))
      ORDER BY (member.user_id = $1) DESC, member.created_at LIMIT 1`,
-    [session.user.id, session.user.email],
+    [session.user.id, session.user.email, session.user.emailVerified === true],
   );
   const member = membership.rows[0];
   if (member) {
-    await database.query("UPDATE provider_team_members SET user_id = $1 WHERE id::text = $2 AND user_id IS NULL", [session.user.id, member.member_id]);
+    await database.query(`UPDATE provider_team_members SET user_id = $1, status = 'active'
+      WHERE id::text = $2 AND (user_id IS NULL OR user_id = $1)`, [session.user.id, member.member_id]);
     return { session, providerId: member.provider_id, isOwner: false as const, memberId: member.member_id, memberRole: member.role, memberCompanyName: member.company_name };
   }
 
