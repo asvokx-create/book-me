@@ -13,6 +13,15 @@ test("homepage delivery filter uses one consistent surface without browser selec
   assert.match(styles,/html\[data-theme="dark"\] \.home-search-delivery/);
 });
 
+test("desktop search bar uses the available hero width without crowding its controls",()=>{
+  const component=read("components","home-service-search.tsx");
+  assert.match(component,/w-full max-w-6xl/);
+  assert.match(component,/xl:min-w-\[300px\]/);
+  assert.match(component,/xl:min-w-\[220px\]/);
+  assert.match(component,/xl:min-w-\[365px\]/);
+  assert.doesNotMatch(component,/home-search-bar[^\n]*max-w-5xl/);
+});
+
 test("delivery filter uses matching icons for any, in-person, and remote modes",()=>{
   const component=read("components","home-service-search.tsx");
   assert.match(component,/function DeliveryIcon/);
