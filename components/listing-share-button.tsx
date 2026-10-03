@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import UiIcon from "@/components/ui-icon";
 import { canonicalListingUrl, listingShareDestinations, listingShareText, type ListingShareMethod } from "@/lib/listing-share";
+import { analyticsAllowed } from "@/components/analytics-consent";
 
 type ListingShareButtonProps = {
   serviceId?: string;
@@ -27,6 +28,7 @@ const eventByMethod: Record<ListingShareMethod, string> = {
 };
 
 function trackShare(target: { serviceId?: string; providerSlug?: string }, method: ListingShareMethod) {
+  if (!analyticsAllowed()) return;
   let anonymousId: string | undefined;
   try {
     anonymousId = window.localStorage.getItem("bubs-analytics-id") ?? undefined;

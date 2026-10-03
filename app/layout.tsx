@@ -8,6 +8,7 @@ import Script from "next/script";
 import { PreferencesProvider } from "@/components/preferences-provider";
 import InternalNavigationHistory from "@/components/internal-navigation-history";
 import AffiliateAttributionTracker from "@/components/affiliate-attribution-tracker";
+import { AnalyticsConsentManager } from "@/components/analytics-consent";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Suspense fallback={null}><AnalyticsTracker /><InternalNavigationHistory /><AffiliateAttributionTracker /></Suspense>
           <div id="site-content" tabIndex={-1} className="contents">{children}</div>
           <SiteFooter />
+          <AnalyticsConsentManager />
         </PreferencesProvider>
         <GoogleAnalytics />
       </body>

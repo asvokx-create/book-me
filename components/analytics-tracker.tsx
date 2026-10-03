@@ -2,13 +2,16 @@
 
 import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useAnalyticsConsent } from "@/components/analytics-consent";
 
 export default function AnalyticsTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const query = searchParams.toString();
+  const { consent } = useAnalyticsConsent();
 
   useEffect(() => {
+    if (consent !== "granted") return;
     let anonymousId = window.localStorage.getItem("bubs-analytics-id");
     if (!anonymousId) {
       anonymousId = window.crypto.randomUUID();
@@ -24,7 +27,7 @@ export default function AnalyticsTracker() {
       body: JSON.stringify({ eventName, anonymousId, path, metadata: serviceMatch ? { slug: serviceMatch[1] } : providerMatch ? { kind: providerMatch[1], slug: providerMatch[2] } : {} }),
       keepalive: true,
     });
-  }, [pathname, query]);
+  }, [consent, pathname, query]);
 
   return null;
 }

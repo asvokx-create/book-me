@@ -1,6 +1,7 @@
 import BrandLockup from "@/components/brand-lockup";
 import Link from "next/link";
 import BugReportButton from "@/components/bug-report-button";
+import { AnalyticsChoicesButton } from "@/components/analytics-consent";
 
 const marketplaceLinks = [
   ["Find services", "/services"],
@@ -85,7 +86,7 @@ export default function SiteFooter() {
 
         <div className="flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-[#7f9b8c] sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} BubsBookings. Built for local and remote work.</p>
-          <p>Connecting local communities across the United States</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><AnalyticsChoicesButton className="rounded-md font-semibold underline-offset-4 hover:text-white hover:underline focus-visible:text-white" /><p>Connecting local communities across the United States</p></div>
         </div>
       </div>
     </footer>

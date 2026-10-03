@@ -184,6 +184,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
 function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: string }) {
   const visual = getServiceVisual(service.category);
+  const businessHref = service.companySlug ? `/companies/${service.companySlug}` : service.providerProfileVisible ? `/providers/${service.providerSlug}` : null;
   const distanceLabel = typeof service.distanceMiles === "number"
     ? service.distanceMiles < 0.1 ? "In your city" : `${service.distanceMiles.toFixed(1)} mi away`
     : "";
@@ -199,7 +200,7 @@ function HomeServiceCard({ service, badge }: { service: ServiceListing; badge?: 
         <div className="p-5">
           <p className="text-xs font-bold uppercase tracking-[.13em] text-[#75847c]">{service.category}</p>
           <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0"><Link href={`/services/${service.slug}`}><h3 className="mt-1 truncate text-lg font-semibold">{service.title}</h3></Link><p className="mt-1 truncate text-sm text-zinc-500">Provider: {service.provider}</p>{service.providerProfileVisible && <Link href={`/providers/${service.providerSlug}`} className="mt-2 inline-flex text-xs font-bold text-[#4f6d5a] underline underline-offset-4">View provider profile</Link>}</div>
+          <div className="min-w-0"><Link href={`/services/${service.slug}`}><h3 className="mt-1 truncate text-lg font-semibold">{service.title}</h3></Link><p className="mt-1 truncate text-sm text-zinc-500">Provider: {service.provider}</p>{businessHref && <Link href={businessHref} className="mt-2 inline-flex text-xs font-bold text-[#4f6d5a] underline underline-offset-4">View {service.companySlug ? "business" : "provider"} profile</Link>}</div>
           <div className="shrink-0 text-right"><p className="font-bold">${service.price}</p><p className="text-xs text-zinc-500">starting</p></div>
         </div>
         <div className="mt-5 flex items-start gap-2 text-sm text-zinc-500"><UiIcon name={service.deliveryType === "REMOTE" ? "globe" : "map-pin"} className="mt-0.5 h-4 w-4 shrink-0" /><span>{service.deliveryType === "REMOTE" ? "Remote · Available online" : `${service.city}, ${service.state}${distanceLabel && ` · ${distanceLabel}`}`}{service.deliveryType === "BOTH" && " · Remote available"}</span></div>

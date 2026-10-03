@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import ReportUserButton from "@/components/report-user-button";
 import UiIcon from "@/components/ui-icon";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
+import { analyticsAllowed } from "@/components/analytics-consent";
 
 type BookingStatus = "requested" | "confirmed" | "completed" | "cancelled";
 type Booking = {
@@ -105,7 +106,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
       if (new URLSearchParams(window.location.search).get("payment") === "success") setNotice("Payment submitted through Stripe. Your receipt and payment status will appear after confirmation.");
       if (new URLSearchParams(window.location.search).get("payment") === "cancelled") {
         setNotice("Payment checkout was cancelled. Nothing was charged.");
-        void fetch("/api/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventName: "checkout_abandoned", path: window.location.pathname, metadata: { bookingId } }) });
+        if (analyticsAllowed()) void fetch("/api/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventName: "checkout_abandoned", path: window.location.pathname, metadata: { bookingId } }) });
       }
     }, 0);
     return () => window.clearTimeout(timer);

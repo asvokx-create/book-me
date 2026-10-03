@@ -21,6 +21,9 @@ export async function POST(request: Request) {
   const email = field(body, "email", 254).toLowerCase();
   const audience = field(body, "primaryAudience", 500);
   const plan = field(body, "promotionPlan", 2000);
+  if (body.partnerAgreementAccepted !== "true" && body.partnerAgreementAccepted !== true) {
+    return NextResponse.json({ error: "Review and accept the Partner Agreement before applying." }, { status: 400 });
+  }
   if (name.length < 2 || !/^\S+@\S+\.\S+$/.test(email) || audience.length < 10 || plan.length < 30) {
     return NextResponse.json({ error: "Add your name, a valid email, audience details, and a clear promotion plan." }, { status: 400 });
   }
@@ -32,8 +35,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Social and website links must be valid http or https URLs." }, { status: 400 });
   }
   const inserted = await database.query<{ id: string }>(`INSERT INTO affiliate_profiles (program_id, display_name, email,
-      website_url, youtube_url, instagram_url, tiktok_url, other_social_url, audience_size, primary_audience, promotion_plan, applicant_notes)
-    SELECT program.id, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+      website_url, youtube_url, instagram_url, tiktok_url, other_social_url, audience_size, primary_audience, promotion_plan, applicant_notes,
+      partner_agreement_accepted_at, partner_agreement_version)
+    SELECT program.id, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), '2026-10-03'
     FROM affiliate_programs program WHERE program.status = 'enabled' ORDER BY program.created_at ASC LIMIT 1
     ON CONFLICT (lower(email)) DO NOTHING RETURNING id::text`, [name, email, links.website, links.youtube, links.instagram,
     links.tiktok, links.other, field(body, "audienceSize", 80), audience, plan, field(body, "notes", 2000)]);
