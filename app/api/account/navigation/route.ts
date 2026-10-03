@@ -13,8 +13,7 @@ export async function GET() {
   const [isAdmin, affiliate] = await Promise.all([
     hasAdminAccess(session.user.id, session.user.email),
     database.query(`SELECT 1 FROM affiliate_profiles
-      WHERE (user_id=$1 OR (user_id IS NULL AND lower(email)=lower($2)))
-        AND status IN ('approved','active','paused') LIMIT 1`, [session.user.id, session.user.email]),
+      WHERE user_id=$1 AND status IN ('approved','active','paused') LIMIT 1`, [session.user.id]),
   ]);
 
   return NextResponse.json({

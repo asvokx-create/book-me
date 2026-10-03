@@ -13,12 +13,11 @@ export async function POST(request: Request) {
     if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "affiliate-stripe-connect", limit: 8 }))
       return NextResponse.json({ error: "Too many payout setup attempts. Please wait and try again." }, { status: 429 });
     const result = await database.query<{ id: string; display_name: string; email: string; status: string; stripe_account_id: string | null; stripe_connect_mode: "test" | "live" | null }>(`SELECT id::text,display_name,email,status,stripe_account_id,stripe_connect_mode
-      FROM affiliate_profiles WHERE user_id=$1 OR (user_id IS NULL AND lower(email)=lower($2))
-      ORDER BY created_at DESC LIMIT 1`, [session.user.id, session.user.email]);
+      FROM affiliate_profiles WHERE user_id=$1
+      ORDER BY created_at DESC LIMIT 1`, [session.user.id]);
     const affiliate = result.rows[0];
     if (!affiliate || !["approved","active","paused"].includes(affiliate.status))
       return NextResponse.json({ error: "Your partner account must be approved before setting up payouts." }, { status: 403 });
-    await database.query("UPDATE affiliate_profiles SET user_id=$1 WHERE id=$2::uuid AND user_id IS NULL", [session.user.id, affiliate.id]);
     const stripe = getStripe();
     const mode = getStripeMode();
     const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL;

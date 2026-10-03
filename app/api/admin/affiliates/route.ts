@@ -5,6 +5,7 @@ import { isSafeAffiliateCode, normalizeAffiliateCode } from "@/lib/affiliates";
 import { createAffiliatePayout, getAffiliateReserveHealth, sendAffiliatePayout } from "@/lib/affiliate-payouts";
 import { enforceRateLimit } from "@/lib/request-security";
 import { evaluateAffiliateMilestonesForAffiliate } from "@/lib/affiliate-milestones";
+import { sendTransactionalEmail } from "@/lib/email";
 
 const affiliateStatuses = new Set(["under_review","approved","active","paused","rejected","suspended","terminated"]);
 const commissionStatuses = new Set(["hold","approved","payable","rejected","disputed"]);
@@ -74,6 +75,15 @@ async function dashboard() {
       milestone_bonuses_enabled, active_provider_required_bookings, milestone_thresholds, milestone_bonus_cents
       FROM affiliate_programs ORDER BY created_at DESC`),
     database.query(`SELECT affiliate.id::text, affiliate.display_name, affiliate.email, affiliate.affiliate_code,
+      affiliate.user_id,affiliate.account_link_status,affiliate.account_link_review_note,
+      linked_account.name AS account_name,linked_account.email AS account_email,
+      linked_account."emailVerified" AS account_email_verified,
+      CASE WHEN linked_account.id IS NULL THEN 'not_linked'
+        WHEN EXISTS (SELECT 1 FROM account_restrictions restriction WHERE restriction.user_id=linked_account.id
+          AND restriction.status IN ('suspended','banned') AND (restriction.expires_at IS NULL OR restriction.expires_at>now())) THEN 'restricted'
+        ELSE 'active' END AS account_status,
+      (SELECT count(*)::int FROM "user" candidate WHERE lower(candidate.email)=lower(affiliate.email)) AS matching_account_count,
+      (SELECT count(*)::int FROM "user" candidate WHERE lower(candidate.email)=lower(affiliate.email) AND candidate."emailVerified"=true) AS matching_verified_account_count,
       affiliate.status, affiliate.website_url, affiliate.youtube_url, affiliate.instagram_url, affiliate.tiktok_url,
       affiliate.x_url, affiliate.facebook_url, affiliate.other_social_url, affiliate.media_kit_url, affiliate.portfolio_url,
       affiliate.primary_audience, affiliate.promotion_plan, affiliate.audience_size, affiliate.admin_notes,
@@ -121,7 +131,8 @@ async function dashboard() {
       (SELECT COALESCE(sum(commission.amount_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.status='payable') AS payable_cents,
       (SELECT COALESCE(sum(commission.amount_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.status='paid') AS paid_cents
       FROM affiliate_profiles affiliate LEFT JOIN affiliate_programs program ON program.id = affiliate.program_id
-      GROUP BY affiliate.id, program.id ORDER BY affiliate.applied_at DESC`),
+      LEFT JOIN "user" linked_account ON linked_account.id=affiliate.user_id
+      GROUP BY affiliate.id, program.id, linked_account.id ORDER BY affiliate.applied_at DESC`),
     database.query(`SELECT commission.id::text, commission.commission_type, commission.eligible_revenue_cents,
       commission.commission_rate_basis_points, commission.amount_cents, commission.status, commission.created_at,
       commission.payable_at, commission.booking_id::text, affiliate.display_name AS affiliate_name,
@@ -234,6 +245,7 @@ export async function PATCH(request: Request) {
   const action = typeof body.action === "string" ? body.action : "";
   const targetId = typeof body.targetId === "string" ? body.targetId : "";
   const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 1000) : "";
+  let approvalNotice: { email: string; userId: string; status: string } | null = null;
   if (action === "payout_send") {
     const result = await sendAffiliatePayout(targetId, session.user.id);
     return result.ok
@@ -250,7 +262,20 @@ export async function PATCH(request: Request) {
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    if (action === "affiliate_status") {
+    if (action === "affiliate_link_account") {
+      const result = await client.query<{ user_id: string }>(`UPDATE affiliate_profiles affiliate
+        SET user_id=account.id,account_link_status='linked',account_linked_at=now(),
+          account_link_review_note='Linked by an administrator using one exact verified-email match.'
+        FROM "user" account
+        WHERE affiliate.id::text=$1 AND affiliate.user_id IS NULL
+          AND lower(account.email)=lower(affiliate.email) AND account."emailVerified"=true
+          AND (SELECT count(*) FROM "user" candidate
+            WHERE lower(candidate.email)=lower(affiliate.email) AND candidate."emailVerified"=true)=1
+          AND NOT EXISTS (SELECT 1 FROM affiliate_profiles existing WHERE existing.user_id=account.id)
+        RETURNING affiliate.user_id`, [targetId]);
+      if (!result.rows[0]) throw new Error("LINK_UNSAFE");
+      await audit(session.user.id,"affiliate_account_linked","affiliate",targetId,{userId:result.rows[0].user_id,match:"exact_verified_email"},client);
+    } else if (action === "affiliate_status") {
       const status = typeof body.status === "string" ? body.status : "";
       if (!affiliateStatuses.has(status)) throw new Error("INVALID");
       const code = normalizeAffiliateCode(body.code);
@@ -258,6 +283,11 @@ export async function PATCH(request: Request) {
       const requestedProgramId = typeof body.programId === "string" ? body.programId : "";
       let reviewedTerms: ReturnType<typeof compensationTerms> = null;
       if (["approved","active"].includes(status)) {
+        const ownership = await client.query<{ user_id: string | null; account_link_status: string }>(
+          `SELECT user_id,account_link_status FROM affiliate_profiles WHERE id::text=$1 FOR UPDATE`, [targetId],
+        );
+        if (!ownership.rows[0]) throw new Error("NOT_FOUND");
+        if (!ownership.rows[0].user_id || ownership.rows[0].account_link_status !== "linked") throw new Error("ACCOUNT_REQUIRED");
         if (!requestedProgramId) throw new Error("PROGRAM");
         const selectedProgram = await client.query<{
           program_type:"standard"|"custom";activation_bonus_enabled:boolean;milestone_bonuses_enabled:boolean;
@@ -279,7 +309,7 @@ export async function PATCH(request: Request) {
         }
         if ((body.compensationConfigured === true || status === "approved") && !reviewedTerms) throw new Error("INVALID");
       }
-      const result = await client.query(`UPDATE affiliate_profiles SET status=$2, affiliate_code=CASE WHEN $3='' THEN affiliate_code ELSE $3 END,
+      const result = await client.query<{ email: string; user_id: string | null }>(`UPDATE affiliate_profiles SET status=$2, affiliate_code=CASE WHEN $3='' THEN affiliate_code ELSE $3 END,
         program_id=COALESCE($4::uuid, program_id), approved_at=CASE WHEN $2 IN ('approved','active') THEN COALESCE(approved_at,now()) ELSE approved_at END,
         activated_at=CASE WHEN $2='active' THEN COALESCE(activated_at,now()) ELSE activated_at END, admin_notes=CASE WHEN $5='' THEN admin_notes ELSE $5 END,
         compensation_type=COALESCE($6,compensation_type),activation_bonus_enabled_override=COALESCE($7,activation_bonus_enabled_override),
@@ -290,13 +320,14 @@ export async function PATCH(request: Request) {
         custom_campaign_starts_on=COALESCE($16::date,custom_campaign_starts_on),custom_campaign_ends_on=COALESCE($17::date,custom_campaign_ends_on),
         custom_campaign_notes=CASE WHEN $18='' THEN custom_campaign_notes ELSE $18 END,
         milestone_backfill_approved=CASE WHEN $2 IN ('approved','active') AND $8=true THEN true ELSE milestone_backfill_approved END
-        WHERE id::text=$1`, [targetId,status,code,requestedProgramId||null,reason,
+        WHERE id::text=$1 RETURNING email,user_id`, [targetId,status,code,requestedProgramId||null,reason,
         reviewedTerms?.compensationType??null,reviewedTerms?.activationBonusEnabled??null,reviewedTerms?.milestoneBonusesEnabled??null,
         reviewedTerms?.revenueShareEnabled??null,reviewedTerms?.customCampaignEnabled??null,reviewedTerms?.activationBonusCents??null,
         reviewedTerms?.revenueShareBasisPoints??null,reviewedTerms?.revenueShareDurationMonths??null,reviewedTerms?.minimumPayoutCents??null,
         reviewedTerms?.customCampaignAmountCents??null,reviewedTerms?.customCampaignStartsOn??null,reviewedTerms?.customCampaignEndsOn??null,
         reviewedTerms?.customCampaignNotes??""]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
+      if (status === "approved" && result.rows[0].user_id) approvalNotice={email:result.rows[0].email,userId:result.rows[0].user_id,status};
       if (reviewedTerms) await syncCompensationCampaign(client,targetId,requestedProgramId,code,reviewedTerms,session.user.id);
       await audit(session.user.id, "affiliate_status_changed", "affiliate", targetId, { status, code, programId: requestedProgramId||null, compensation:reviewedTerms, reason }, client);
     } else if (action === "campaign_status") {
@@ -400,12 +431,21 @@ export async function PATCH(request: Request) {
       await audit(session.user.id,"manual_adjustment_created","affiliate_commission",adjustment.rows[0].id,{affiliateId:targetId,amount,reason},client);
     } else throw new Error("INVALID");
     await client.query("COMMIT");
+    if (approvalNotice) await sendTransactionalEmail({
+      to:approvalNotice.email,userId:approvalNotice.userId,emailType:`partner_${approvalNotice.status}_${targetId}`,
+      idempotencyKey:`partner-${approvalNotice.status}-${targetId}`,subject:"Your BubsBookings Partner application was approved",
+      heading:"Welcome to the BubsBookings Partner Program",
+      message:"Your Partner application has been approved. Sign in to BubsBookings with the account you used to apply to access your Partner dashboard and referral tools.",
+      actionLabel:"Open Partner Dashboard",actionUrl:"/affiliate",
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     await client.query("ROLLBACK");
     const message = error instanceof Error ? error.message : "";
     if (message === "CODE") return NextResponse.json({ error: "Use a unique code with 3–32 letters, numbers, hyphens, or underscores." }, { status: 400 });
     if (message === "PROGRAM") return NextResponse.json({ error: "Choose an enabled affiliate program." }, { status: 400 });
+    if (message === "ACCOUNT_REQUIRED") return NextResponse.json({ error: "Link a verified BubsBookings account before approving this Partner application." }, { status: 409 });
+    if (message === "LINK_UNSAFE") return NextResponse.json({ error: "A single safe verified account match was not found. Review this application manually." }, { status: 409 });
     if (message === "MINIMUM") return NextResponse.json({ error: "The payable balance has not reached this partner's minimum payout." }, { status: 409 });
     if (message === "NOT_READY") return NextResponse.json({ error: "Complete and verify this partner's payment and tax readiness before creating a payout." }, { status: 409 });
     if (message === "NOT_FOUND") return NextResponse.json({ error: "That record is not available for this action." }, { status: 404 });

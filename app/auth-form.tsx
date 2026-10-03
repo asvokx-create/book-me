@@ -150,7 +150,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       return;
     }
     if (!(signUpData as { token?: string | null } | null)?.token) {
-      router.push("/check-email");
+      router.push(`/check-email?redirect=${encodeURIComponent(redirectTo)}`);
       return;
     }
     if (!rememberMe) {

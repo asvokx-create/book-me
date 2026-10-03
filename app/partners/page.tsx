@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import PartnerApplicationForm from "@/components/partner-application-form";
 import PartnerTermsLink from "@/components/partner-terms-link";
 import { STANDARD_PROVIDER_GROWTH_MILESTONES } from "@/lib/affiliate-milestone-config";
+import { auth, isEmailVerificationRequired } from "@/lib/auth";
+import { database } from "@/lib/database";
+import { safelyLinkHistoricalAffiliate, type AffiliateAccountState } from "@/lib/affiliate-account";
+
+export const dynamic = "force-dynamic";
 
 const title = "Partner Program";
 const description = "Apply to the BubsBookings Partner Program and earn from qualified service-provider referrals under clear program terms.";
@@ -44,7 +50,18 @@ const faqs = [
   ["How should I disclose the affiliate relationship?", "Clearly tell people that you may earn compensation when they use your link or code. Put the disclosure close to the promotion, use plain language, and do not hide it behind vague wording or a distant profile page."],
 ] as const;
 
-export default function PartnersPage() {
+export default async function PartnersPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  const accountResult = session ? await database.query<{ id: string; name: string; email: string; email_verified: boolean }>(
+    `SELECT id,name,email,"emailVerified" AS email_verified FROM "user" WHERE id=$1 LIMIT 1`, [session.user.id],
+  ) : null;
+  const account = accountResult?.rows[0] ?? null;
+  const affiliate = account ? await safelyLinkHistoricalAffiliate({ userId: account.id, email: account.email, emailVerified: account.email_verified }) : null;
+  const requiresVerification = Boolean(account && isEmailVerificationRequired() && !account.email_verified);
+  const applicationDestination = "/partners#apply";
+  const loggedOutApplyHref = `/login?redirect=${encodeURIComponent(applicationDestination)}`;
+  const heroHref = !account ? loggedOutApplyHref : affiliate && ["approved", "active", "paused"].includes(affiliate.status) ? "/affiliate" : "#apply";
+  const heroLabel = !account ? "Sign in to apply" : affiliate && ["approved", "active", "paused"].includes(affiliate.status) ? "Go to Partner Dashboard" : affiliate ? "View application status" : "Apply to become a partner";
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -56,7 +73,7 @@ export default function PartnersPage() {
     <header className="border-b border-[#183126]/10 bg-white/90"><div className="site-container flex items-center justify-between px-5 py-4"><Link href="/"><BrandLockup /></Link><div className="flex items-center gap-3"><Link href="/affiliate" className="hidden rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold sm:inline-flex">Partner sign in</Link><MobileSiteNav /></div></div></header>
 
     <section className="partners-hero overflow-hidden bg-[radial-gradient(circle_at_80%_10%,#d9e9d5,transparent_38%),linear-gradient(135deg,#f8f7f3,#f0f4ea)]"><div className="site-container grid gap-10 px-5 py-14 lg:grid-cols-[1.05fr_.95fr] lg:py-20">
-      <div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#64786d]">BubsBookings partner program</p><h1 className="mt-4 text-4xl font-bold tracking-[-.055em] sm:text-6xl">Help local providers grow. Earn when they succeed.</h1><p className="mt-5 max-w-2xl text-lg leading-8 text-[#5d7066]">For creators, community leaders, agencies, and affiliates who can introduce legitimate service providers to BubsBookings.</p><div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center"><a href="#apply" className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#eee25a] px-7 py-3.5 font-bold shadow-[0_10px_30px_rgba(202,185,42,.22)]">Apply to become a partner</a><Link href="/affiliate" className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-6 py-3.5 font-bold">Already a partner? Sign in</Link></div></div>
+      <div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#64786d]">BubsBookings partner program</p><h1 className="mt-4 text-4xl font-bold tracking-[-.055em] sm:text-6xl">Help local providers grow. Earn when they succeed.</h1><p className="mt-5 max-w-2xl text-lg leading-8 text-[#5d7066]">For creators, community leaders, agencies, and affiliates who can introduce legitimate service providers to BubsBookings.</p><p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[#64786d]">A BubsBookings account is required so your application, referral tools, earnings, and payouts stay securely connected to you.</p><div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center"><Link href={heroHref} className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#eee25a] px-7 py-3.5 font-bold shadow-[0_10px_30px_rgba(202,185,42,.22)]">{heroLabel}</Link>{!account?<Link href={`/signup?redirect=${encodeURIComponent(applicationDestination)}`} className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-6 py-3.5 font-bold">Create an account to apply</Link>:<Link href="/affiliate" className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-6 py-3.5 font-bold">Partner dashboard</Link>}</div></div>
       <aside className="partners-program-card rounded-[2rem] bg-[#123d2e] p-7 text-white shadow-xl" aria-labelledby="standard-partner-program-heading"><p id="standard-partner-program-heading" className="text-xs font-bold uppercase tracking-[.16em] text-[#a9c3b4]">Standard Partner Program</p><p className="partners-standard-intro mt-3 text-sm leading-6 text-[#d8e3dd]">Most Partners start with the standard program below. Some Partners may have custom compensation terms.</p><div className="partners-compensation-grid mt-5 grid gap-4 sm:grid-cols-2"><div><p className="partners-compensation-value text-4xl font-bold">$10</p><p className="mt-1 text-sm leading-6 text-[#c7d7cf]">Activation bonus when a referred provider completes their first qualified paid booking.</p></div><div><p className="partners-compensation-value text-4xl font-bold">20%</p><p className="mt-1 text-sm leading-6 text-[#c7d7cf]">Of eligible BubsBookings provider marketplace fee revenue for 6 months—not 20% of the provider&apos;s service price.</p></div></div><div className="partners-example mt-5 rounded-2xl bg-[#eee25a] p-5 text-[#183126]"><p className="text-xs font-bold uppercase tracking-[.14em]">Simple example</p><p className="mt-2 text-sm leading-6">A provider completes a <strong>$250 booking</strong>. If BubsBookings earns a <strong>$25 provider fee</strong>, your 20% share is <strong>$5</strong>.</p><p className="mt-2 text-sm leading-6">If it is the provider&apos;s first qualified booking, you also earn the <strong>$10 activation bonus</strong>.</p></div><p className="partners-custom-note mt-4 border-t border-white/15 pt-4 text-xs font-bold leading-5 text-[#e4ece7]">Standard terms apply unless your Partner account has custom compensation settings.</p><p className="partners-payout-note mt-2 text-xs leading-5 text-[#c5d4cc]">Earnings become payable after the required hold period. Refunds, disputes, or chargebacks may reduce or reverse earnings.</p><PartnerTermsLink /></aside>
     </div></section>
 
@@ -69,6 +86,21 @@ export default function PartnersPage() {
 
     <section className="site-container px-5 pb-14"><div className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">Partner program FAQ</p><h2 className="mt-2 text-3xl font-bold tracking-tight">Questions before you apply</h2><div className="mt-6 divide-y divide-[#183126]/10">{faqs.map(([question, answer]) => <details key={question} className="group py-4"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 font-bold marker:content-none">{question}<span aria-hidden="true" className="text-xl transition group-open:rotate-45">+</span></summary><p className="max-w-4xl pb-2 pr-8 text-sm leading-7 text-[#61736a]">{answer}</p></details>)}</div></div></section>
 
-    <section id="apply" className="site-container scroll-mt-6 px-5 pb-16"><PartnerApplicationForm /></section>
+    <section id="apply" className="site-container scroll-mt-6 px-5 pb-16"><PartnerApplicationGate account={account} affiliate={affiliate} requiresVerification={requiresVerification} loginHref={loggedOutApplyHref} signupHref={`/signup?redirect=${encodeURIComponent(applicationDestination)}`} /></section>
   </main>;
+}
+
+function PartnerApplicationGate({ account, affiliate, requiresVerification, loginHref, signupHref }: {
+  account: { id: string; name: string; email: string; email_verified: boolean } | null;
+  affiliate: AffiliateAccountState | null;
+  requiresVerification: boolean;
+  loginHref: string;
+  signupHref: string;
+}) {
+  if (!account) return <section aria-labelledby="partner-auth-heading" className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Account required</p><h2 id="partner-auth-heading" className="mt-2 text-3xl font-bold">Sign in before you apply</h2><p className="mt-3 max-w-2xl text-sm leading-7 text-[#687970]">Your Partner application must belong to the same BubsBookings account that will receive dashboard access, referral tools, earnings records, tax readiness, and payout tracking.</p><div className="mt-6 flex flex-col gap-3 sm:flex-row"><Link href={loginHref} className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#eee25a] px-6 py-3 font-bold">Sign in to apply</Link><Link href={signupHref} className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-6 py-3 font-bold">Create an account</Link></div></section>;
+  if (requiresVerification) return <section role="status" aria-labelledby="partner-verification-heading" className="rounded-[2rem] border border-[#c4a72c]/30 bg-[#fff8d8] p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#765b12]">Email verification required</p><h2 id="partner-verification-heading" className="mt-2 text-3xl font-bold">Verify your email before applying</h2><p className="mt-3 max-w-2xl text-sm leading-7 text-[#687970]">We need to verify <strong>{account.email}</strong> before this account can own a Partner application.</p><Link href="/account/security" className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#183126] px-6 py-3 font-bold text-white">Open account security</Link></section>;
+  if (!affiliate) return <PartnerApplicationForm account={{ name: account.name, email: account.email }} />;
+  const approved = ["approved", "active", "paused"].includes(affiliate.status);
+  const pending = ["applied", "under_review"].includes(affiliate.status);
+  return <section role="status" aria-labelledby="partner-existing-heading" className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Partner application</p><h2 id="partner-existing-heading" className="mt-2 text-3xl font-bold">{approved ? "Your Partner account is ready" : pending ? "Your application is under review" : affiliate.status === "suspended" ? "Your Partner account is suspended" : "Your application status"}</h2><p className="mt-3 max-w-2xl text-sm leading-7 text-[#687970]">{approved ? "Use the same BubsBookings account to access your Partner terms, referral tools, earnings, tax readiness, and payout setup." : pending ? "BubsBookings is reviewing your application. You cannot submit another application while this one is pending." : affiliate.status === "rejected" ? "This application was not approved. Contact support before submitting another application." : "A new application cannot be submitted for this account while this Partner record is in its current state."}</p><div className="mt-6 flex flex-col gap-3 sm:flex-row">{approved?<><Link href="/affiliate" className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#eee25a] px-6 py-3 font-bold">Go to Partner Dashboard</Link><Link href="/affiliate#partner-terms" className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 px-6 py-3 font-bold">View my Partner terms</Link></>:<Link href="/support" className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 px-6 py-3 font-bold">Contact support</Link>}</div></section>;
 }

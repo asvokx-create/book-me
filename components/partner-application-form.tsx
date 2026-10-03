@@ -13,7 +13,7 @@ function ToggleOptions({ legend, name, options }: { legend: string; name: string
   return <fieldset><legend className="text-sm font-bold">{legend}</legend><div className="mt-3 grid gap-2 sm:grid-cols-2">{options.map(option => <label key={option} className={optionClass}><input name={name} type="checkbox" value={option} className="h-5 w-5 shrink-0 accent-[#183126]"/><span>{option}</span></label>)}</div></fieldset>;
 }
 
-export default function PartnerApplicationForm() {
+export default function PartnerApplicationForm({ account }: { account: { name: string; email: string } }) {
   const [status, setStatus] = useState<"idle" | "saving" | "sent">("idle");
   const [error, setError] = useState("");
   const [audienceSize, setAudienceSize] = useState("");
@@ -41,9 +41,12 @@ export default function PartnerApplicationForm() {
   if (status === "sent") return <div className="rounded-[2rem] border border-[#8eaa91] bg-[#edf5e9] p-7"><h2 className="text-2xl font-bold">Application received</h2><p className="mt-2 leading-7 text-[#5d7066]">{customRequested ? "We received your custom partnership request and will review the audience and promotion information you provided." : "We will review your audience, promotion plan, and fit for the Standard Partner Program."} Applying does not automatically approve or activate a Partner account.</p></div>;
   return <form onSubmit={submit} className="rounded-[2rem] border border-[#183126]/10 bg-[#f7f7f2] p-5 sm:p-8">
     <h2 className="text-2xl font-bold">Apply to become a partner</h2><p className="mt-2 text-sm leading-6 text-[#687970]">Tell us who you reach and how you plan to introduce legitimate service providers to BubsBookings.</p>
+    <section aria-labelledby="partner-account-heading" className="mt-5 rounded-2xl border border-[#183126]/10 bg-white p-4">
+      <p id="partner-account-heading" className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Applying as</p>
+      <p className="mt-2 font-bold">{account.name}</p><p className="mt-1 break-all text-sm text-[#687970]">{account.email}</p>
+      <p className="mt-2 text-xs leading-5 text-[#718078]">This verified BubsBookings account will own the Partner dashboard, referral tools, earnings, and payout setup.</p>
+    </section>
     <div className="mt-6 grid gap-4 sm:grid-cols-2">
-      <label className="font-bold">Name<input name="name" required autoComplete="name" maxLength={120} className={`${input} mt-2`} /></label>
-      <label className="font-bold">Email<input name="email" required type="email" autoComplete="email" maxLength={254} className={`${input} mt-2`} /></label>
       <label className="font-bold">Website <span className="font-normal text-[#718078]">(optional)</span><input name="website" type="url" inputMode="url" maxLength={500} className={`${input} mt-2`} /></label>
       <label className="font-bold">Audience size <span className="font-normal text-[#718078]">(optional)</span><input name="audienceSize" value={audienceSize} onChange={(event) => updateAudienceSize(event.target.value)} inputMode="numeric" autoComplete="off" className={`${input} mt-2`} placeholder="e.g. 10,000" /></label>
       <label className="font-bold">YouTube <span className="font-normal text-[#718078]">(optional)</span><input name="youtube" type="url" inputMode="url" maxLength={500} className={`${input} mt-2`} /></label>

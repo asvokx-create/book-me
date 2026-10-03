@@ -52,7 +52,7 @@ test("affiliate attribution is active-only, single-use, and blocks self-referral
   assert.match(engine, /affiliate\.status = 'active'/);
   assert.match(engine, /used_referral\.click_id = click\.id/);
   assert.match(engine, /affiliate\.user_id = referred_owner\.id/);
-  assert.match(engine, /lower\(affiliate\.email\) = lower\(referred_owner\.email\)/);
+  assert.doesNotMatch(engine, /lower\(affiliate\.email\) = lower\(referred_owner\.email\)/);
   assert.match(onboarding, /affiliateAttributionLocked/);
   assert.match(onboarding, /response\.cookies\.delete\(AFFILIATE_COOKIE\)/);
 });

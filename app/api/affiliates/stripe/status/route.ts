@@ -11,8 +11,8 @@ export async function GET(request: Request) {
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "affiliate-stripe-status", limit: 20 }))
     return NextResponse.json({ error: "Too many Stripe status checks. Please wait and try again." }, { status: 429 });
   const result = await database.query<{ id: string; stripe_account_id: string | null; stripe_connect_mode: "test" | "live" | null; tax_onboarding_status: string }>(`SELECT id::text,stripe_account_id,stripe_connect_mode,tax_onboarding_status
-    FROM affiliate_profiles WHERE user_id=$1 OR (user_id IS NULL AND lower(email)=lower($2))
-    ORDER BY created_at DESC LIMIT 1`, [session.user.id, session.user.email]);
+    FROM affiliate_profiles WHERE user_id=$1
+    ORDER BY created_at DESC LIMIT 1`, [session.user.id]);
   const affiliate = result.rows[0];
   if (!affiliate) return NextResponse.json({ connected: false, state: "not_available" });
   const mode = getStripeMode();

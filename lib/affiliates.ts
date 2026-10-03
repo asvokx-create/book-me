@@ -66,7 +66,7 @@ export async function lockAffiliateAttribution(input: {
             SELECT 1 FROM provider_profiles referred_provider
             JOIN "user" referred_owner ON referred_owner.id = referred_provider.user_id
             WHERE referred_provider.id = $2::uuid
-              AND (affiliate.user_id = referred_owner.id OR lower(affiliate.email) = lower(referred_owner.email))
+              AND affiliate.user_id = referred_owner.id
           ) LIMIT 1`, [manualCode, input.providerId])
     : token
       ? await input.client.query<{
@@ -98,7 +98,7 @@ export async function lockAffiliateAttribution(input: {
               SELECT 1 FROM provider_profiles referred_provider
               JOIN "user" referred_owner ON referred_owner.id = referred_provider.user_id
               WHERE referred_provider.id = $2::uuid
-                AND (affiliate.user_id = referred_owner.id OR lower(affiliate.email) = lower(referred_owner.email))
+                AND affiliate.user_id = referred_owner.id
             )
           ORDER BY click.created_at DESC LIMIT 1`, [token, input.providerId])
       : null;
