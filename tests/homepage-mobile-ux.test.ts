@@ -24,7 +24,8 @@ test("phone homepage removes desktop bulk before discovery", () => {
   assert.match(home, /home-header-account/);
   assert.match(home, /home-category-grid/);
   assert.match(css, /@media \(max-width: 639px\)[\s\S]*?\.home-header-account \{ display: none; \}/);
-  assert.match(css, /\.home-hero-points > span:nth-child\(n\+2\) \{ display: none; \}/);
+  assert.match(css, /\.home-hero-points > span \{ display: flex;/);
+  assert.doesNotMatch(css, /\.home-hero-points > span:nth-child\(n\+2\) \{ display: none; \}/);
   assert.match(css, /\.home-request-banner \{ display: none !important; \}/);
   assert.match(css, /\.home-discovery \{[\s\S]*?padding-top: 1\.8rem/);
 });
@@ -35,7 +36,7 @@ test("mobile category and listing grids cannot force horizontal overflow", () =>
 
   assert.match(css, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 9\.5rem\), 1fr\)\)/);
   assert.match(css, /\.home-category-card \{[\s\S]*?grid-template-columns: 2\.5rem minmax\(0, 1fr\)/);
-  assert.match(css, /\.home-service-card \{[\s\S]*?grid-template-columns: 7\.25rem minmax\(0, 1fr\)/);
+  assert.match(css, /\.home-service-card \{[\s\S]*?grid-template-columns: minmax\(0, 43\.5%\) minmax\(0, 56\.5%\)/);
   assert.match(icon, /shrink-0[\s\S]*?aspect-square/);
   assert.doesNotMatch(css, /\.home-(?:category|service)-card[^}]*width:\s*100vw/);
 });
@@ -43,7 +44,7 @@ test("mobile category and listing grids cannot force horizontal overflow", () =>
 test("homepage listing photos reserve their layout and lazy-load below the fold", () => {
   const home = read("app", "page.tsx");
   assert.match(home, /<Image src=\{service\.imageUrls\[0\]\}/);
-  assert.match(home, /fill loading="lazy" unoptimized sizes="\(max-width: 639px\) 116px/);
+  assert.match(home, /fill loading="lazy" unoptimized sizes="\(max-width: 340px\) calc\(100vw - 32px\), \(max-width: 639px\) 44vw/);
   assert.match(home, /className="object-cover"/);
 });
 

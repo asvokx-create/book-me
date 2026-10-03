@@ -65,10 +65,29 @@ test("upcoming service categories stay compact without collapsing their icons", 
   assert.match(css, /grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 11\.75rem\), 1fr\)\)/);
   assert.match(categoryCard, /home-upcoming-category[^\"]*min-h-12[^\"]*min-w-0[^\"]*gap-2[^\"]*rounded-xl/);
   assert.match(categoryCard, /text-\[13px\][^\"]*sm:text-sm/);
-  assert.match(categoryCard, /min-w-0 flex-1 whitespace-normal break-words/);
+  assert.match(categoryCard, /home-upcoming-label min-w-0 flex-1/);
   assert.doesNotMatch(categoryCard, /whitespace-nowrap/);
   assert.match(categoryIcon, /shrink-0[^\"]*aspect-square/);
   assert.match(categoryIcon, /h-10 min-h-10 w-10 min-w-10/);
+  assert.match(css, /@media \(min-width: 480px\) and \(max-width: 639px\)[\s\S]*?\.home-upcoming-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.home-upcoming-label[\s\S]*?white-space: normal;[\s\S]*?word-break: normal;[\s\S]*?overflow-wrap: normal/);
+});
+
+test("iPhone layouts keep trust points, listing media, and service details readable", () => {
+  const home = read("app", "page.tsx");
+  const listing = read("app", "services", "[slug]", "page.tsx");
+  const css = read("app", "globals.css");
+
+  assert.doesNotMatch(css, /home-hero-points > span:nth-child\(n\+2\)[^{]*\{[^}]*display:\s*none/);
+  assert.match(css, /\.home-hero-points[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.home-service-card[\s\S]*?grid-template-columns: minmax\(0, 43\.5%\) minmax\(0, 56\.5%\)/);
+  assert.match(home, /\(max-width: 340px\) calc\(100vw - 32px\)[^"\n]*\(max-width: 639px\) 44vw/);
+  assert.match(listing, /service-detail-meta-primary/);
+  assert.match(listing, /service-detail-provider/);
+  assert.match(listing, /service-detail-trust/);
+  assert.match(listing, /service-detail-contact/);
+  assert.match(listing, /<UiIcon name="map-pin"/);
+  assert.match(css, /\.service-detail-contact \{ width: 100%; \}/);
 });
 
 test("narrow marketplace controls preserve readable text and stack before they crowd", () => {

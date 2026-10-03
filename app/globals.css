@@ -945,6 +945,21 @@ html[data-theme="dark"] .location-apply-button:disabled {
   justify-self: end;
 }
 
+.service-detail-meta,
+.service-detail-meta-primary,
+.service-detail-provider,
+.service-detail-trust {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem 1.25rem;
+}
+
+.service-detail-meta { gap: .75rem 1.25rem; }
+.service-detail-map-link { display: inline-flex; min-width: 0; align-items: center; gap: .35rem; }
+.service-detail-contact { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; }
+
 .marketing-listing-select {
   min-height: 4.15rem !important;
   border-color: rgba(238, 226, 90, .5) !important;
@@ -2472,11 +2487,16 @@ html[data-theme="dark"] .account-page > header {
   }
 
   .home-hero-points {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .55rem .75rem !important;
     margin-top: .85rem !important;
-    font-size: .75rem !important;
+    font-size: .875rem !important;
+    line-height: 1.3;
   }
 
-  .home-hero-points > span:nth-child(n+2) { display: none; }
+  .home-hero-points > span { display: flex; min-width: 0; align-items: center; }
+  .home-hero-points > span:first-child { grid-column: 1 / -1; }
 
   .home-search-bar {
     margin-top: 1.15rem !important;
@@ -2598,8 +2618,21 @@ html[data-theme="dark"] .account-page > header {
   .home-upcoming-panel > div:first-child { align-items: start; gap: .45rem; }
   .home-upcoming-panel > div:first-child p:last-child { font-size: .75rem; line-height: 1.4; }
   .home-upcoming-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+    grid-template-columns: 1fr;
     margin-top: .75rem !important;
+  }
+
+  .home-upcoming-category {
+    width: 100%;
+    min-height: 3.25rem;
+    padding-inline: .75rem !important;
+    padding-block: .5rem !important;
+  }
+
+  .home-upcoming-label {
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: normal;
   }
 
   .home-marketplace > div:first-child,
@@ -2612,7 +2645,7 @@ html[data-theme="dark"] .account-page > header {
 
   .home-service-card {
     display: grid;
-    grid-template-columns: 7.25rem minmax(0, 1fr);
+    grid-template-columns: minmax(0, 43.5%) minmax(0, 56.5%);
     min-height: 9.25rem;
     border-radius: 1.25rem !important;
   }
@@ -2655,6 +2688,57 @@ html[data-theme="dark"] .account-page > header {
   .site-footer-mobile-group summary { display: flex; min-height: 2.75rem; list-style: none; align-items: center; justify-content: space-between; color: #d5e0da; font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; cursor: pointer; }
   .site-footer-mobile-group summary::-webkit-details-marker { display: none; }
   .site-footer-mobile-group[open] summary span:last-child { transform: rotate(45deg); }
+
+  .service-detail-account { display: none; }
+  .service-detail-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
+  .service-detail-actions { min-width: 0; }
+  .service-detail-actions > * { min-width: 0; }
+  .service-detail-layout { margin-top: 1.25rem !important; gap: 1.75rem !important; }
+  .service-detail-summary { padding-block: 1.5rem !important; }
+  .service-detail-title {
+    max-width: 100%;
+    font-size: clamp(1.9rem, 9.4vw, 2.35rem) !important;
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+  .service-detail-meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .9rem;
+    margin-top: 1.15rem !important;
+  }
+  .service-detail-meta-primary,
+  .service-detail-provider,
+  .service-detail-trust {
+    gap: .55rem .7rem;
+  }
+  .service-detail-provider { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .service-detail-map-link { max-width: 100%; padding-inline: .5rem !important; }
+  .service-detail-map-link > span { min-width: 0; }
+  .service-detail-trust > * { max-width: 100%; }
+  .service-detail-contact { width: 100%; }
+  .service-detail-meta + p { margin-top: .75rem !important; }
+  .service-detail-summary > section { margin-top: 1.5rem !important; }
+  .service-detail-summary > section p { font-size: 1rem !important; line-height: 1.65 !important; }
+}
+
+@media (min-width: 480px) and (max-width: 639px) {
+  .home-upcoming-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 360px) {
+  .home-hero-points { grid-template-columns: minmax(0, 1fr); }
+  .home-hero-points > span:first-child { grid-column: auto; }
+  .service-detail-meta-primary { display: grid; grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 340px) {
+  .home-service-card { grid-template-columns: minmax(0, 1fr); }
+  .home-service-card > a:first-child > div {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
 }
 
 @media (min-width: 640px) and (max-width: 1023px) {
