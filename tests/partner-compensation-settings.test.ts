@@ -35,7 +35,9 @@ test("admin reviews all compensation features and dashboard hides excluded rewar
   for(const field of ["activationBonusEnabled","milestoneBonusesEnabled","revenueShareEnabled","customCampaignEnabled"]){
     assert.match(admin,new RegExp(`name="${field}"`));
   }
-  assert.match(admin,/Required admin reason/);
+  assert.doesNotMatch(admin,/Required admin reason/);
+  assert.match(route,/if \(!terms\) throw new Error\("INVALID"\)/);
+  assert.doesNotMatch(route,/if \(!terms \|\| !reason\) throw new Error\("INVALID"\)/);
   assert.match(route,/affiliate_overrides_changed/);
   assert.match(dashboard,/profile\.milestone_bonuses_enabled&&milestoneProgress/);
   assert.doesNotMatch(dashboard,/custom_campaign_notes/);

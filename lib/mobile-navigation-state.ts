@@ -5,6 +5,7 @@ export type MobileNavigationState = {
   showAccount: boolean;
   showLogout: boolean;
   showProviderDashboard: boolean;
+  showAffiliateDashboard: boolean;
   showAdminDashboard: boolean;
 };
 
@@ -13,11 +14,13 @@ export function getMobileNavigationState({
   authenticated,
   role,
   isAdmin = false,
+  isAffiliate = false,
 }: {
   isPending: boolean;
   authenticated: boolean;
   role?: string | null;
   isAdmin?: boolean;
+  isAffiliate?: boolean;
 }): MobileNavigationState {
   if (isPending) {
     return {
@@ -27,6 +30,7 @@ export function getMobileNavigationState({
       showAccount: false,
       showLogout: false,
       showProviderDashboard: false,
+      showAffiliateDashboard: false,
       showAdminDashboard: false,
     };
   }
@@ -39,6 +43,7 @@ export function getMobileNavigationState({
       showAccount: false,
       showLogout: false,
       showProviderDashboard: false,
+      showAffiliateDashboard: false,
       showAdminDashboard: false,
     };
   }
@@ -50,6 +55,7 @@ export function getMobileNavigationState({
     showAccount: true,
     showLogout: true,
     showProviderDashboard: role === "provider",
+    showAffiliateDashboard: isAffiliate,
     showAdminDashboard: isAdmin,
   };
 }

@@ -24,6 +24,7 @@ test("logged-in customer navigation replaces login with account and logout", () 
   assert.equal(state.showAccount, true);
   assert.equal(state.showLogout, true);
   assert.equal(state.showProviderDashboard, false);
+  assert.equal(state.showAffiliateDashboard, false);
 });
 
 test("logged-in provider navigation includes the provider dashboard", () => {
@@ -36,6 +37,13 @@ test("logged-in admin navigation includes the admin dashboard", () => {
   const state = getMobileNavigationState({ isPending: false, authenticated: true, role: "customer", isAdmin: true });
   assert.equal(state.showAdminDashboard, true);
   assert.equal(state.showLogin, false);
+});
+
+test("only verified affiliates receive the partner dashboard shortcut", () => {
+  const affiliate = getMobileNavigationState({ isPending: false, authenticated: true, role: "customer", isAffiliate: true });
+  const customer = getMobileNavigationState({ isPending: false, authenticated: true, role: "customer", isAffiliate: false });
+  assert.equal(affiliate.showAffiliateDashboard, true);
+  assert.equal(customer.showAffiliateDashboard, false);
 });
 
 test("session transitions update mobile navigation without a reload", () => {

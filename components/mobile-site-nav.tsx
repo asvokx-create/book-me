@@ -21,7 +21,7 @@ export default function MobileSiteNav() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const [open, setOpen] = useState(false);
-  const [adminAccess, setAdminAccess] = useState<{ userId: string; isAdmin: boolean } | null>(null);
+  const [navigationAccess, setNavigationAccess] = useState<{ userId: string; isAdmin: boolean; isAffiliate: boolean } | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -31,12 +31,12 @@ export default function MobileSiteNav() {
     let active = true;
     const userId = session.user.id;
     void fetch("/api/account/navigation", { cache: "no-store" })
-      .then(async (response) => response.ok ? response.json() as Promise<{ authenticated: boolean; isAdmin: boolean }> : null)
+      .then(async (response) => response.ok ? response.json() as Promise<{ authenticated: boolean; isAdmin: boolean; isAffiliate: boolean }> : null)
       .then((result) => {
-        if (active) setAdminAccess({ userId, isAdmin: Boolean(result?.authenticated && result.isAdmin) });
+        if (active) setNavigationAccess({ userId, isAdmin: Boolean(result?.authenticated && result.isAdmin), isAffiliate: Boolean(result?.authenticated && result.isAffiliate) });
       })
       .catch(() => {
-        if (active) setAdminAccess({ userId, isAdmin: false });
+        if (active) setNavigationAccess({ userId, isAdmin: false, isAffiliate: false });
       });
     return () => { active = false; };
   }, [session?.user.id]);
@@ -60,7 +60,8 @@ export default function MobileSiteNav() {
     isPending,
     authenticated: Boolean(session),
     role: session?.user.role,
-    isAdmin: Boolean(session?.user.id && adminAccess?.userId === session.user.id && adminAccess.isAdmin),
+    isAdmin: Boolean(session?.user.id && navigationAccess?.userId === session.user.id && navigationAccess.isAdmin),
+    isAffiliate: Boolean(session?.user.id && navigationAccess?.userId === session.user.id && navigationAccess.isAffiliate),
   });
 
   async function signOut() {
@@ -88,6 +89,7 @@ export default function MobileSiteNav() {
           {navigationState.status === "loading" && <div aria-label="Loading account" className="grid gap-3" aria-live="polite"><span className="h-12 animate-pulse rounded-full bg-[#183126]/8" /><span className="h-12 animate-pulse rounded-full bg-[#183126]/8" /></div>}
           {navigationState.showAccount && <Link href="/account" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Account</Link>}
           {navigationState.showProviderDashboard && <Link href="/provider/dashboard" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Provider dashboard</Link>}
+          {navigationState.showAffiliateDashboard && <Link href="/affiliate" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Partner dashboard</Link>}
           {navigationState.showAdminDashboard && <Link href="/admin" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Admin dashboard</Link>}
           {navigationState.showLogout && <button type="button" disabled={signingOut} onClick={() => void signOut()} className="flex min-h-12 items-center justify-center rounded-full bg-[#eee25a] px-5 py-3 font-bold disabled:cursor-wait disabled:opacity-60">{signingOut ? "Logging out…" : "Log out"}</button>}
           {navigationState.showLogin && <Link href="/login" onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-5 py-3 font-bold">Log in</Link>}

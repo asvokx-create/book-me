@@ -307,7 +307,7 @@ export async function PATCH(request: Request) {
       await audit(session.user.id,"creator_campaign_status_changed","creator_campaign",targetId,{status,reason},client);
     } else if (action === "affiliate_overrides") {
       const terms=compensationTerms(body);
-      if (!terms || !reason) throw new Error("INVALID");
+      if (!terms) throw new Error("INVALID");
       const previous=await client.query<{milestone_bonuses_enabled:boolean;program_id:string;affiliate_code:string}>(`SELECT
         COALESCE(affiliate.milestone_bonuses_override,program.milestone_bonuses_enabled,false) AS milestone_bonuses_enabled,
         affiliate.program_id::text,affiliate.affiliate_code FROM affiliate_profiles affiliate
@@ -318,15 +318,15 @@ export async function PATCH(request: Request) {
         activation_bonus_override_cents=$7,revenue_share_override_basis_points=$8,revenue_share_duration_override_months=$9,
         minimum_payout_override_cents=$10,custom_campaign_amount_cents=$11,custom_campaign_starts_on=$12::date,
         custom_campaign_ends_on=$13::date,custom_campaign_notes=$14,
-        milestone_backfill_approved=CASE WHEN $4=true AND $15=false THEN false ELSE milestone_backfill_approved END,
-        admin_notes=concat_ws(E'\n',NULLIF(admin_notes,''),$16) WHERE id::text=$1`,
+        milestone_backfill_approved=CASE WHEN $4=true AND $15=false THEN false ELSE milestone_backfill_approved END
+        WHERE id::text=$1`,
       [targetId,terms.compensationType,terms.activationBonusEnabled,terms.milestoneBonusesEnabled,terms.revenueShareEnabled,
         terms.customCampaignEnabled,terms.activationBonusCents,terms.revenueShareBasisPoints,terms.revenueShareDurationMonths,
         terms.minimumPayoutCents,terms.customCampaignAmountCents,terms.customCampaignStartsOn,terms.customCampaignEndsOn,
-        terms.customCampaignNotes,previous.rows[0].milestone_bonuses_enabled,reason]);
+        terms.customCampaignNotes,previous.rows[0].milestone_bonuses_enabled]);
       if (!result.rowCount) throw new Error("NOT_FOUND");
       await syncCompensationCampaign(client,targetId,previous.rows[0].program_id,previous.rows[0].affiliate_code,terms,session.user.id);
-      await audit(session.user.id, "affiliate_overrides_changed", "affiliate", targetId, { compensation:terms, reason }, client);
+      await audit(session.user.id, "affiliate_overrides_changed", "affiliate", targetId, { compensation:terms }, client);
     } else if (action === "affiliate_milestones") {
       const enabled = body.enabled === true;
       const result = await client.query(`UPDATE affiliate_profiles SET milestone_bonuses_override=$2,
