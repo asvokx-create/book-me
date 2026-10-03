@@ -10,6 +10,7 @@ import { authClient } from "@/lib/auth-client";
 import ProfileAvatar from "@/components/profile-avatar";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { accountLocationSourceLabel } from "@/lib/account-location";
+import UiIcon from "@/components/ui-icon";
 
 type AdminSection = "overview" | "reports" | "moderation" | "accounts" | "listings" | "reviews" | "payouts" | "audit";
 type Stats = {
@@ -336,7 +337,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
             </button>
           </div>
 
-          {notice && <div role="status" className="mb-5 flex items-center justify-between rounded-2xl bg-[#e4f0e2] px-5 py-4 text-sm font-bold text-[#34704a]"><span>✓ {notice}</span><button onClick={() => setNotice("")} className="rounded-full px-2 py-1 hover:bg-white/60" aria-label="Dismiss">×</button></div>}
+          {notice && <div role="status" className="mb-5 flex items-center justify-between rounded-2xl bg-[#e4f0e2] px-5 py-4 text-sm font-bold text-[#34704a]"><span className="inline-flex items-center gap-2"><UiIcon name="check" className="h-4 w-4" />{notice}</span><button onClick={() => setNotice("")} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/60" aria-label="Dismiss"><UiIcon name="close" className="h-4 w-4" /></button></div>}
           {error && <div role="alert" className="mb-5 rounded-2xl bg-[#fff0e7] px-5 py-4 text-sm font-bold text-[#9a4e25]">{error}</div>}
           {loading && !data && <div className="rounded-[2rem] bg-white p-12 text-center text-[#718078]">Loading your admin console…</div>}
 

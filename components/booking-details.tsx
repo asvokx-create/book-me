@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ReportUserButton from "@/components/report-user-button";
+import UiIcon from "@/components/ui-icon";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 
 type BookingStatus = "requested" | "confirmed" | "completed" | "cancelled";
@@ -314,7 +315,7 @@ export default function BookingDetails({ bookingId, expectedRole }: { bookingId:
           <h2 className="text-lg font-bold">Manage this booking</h2>
           <div className="mt-5 grid gap-3">
             {booking.viewerRole === "worker" && <p className="rounded-2xl bg-[#edf2e8] p-4 text-sm leading-6 text-[#52665b]">This is an assigned company job. The company owner manages customer messages, booking changes, and payments.</p>}
-            {booking.viewerRole !== "worker" && <Link href={contactHref} className="rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]">✉ Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>}
+            {booking.viewerRole !== "worker" && <Link href={contactHref} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#eee25a] px-5 py-3 text-center text-sm font-bold transition hover:bg-[#e1d43d]"><UiIcon name="mail" className="h-4 w-4" />Contact {booking.viewerRole === "customer" ? "provider" : "customer"}</Link>}
             {booking.viewerRole === "customer" && booking.status === "confirmed" && booking.paymentStatus !== "paid" && booking.paymentStatus !== "refunded" && <div className="rounded-2xl border border-[#183126]/10 bg-[#f7f8f3] p-4"><p className="mb-3 font-bold">Pay before your appointment</p><div className="space-y-2 text-sm"><div className="flex justify-between gap-4 text-[#61736a]"><span>Service</span><span>${booking.price.toFixed(2)}</span></div><div className="flex justify-between gap-4 text-[#61736a]"><span>BubsBookings service fee</span><span>${booking.customerServiceFee.toFixed(2)}</span></div><div className="flex justify-between gap-4 border-t border-[#183126]/10 pt-2 font-bold"><span>Total due at checkout</span><span>${customerPaymentTotal.toFixed(2)}</span></div></div><button disabled={working} onClick={() => void payForBooking()} className="mt-4 w-full rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{working ? "Opening Stripe…" : `Pay $${customerPaymentTotal.toFixed(2)} securely`}</button><p className="mt-2 text-center text-xs leading-5 text-[#7b8982]">You are charged only when you complete payment in Stripe.</p></div>}
             {booking.viewerRole === "provider" && booking.status === "confirmed" && booking.paymentStatus !== "paid" && <p className="rounded-2xl bg-[#fff8cd] p-4 text-sm font-semibold text-[#6f642d]">Waiting for secure customer payment. You can mark the job complete after payment succeeds.</p>}
             {booking.paymentStatus === "paid" && <div className="rounded-2xl bg-[#e6f2e6] px-4 py-3 text-center text-sm font-bold text-[#34704a]">✓ {releaseCopy.label}</div>}

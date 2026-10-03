@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import UiIcon from "@/components/ui-icon";
 import { authClient } from "@/lib/auth-client";
 import { getMobileNavigationState } from "@/lib/mobile-navigation-state";
 
@@ -75,15 +76,15 @@ export default function MobileSiteNav() {
   }
 
   return <>
-    <button type="button" aria-label="Open navigation menu" aria-expanded={open} onClick={() => setOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/10 bg-white/75 text-xl font-bold shadow-sm lg:hidden">☰</button>
+    <button type="button" aria-label="Open navigation menu" aria-expanded={open} onClick={() => setOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/10 bg-white/75 shadow-sm lg:hidden"><UiIcon name="menu" className="h-5 w-5" /></button>
     {open && createPortal(<div className="fixed inset-0 z-[200] bg-[#10251c]/55 backdrop-blur-sm lg:hidden" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <nav aria-label="Mobile navigation" className="absolute inset-y-0 right-0 flex w-[min(88vw,22rem)] flex-col overflow-y-auto bg-[#f8f7f3] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] shadow-2xl">
         <div className="flex items-center justify-between gap-4 border-b border-[#183126]/10 pb-4">
           <p className="text-xs font-extrabold uppercase tracking-[.15em] text-[#66796f]">Explore BubsBookings</p>
-          <button ref={closeButtonRef} type="button" aria-label="Close navigation menu" onClick={() => setOpen(false)} className="grid h-11 w-11 place-items-center rounded-full bg-white text-2xl shadow-sm">×</button>
+          <button ref={closeButtonRef} type="button" aria-label="Close navigation menu" onClick={() => setOpen(false)} className="grid h-11 w-11 place-items-center rounded-full bg-white shadow-sm"><UiIcon name="close" className="h-5 w-5" /></button>
         </div>
         <div className="grid gap-2 py-5">
-          {links.map(([label, href]) => <Link key={href} href={href} onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-between rounded-2xl px-4 py-3 text-base font-bold hover:bg-[#e5eddf]">{label}<span aria-hidden="true">→</span></Link>)}
+          {links.map(([label, href]) => <Link key={href} href={href} onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-between rounded-2xl px-4 py-3 text-base font-bold hover:bg-[#e5eddf]">{label}<UiIcon name="arrow-right" className="h-4 w-4" /></Link>)}
         </div>
         <div className="mt-auto grid gap-3 border-t border-[#183126]/10 pt-5">
           {navigationState.status === "loading" && <div aria-label="Loading account" className="grid gap-3" aria-live="polite"><span className="h-12 animate-pulse rounded-full bg-[#183126]/8" /><span className="h-12 animate-pulse rounded-full bg-[#183126]/8" /></div>}

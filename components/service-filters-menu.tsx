@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import UiIcon from "@/components/ui-icon";
 
 export default function ServiceFiltersMenu({
   initiallyOpen,
@@ -35,7 +36,7 @@ export default function ServiceFiltersMenu({
   return (
     <details ref={detailsRef} open={initiallyOpen} className="group shrink-0">
       {children}
-      <button type="button" aria-label="Close filters" onClick={() => { if (detailsRef.current) detailsRef.current.open = false; }} className="fixed right-6 top-6 z-[130] hidden h-11 w-11 place-items-center rounded-full border border-[#183126]/15 bg-white text-xl font-bold shadow-lg group-open:grid sm:group-open:hidden">×</button>
+      <button type="button" aria-label="Close filters" onClick={() => { if (detailsRef.current) detailsRef.current.open = false; }} className="fixed right-6 top-6 z-[130] hidden h-11 w-11 place-items-center rounded-full border border-[#183126]/15 bg-white shadow-lg group-open:grid sm:group-open:hidden"><UiIcon name="close" className="h-5 w-5" /></button>
     </details>
   );
 }

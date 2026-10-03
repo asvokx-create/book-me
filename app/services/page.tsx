@@ -13,6 +13,7 @@ import ServiceDemandCapture from "@/components/service-demand-capture";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import SearchResultsAnalytics from "@/components/search-results-analytics";
 import ServiceSearchAssist from "@/components/service-search-assist";
+import UiIcon from "@/components/ui-icon";
 import { deliveryLabel, type ServiceDeliveryType } from "@/lib/service-delivery";
 
 export const dynamic = "force-dynamic";
@@ -105,7 +106,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
 
       <section style={{ animation: "none" }} className="services-hero relative z-40 border-b border-[#183126]/10">
         <div className="site-container-wide px-4 py-9 sm:px-8 sm:py-16">
-          <Link href="/" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#64776d] transition hover:text-[#183126]">← Home</Link>
+          <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#64776d] transition hover:text-[#183126]"><UiIcon name="arrow-left" className="h-4 w-4" />Home</Link>
           <p className="mt-8 text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">{delivery === "REMOTE" ? "Work with providers online" : location ? "Explore nearby" : "Explore services"}</p>
           <h1 className="type-page-title mt-2">Find the right help for the job.</h1>
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">{delivery === "REMOTE" ? "Compare remote providers, prices, and availability without a distance limit." : location ? `Compare local and online providers around ${location}.` : "Browse services available locally or online."}</p>
@@ -151,12 +152,12 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
 
         <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-bold">
           <span className="text-[#718078]">Active filters</span>
-          {location && delivery !== "REMOTE" && <Link href={removeFilter("location")} title="Reset location" className="rounded-full bg-[#edf3e7] px-3 py-2 transition hover:bg-[#dce9d8]">📍 {location} ×</Link>}
-          {location && delivery !== "REMOTE" && <Link href={removeFilter("radius")} title="Reset radius" className="rounded-full bg-[#edf3e7] px-3 py-2 transition hover:bg-[#dce9d8]">Within {radius} mi ×</Link>}
-          {selectedCategory !== "All services" && <Link href={removeFilter("category")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">{selectedCategory} ×</Link>}
-          {delivery !== "ALL" && <Link href={removeFilter("delivery")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">{deliveryLabel(delivery)} ×</Link>}
-          {maxPrice && <Link href={removeFilter("maxPrice")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Up to ${maxPrice} ×</Link>}
-          {maxDuration && <Link href={removeFilter("maxDuration")} className="rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Est. up to {maxDuration >= 240 ? maxDuration === 480 ? "full day" : "half day" : `${maxDuration / 60} hr`} ×</Link>}
+          {location && delivery !== "REMOTE" && <Link href={removeFilter("location")} title="Reset location" className="inline-flex items-center gap-1.5 rounded-full bg-[#edf3e7] px-3 py-2 transition hover:bg-[#dce9d8]"><UiIcon name="map-pin" className="h-3.5 w-3.5" />{location}<UiIcon name="close" className="h-3.5 w-3.5" /></Link>}
+          {location && delivery !== "REMOTE" && <Link href={removeFilter("radius")} title="Reset radius" className="inline-flex items-center gap-1.5 rounded-full bg-[#edf3e7] px-3 py-2 transition hover:bg-[#dce9d8]">Within {radius} mi<UiIcon name="close" className="h-3.5 w-3.5" /></Link>}
+          {selectedCategory !== "All services" && <Link href={removeFilter("category")} className="inline-flex items-center gap-1.5 rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">{selectedCategory}<UiIcon name="close" className="h-3.5 w-3.5" /></Link>}
+          {delivery !== "ALL" && <Link href={removeFilter("delivery")} className="inline-flex items-center gap-1.5 rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">{deliveryLabel(delivery)}<UiIcon name="close" className="h-3.5 w-3.5" /></Link>}
+          {maxPrice && <Link href={removeFilter("maxPrice")} className="inline-flex items-center gap-1.5 rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Up to ${maxPrice}<UiIcon name="close" className="h-3.5 w-3.5" /></Link>}
+          {maxDuration && <Link href={removeFilter("maxDuration")} className="inline-flex items-center gap-1.5 rounded-full bg-[#fff5b8] px-3 py-2 transition hover:bg-[#f4e77d]">Est. up to {maxDuration >= 240 ? maxDuration === 480 ? "full day" : "half day" : `${maxDuration / 60} hr`}<UiIcon name="close" className="h-3.5 w-3.5" /></Link>}
         </div>
 
         <div id="service-listings" className="mt-8 flex scroll-mt-6 flex-col items-stretch gap-4 sm:scroll-mt-8 sm:flex-row sm:items-end sm:justify-between sm:gap-5">

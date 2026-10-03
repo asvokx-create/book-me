@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useState } from "react";
+import UiIcon from "@/components/ui-icon";
 import { LISTING_IMAGE_MAX_BYTES, LISTING_IMAGE_MAX_MB } from "@/lib/listing-images";
 
 type ServiceImageManagerProps = {
@@ -76,9 +77,9 @@ export default function ServiceImageManager({ serviceId, initialImageUrls, compa
   return (
     <div className={compact ? "mt-4" : "mt-6 rounded-2xl border border-[#183126]/10 bg-[#faf9f5] p-5"}>
       {!compact && <div><p className="text-sm font-bold">Listing photos</p><p className="mt-1 text-xs leading-5 text-[#74827b]">Add up to 5 photos. Your first photo is the cover customers see.</p></div>}
-      {imageUrls.length > 0 && <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">{imageUrls.map((url, index) => <div key={url} role="img" aria-label={`Listing photo ${index + 1}`} style={{ backgroundImage: `url("${url}")` }} className="relative aspect-square rounded-xl bg-[#e4e9e2] bg-cover bg-center">{index === 0 && <span className="absolute bottom-1.5 left-1.5 rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold shadow-sm">Cover</span>}<button type="button" disabled={Boolean(removingUrl)} onClick={() => removeImage(url)} aria-label={`Remove listing photo ${index + 1}`} className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-white/95 text-base font-bold text-[#9a4e25] shadow-sm transition hover:bg-[#fde8dc] disabled:cursor-wait disabled:opacity-60">{removingUrl === url ? "…" : "×"}</button></div>)}</div>}
+      {imageUrls.length > 0 && <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">{imageUrls.map((url, index) => <div key={url} role="img" aria-label={`Listing photo ${index + 1}`} style={{ backgroundImage: `url("${url}")` }} className="relative aspect-square rounded-xl bg-[#e4e9e2] bg-cover bg-center">{index === 0 && <span className="absolute bottom-1.5 left-1.5 rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold shadow-sm">Cover</span>}<button type="button" disabled={Boolean(removingUrl)} onClick={() => removeImage(url)} aria-label={`Remove listing photo ${index + 1}`} className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-white/95 text-[#9a4e25] shadow-sm transition hover:bg-[#fde8dc] disabled:cursor-wait disabled:opacity-60">{removingUrl === url ? <span aria-hidden="true">…</span> : <UiIcon name="close" className="h-4 w-4" />}</button></div>)}</div>}
       <label className="mt-4 inline-flex cursor-pointer items-center rounded-full border border-[#183126]/15 bg-white px-4 py-2.5 text-xs font-bold transition hover:border-[#4d725d]">
-        {uploading ? "Uploading…" : imageUrls.length === 0 ? "+ Add photos" : "+ Add more photos"}
+        {uploading ? "Uploading…" : <><UiIcon name="plus" className="mr-2 h-4 w-4" />{imageUrls.length === 0 ? "Add photos" : "Add more photos"}</>}
         <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploading || imageUrls.length >= 5} onChange={addImages} className="sr-only" />
       </label>
       {imageUrls.length >= 5 && <p className="mt-2 text-xs text-[#74827b]">Photo limit reached.</p>}

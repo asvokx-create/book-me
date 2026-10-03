@@ -1,5 +1,7 @@
 "use client";
 
+import UiIcon from "@/components/ui-icon";
+
 import BrandLockup from "@/components/brand-lockup";
 import BackButton from "@/components/back-button";
 
@@ -265,7 +267,7 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
             <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">Admin case queue</p>
             <h1 className="mt-2 text-3xl font-bold sm:text-4xl">{title}</h1>
           </div>
-          <button type="button" onClick={() => void load()} className="rounded-full bg-white px-4 py-2 text-sm font-bold hover:bg-[#eee25a]">↻ Refresh</button>
+          <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold hover:bg-[#eee25a]"><UiIcon name="refresh" className="h-4 w-4" />Refresh</button>
         </div>
 
         {error && <p className="mt-5 rounded-2xl bg-[#fff0e8] p-4 text-sm font-bold text-[#964f2c]">{error}</p>}

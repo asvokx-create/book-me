@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { addDateOnlyDays, calendarGrid, formatDateOnly, monthForDate, shiftCalendarMonth, todayDateOnly, type CalendarMonth } from "@/lib/calendar-date";
+import UiIcon from "@/components/ui-icon";
 
 type BookingDatePickerProps = {
   serviceId: string;
@@ -184,9 +185,9 @@ export default function BookingDatePicker({ serviceId, value, onChange, disabled
     >
       <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Choose a preferred date" className="booking-calendar w-full overflow-y-auto rounded-[1.75rem] border border-[#183126]/12 bg-[#fffefa] p-4 text-[#183126] shadow-[0_26px_80px_rgba(10,39,27,.24)] sm:p-5" style={{ maxHeight: mobile ? "min(86dvh, 580px)" : position.maxHeight }}>
         <div className="booking-calendar-header flex items-center justify-between gap-3">
-          <button type="button" aria-label="Previous month" disabled={previousDisabled} onClick={() => setDisplayedMonth((month) => shiftCalendarMonth(month, -1))} className="grid h-11 w-11 place-items-center rounded-full border border-[#183126]/12 bg-white text-xl font-bold transition hover:border-[#476a56] hover:bg-[#eef3ea] disabled:cursor-not-allowed disabled:opacity-35">‹</button>
+          <button type="button" aria-label="Previous month" disabled={previousDisabled} onClick={() => setDisplayedMonth((month) => shiftCalendarMonth(month, -1))} className="grid h-11 w-11 place-items-center rounded-full border border-[#183126]/12 bg-white transition hover:border-[#476a56] hover:bg-[#eef3ea] disabled:cursor-not-allowed disabled:opacity-35"><UiIcon name="chevron-left" className="h-5 w-5" /></button>
           <h3 aria-live="polite" className="text-center text-lg font-bold tracking-tight">{monthLabel}</h3>
-          <button type="button" aria-label="Next month" onClick={() => setDisplayedMonth((month) => shiftCalendarMonth(month, 1))} className="grid h-11 w-11 place-items-center rounded-full border border-[#183126]/12 bg-white text-xl font-bold transition hover:border-[#476a56] hover:bg-[#eef3ea]">›</button>
+          <button type="button" aria-label="Next month" onClick={() => setDisplayedMonth((month) => shiftCalendarMonth(month, 1))} className="grid h-11 w-11 place-items-center rounded-full border border-[#183126]/12 bg-white transition hover:border-[#476a56] hover:bg-[#eef3ea]"><UiIcon name="chevron-right" className="h-5 w-5" /></button>
         </div>
         <div role="grid" aria-label={monthLabel} className="mt-4 grid grid-cols-7 gap-1 text-center">
           {weekdays.map((weekday) => <div key={weekday} role="columnheader" aria-label={weekday} className="py-1 text-[11px] font-bold uppercase tracking-wide text-[#77867e]">{weekday.slice(0, 1)}</div>)}
@@ -212,7 +213,7 @@ export default function BookingDatePicker({ serviceId, value, onChange, disabled
     <div>
       <button ref={triggerRef} type="button" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} onClick={() => { setDisplayedMonth(monthForDate(value)); setOpen((current) => !current); }} className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-left text-base outline-none transition hover:border-[#4d725d] hover:bg-white focus-visible:border-[#4d725d] disabled:cursor-not-allowed disabled:opacity-55">
         <span className={value ? "font-semibold" : "text-[#75837c]"}>{value ? formatDateOnly(value) : "Select a date"}</span>
-        <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#e5eddf]">▣</span>
+            <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#e5eddf]"><UiIcon name="calendar" className="h-4 w-4" /></span>
       </button>
       {typeof document !== "undefined" && calendar ? createPortal(calendar, document.body) : null}
     </div>

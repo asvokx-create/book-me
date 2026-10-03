@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import UiIcon from "@/components/ui-icon";
 import { canonicalListingUrl, listingShareDestinations, listingShareText, type ListingShareMethod } from "@/lib/listing-share";
 
 type ListingShareButtonProps = {
@@ -150,7 +151,7 @@ export default function ListingShareButton({ serviceId, slug, providerSlug, titl
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="listing-share-title" className="listing-share-dialog max-h-[calc(100dvh-1rem)] w-full overflow-y-auto rounded-t-[2rem] border border-[#183126]/10 bg-[#fbfaf6] p-5 text-[#183126] shadow-2xl sm:max-w-md sm:rounded-[2rem] sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#718078]">BubsBookings</p><h2 id="listing-share-title" className="mt-1 text-2xl font-bold">Share this {providerSlug ? "provider" : "service"}</h2><p className="mt-2 line-clamp-2 text-sm text-[#687970]">{title}</p></div>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close share menu" className="listing-share-close grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/15 bg-white text-xl">×</button>
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close share menu" className="listing-share-close grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/15 bg-white"><UiIcon name="close" className="h-5 w-5" /></button>
         </div>
 
         <button type="button" onClick={copyLink} className="listing-share-copy mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:bg-[#f6ea69] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#6b8d77]/40"><span aria-hidden="true">⧉</span>{copyState === "copied" ? "Link copied ✓" : "Copy link"}</button>
@@ -161,9 +162,9 @@ export default function ListingShareButton({ serviceId, slug, providerSlug, titl
         <div className="mt-3 grid grid-cols-2 gap-2">
           <a href={destinations.facebook} target="_blank" rel="noopener noreferrer" onClick={() => record("facebook")} className="listing-share-option"><span aria-hidden="true">f</span>Facebook</a>
           <a href={destinations.x} target="_blank" rel="noopener noreferrer" onClick={() => record("x")} className="listing-share-option"><span aria-hidden="true">𝕏</span>X</a>
-          <a href={destinations.whatsapp} target="_blank" rel="noopener noreferrer" onClick={() => record("whatsapp")} className="listing-share-option"><span aria-hidden="true">◉</span>WhatsApp</a>
+          <a href={destinations.whatsapp} target="_blank" rel="noopener noreferrer" onClick={() => record("whatsapp")} className="listing-share-option"><span aria-hidden="true" className="grid place-items-center"><UiIcon name="messages" className="h-4 w-4" /></span>WhatsApp</a>
           <a href={destinations.linkedin} target="_blank" rel="noopener noreferrer" onClick={() => record("linkedin")} className="listing-share-option"><span aria-hidden="true">in</span>LinkedIn</a>
-          <a href={destinations.email} onClick={() => record("email")} className="listing-share-option col-span-2"><span aria-hidden="true">✉</span>Email</a>
+          <a href={destinations.email} onClick={() => record("email")} className="listing-share-option col-span-2"><span aria-hidden="true" className="grid place-items-center"><UiIcon name="mail" className="h-4 w-4" /></span>Email</a>
         </div>
         <p className="mt-4 break-all rounded-xl bg-[#f0f2ed] px-3 py-2 text-xs text-[#687970]">{url}</p>
         <button type="button" onClick={() => setOpen(false)} className="mt-4 min-h-11 w-full rounded-full border border-[#183126]/15 px-5 py-2.5 text-sm font-bold">Close</button>
@@ -173,7 +174,7 @@ export default function ListingShareButton({ serviceId, slug, providerSlug, titl
   ) : null;
 
   return <>
-    <button ref={triggerRef} type="button" onClick={activate} aria-label={action === "share" ? `Share ${title}` : `Copy link for ${title}`} aria-haspopup={action === "share" ? "dialog" : undefined} aria-expanded={action === "share" ? open : undefined} className={`listing-share-trigger inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#183126]/15 bg-white px-4 py-2.5 text-sm font-bold text-[#183126] transition hover:border-[#597563] hover:bg-[#e5eddf] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/70 ${className}`}><span aria-hidden="true">{action === "share" ? "↗" : "⧉"}</span>{triggerLabel}</button>
+    <button ref={triggerRef} type="button" onClick={activate} aria-label={action === "share" ? `Share ${title}` : `Copy link for ${title}`} aria-haspopup={action === "share" ? "dialog" : undefined} aria-expanded={action === "share" ? open : undefined} className={`listing-share-trigger inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#183126]/15 bg-white px-4 py-2.5 text-sm font-bold text-[#183126] transition hover:border-[#597563] hover:bg-[#e5eddf] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/70 ${className}`}><UiIcon name={action === "share" ? "share" : "copy"} className="h-4 w-4" />{triggerLabel}</button>
     <span className="sr-only" aria-live="polite">{action === "copy" && copyState === "copied" ? "Link copied" : ""}</span>
     {dialog}
   </>;

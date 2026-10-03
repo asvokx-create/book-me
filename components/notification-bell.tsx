@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import UiIcon, { type UiIconName } from "@/components/ui-icon";
 
 type Notification = {
   id: string;
@@ -25,13 +26,13 @@ function relativeTime(value: string) {
   return days < 7 ? `${days}d ago` : new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function notificationIcon(type: string) {
-  if (type === "new_message") return "✉";
-  if (type === "booking_accepted") return "✓";
-  if (type === "booking_cancelled" || type === "booking_declined") return "×";
-  if (type === "booking_completed") return "★";
-  if (type === "booking_reminder") return "◷";
-  return "↗";
+function notificationIcon(type: string): UiIconName {
+  if (type === "new_message") return "mail";
+  if (type === "booking_accepted") return "check";
+  if (type === "booking_cancelled" || type === "booking_declined") return "x-circle";
+  if (type === "booking_completed") return "star";
+  if (type === "booking_reminder") return "clock";
+  return "external-link";
 }
 
 export default function NotificationBell() {
@@ -129,7 +130,7 @@ export default function NotificationBell() {
         onClick={() => { setOpen((value) => !value); if (!loaded) loadNotifications(); }}
         className="relative grid h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5] transition hover:border-[#b8aa2e] hover:bg-[#eee25a]"
       >
-        🔔
+        <UiIcon name="bell" className="h-5 w-5" />
         {unreadCount > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#d45f40] px-1 text-[10px] font-bold leading-none text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}
       </button>
       </div>
@@ -141,14 +142,14 @@ export default function NotificationBell() {
         </div>
         {actionError && <p role="alert" className="border-b border-[#e8c2ae] bg-[#fff0e8] px-5 py-3 text-xs font-semibold text-[#964f2c]">{actionError}</p>}
         <div className="max-h-[26rem] overflow-y-auto">
-          {!loaded ? <div className="p-8 text-center text-sm text-[#728179]">Loading updates…</div> : notifications.length === 0 ? <div className="p-8 text-center"><p className="text-3xl">🔔</p><p className="mt-3 font-bold text-[#183126]">No notifications yet</p><p className="mt-1 text-sm text-[#728179]">Booking updates will appear here.</p></div> : notifications.map((notification) => <div key={notification.id} className={`group flex items-start gap-1 border-b border-[#183126]/8 pr-3 last:border-0 ${notification.read ? "bg-white" : "bg-[#fbf9df]"}`}><Link
+          {!loaded ? <div className="p-8 text-center text-sm text-[#728179]">Loading updates…</div> : notifications.length === 0 ? <div className="p-8 text-center"><UiIcon name="bell" className="mx-auto h-8 w-8 text-[#64766c]" /><p className="mt-3 font-bold text-[#183126]">No notifications yet</p><p className="mt-1 text-sm text-[#728179]">Booking updates will appear here.</p></div> : notifications.map((notification) => <div key={notification.id} className={`group flex items-start gap-1 border-b border-[#183126]/8 pr-3 last:border-0 ${notification.read ? "bg-white" : "bg-[#fbf9df]"}`}><Link
             href={notification.href}
             onClick={() => { markRead(notification.id); setOpen(false); }}
             className="flex min-w-0 flex-1 gap-3 px-5 py-4 pr-2 transition hover:bg-[#f3f5ed]"
           >
-            <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl font-bold ${notification.read ? "bg-[#edf1ea] text-[#64766c]" : "bg-[#eee25a] text-[#183126]"}`}>{notificationIcon(notification.type)}</span>
+            <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl font-bold ${notification.read ? "bg-[#edf1ea] text-[#64766c]" : "bg-[#eee25a] text-[#183126]"}`}><UiIcon name={notificationIcon(notification.type)} className="h-4 w-4" /></span>
             <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-3"><span className="text-sm font-bold text-[#183126]">{notification.title}</span>{!notification.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#d45f40]" />}</span><span className="mt-1 block text-xs leading-5 text-[#66776e]">{notification.message}</span><span className="mt-1.5 block text-[10px] font-bold uppercase tracking-wider text-[#89958f]">{relativeTime(notification.createdAt)}</span></span>
-          </Link><button type="button" aria-label={`Delete ${notification.title} notification`} onClick={() => deleteNotification(notification.id)} className="mt-3 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8a4c3a] opacity-70 transition hover:bg-[#f4d8cc] hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100">×</button></div>)}
+          </Link><button type="button" aria-label={`Delete ${notification.title} notification`} onClick={() => deleteNotification(notification.id)} className="mt-3 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8a4c3a] opacity-70 transition hover:bg-[#f4d8cc] hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"><UiIcon name="trash" className="h-4 w-4" /></button></div>)}
         </div>
       </div>, document.body)}
     </>
