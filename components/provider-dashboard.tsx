@@ -18,6 +18,7 @@ import ProfileAvatar from "@/components/profile-avatar";
 import LocationManager from "@/components/location-manager";
 import ProviderMarketingTools from "@/components/provider-marketing-tools";
 import ProviderProfileEditor from "@/components/provider-profile-editor";
+import ProviderCustomerTools from "@/components/provider-customer-tools";
 import ProviderDashboardIcon from "@/components/provider-dashboard-icon";
 import UiIcon from "@/components/ui-icon";
 import JobRequestCenter from "@/components/job-request-center";
@@ -27,7 +28,7 @@ import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-
 import { dashboardWidgetDetails, ownerDashboardWidgets, workerDashboardWidgets, type DashboardWidgetId } from "@/lib/provider-dashboard-widgets";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
-export type DashboardSection = "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "revenue" | "services" | "profile" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
+export type DashboardSection = "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "customers" | "revenue" | "services" | "profile" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
 
 type ProviderBooking = { id: string; customer: string; customerImage: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus; assigneeName: string; repeatBookings: number };
 const initialRequests: ProviderBooking[] = [];
@@ -79,6 +80,7 @@ type RevenueSummary = {
   refundedJobs: number;
   monthlyRevenue: Array<{ month: string; label: string; revenue: number }>;
   recentEarnings: Array<{ id: string; service: string; customer: string; paidOutAt: string; amount: number }>;
+  repeatMetrics: { customers: number; repeatCustomers: number; repeatBookings: number; repeatBookingRate: number; returningRevenue: number } | null;
 };
 
 type ProviderReview = {
@@ -123,6 +125,7 @@ const dashboardNav: Array<{ section: DashboardSection; href: string; label: stri
   { section: "opportunities", href: "/provider/dashboard/opportunities", label: "Opportunities" },
   { section: "calendar", href: "/provider/dashboard/calendar", label: "Calendar" },
   { section: "messages", href: "/provider/dashboard/messages", label: "Messages" },
+  { section: "customers", href: "/provider/dashboard/customers", label: "Customers" },
   { section: "revenue", href: "/provider/dashboard/revenue", label: "Revenue" },
   { section: "services", href: "/provider/dashboard/services", label: "Services" },
   { section: "profile", href: "/provider/dashboard/profile", label: "Public profile" },
@@ -428,6 +431,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
           {section === "messages" && !isWorker && <><section className="mb-5 flex flex-col justify-between gap-3 rounded-2xl border border-[#d7ca4d]/45 bg-[#fff9cf] px-5 py-4 sm:flex-row sm:items-center"><div><p className="text-xs font-extrabold uppercase tracking-[.13em] text-[#716a31]">No pay-to-chat fees</p><p className="mt-1 font-bold">Reply to every genuine customer inquiry for free.</p><p className="mt-1 text-xs leading-5 text-[#647064]">BubsBookings never charges you to receive a lead, send a message, or provide a quote.</p></div><Link href="/guides/why-bubsbookings-does-not-charge-for-leads" className="shrink-0 text-sm font-bold underline decoration-[#ad9e25] decoration-2 underline-offset-4">Learn how fees work →</Link></section><MessagingCenter mode="provider" initialConversationId={initialConversationId} /></>}
 
+          {section === "customers" && !isWorker && <ProviderCustomerTools />}
+
           {section === "opportunities" && !isWorker && <JobRequestCenter mode="provider" />}
 
           {section === "calendar" && !isWorker && <BookingCalendar role="provider" />}
@@ -439,7 +444,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
             <section className="rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a9c1b1]">Profile strength</p><div className="mt-3 flex items-end justify-between"><p className="text-3xl font-bold">{hasListingPhotos ? "100%" : "75%"}</p><p className="text-xs text-[#adbbb3]">{hasListingPhotos ? "Complete" : "Add listing photos"}</p></div><div className="mt-4 h-2 rounded-full bg-white/15"><div className={`h-full rounded-full bg-[#eee25a] ${hasListingPhotos ? "w-full" : "w-3/4"}`} /></div><p className="mt-5 text-sm font-bold text-[#eee25a]">{hasListingPhotos ? "Your profile is ready ✓" : "Add photos to a service"}</p></section>
           </div>}
 
-          {section === "marketing" && !isWorker && <ProviderMarketingTools services={provider?.services ?? []} providerProfile={provider ? { slug: provider.publicProfileSlug, name: provider.businessName, visible: provider.publicProfileVisible } : null} />}
+          {section === "marketing" && !isWorker && <ProviderMarketingTools services={provider?.services ?? []} providerProfile={provider ? { slug: provider.publicProfileSlug, name: provider.businessName, visible: provider.publicProfileVisible } : null} plan={provider?.plan ?? "starter"} />}
           {section === "profile" && !isWorker && <ProviderProfileEditor />}
 
           {section === "locations" && <LocationManager />}
@@ -496,6 +501,7 @@ function RevenuePanel({ revenue, loaded, plan }: { revenue: RevenueSummary | nul
       <RevenueCard label="Paid out this month" value={formatCurrency(revenue.thisMonthRevenue)} note={change === null ? "No prior-month comparison yet" : `${change >= 0 ? "+" : ""}${change.toFixed(0)}% from last month`} />
       <RevenueCard label="Paid out last month" value={formatCurrency(revenue.lastMonthRevenue)} note="Net earnings released last month" />
     </div>
+    {revenue.repeatMetrics?<section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-6"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Pro insight</p><h2 className="mt-2 text-xl font-bold">Repeat customers</h2></div><Link href="/provider/dashboard/customers" className="text-sm font-bold underline underline-offset-4">View past customers →</Link></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><RevenueCard label="Repeat customers" value={String(revenue.repeatMetrics.repeatCustomers)} note={`${revenue.repeatMetrics.customers} total customers`} /><RevenueCard label="Repeat bookings" value={String(revenue.repeatMetrics.repeatBookings)} note={`${revenue.repeatMetrics.repeatBookingRate}% of completed bookings`} /><RevenueCard label="Returning revenue" value={formatCurrency(revenue.repeatMetrics.returningRevenue)} note="Service value after recorded refunds" /><RevenueCard label="Retention tools" value="Available" note="Send a limited in-app booking offer" /></div></section>:null}
 
     {PLAN_ENTITLEMENTS[plan].advancedAnalytics ? <section className="mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-[0_5px_22px_rgba(24,49,38,.04)] sm:p-7">
       <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Last six months</p><h2 className="mt-2 text-xl font-bold">Revenue trend</h2></div><p className="text-sm font-bold">{formatCurrency(revenue.monthlyRevenue.reduce((sum, month) => sum + month.revenue, 0))}</p></div>

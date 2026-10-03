@@ -25,10 +25,12 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     provider_plan_snapshot: BookingFinancialPlan | null; provider_fee_basis_points: number | null;
     platform_fee_cents: number; provider_payout_cents: number; customer_service_fee_cents: number;
     customer_total_cents: number | null;
+    base_price_cents: number; add_on_total_cents: number; discount_cents: number; package_snapshot: { name?: string } | null; coupon_code_snapshot: string | null;
   }>(`SELECT b.id::text, s.title, s.business_name AS provider_name, b.price_cents, b.status,
       b.payment_status, b.quote_status, p.plan, p.stripe_account_id, p.stripe_connect_mode, b.stripe_mode,
       b.stripe_checkout_session_id, b.payment_flow, b.provider_plan_snapshot, b.provider_fee_basis_points,
-      b.platform_fee_cents, b.provider_payout_cents, b.customer_service_fee_cents, b.customer_total_cents
+      b.platform_fee_cents, b.provider_payout_cents, b.customer_service_fee_cents, b.customer_total_cents,
+      b.base_price_cents,b.add_on_total_cents,b.discount_cents,b.package_snapshot,b.coupon_code_snapshot
     FROM bookings b JOIN services s ON s.id = b.service_id JOIN provider_profiles p ON p.id = b.provider_id
     WHERE b.id::text = $1 AND b.customer_id = $2`, [bookingId, session.user.id]);
   const booking = result.rows[0];
@@ -76,7 +78,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     customer: customerId,
     saved_payment_method_options: { payment_method_save: "enabled" },
     line_items: [
-      { quantity: 1, price_data: { currency: "usd", unit_amount: booking.price_cents, product_data: { name: booking.title, description: `Service from ${booking.provider_name}` } } },
+      { quantity: 1, price_data: { currency: "usd", unit_amount: booking.price_cents, product_data: { name: booking.package_snapshot?.name ? `${booking.title} — ${booking.package_snapshot.name}` : booking.title, description: `Service from ${booking.provider_name}. Base $${(booking.base_price_cents/100).toFixed(2)}${booking.add_on_total_cents ? ` + add-ons $${(booking.add_on_total_cents/100).toFixed(2)}` : ""}${booking.discount_cents ? ` − ${booking.coupon_code_snapshot ? `${booking.coupon_code_snapshot} ` : ""}discount $${(booking.discount_cents/100).toFixed(2)}` : ""}.` } } },
       { quantity: 1, price_data: { currency: "usd", unit_amount: snapshot.customerServiceFeeCents, product_data: { name: "BubsBookings service fee", description: "Secure marketplace checkout and booking support" } } },
     ],
     payment_intent_data: {

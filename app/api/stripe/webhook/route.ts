@@ -16,6 +16,38 @@ function idOf(value: string | { id: string } | null) {
   return typeof value === "string" ? value : value?.id ?? null;
 }
 
+async function markBookingPaymentFailed(options: {
+  bookingId?: string;
+  checkoutSessionId?: string;
+  paymentIntentId?: string;
+}) {
+  const failed = await database.query<{ id: string; recurring_series_id: string | null; customer_id: string }>(
+    `UPDATE bookings SET payment_status = 'failed'
+     WHERE stripe_mode = $4
+       AND (($1::text <> '' AND id::text = $1)
+         OR ($2::text <> '' AND stripe_checkout_session_id = $2)
+         OR ($3::text <> '' AND stripe_payment_intent_id = $3))
+     RETURNING id::text, recurring_series_id::text, customer_id`,
+    [options.bookingId ?? "", options.checkoutSessionId ?? "", options.paymentIntentId ?? "", getStripeMode()],
+  );
+  for (const booking of failed.rows) {
+    if (!booking.recurring_series_id) continue;
+    await database.query(
+      `UPDATE recurring_booking_series SET status = 'paused', updated_at = now()
+       WHERE id::text = $1 AND status = 'active'`,
+      [booking.recurring_series_id],
+    );
+    await database.query(
+      `INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
+       VALUES ($1, $2, 'payment_failed', 'Recurring plan paused',
+         'This payment failed, so future recurring visits are paused until you review the booking.',
+         '/account/bookings/' || $2::uuid::text, 'recurring-payment-failed-' || $2::uuid::text)
+       ON CONFLICT (dedupe_key) DO NOTHING`,
+      [booking.customer_id, booking.id],
+    );
+  }
+}
+
 async function updateSubscription(subscription: Stripe.Subscription) {
   const providerId = subscription.metadata.providerId;
   const plan = subscription.metadata.plan;
@@ -375,7 +407,9 @@ async function processEvent(event: Stripe.Event) {
     }
     case "checkout.session.async_payment_failed": {
       const checkout = event.data.object;
-      if (checkout.metadata?.bookingId) await database.query("UPDATE bookings SET payment_status = 'failed' WHERE id::text = $1 AND stripe_checkout_session_id = $2 AND stripe_mode = $3", [checkout.metadata.bookingId, checkout.id, getStripeMode()]);
+      if (checkout.metadata?.bookingId) {
+        await markBookingPaymentFailed({ bookingId: checkout.metadata.bookingId, checkoutSessionId: checkout.id });
+      }
       break;
     }
     case "checkout.session.expired": {
@@ -449,7 +483,10 @@ async function processEvent(event: Stripe.Event) {
     }
     case "payment_intent.payment_failed": {
       const paymentIntent = event.data.object;
-      await database.query("UPDATE bookings SET payment_status = 'failed' WHERE stripe_mode = $3 AND (stripe_payment_intent_id = $1 OR id::text = $2)", [paymentIntent.id, paymentIntent.metadata.bookingId ?? "", getStripeMode()]);
+      await markBookingPaymentFailed({
+        bookingId: paymentIntent.metadata.bookingId,
+        paymentIntentId: paymentIntent.id,
+      });
       break;
     }
   }

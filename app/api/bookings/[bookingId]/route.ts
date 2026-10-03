@@ -34,6 +34,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     customer_service_fee_cents: number; customer_service_fee_refunded_cents: number;
     provider_payout_cents: number; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
     payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null; delivery_method: "IN_PERSON" | "REMOTE";
+    base_price_cents: number; add_on_total_cents: number; discount_cents: number; package_snapshot: Record<string, unknown> | null; add_on_snapshot: unknown[]; coupon_code_snapshot: string | null; recurring_series_id: string | null; recurrence_index: number | null; recurrence_frequency: string | null; recurrence_status: string | null; booking_kind: string;
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text, p.user_id AS provider_user_id,
             s.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title, s.location_id::text AS service_location_id,
@@ -50,6 +51,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             b.customer_service_fee_cents, b.customer_service_fee_refunded_cents,
             b.completion_confirmation_due_at, b.customer_confirmed_at, b.payout_released_at,
             b.payout_failure_reason, b.payout_freeze_reason,
+            b.base_price_cents,b.add_on_total_cents,b.discount_cents,b.package_snapshot,b.add_on_snapshot,b.coupon_code_snapshot,b.recurring_series_id::text,b.recurrence_index,b.booking_kind,
+            series.frequency AS recurrence_frequency,series.status AS recurrence_status,
             b.assigned_team_member_id::text, owner.name AS owner_name, COALESCE(member.name, owner.name) AS assignee_name,
             c.id::text AS conversation_id, r.id::text AS review_id, r.rating, r.body AS review_body
      FROM bookings b JOIN "user" customer ON customer.id = b.customer_id
@@ -58,6 +61,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
      LEFT JOIN provider_team_members member ON member.id = b.assigned_team_member_id
      LEFT JOIN conversations c ON c.customer_id = b.customer_id AND c.provider_id = b.provider_id AND c.service_id = b.service_id
      LEFT JOIN reviews r ON r.booking_id = b.id AND r.is_hidden = false
+     LEFT JOIN recurring_booking_series series ON series.id=b.recurring_series_id
      WHERE b.id::text = $1 AND (b.customer_id = $2 OR (p.user_id = $2 AND b.provider_deleted_at IS NULL)
        OR EXISTS (
          SELECT 1 FROM booking_assignees worker_assignment JOIN provider_team_members worker ON worker.id = worker_assignment.team_member_id
@@ -98,6 +102,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     addressIsApproximate: row.delivery_method !== "REMOTE" && !canSeeExactAddress,
     accessInstructions: row.delivery_method !== "REMOTE" && canSeeExactAddress ? row.access_instructions : "",
     notes: row.notes, bookingAnswers: row.booking_answers ?? {}, price: row.price_cents / 100,
+    commerce: { basePrice: row.base_price_cents/100, addOnTotal: row.add_on_total_cents/100, discount: row.discount_cents/100, package: row.package_snapshot, addOns: row.add_on_snapshot ?? [], couponCode: row.coupon_code_snapshot, bookingKind: row.booking_kind },
+    recurrence: row.recurring_series_id ? { seriesId: row.recurring_series_id, index: row.recurrence_index, frequency: row.recurrence_frequency, status: row.recurrence_status } : null,
     customerServiceFee: (["paid", "refunded"] as string[]).includes(row.payment_status)
       ? row.customer_service_fee_cents / 100
       : CUSTOMER_SERVICE_FEE_CENTS / 100,
@@ -170,7 +176,11 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
       if (booking.status !== "requested" || booking.quote_status !== "pending" || booking.quoted_price_cents === null) { await client.query("ROLLBACK"); return NextResponse.json({ error: "This quote is no longer awaiting your response." }, { status: 409 }); }
       const accepted = action === "accept_quote";
       await client.query(`UPDATE bookings SET quote_status = $2, quote_responded_at = now(),
-        price_cents = CASE WHEN $2 = 'accepted' THEN quoted_price_cents ELSE price_cents END WHERE id::text = $1`, [bookingId, accepted ? "accepted" : "declined"]);
+        price_cents = CASE WHEN $2 = 'accepted' THEN quoted_price_cents ELSE price_cents END,
+        base_price_cents = CASE WHEN $2 = 'accepted' THEN quoted_price_cents ELSE base_price_cents END,
+        add_on_total_cents = CASE WHEN $2 = 'accepted' THEN 0 ELSE add_on_total_cents END,
+        discount_cents = CASE WHEN $2 = 'accepted' THEN 0 ELSE discount_cents END
+        WHERE id::text = $1`, [bookingId, accepted ? "accepted" : "declined"]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
         VALUES ($1::uuid, $2, $3, $4)`, [bookingId, session.user.id, accepted ? "quote_accepted" : "quote_declined", accepted ? "Customer approved the provider's quote." : "Customer declined the provider's quote."]);
       await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)

@@ -8,6 +8,7 @@ import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { recordAnalytics } from "@/lib/analytics";
 import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "@/lib/booking-financials";
 import { isServiceDeliveryType, serviceSupportsMethod, type BookingDeliveryMethod, type ServiceDeliveryType } from "@/lib/service-delivery";
+import { calculateCommerceSelection, isRecurrenceOption, nextOccurrence, type CouponRule, type ServiceAddOn, type ServicePackage } from "@/lib/service-commerce";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many booking requests. Please wait a minute and try again." }, { status: 429 });
   }
 
-  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; deliveryMethod?: unknown; addressLine1?: unknown; addressLine2?: unknown; city?: unknown; state?: unknown; postalCode?: unknown; accessInstructions?: unknown; notes?: unknown; answers?: unknown; parentBookingId?: unknown };
+  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; deliveryMethod?: unknown; addressLine1?: unknown; addressLine2?: unknown; city?: unknown; state?: unknown; postalCode?: unknown; accessInstructions?: unknown; notes?: unknown; answers?: unknown; parentBookingId?: unknown; packageId?: unknown; addOns?: unknown; recurrence?: unknown; couponCode?: unknown };
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const date = typeof body.date === "string" ? body.date : "";
   const time = typeof body.time === "string" ? body.time : "";
@@ -67,14 +68,18 @@ export async function POST(request: Request) {
   const notes = typeof body.notes === "string" ? body.notes.trim() : "";
   const submittedAnswers = body.answers && typeof body.answers === "object" && !Array.isArray(body.answers) ? body.answers as Record<string, unknown> : {};
   const parentBookingId = typeof body.parentBookingId === "string" ? body.parentBookingId : "";
+  const packageId = typeof body.packageId === "string" ? body.packageId : "";
+  const requestedAddOns = Array.isArray(body.addOns) ? body.addOns.slice(0, 10).map((entry) => entry && typeof entry === "object" ? entry as Record<string, unknown> : {}).map((entry) => ({ addOnId: typeof entry.addOnId === "string" ? entry.addOnId : "", quantity: Number(entry.quantity) })) : [];
+  const recurrence = isRecurrenceOption(body.recurrence) ? body.recurrence : "one_time";
+  const couponCode = typeof body.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
   if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !requestedDeliveryMethod || addressLine1.length > 120 || addressLine2.length > 80 || city.length > 80 || accessInstructions.length > 500 || notes.length > 1000) {
     return NextResponse.json({ error: "Complete the delivery, date, and time fields." }, { status: 400 });
   }
   const serviceResult = await database.query<{
     id: string; provider_id: string; duration_minutes: number; price_cents: number;
-    timezone: string; provider_user_id: string; title: string; booking_questions: unknown; plan: BookingFinancialPlan; delivery_type: ServiceDeliveryType;
+    timezone: string; provider_user_id: string; title: string; booking_questions: unknown; plan: BookingFinancialPlan; delivery_type: ServiceDeliveryType; recurrence_options: string[]; service_kind: "standard" | "consultation";
   }>(
-    `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title, s.delivery_type,
+    `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title, s.delivery_type, s.recurrence_options, s.service_kind,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions,
             COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id AND (service_id = s.id OR service_id IS NULL) ORDER BY (service_id = s.id) DESC LIMIT 1),
                      (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id WHERE member.provider_id = p.id AND assigned_location.location_id = s.location_id LIMIT 1),
@@ -89,6 +94,7 @@ export async function POST(request: Request) {
   const service = serviceResult.rows[0];
   if (!service) return NextResponse.json({ error: "This provider is not available on that day." }, { status: 409 });
   if (!isServiceDeliveryType(service.delivery_type) || !serviceSupportsMethod(service.delivery_type, requestedDeliveryMethod)) return NextResponse.json({ error: "That delivery method is not available for this service." }, { status: 400 });
+  if (!service.recurrence_options.includes(recurrence)) return NextResponse.json({ error: "That booking frequency is not available for this service." }, { status: 400 });
   const isRemote = requestedDeliveryMethod === "REMOTE";
   if (!isRemote && (!addressLine1 || !city || !usStateCodes.has(state) || !/^\d{5}(?:-\d{4})?$/.test(postalCode))) return NextResponse.json({ error: "Complete the US service address." }, { status: 400 });
   const location = isRemote ? "Remote service" : [addressLine1, addressLine2, `${city}, ${state} ${postalCode}`].filter(Boolean).join(", ");
@@ -97,7 +103,28 @@ export async function POST(request: Request) {
     const prior = await database.query(`SELECT 1 FROM bookings WHERE id::text = $1 AND customer_id = $2 AND service_id::text = $3 AND status = 'completed'`, [parentBookingId, session.user.id, serviceId]);
     if (!prior.rows[0]) return NextResponse.json({ error: "That completed booking cannot be repeated." }, { status: 400 });
   }
-  const financialSnapshot = calculateBookingFinancialSnapshot(service.price_cents, service.plan);
+  const selectedPackageResult = packageId ? await database.query<ServicePackage>(`SELECT id::text,name,description,price_cents AS "priceCents",duration_minutes AS "durationMinutes",delivery_days AS "deliveryDays",revision_count AS "revisionCount",features FROM service_packages WHERE id::text=$1 AND service_id::text=$2 AND is_active=true`, [packageId,serviceId]) : null;
+  const selectedPackage = selectedPackageResult?.rows[0] ?? null;
+  if (packageId && !selectedPackage) return NextResponse.json({ error: "That package is no longer available." }, { status: 409 });
+  const addOnIds = requestedAddOns.map((item) => item.addOnId).filter(Boolean);
+  const addOnResult = addOnIds.length ? await database.query<ServiceAddOn>(`SELECT id::text,name,description,price_cents AS "priceCents",additional_minutes AS "additionalMinutes",allows_quantity AS "allowsQuantity",max_quantity AS "maxQuantity" FROM service_add_ons WHERE service_id::text=$1 AND id::text=ANY($2::text[]) AND is_active=true`, [serviceId,addOnIds]) : { rows: [] as ServiceAddOn[] };
+  if (new Set(addOnIds).size !== addOnIds.length || addOnResult.rows.length !== addOnIds.length) return NextResponse.json({ error: "One of those add-ons is no longer available." }, { status: 409 });
+  const addOnById = new Map(addOnResult.rows.map((item) => [item.id,item]));
+  let coupon: CouponRule | null = null;
+  if (couponCode) {
+    const couponResult = await database.query<CouponRule & { provider_id: string; service_id: string | null }>(`SELECT id::text,code,discount_type AS "discountType",discount_value AS "discountValue",minimum_subtotal_cents AS "minimumSubtotalCents",first_booking_only AS "firstBookingOnly",repeat_customer_only AS "repeatCustomerOnly",expires_at AS "expiresAt",usage_limit AS "usageLimit",redemption_count AS "redemptionCount",provider_id::text,service_id::text FROM provider_coupons WHERE provider_id::text=$1 AND upper(code)=$2 AND is_active=true AND (service_id IS NULL OR service_id::text=$3)`, [service.provider_id,couponCode,serviceId]);
+    coupon = couponResult.rows[0] ?? null;
+    if (!coupon) return NextResponse.json({ error: "That coupon is not valid for this service." }, { status: 400 });
+    const priorCount = await database.query<{ count: number }>("SELECT count(*)::int AS count FROM bookings WHERE customer_id=$1 AND provider_id::text=$2 AND payment_status IN ('paid','refunded')", [session.user.id,service.provider_id]);
+    if (coupon.firstBookingOnly && priorCount.rows[0].count > 0) return NextResponse.json({ error: "That coupon is for first-time customers." }, { status: 400 });
+    if (coupon.repeatCustomerOnly && priorCount.rows[0].count < 1) return NextResponse.json({ error: "That coupon is for returning customers." }, { status: 400 });
+  }
+  let commerce;
+  try { commerce = calculateCommerceSelection({ servicePriceCents: service.price_cents, selectedPackage, addOns: requestedAddOns.map((item) => ({ addOn: addOnById.get(item.addOnId)!, quantity: item.quantity })), coupon }); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Choose valid booking options." }, { status: 400 }); }
+  if (commerce.serviceSubtotalCents < 50) return NextResponse.json({ error: "The discounted booking total must be at least $0.50." }, { status: 400 });
+  const financialSnapshot = calculateBookingFinancialSnapshot(commerce.serviceSubtotalCents, service.plan);
+  const selectedDurationMinutes = (selectedPackage?.durationMinutes ?? service.duration_minutes) + commerce.selectedAddOns.reduce((total,item) => total + item.additionalMinutes * item.quantity,0);
   const questions = Array.isArray(service.booking_questions) ? service.booking_questions.filter((question): question is string => typeof question === "string") : [];
   const answers: Record<string, string> = {};
   for (const question of questions) {
@@ -113,7 +140,7 @@ export async function POST(request: Request) {
   const timeResult = await database.query<{ starts_at: Date; ends_at: Date }>(
     `SELECT (($1::date + $2::time) AT TIME ZONE $3) AS starts_at,
             (($1::date + $2::time) AT TIME ZONE $3) + make_interval(mins => $4) AS ends_at`,
-    [date, time, service.timezone, service.duration_minutes],
+    [date, time, service.timezone, selectedDurationMinutes],
   );
   const { starts_at: startsAt, ends_at: endsAt } = timeResult.rows[0];
   if (startsAt <= new Date()) return NextResponse.json({ error: "Choose a future time." }, { status: 409 });
@@ -122,6 +149,10 @@ export async function POST(request: Request) {
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [service.provider_id]);
+    if (coupon) {
+      const reserved = await client.query(`UPDATE provider_coupons SET redemption_count=redemption_count+1 WHERE id=$1::uuid AND is_active=true AND (expires_at IS NULL OR expires_at>now()) AND (usage_limit IS NULL OR redemption_count<usage_limit) RETURNING id`, [coupon.id]);
+      if (!reserved.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: "That coupon is no longer available." }, { status: 409 }); }
+    }
     const candidate = await client.query<{ member_id: string | null; name: string }>(
       `WITH staff_hours AS (
          SELECT NULL::uuid AS member_id, 'Company owner'::text AS name, a.weekday, a.start_time, a.end_time, a.timezone, 0 AS priority
@@ -159,18 +190,26 @@ export async function POST(request: Request) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "That time is no longer available. Choose another listed time." }, { status: 409 });
     }
+    let recurringSeriesId: string | null = null;
+    if (recurrence !== "one_time") {
+      const series = await client.query<{ id: string }>(`INSERT INTO recurring_booking_series (customer_id,provider_id,service_id,frequency,starts_at,next_occurrence_at) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id::text`, [session.user.id,service.provider_id,service.id,recurrence,startsAt,nextOccurrence(startsAt,recurrence)]);
+      recurringSeriesId = series.rows[0].id;
+    }
     const created = await client.query<{ id: string }>(
       `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address,
           service_address_line1, service_address_line2, service_city, service_state, service_postal_code,
           access_instructions, notes, price_cents, assigned_team_member_id, booking_answers,
           provider_plan_snapshot, provider_fee_basis_points, platform_fee_cents, provider_payout_cents,
-          customer_service_fee_cents, customer_total_cents, parent_booking_id, delivery_method)
+          customer_service_fee_cents, customer_total_cents, parent_booking_id, delivery_method,
+          base_price_cents,add_on_total_cents,discount_cents,package_snapshot,add_on_snapshot,coupon_id,coupon_code_snapshot,recurring_series_id,recurrence_index,booking_kind)
        VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), $13, $14, $15::uuid, $16::jsonb,
-          $17, $18, $19, $20, $21, $22, NULLIF($23, '')::uuid, $24)
+          $17, $18, $19, $20, $21, $22, NULLIF($23, '')::uuid, $24,
+          $25,$26,$27,$28::jsonb,$29::jsonb,$30::uuid,$31,$32::uuid,$33,$34)
        RETURNING id::text`,
-      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, service.price_cents, candidate.rows[0].member_id, JSON.stringify(answers),
+      [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, commerce.serviceSubtotalCents, candidate.rows[0].member_id, JSON.stringify(answers),
         financialSnapshot.providerPlan, financialSnapshot.providerFeeBasisPoints, financialSnapshot.providerFeeCents,
-        financialSnapshot.providerNetCents, financialSnapshot.customerServiceFeeCents, financialSnapshot.customerTotalCents, parentBookingId, requestedDeliveryMethod],
+        financialSnapshot.providerNetCents, financialSnapshot.customerServiceFeeCents, financialSnapshot.customerTotalCents, parentBookingId, requestedDeliveryMethod,
+        commerce.basePriceCents,commerce.addOnTotalCents,commerce.discountCents,selectedPackage ? JSON.stringify(selectedPackage) : null,JSON.stringify(commerce.selectedAddOns),coupon?.id ?? null,coupon?.code ?? null,recurringSeriesId,recurringSeriesId ? 1 : null,service.service_kind],
     );
     const bookingId = created.rows[0].id;
     await client.query(
@@ -206,7 +245,12 @@ export async function POST(request: Request) {
     );
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: "booking_created", targetType: "booking", targetId: bookingId });
-    await recordAnalytics({ eventName: "booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { deliveryMethod: requestedDeliveryMethod } });
+    await recordAnalytics({ eventName: "booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { deliveryMethod: requestedDeliveryMethod, packageSelected: Boolean(selectedPackage), addOnCount: commerce.selectedAddOns.length, recurrence, couponApplied: Boolean(coupon), bookingKind: service.service_kind } });
+    if (selectedPackage) await recordAnalytics({ eventName: "package_selected", userId: session.user.id, targetType: "booking", targetId: bookingId });
+    if (commerce.selectedAddOns.length) await recordAnalytics({ eventName: "add_on_purchased", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { count: commerce.selectedAddOns.length } });
+    if (recurringSeriesId) await recordAnalytics({ eventName: "recurring_booking_created", userId: session.user.id, targetType: "recurring_series", targetId: recurringSeriesId, metadata: { recurrence } });
+    if (coupon) await recordAnalytics({ eventName: "coupon_redeemed", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { discountCents: commerce.discountCents } });
+    if (service.service_kind === "consultation") await recordAnalytics({ eventName: "consultation_booked", userId: session.user.id, targetType: "booking", targetId: bookingId });
     await recordAnalytics({ eventName: isRemote ? "remote_booking_requested" : "local_booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId });
     const providerBookingCount = await database.query<{ count: number }>("SELECT count(*)::int AS count FROM bookings WHERE provider_id::text = $1", [service.provider_id]);
     if (providerBookingCount.rows[0]?.count === 1) await recordAnalytics({ eventName: "first_booking_received", userId: service.provider_user_id, targetType: "booking", targetId: bookingId });

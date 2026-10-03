@@ -56,12 +56,12 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       id: string; provider_id: string; service_id: string; starts_at: Date; ends_at: Date; status: string;
       customer_id: string; customer_name: string; service_title: string; service_business_name: string;
       reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null;
-      assigned_team_member_id: string | null; quote_status: string; payment_status: string; payment_flow: string | null; service_location_id: string;
+      assigned_team_member_id: string | null; quote_status: string; payment_status: string; payment_flow: string | null; service_location_id: string; recurring_series_id: string | null;
     }>(
       `SELECT b.id::text, b.provider_id::text, b.service_id::text, b.starts_at, b.ends_at, b.status,
               b.customer_id, u.name AS customer_name, s.title AS service_title, s.business_name AS service_business_name,
               b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.assigned_team_member_id::text,
-              b.quote_status, b.payment_status, b.payment_flow, s.location_id::text AS service_location_id
+              b.quote_status, b.payment_status, b.payment_flow, s.location_id::text AS service_location_id, b.recurring_series_id::text
        FROM bookings b
        JOIN provider_profiles p ON p.id = b.provider_id
        JOIN services s ON s.id = b.service_id
@@ -267,6 +267,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
         return NextResponse.json({ error: `${unavailable.join(", ")} ${unavailable.length === 1 ? "is" : "are"} no longer available at this time.` }, { status: 409 });
       }
       await client.query("UPDATE bookings SET status = 'confirmed' WHERE id::text = $1", [bookingId]);
+      if (booking.recurring_series_id) await client.query("UPDATE recurring_booking_series SET status='active' WHERE id::text=$1 AND status='pending'", [booking.recurring_series_id]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
         VALUES ($1::uuid, $2, 'confirmed', 'Provider accepted the booking request.')`, [bookingId, session.user.id]);
       await client.query(

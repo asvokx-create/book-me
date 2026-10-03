@@ -3,7 +3,7 @@ import type { SVGProps } from "react";
 export type UiIconName =
   | "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "revenue"
   | "services" | "profile" | "marketing" | "locations" | "availability" | "reviews"
-  | "team" | "billing" | "settings" | "close" | "arrow-left" | "arrow-right"
+  | "team" | "customers" | "billing" | "settings" | "close" | "arrow-left" | "arrow-right"
   | "external-link" | "chevron-left" | "chevron-right" | "chevron-down" | "refresh"
   | "menu" | "bell" | "check" | "x-circle" | "star" | "mail" | "lock"
   | "map-pin" | "card" | "flag" | "plus" | "copy" | "share" | "trash"
@@ -30,7 +30,7 @@ export default function UiIcon({ name, className = "h-4 w-4", filled = false, ..
     case "locations": case "map-pin": glyph = <><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>; break;
     case "availability": case "clock": glyph = <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></>; break;
     case "reviews": case "star": glyph = <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/>; break;
-    case "team": glyph = <><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M14 15a4.5 4.5 0 0 1 6.5 4"/></>; break;
+    case "team": case "customers": glyph = <><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M14 15a4.5 4.5 0 0 1 6.5 4"/></>; break;
     case "billing": case "card": glyph = <><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19M6 15h4"/></>; break;
     case "settings": glyph = <><path d="M4 6h5M13 6h7M4 12h9M17 12h3M4 18h2M10 18h10"/><circle cx="11" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></>; break;
     case "close": glyph = <path d="m6 6 12 12M18 6 6 18"/>; break;

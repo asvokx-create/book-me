@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import BookingDatePicker from "@/components/booking-date-picker";
 import type { ServiceDeliveryType } from "@/lib/service-delivery";
+import { recurrenceLabel, type RecurrenceOption, type ServiceAddOn, type ServicePackage } from "@/lib/service-commerce";
 
 type BookingCardProps = {
   serviceId: string;
@@ -23,6 +24,11 @@ type BookingCardProps = {
   parentBookingId?: string;
   requestAnotherTimeHref: string;
   deliveryType: ServiceDeliveryType;
+  packages: ServicePackage[];
+  addOns: ServiceAddOn[];
+  recurrenceOptions: RecurrenceOption[];
+  serviceKind: "standard" | "consultation";
+  preparationNotes: string;
 };
 
 function formatTime(time: string) {
@@ -31,7 +37,7 @@ function formatTime(time: string) {
   return `${hours % 12 || 12}:${minutes} ${hours >= 12 ? "PM" : "AM"}`;
 }
 
-export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, serviceCity, serviceState, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false, parentBookingId = "", requestAnotherTimeHref, deliveryType }: BookingCardProps) {
+export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, serviceCity, serviceState, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false, parentBookingId = "", requestAnotherTimeHref, deliveryType, packages, addOns, recurrenceOptions, serviceKind, preparationNotes }: BookingCardProps) {
   const [deliveryMethod, setDeliveryMethod] = useState<"IN_PERSON" | "REMOTE" | "">(deliveryType === "BOTH" ? "" : deliveryType);
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
@@ -49,6 +55,12 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
   const [showFullyBooked, setShowFullyBooked] = useState(false);
   const [notes, setNotes] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [packageId, setPackageId] = useState(packages[0]?.id ?? "");
+  const [addOnQuantities, setAddOnQuantities] = useState<Record<string, number>>({});
+  const [recurrence, setRecurrence] = useState<RecurrenceOption>("one_time");
+  const [couponCode, setCouponCode] = useState("");
+  const selectedPackage = packages.find((item) => item.id === packageId);
+  const visiblePriceCents = (selectedPackage?.priceCents ?? Math.round(price * 100)) + addOns.reduce((total, item) => total + item.priceCents * (addOnQuantities[item.id] ?? 0), 0);
 
   async function checkAvailability(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,7 +107,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serviceId, date, time, deliveryMethod, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, answers, parentBookingId }),
+      body: JSON.stringify({ serviceId, date, time, deliveryMethod, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, answers, parentBookingId, packageId: packageId || null, addOns: Object.entries(addOnQuantities).filter(([, quantity]) => quantity > 0).map(([addOnId, quantity]) => ({ addOnId, quantity })), recurrence, couponCode }),
     }).catch(() => null);
     if (!response) {
       setLoading(false);
@@ -126,7 +138,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         <div className="mt-6 rounded-2xl bg-[#f7f6f1] p-4 text-left">
           <p className="text-xs font-bold uppercase tracking-wider text-[#78867f]">Booking summary</p>
           <p className="mt-2 font-bold">{serviceTitle}</p>
-          <p className="mt-1 text-sm text-[#6c7b74]">{deliveryMethod === "REMOTE" ? "Remote service" : <>{addressLine1}{addressLine2 ? `, ${addressLine2}` : ""}, {city}, {state.toUpperCase()} {postalCode}</>} · from ${price}</p>
+          <p className="mt-1 text-sm text-[#6c7b74]">{deliveryMethod === "REMOTE" ? "Remote service" : <>{addressLine1}{addressLine2 ? `, ${addressLine2}` : ""}, {city}, {state.toUpperCase()} {postalCode}</>} · ${(visiblePriceCents / 100).toFixed(2)}{recurrence !== "one_time" ? ` · ${recurrenceLabel(recurrence)}` : ""}</p>
         </div>
         <Link href="/account" className="mt-5 block w-full rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#294a3a]">View my bookings</Link>
         <button onClick={() => { setStep("details"); setTime(""); setTimeSlots([]); }} className="mt-6 rounded-full px-4 py-2 text-sm font-bold underline decoration-[#c2b842] decoration-2 underline-offset-4 transition hover:bg-[#eee25a]">Make another request</button>
@@ -142,11 +154,15 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
   return (
     <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7">
       <div className="flex items-end justify-between">
-        <div><p className="text-sm text-[#6f7f77]">Starting at</p><p className="mt-1 text-3xl font-bold tracking-tight">${price}</p></div>
+        <div><p className="text-sm text-[#6f7f77]">{packages.length ? "Selected total" : "Starting at"}</p><p className="mt-1 text-3xl font-bold tracking-tight">${(visiblePriceCents / 100).toFixed(2)}</p></div>
         <p className="rounded-full bg-[#f1f0eb] px-3 py-1.5 text-xs font-semibold text-[#5f7067]">Estimated time: {duration}</p>
       </div>
 
       <form onSubmit={checkAvailability} className="mt-7 space-y-3">
+        {packages.length > 0 && <fieldset><legend className="mb-3 text-xs font-bold uppercase tracking-wider text-[#708078]">Choose a package</legend><div className="grid gap-2">{packages.map((item) => <label key={item.id} className={`cursor-pointer rounded-2xl border p-4 ${packageId === item.id ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/12 bg-white"}`}><input type="radio" className="sr-only" name="package" checked={packageId === item.id} onChange={() => setPackageId(item.id)} /><span className="flex items-start justify-between gap-3"><span><strong className="block">{item.name}</strong><span className="mt-1 block text-xs leading-5 text-[#6d7c75]">{item.description}</span></span><strong className="shrink-0">${(item.priceCents / 100).toFixed(2)}</strong></span>{item.features.length > 0 && <span className="mt-2 block text-xs text-[#52665b]">{item.features.join(" · ")}</span>}</label>)}</div></fieldset>}
+        {addOns.length > 0 && <fieldset className="rounded-2xl bg-[#f5f7f2] p-4"><legend className="px-1 text-sm font-bold">Optional add-ons</legend><div className="mt-3 grid gap-2">{addOns.map((item) => { const quantity = addOnQuantities[item.id] ?? 0; return <div key={item.id} className="flex min-w-0 items-center gap-3 rounded-xl bg-white p-3"><label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3"><input type="checkbox" className="mt-1" checked={quantity > 0} onChange={(event) => setAddOnQuantities((current) => ({ ...current, [item.id]: event.target.checked ? 1 : 0 }))} /><span className="min-w-0"><strong className="block text-sm">{item.name} · +${(item.priceCents / 100).toFixed(2)}</strong>{item.description && <span className="block text-xs leading-5 text-[#718078]">{item.description}</span>}</span></label>{item.allowsQuantity && quantity > 0 && <select aria-label={`${item.name} quantity`} value={quantity} onChange={(event) => setAddOnQuantities((current) => ({ ...current, [item.id]: Number(event.target.value) }))} className="shrink-0 rounded-lg border border-[#183126]/15 px-2 py-2 text-sm">{Array.from({ length: item.maxQuantity }, (_, index) => index + 1).map((value) => <option key={value}>{value}</option>)}</select>}</div>; })}</div></fieldset>}
+        {recurrenceOptions.length > 1 && <fieldset className="rounded-2xl border border-[#183126]/10 p-4"><legend className="px-1 text-sm font-bold">One time or recurring?</legend><div className="mt-3 grid grid-cols-2 gap-2">{recurrenceOptions.map((option) => <label key={option} className={`flex min-h-12 cursor-pointer items-center justify-center rounded-xl border px-3 text-center text-sm font-bold ${recurrence === option ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/15 bg-white"}`}><input type="radio" className="sr-only" name="recurrence" checked={recurrence === option} onChange={() => setRecurrence(option)} />{recurrenceLabel(option)}</label>)}</div><p className="mt-3 text-xs leading-5 text-[#718078]">Recurring visits create separate booking and payment records. You can cancel future visits without removing completed history.</p></fieldset>}
+        {serviceKind === "consultation" && preparationNotes && <div className="rounded-2xl bg-[#fff8cf] p-4 text-sm"><strong>Before your consultation</strong><p className="mt-1 text-xs leading-5 text-[#6d642c]">{preparationNotes}</p></div>}
         {bookingQuestions.map((question) => <label key={question} className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">{question}</span><textarea required={!bookingDisabled} value={answers[question] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [question]: event.target.value }))} maxLength={500} rows={2} className="w-full resize-none rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label>)}
         {deliveryType === "BOTH" && <fieldset className="rounded-2xl bg-[#f5f7f2] p-4"><legend className="px-1 text-sm font-bold">How would you like this service?</legend><div className="mt-3 grid grid-cols-2 gap-2">{(["IN_PERSON", "REMOTE"] as const).map((method) => <label key={method} className={`flex min-h-12 cursor-pointer items-center justify-center rounded-xl border px-3 text-center text-sm font-bold ${deliveryMethod === method ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/15 bg-white"}`}><input type="radio" className="sr-only" name="deliveryMethod" value={method} checked={deliveryMethod === method} onChange={() => { setDeliveryMethod(method); setError(""); }} />{method === "REMOTE" ? "Remote / online" : "In person"}</label>)}</div></fieldset>}
         {deliveryMethod !== "REMOTE" && <section className="rounded-2xl bg-[#f5f7f2] p-4">
@@ -160,6 +176,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         </section>}
         {deliveryMethod === "REMOTE" && <section className="rounded-2xl bg-[#f5f7f2] p-4"><div className="flex items-start gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-sm">⌁</span><div><h3 className="text-sm font-bold">Remote service</h3><p className="mt-0.5 text-xs leading-5 text-[#6d7c75]">No street address is needed. After confirmation, use BubsBookings messages to coordinate the provider&apos;s approved meeting or delivery method.</p></div></div></section>}
         <details className="rounded-2xl border border-[#183126]/10 bg-white"><summary className="booking-detail-toggle cursor-pointer list-none font-bold text-[#52665b] marker:hidden">+ Add booking notes</summary><div className="border-t border-[#183126]/8 p-3"><label className="block"><span className="sr-only">Booking notes</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={3} placeholder="Describe what you need or anything the provider should know. Keep addresses, passwords, and payment information out of this box." className="w-full resize-none rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></label></div></details>
+        <label className="block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Coupon <span className="normal-case font-normal">(optional)</span></span><input value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 32))} autoComplete="off" placeholder="Enter provider coupon" className="w-full rounded-xl border border-[#183126]/15 bg-white px-4 py-3 text-sm uppercase outline-none focus:border-[#4d725d]" /><span className="mt-1.5 block text-xs text-[#718078]">The provider funds valid discounts. The $2.99 BubsBookings service fee is shown separately at checkout.{recurrence!=="one_time"?" A coupon applies to this first occurrence unless a future offer states otherwise.":""}</span></label>
         <div className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Preferred date</span>
           <BookingDatePicker serviceId={serviceId} value={date} disabled={bookingDisabled} onChange={(nextDate) => { setDate(nextDate); setTime(""); setTimeSlots([]); setStep("details"); setError(""); }} />

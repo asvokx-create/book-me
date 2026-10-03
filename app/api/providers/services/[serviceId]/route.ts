@@ -8,6 +8,7 @@ import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-s
 import { enforceRateLimit } from "@/lib/request-security";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { isServiceDeliveryType, type ServiceDeliveryType } from "@/lib/service-delivery";
+import { isRecurrenceOption, type RecurrenceOption } from "@/lib/service-commerce";
 
 async function getSessionUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -37,10 +38,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
     location_id: string | null;
     location_name: string | null;
     locations: Array<{ id: string; name: string; location: string }>;
+    service_kind: "standard" | "consultation";
+    preparation_notes: string;
+    recurrence_options: RecurrenceOption[];
+    packages: unknown[] | null;
+    add_ons: unknown[] | null;
   }>(
     `SELECT s.id::text, s.business_name, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description,
             s.price_cents, s.duration_minutes, COALESCE(s.city, p.city) AS city, COALESCE(s.state, p.state) AS state,
-            s.booking_questions, p.plan, location.id::text AS location_id, location.name AS location_name,
+            s.booking_questions, p.plan, s.service_kind, s.preparation_notes, s.recurrence_options,
+            (SELECT jsonb_agg(jsonb_build_object('id', package.id::text, 'name', package.name, 'description', package.description, 'price', package.price_cents::numeric/100, 'durationMinutes', package.duration_minutes, 'deliveryDays', package.delivery_days, 'revisionCount', package.revision_count, 'features', package.features) ORDER BY package.sort_order) FROM service_packages package WHERE package.service_id=s.id AND package.is_active=true) AS packages,
+            (SELECT jsonb_agg(jsonb_build_object('id', addon.id::text, 'name', addon.name, 'description', addon.description, 'price', addon.price_cents::numeric/100, 'additionalMinutes', addon.additional_minutes, 'allowsQuantity', addon.allows_quantity, 'maxQuantity', addon.max_quantity) ORDER BY addon.sort_order) FROM service_add_ons addon WHERE addon.service_id=s.id AND addon.is_active=true) AS add_ons,
+            location.id::text AS location_id, location.name AS location_name,
             (SELECT jsonb_agg(jsonb_build_object('id', choice.id::text, 'name', choice.name, 'location', choice.city || ', ' || choice.state)
               ORDER BY choice.is_primary DESC, choice.created_at)
              FROM provider_locations choice WHERE choice.company_id = s.company_id AND choice.is_active = true) AS locations
@@ -72,6 +81,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
     bookingQuestions: service.booking_questions ?? [],
     customQuestionsAllowed: PLAN_ENTITLEMENTS[service.plan].customBookingQuestions,
     multipleLocationsAllowed: PLAN_ENTITLEMENTS[service.plan].multipleLocations,
+    serviceKind: service.service_kind,
+    preparationNotes: service.preparation_notes,
+    recurrenceOptions: service.recurrence_options,
+    packages: service.packages ?? [],
+    addOns: service.add_ons ?? [],
   });
 }
 
@@ -92,11 +106,25 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   const price = Number(body.price);
   const durationMinutes = Number(body.durationMinutes);
   const bookingQuestions = Array.isArray(body.bookingQuestions) ? body.bookingQuestions.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean) : [];
+  const serviceKind = body.serviceKind === "consultation" ? "consultation" : "standard";
+  const preparationNotes = typeof body.preparationNotes === "string" ? body.preparationNotes.trim() : "";
+  const recurrenceOptions = Array.isArray(body.recurrenceOptions) ? [...new Set(body.recurrenceOptions.filter(isRecurrenceOption))] : ["one_time"];
+  if (!recurrenceOptions.includes("one_time")) recurrenceOptions.unshift("one_time");
+  const packages = Array.isArray(body.packages) ? body.packages.slice(0, 3).map((entry) => {
+    const item = entry && typeof entry === "object" ? entry as Record<string, unknown> : {};
+    return { name: String(item.name ?? "").trim(), description: String(item.description ?? "").trim(), priceCents: Math.round(Number(item.price) * 100), durationMinutes: Number(item.durationMinutes), deliveryDays: item.deliveryDays === null || item.deliveryDays === "" ? null : Number(item.deliveryDays), revisionCount: item.revisionCount === null || item.revisionCount === "" ? null : Number(item.revisionCount), features: Array.isArray(item.features) ? item.features.map(String).map((value) => value.trim()).filter(Boolean).slice(0, 10) : [] };
+  }) : [];
+  const addOns = Array.isArray(body.addOns) ? body.addOns.slice(0, 10).map((entry) => {
+    const item = entry && typeof entry === "object" ? entry as Record<string, unknown> : {};
+    return { name: String(item.name ?? "").trim(), description: String(item.description ?? "").trim(), priceCents: Math.round(Number(item.price) * 100), additionalMinutes: Number(item.additionalMinutes ?? 0), allowsQuantity: item.allowsQuantity === true, maxQuantity: Number(item.maxQuantity ?? 1) };
+  }) : [];
 
-  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !category || category.length > 80 || !deliveryType || description.length < 10 || description.length > 2000 || (deliveryType !== "REMOTE" && !locationId) || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 2_147_483_647 || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180)) {
+  const packagesValid = packages.length <= 3 && packages.every((item) => item.name && item.name.length <= 60 && item.description.length <= 500 && Number.isSafeInteger(item.priceCents) && item.priceCents >= 50 && Number.isInteger(item.durationMinutes) && item.durationMinutes > 0 && (item.deliveryDays === null || Number.isInteger(item.deliveryDays) && item.deliveryDays >= 0 && item.deliveryDays <= 365) && (item.revisionCount === null || Number.isInteger(item.revisionCount) && item.revisionCount >= 0 && item.revisionCount <= 100));
+  const addOnsValid = addOns.length <= 10 && addOns.every((item) => item.name && item.name.length <= 80 && item.description.length <= 500 && Number.isSafeInteger(item.priceCents) && item.priceCents >= 0 && Number.isInteger(item.additionalMinutes) && item.additionalMinutes >= 0 && item.additionalMinutes <= 43200 && Number.isInteger(item.maxQuantity) && item.maxQuantity >= 1 && item.maxQuantity <= 20);
+  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !category || category.length > 80 || !deliveryType || description.length < 10 || description.length > 2000 || preparationNotes.length > 1000 || (deliveryType !== "REMOTE" && !locationId) || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 2_147_483_647 || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180) || !packagesValid || !addOnsValid) {
     return NextResponse.json({ error: "Complete every field with valid listing details." }, { status: 400 });
   }
-  const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [businessName, title, description] });
+  const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [businessName, title, description, preparationNotes, ...packages.flatMap((item) => [item.name,item.description,...item.features]), ...addOns.flatMap((item) => [item.name,item.description])] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
   const financialRisk = await checkAndRecordListingFinancialCrimeRisk({
     userId,
@@ -152,10 +180,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
            price_cents = $7, duration_minutes = $8, booking_questions = $9::jsonb,
            location_id = CASE WHEN $4='REMOTE' THEN NULL ELSE $10::uuid END,
            city = CASE WHEN $4='REMOTE' THEN city ELSE $11 END, state = CASE WHEN $4='REMOTE' THEN state ELSE $12 END,
-           latitude = CASE WHEN $4='REMOTE' THEN latitude ELSE $13 END, longitude = CASE WHEN $4='REMOTE' THEN longitude ELSE $14 END
+           latitude = CASE WHEN $4='REMOTE' THEN latitude ELSE $13 END, longitude = CASE WHEN $4='REMOTE' THEN longitude ELSE $14 END,
+           service_kind=$16, preparation_notes=$17, recurrence_options=$18::text[]
        WHERE id::text = $15`,
-      [businessName, title, category, deliveryType, remoteDeliveryDetails, description, Math.round(price * 100), durationMinutes, JSON.stringify(bookingQuestions), locationId || null, selected?.city ?? null, selected?.state ?? null, selected?.latitude ?? null, selected?.longitude ?? null, serviceId],
+      [businessName, title, category, deliveryType, remoteDeliveryDetails, description, Math.round(price * 100), durationMinutes, JSON.stringify(bookingQuestions), locationId || null, selected?.city ?? null, selected?.state ?? null, selected?.latitude ?? null, selected?.longitude ?? null, serviceId, serviceKind, preparationNotes, recurrenceOptions],
     );
+    await client.query("DELETE FROM service_packages WHERE service_id::text=$1", [serviceId]);
+    for (const [index, item] of packages.entries()) await client.query(`INSERT INTO service_packages
+      (service_id,name,description,price_cents,duration_minutes,delivery_days,revision_count,features,sort_order)
+      VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8::jsonb,$9)`, [serviceId,item.name,item.description,item.priceCents,item.durationMinutes,item.deliveryDays,item.revisionCount,JSON.stringify(item.features),index]);
+    await client.query("DELETE FROM service_add_ons WHERE service_id::text=$1", [serviceId]);
+    for (const [index, item] of addOns.entries()) await client.query(`INSERT INTO service_add_ons
+      (service_id,name,description,price_cents,additional_minutes,allows_quantity,max_quantity,sort_order)
+      VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8)`, [serviceId,item.name,item.description,item.priceCents,item.additionalMinutes,item.allowsQuantity,item.allowsQuantity ? item.maxQuantity : 1,index]);
     await client.query("COMMIT");
     await runAutomatedProviderVerification(ownership.rows[0].provider_id).catch((error) => {
       console.error("Post-listing-update verification failed", ownership.rows[0].provider_id, error);

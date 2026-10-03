@@ -5,6 +5,7 @@ import { distanceMiles } from "./service-areas";
 import { findUsCity } from "./us-cities";
 import { getServiceCategorySearchMatches } from "./service-categories";
 import type { ServiceDeliveryType } from "./service-delivery";
+import type { RecurrenceOption, ServiceAddOn, ServicePackage } from "./service-commerce";
 
 const PRIORITY_DISTANCE_BAND_MILES = 10;
 
@@ -46,6 +47,11 @@ export type ServiceDetails = ServiceListing & {
   reviewCount: number;
   averageRating: number | null;
   screeningCheckedAt: Date | null;
+  serviceKind: "standard" | "consultation";
+  preparationNotes: string;
+  recurrenceOptions: RecurrenceOption[];
+  packages: ServicePackage[];
+  addOns: ServiceAddOn[];
 };
 
 type ServiceRow = {
@@ -228,6 +234,25 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
   );
   if (!result.rows[0]) return null;
   const service = mapService(result.rows[0]);
+  const commerceResult = await database.query<{
+    service_kind: "standard" | "consultation";
+    preparation_notes: string;
+    recurrence_options: RecurrenceOption[];
+    packages: ServicePackage[] | null;
+    add_ons: ServiceAddOn[] | null;
+  }>(`SELECT s.service_kind, s.preparation_notes, s.recurrence_options,
+      (SELECT jsonb_agg(jsonb_build_object(
+        'id', package.id::text, 'name', package.name, 'description', package.description,
+        'priceCents', package.price_cents, 'durationMinutes', package.duration_minutes,
+        'deliveryDays', package.delivery_days, 'revisionCount', package.revision_count,
+        'features', package.features) ORDER BY package.sort_order)
+       FROM service_packages package WHERE package.service_id=s.id AND package.is_active=true) AS packages,
+      (SELECT jsonb_agg(jsonb_build_object(
+        'id', addon.id::text, 'name', addon.name, 'description', addon.description,
+        'priceCents', addon.price_cents, 'additionalMinutes', addon.additional_minutes,
+        'allowsQuantity', addon.allows_quantity, 'maxQuantity', addon.max_quantity) ORDER BY addon.sort_order)
+       FROM service_add_ons addon WHERE addon.service_id=s.id AND addon.is_active=true) AS add_ons
+    FROM services s WHERE s.id=$1`, [service.id]);
   const evidence = await database.query<{
     completed_job_count: string;
     review_count: string;
@@ -242,12 +267,18 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
     [service.id, service.providerId],
   );
   const details = evidence.rows[0];
+  const commerce = commerceResult.rows[0];
   return {
     ...service,
     completedJobCount: Number(details?.completed_job_count ?? 0),
     reviewCount: Number(details?.review_count ?? 0),
     averageRating: details?.average_rating ? Number(details.average_rating) : null,
     screeningCheckedAt: details?.screening_checked_at ?? null,
+    serviceKind: commerce?.service_kind ?? "standard",
+    preparationNotes: commerce?.preparation_notes ?? "",
+    recurrenceOptions: commerce?.recurrence_options?.length ? commerce.recurrence_options : ["one_time"],
+    packages: commerce?.packages ?? [],
+    addOns: commerce?.add_ons ?? [],
   };
 }
 
@@ -347,6 +378,11 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
      ORDER BY item.sort_order, item.created_at`,
     [provider.id],
   );
+  const recommendationsResult = await database.query<{id:string;display_name:string;relationship:string;body:string;created_at:Date}>(
+    `SELECT id::text,display_name,relationship,body,created_at FROM provider_recommendations
+     WHERE provider_id::text=$1 AND moderation_status='approved' ORDER BY created_at DESC LIMIT 12`,
+    [provider.id],
+  );
   const evidenceResult = await database.query<{ completed_booking_count: string; service_areas: string[] | null; available_weekdays: number[] | null }>(
     `SELECT
        (SELECT count(*)::text FROM bookings booking WHERE booking.provider_id = $1 AND booking.status = 'completed') AS completed_booking_count,
@@ -394,6 +430,7 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
     availableWeekdays: evidence?.available_weekdays ?? [],
     portfolio: portfolioResult.rows.map((item) => ({ id: item.id, url: item.public_url, caption: item.caption, altText: item.alt_text, serviceId: item.service_id, serviceTitle: item.service_title })),
     reviews: reviewsResult.rows.map((review) => ({ id: review.id, rating: review.rating, body: review.body, customerName: privateCustomerName(review.customer_name), serviceTitle: review.service_title, createdAt: review.created_at })),
+    recommendations: recommendationsResult.rows.map((item)=>({id:item.id,displayName:item.display_name,relationship:item.relationship,body:item.body,createdAt:item.created_at})),
     services,
   };
 }

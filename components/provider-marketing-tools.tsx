@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import QRCode from "react-qr-code";
 import ListingShareButton from "@/components/listing-share-button";
+import ProviderCouponManager from "@/components/provider-coupon-manager";
+import ProviderRecommendationManager from "@/components/provider-recommendation-manager";
+import type { ProviderPlan } from "@/lib/plans";
 
 type MarketingService = {
   id: string;
@@ -20,7 +23,7 @@ function safeFilename(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "listing";
 }
 
-export default function ProviderMarketingTools({ services, providerProfile }: { services: MarketingService[]; providerProfile: { slug: string; name: string; visible: boolean } | null }) {
+export default function ProviderMarketingTools({ services, providerProfile, plan }: { services: MarketingService[]; providerProfile: { slug: string; name: string; visible: boolean } | null; plan: ProviderPlan }) {
   const [selectedId, setSelectedId] = useState(services[0]?.id ?? "");
   const [downloadError, setDownloadError] = useState("");
   const qrRef = useRef<HTMLDivElement>(null);
@@ -120,5 +123,7 @@ export default function ProviderMarketingTools({ services, providerProfile }: { 
         </div>
       </section>
     </div>
+    <ProviderCouponManager services={services.map(({id,title})=>({id,title}))} allowed={plan !== "starter"} />
+    <ProviderRecommendationManager />
   </div>;
 }

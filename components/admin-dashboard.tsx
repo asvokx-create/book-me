@@ -313,6 +313,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                 {item.id === "reports" && openReports.length > 0 && <span className="ml-auto rounded-full bg-[#fff0e7] px-2 py-0.5 text-[10px] text-[#9a4e25]">{openReports.length}</span>}
               </button>
             ))}
+            <Link href="/admin/recommendations" className="hidden min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white lg:flex">Client recommendations</Link>
             <div className="mt-2 grid gap-1 border-t border-white/10 pt-3 sm:col-span-2 sm:grid-cols-2 lg:hidden">
               <Link href="/admin/reported-bugs" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Bug reports</Link>
               <Link href="/admin/disputes" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Booking disputes</Link>
@@ -321,6 +322,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
               <Link href="/admin/expenses" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Expenses</Link>
               <Link href="/admin/requests" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Service requests</Link>
               <Link href="/admin/affiliates" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Partners &amp; affiliates</Link>
+              <Link href="/admin/recommendations" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Client recommendations</Link>
               <Link href="/account" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">View marketplace</Link>
             </div>
           </nav>

@@ -13,6 +13,7 @@ export type ProviderDashboardIconName = Extract<UiIconName,
   | "locations"
   | "availability"
   | "reviews"
+  | "customers"
   | "team"
   | "billing"
   | "settings">;

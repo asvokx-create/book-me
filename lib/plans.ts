@@ -12,6 +12,7 @@ export const PLAN_ENTITLEMENTS = {
     customBookingQuestions: false,
     reminderHours: [24],
     repeatCustomerTools: false,
+    promotions: false,
     multipleLocations: false,
     prioritySupport: false,
     featuredPlacement: false,
@@ -27,6 +28,7 @@ export const PLAN_ENTITLEMENTS = {
     customBookingQuestions: true,
     reminderHours: [24, 1],
     repeatCustomerTools: true,
+    promotions: true,
     multipleLocations: true,
     prioritySupport: true,
     featuredPlacement: true,
@@ -42,6 +44,7 @@ export const PLAN_ENTITLEMENTS = {
     customBookingQuestions: true,
     reminderHours: [24, 1],
     repeatCustomerTools: true,
+    promotions: true,
     multipleLocations: true,
     prioritySupport: true,
     featuredPlacement: true,
@@ -57,6 +60,7 @@ export const PLAN_ENTITLEMENTS = {
     customBookingQuestions: true,
     reminderHours: [24, 1],
     repeatCustomerTools: true,
+    promotions: true,
     multipleLocations: true,
     prioritySupport: true,
     featuredPlacement: true,
@@ -72,6 +76,7 @@ export const PLAN_ENTITLEMENTS = {
   customBookingQuestions: boolean;
   reminderHours: readonly number[];
   repeatCustomerTools: boolean;
+  promotions: boolean;
   multipleLocations: boolean;
   prioritySupport: boolean;
   featuredPlacement: boolean;

@@ -3,20 +3,21 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { getStripeMode } from "@/lib/stripe";
+import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const providerResult = await database.query<{ id: string }>(
-    "SELECT id::text FROM provider_profiles WHERE user_id = $1 AND is_active = true",
+  const providerResult = await database.query<{ id: string; plan: ProviderPlan }>(
+    "SELECT id::text,plan FROM provider_profiles WHERE user_id = $1 AND is_active = true",
     [session.user.id],
   );
   const providerId = providerResult.rows[0]?.id;
   if (!providerId) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
   const stripeMode = getStripeMode();
 
-  const [totalsResult, monthlyResult, recentResult] = await Promise.all([
+  const [totalsResult, monthlyResult, recentResult, repeatResult] = await Promise.all([
     database.query<{
       total_cents: string;
       this_month_cents: string;
@@ -109,9 +110,21 @@ export async function GET() {
        LIMIT 5`,
       [providerId, stripeMode],
     ),
+    database.query<{customer_count:number;repeat_customer_count:number;repeat_booking_count:number;completed_booking_count:number;returning_revenue_cents:string}>(`WITH ordered AS (
+        SELECT customer_id,price_cents,refunded_amount_cents,
+          row_number() OVER(PARTITION BY customer_id ORDER BY starts_at,created_at) AS customer_booking_number
+        FROM bookings WHERE provider_id::text=$1 AND status='completed'
+      ) SELECT count(DISTINCT customer_id)::int AS customer_count,
+        count(DISTINCT customer_id) FILTER(WHERE customer_booking_number>1)::int AS repeat_customer_count,
+        count(*) FILTER(WHERE customer_booking_number>1)::int AS repeat_booking_count,
+        count(*)::int AS completed_booking_count,
+        COALESCE(sum(price_cents-refunded_amount_cents) FILTER(WHERE customer_booking_number>1),0)::bigint AS returning_revenue_cents
+      FROM ordered`,[providerId]),
   ]);
 
   const totals = totalsResult.rows[0];
+  const repeat=repeatResult.rows[0];
+  const repeatAllowed=PLAN_ENTITLEMENTS[providerResult.rows[0].plan].repeatCustomerTools;
   return NextResponse.json({
     totalRevenue: Number(totals.total_cents) / 100,
     thisMonthRevenue: Number(totals.this_month_cents) / 100,
@@ -135,5 +148,12 @@ export async function GET() {
       paidOutAt: row.payout_released_at,
       amount: row.provider_earnings_cents / 100,
     })),
+    repeatMetrics: repeatAllowed?{
+      customers:repeat.customer_count,
+      repeatCustomers:repeat.repeat_customer_count,
+      repeatBookings:repeat.repeat_booking_count,
+      repeatBookingRate:repeat.completed_booking_count?Math.round(repeat.repeat_booking_count/repeat.completed_booking_count*100):0,
+      returningRevenue:Number(repeat.returning_revenue_cents)/100,
+    }:null,
   });
 }
