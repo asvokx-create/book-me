@@ -10,6 +10,7 @@ import ListingShareButton from "@/components/listing-share-button";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import ProfileAvatar from "@/components/profile-avatar";
 import { formatDuration, getProviderBySlug, getServiceVisual } from "@/lib/marketplace";
+import { getProviderAccess } from "@/lib/provider-access";
 import { deliveryLabel } from "@/lib/service-delivery";
 
 export const dynamic = "force-dynamic";
@@ -26,11 +27,20 @@ export async function generateMetadata({ params }: PageProps<"/providers/[slug]"
   return { title, description, alternates: { canonical }, openGraph: { title, description, url: canonical, type: "website", images: image ? [{ url: image }] : undefined }, twitter: { card: image ? "summary_large_image" : "summary", title, description, images: image ? [image] : undefined } };
 }
 
-export default async function ProviderProfilePage({ params }: PageProps<"/providers/[slug]">) {
+export default async function ProviderProfilePage({ params, searchParams }: PageProps<"/providers/[slug]">) {
   const { slug } = await params;
-  const provider = await getProviderBySlug(slug);
+  const query = await searchParams;
+  let provider = await getProviderBySlug(slug);
+  let isOwnerPreview = false;
+  if (!provider && query.preview === "owner") {
+    const access = await getProviderAccess();
+    if (access?.isOwner) {
+      provider = await getProviderBySlug(slug, { ownerProviderId: access.providerId });
+      isOwnerPreview = provider !== null;
+    }
+  }
   if (!provider) notFound();
-  if (slug !== provider.publicSlug) permanentRedirect(`/providers/${provider.publicSlug}`);
+  if (slug !== provider.publicSlug) permanentRedirect(`/providers/${provider.publicSlug}${isOwnerPreview ? "?preview=owner" : ""}`);
   const featured = provider.services[0];
   const heroImage = provider.portfolio[0]?.url || featured?.imageUrls[0];
   const visual = getServiceVisual(featured?.category ?? "service");
@@ -44,10 +54,11 @@ export default async function ProviderProfilePage({ params }: PageProps<"/provid
       : `Serving ${provider.city}, ${provider.state}${provider.serviceAreas.length > 1 ? ` and ${provider.serviceAreas.length - 1} more area${provider.serviceAreas.length > 2 ? "s" : ""}` : ""}`;
 
   return <main className="provider-profile-page min-h-screen bg-[#f8f7f3] text-[#183126]">
-    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
+    {!isOwnerPreview && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />}
     <header className="relative z-50 border-b border-[#183126]/10 bg-white"><div className="site-container flex items-center justify-between gap-2 px-4 py-4 sm:px-8"><Link href="/" aria-label="BubsBookings home"><BrandLockup compact /></Link><div className="flex items-center gap-2"><MobileSiteNav /><AccountNav /></div></div></header>
     <div className="site-container px-4 py-7 sm:px-8 sm:py-11">
       <BackButton label="Back to services" fallbackHref="/services" />
+      {isOwnerPreview && <aside className="mt-5 flex flex-col justify-between gap-3 rounded-2xl border border-[#c7bb41]/40 bg-[#fff9d8] px-5 py-4 sm:flex-row sm:items-center" aria-label="Private profile preview"><div><p className="text-sm font-bold">Private preview</p><p className="mt-1 text-sm text-[#65736b]">Only you can see this version. Your profile needs to be visible and have an active service before customers can open it.</p></div><Link href="/provider/dashboard/profile" className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-[#183126] px-4 py-2 text-sm font-bold text-white">Return to editor</Link></aside>}
       <section className="mt-6 overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_12px_40px_rgba(24,49,38,.08)] sm:rounded-[2.5rem]">
         <div role="img" aria-label={heroImage ? `${provider.businessName} portfolio` : `${provider.businessName} service artwork`} style={heroImage ? { backgroundImage: `url("${heroImage}")` } : undefined} className={`relative h-40 bg-cover bg-center sm:h-56 ${heroImage ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!heroImage && <span className="absolute bottom-5 right-7 text-7xl" aria-hidden="true">{visual.art}</span>}</div>
         <div className="relative px-5 pb-7 sm:px-9 sm:pb-9">

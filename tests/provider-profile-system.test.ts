@@ -22,7 +22,7 @@ test("provider profile slugs are readable, stable, unique, and replace raw publi
 test("public profiles expose only eligible providers and truthful marketplace evidence", () => {
   const marketplace = read("lib", "marketplace.ts");
   const page = read("app", "providers", "[slug]", "page.tsx");
-  assert.match(marketplace, /p\.is_active = true AND \(\$2::boolean = true OR p\.public_profile_visible = true\)/);
+  assert.match(marketplace, /\$2::text IS NULL[\s\S]*p\.public_profile_visible = true/);
   assert.match(marketplace, /EXISTS \(SELECT 1 FROM services active_service[\s\S]*active_service\.is_active = true\)/);
   assert.match(marketplace, /JOIN bookings b ON b\.id = r\.booking_id AND b\.status = 'completed'/);
   assert.match(marketplace, /r\.is_hidden = false/);
@@ -30,6 +30,20 @@ test("public profiles expose only eligible providers and truthful marketplace ev
   assert.match(page, /provider\.reviews\.length > 0/);
   assert.match(page, /Exact times and openings appear during booking/);
   assert.doesNotMatch(page, /background checked|licensed|insured/i);
+});
+
+test("business owners can preview only their own hidden or pre-launch profile", () => {
+  const marketplace = read("lib", "marketplace.ts");
+  const page = read("app", "providers", "[slug]", "page.tsx");
+  const editor = read("components", "provider-profile-editor.tsx");
+  const marketing = read("components", "provider-marketing-tools.tsx");
+  assert.match(marketplace, /\$2::text IS NOT NULL AND p\.id::text = \$2/);
+  assert.match(page, /query\.preview === "owner"/);
+  assert.match(page, /access\?\.isOwner/);
+  assert.match(page, /ownerProviderId: access\.providerId/);
+  assert.match(page, /Private preview/);
+  assert.match(editor, /\?preview=owner/);
+  assert.match(marketing, /\?preview=owner/);
 });
 
 test("provider profile editing is owner-only, moderated, bounded, and separate from listing media", () => {

@@ -275,7 +275,7 @@ export async function getServiceById(id: string) {
   return result.rows[0] ? mapService(result.rows[0]) : null;
 }
 
-export async function getProviderBySlug(slug: string, options: { includeHidden?: boolean } = {}) {
+export async function getProviderBySlug(slug: string, options: { includeHidden?: boolean; ownerProviderId?: string } = {}) {
   if (!isDatabaseConfigured()) return null;
   const providerResult = await database.query<{
     id: string;
@@ -311,10 +311,16 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
      FROM provider_profiles p
      JOIN "user" owner ON owner.id = p.user_id
      WHERE (lower(p.public_profile_slug) = lower($1) OR p.id::text = $1)
-       AND p.is_active = true AND ($2::boolean = true OR p.public_profile_visible = true)
-       AND EXISTS (SELECT 1 FROM services active_service WHERE active_service.provider_id = p.id AND active_service.is_active = true)
+       AND p.is_active = true
+       AND (
+         ($2::text IS NOT NULL AND p.id::text = $2)
+         OR
+         ($2::text IS NULL
+           AND ($3::boolean = true OR p.public_profile_visible = true)
+           AND EXISTS (SELECT 1 FROM services active_service WHERE active_service.provider_id = p.id AND active_service.is_active = true))
+       )
      LIMIT 1`,
-    [slug, options.includeHidden === true],
+    [slug, options.ownerProviderId ?? null, options.includeHidden === true],
   );
   const provider = providerResult.rows[0];
   if (!provider) return null;
