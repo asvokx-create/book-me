@@ -16,7 +16,8 @@ test("shared explanations appear on hover, keyboard focus, and focus within link
 test("affiliate compensation badges explain how each earning type works",()=>{
   const dashboard=read("app","affiliate","page.tsx");
   assert.match(dashboard,/id="activation-bonus-help"/);
-  assert.match(dashboard,/eligible paid booking/);
+  assert.match(dashboard,/for each referred provider who becomes qualified/);
+  assert.match(dashboard,/activation bonus per qualified provider/);
   assert.match(dashboard,/id="revenue-share-help"/);
   assert.match(dashboard,/not the provider's service price/);
   assert.match(dashboard,/id="custom-campaign-help"/);
