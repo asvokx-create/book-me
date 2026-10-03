@@ -18,6 +18,7 @@ import ProfileAvatar from "@/components/profile-avatar";
 import LocationManager from "@/components/location-manager";
 import ProviderMarketingTools from "@/components/provider-marketing-tools";
 import ProviderProfileEditor from "@/components/provider-profile-editor";
+import ProviderDashboardIcon from "@/components/provider-dashboard-icon";
 import JobRequestCenter from "@/components/job-request-center";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { isAllDayAvailability } from "@/lib/availability-hours";
@@ -115,22 +116,22 @@ function formatBookingTime(startsAt: string, timeZone?: string) {
   return formatInUserTimeZone(startsAt, { hour: "numeric", minute: "2-digit" }, timeZone);
 }
 
-const dashboardNav: Array<{ section: DashboardSection; href: string; icon: string; label: string }> = [
-  { section: "overview", href: "/provider/dashboard", icon: "▦", label: "Overview" },
-  { section: "bookings", href: "/provider/dashboard/bookings", icon: "◷", label: "Bookings" },
-  { section: "opportunities", href: "/provider/dashboard/opportunities", icon: "⌁", label: "Opportunities" },
-  { section: "calendar", href: "/provider/dashboard/calendar", icon: "▣", label: "Calendar" },
-  { section: "messages", href: "/provider/dashboard/messages", icon: "✉", label: "Messages" },
-  { section: "revenue", href: "/provider/dashboard/revenue", icon: "$", label: "Revenue" },
-  { section: "services", href: "/provider/dashboard/services", icon: "◇", label: "Services" },
-  { section: "profile", href: "/provider/dashboard/profile", icon: "◉", label: "Public profile" },
-  { section: "marketing", href: "/provider/dashboard/marketing", icon: "⌁", label: "Marketing" },
-  { section: "locations", href: "/provider/dashboard/locations", icon: "⌖", label: "Locations" },
-  { section: "availability", href: "/provider/dashboard/availability", icon: "□", label: "Availability" },
-  { section: "reviews", href: "/provider/dashboard/reviews", icon: "☆", label: "Reviews" },
-  { section: "team", href: "/provider/dashboard/team", icon: "♙", label: "Team" },
-  { section: "billing", href: "/provider/dashboard/billing", icon: "▤", label: "Billing" },
-  { section: "settings", href: "/provider/dashboard/settings", icon: "⚙", label: "Settings" },
+const dashboardNav: Array<{ section: DashboardSection; href: string; label: string }> = [
+  { section: "overview", href: "/provider/dashboard", label: "Overview" },
+  { section: "bookings", href: "/provider/dashboard/bookings", label: "Bookings" },
+  { section: "opportunities", href: "/provider/dashboard/opportunities", label: "Opportunities" },
+  { section: "calendar", href: "/provider/dashboard/calendar", label: "Calendar" },
+  { section: "messages", href: "/provider/dashboard/messages", label: "Messages" },
+  { section: "revenue", href: "/provider/dashboard/revenue", label: "Revenue" },
+  { section: "services", href: "/provider/dashboard/services", label: "Services" },
+  { section: "profile", href: "/provider/dashboard/profile", label: "Public profile" },
+  { section: "marketing", href: "/provider/dashboard/marketing", label: "Marketing" },
+  { section: "locations", href: "/provider/dashboard/locations", label: "Locations" },
+  { section: "availability", href: "/provider/dashboard/availability", label: "Availability" },
+  { section: "reviews", href: "/provider/dashboard/reviews", label: "Reviews" },
+  { section: "team", href: "/provider/dashboard/team", label: "Team" },
+  { section: "billing", href: "/provider/dashboard/billing", label: "Billing" },
+  { section: "settings", href: "/provider/dashboard/settings", label: "Settings" },
 ];
 
 const sectionsNeedingPageHeading: Partial<Record<DashboardSection, string>> = {
@@ -356,12 +357,12 @@ export default function ProviderDashboard({ section = "overview", initialConvers
       <div className="dashboard-shell dashboard-container grid gap-6 px-4 py-6 sm:px-8 sm:py-8 lg:grid-cols-[236px_minmax(0,1fr)] lg:gap-8">
         <aside className="dashboard-sidebar hidden lg:block">
           <nav className="dashboard-sidebar-nav w-full space-y-1 text-sm font-semibold">
-            {visibleNav.map((item) => <div key={item.section}>{item.section === "settings" && <div className="dashboard-nav-divider my-4 border-t border-white/10" />}<Link href={item.href} className={`dashboard-nav-link flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "dashboard-nav-link-active bg-[#eee25a] text-[#183126]" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><span className="dashboard-nav-icon">{item.icon}</span>{item.label}{item.section === "bookings" && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{activeRequests}</span>}</Link></div>)}
+            {visibleNav.map((item) => <div key={item.section}>{item.section === "settings" && <div className="dashboard-nav-divider my-4 border-t border-white/10" />}<Link href={item.href} className={`dashboard-nav-link flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "dashboard-nav-link-active bg-[#eee25a] text-[#183126]" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><span className="dashboard-nav-icon"><ProviderDashboardIcon name={item.section} /></span>{item.label}{item.section === "bookings" && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{activeRequests}</span>}</Link></div>)}
           </nav>
         </aside>
 
         <div className="dashboard-content min-w-0 lg:col-start-2">
-          <nav aria-label="Provider dashboard sections" className="mobile-scroll-row -mx-4 mb-6 flex snap-x gap-2 overflow-x-auto px-4 pb-2 text-sm font-bold lg:hidden">{visibleNav.map((item) => <Link key={item.section} href={item.href} className={`shrink-0 snap-start rounded-full px-4 py-2.5 ${section === item.section ? "bg-[#183126] text-white shadow-[0_8px_20px_rgba(24,49,38,.16)]" : "border border-[#183126]/10 bg-white"}`}>{item.label}</Link>)}</nav>
+          <nav aria-label="Provider dashboard sections" className="mobile-scroll-row -mx-4 mb-6 flex snap-x gap-2 overflow-x-auto px-4 pb-2 text-sm font-bold lg:hidden">{visibleNav.map((item) => <Link key={item.section} href={item.href} className={`inline-flex shrink-0 snap-start items-center gap-2 rounded-full px-4 py-2.5 ${section === item.section ? "bg-[#183126] text-white shadow-[0_8px_20px_rgba(24,49,38,.16)]" : "border border-[#183126]/10 bg-white"}`}><ProviderDashboardIcon name={item.section} className="h-3.5 w-3.5" />{item.label}</Link>)}</nav>
           {!ownerOnlySection && sectionsNeedingPageHeading[section] && <h1 className="sr-only">{sectionsNeedingPageHeading[section]}</h1>}
           {ownerOnlySection && <section className="rounded-[2rem] border border-[#d6ca65] bg-[#fff8cd] p-7"><h1 className="text-2xl font-bold">Owner-only company area</h1><p className="mt-2 text-sm leading-6 text-[#6f6840]">Workers can view assigned bookings and manage their own requested hours. Revenue, billing, listings, company messages, and business settings stay private to the company owner.</p><Link href="/provider/dashboard/team" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Open my worker area</Link></section>}
           {notice && provider && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Welcome to BubsBookings, {firstName}!</p><p className="mt-1 text-[#567060]">{isWorker ? `You have worker access to ${provider.businessName}.` : "Your provider profile and services are saved."}</p></div><button onClick={() => setNotice(false)} aria-label="Dismiss" className="rounded-full px-2 text-lg text-[#64786a] transition hover:bg-[#cbdcc8]">×</button></div>}
