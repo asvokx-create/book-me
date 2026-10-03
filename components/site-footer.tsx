@@ -7,7 +7,7 @@ const marketplaceLinks = [
   ["Service areas", "/locations"],
   ["Helpful guides", "/guides"],
   ["List your service", "/providers/join"],
-  ["Creator partners", "/partners"],
+  ["Partner program", "/partners"],
 ] as const;
 
 const trustLinks = [

@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "BubsBookings Creator Partner Program";
+export const alt = "BubsBookings Partner Program";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -12,7 +12,7 @@ export default function OpenGraphImage() {
         <div>BubsBookings</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", maxWidth: 1000 }}>
-        <div style={{ display: "flex", color: "#61746a", fontSize: 24, fontWeight: 800, letterSpacing: 4, textTransform: "uppercase" }}>Creator Partner Program</div>
+        <div style={{ display: "flex", color: "#61746a", fontSize: 24, fontWeight: 800, letterSpacing: 4, textTransform: "uppercase" }}>Partner Program</div>
         <div style={{ display: "flex", marginTop: 18, fontSize: 62, lineHeight: 1.05, fontWeight: 800, letterSpacing: -3 }}>Help local providers grow. Earn when BubsBookings earns.</div>
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 23, color: "#61746a" }}>

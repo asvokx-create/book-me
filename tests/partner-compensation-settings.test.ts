@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { campaignDurationLabel, partnerCompensationHeading } from "../lib/partner-compensation.ts";
 
 const read=(...parts:string[])=>readFileSync(new URL(`../${parts.join("/")}`,import.meta.url),"utf8");
 
@@ -32,6 +33,7 @@ test("admin reviews all compensation features and dashboard hides excluded rewar
   const admin=read("components","affiliate-admin.tsx");
   const route=read("app","api","admin","affiliates","route.ts");
   const dashboard=read("app","affiliate","page.tsx");
+  const summary=read("components","partner-compensation-summary.tsx");
   for(const field of ["activationBonusEnabled","milestoneBonusesEnabled","revenueShareEnabled","customCampaignEnabled"]){
     assert.match(admin,new RegExp(`name="${field}"`));
   }
@@ -41,6 +43,11 @@ test("admin reviews all compensation features and dashboard hides excluded rewar
   assert.match(route,/affiliate_overrides_changed/);
   assert.match(dashboard,/profile\.milestone_bonuses_enabled&&milestoneProgress/);
   assert.doesNotMatch(dashboard,/custom_campaign_notes/);
+  assert.match(summary,/props\.activationBonusEnabled \?/);
+  assert.match(summary,/props\.revenueShareEnabled \?/);
+  assert.match(summary,/props\.milestoneBonusesEnabled \?/);
+  assert.match(summary,/props\.customCampaignEnabled && props\.customCampaignAmountCents !== null \?/);
+  assert.doesNotMatch(summary,/Disabled<\/dd>/);
 });
 
 test("Preston-style terms are representable without activation or milestone inheritance",()=>{
@@ -49,4 +56,19 @@ test("Preston-style terms are representable without activation or milestone inhe
   assert.match(admin,/revenue_share_basis_points\?\?2000/);
   assert.match(admin,/revenue_share_duration_months\?\?6/);
   assert.match(admin,/Program type/);
+  assert.equal(partnerCompensationHeading("custom"),"Custom Partnership");
+  assert.equal(campaignDurationLabel("2026-09-01","2026-09-30"),"1 month");
+});
+
+test("public Partner copy distinguishes standard terms from account-specific compensation",()=>{
+  const publicPage=read("app","partners","page.tsx");
+  const termsLink=read("components","partner-terms-link.tsx");
+  assert.match(publicPage,/Standard Partner Program/);
+  assert.match(publicPage,/Most Partners start with the standard program below\. Some Partners may have custom compensation terms\./);
+  assert.match(publicPage,/Standard terms apply unless your Partner account has custom compensation settings\./);
+  assert.match(publicPage,/Earnings become payable after the required hold period/);
+  assert.doesNotMatch(publicPage,/Standard creator program/i);
+  assert.match(termsLink,/result\?\.authenticated && result\.isAffiliate/);
+  assert.match(termsLink,/href="\/affiliate#partner-terms"/);
+  assert.match(termsLink,/View my Partner terms/);
 });

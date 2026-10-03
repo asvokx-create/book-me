@@ -1895,12 +1895,36 @@ html[data-theme="dark"] .partners-program-card > p {
   color: var(--text-secondary) !important;
 }
 
-html[data-theme="dark"] .partners-program-card > :is(p:nth-child(2), p:nth-child(4)) {
+html[data-theme="dark"] .partners-program-card .partners-compensation-value {
   color: var(--text-primary) !important;
 }
 
-html[data-theme="dark"] .partners-program-card > p.mt-4:last-child {
+html[data-theme="dark"] .partners-program-card .partners-example {
+  background-color: #3b3517 !important;
+  color: #f5e98a !important;
+}
+
+html[data-theme="dark"] .partners-program-card .partners-custom-note {
+  border-color: var(--border-strong) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .partners-program-card .partners-payout-note,
+html[data-theme="dark"] .partners-program-card .partners-standard-intro {
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .partner-compensation-summary {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+html[data-theme="dark"] .partner-term-item {
   background-color: var(--surface-muted) !important;
+  border: 1px solid var(--divider);
+}
+
+html[data-theme="dark"] .partner-term-item :is(dt, p) {
   color: var(--text-secondary) !important;
 }
 
@@ -2688,6 +2712,16 @@ html[data-theme="dark"] .account-page > header {
   .site-footer-mobile-group summary { display: flex; min-height: 2.75rem; list-style: none; align-items: center; justify-content: space-between; color: #d5e0da; font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; cursor: pointer; }
   .site-footer-mobile-group summary::-webkit-details-marker { display: none; }
   .site-footer-mobile-group[open] summary span:last-child { transform: rotate(45deg); }
+
+  .partners-hero > .site-container { gap: 1.75rem; padding-top: 2.25rem; padding-bottom: 2.5rem; }
+  .partners-program-card { padding: 1.25rem !important; border-radius: 1.5rem !important; }
+  .partners-compensation-grid { gap: 1rem; }
+  .partners-compensation-value { font-size: 2rem !important; line-height: 1; }
+  .partners-example { padding: 1rem !important; }
+  .partners-custom-note { margin-top: 1rem !important; padding-top: 1rem !important; }
+  .partner-terms-link { width: 100%; }
+  .partner-compensation-summary { padding: 1.1rem !important; border-radius: 1.35rem !important; }
+  .partner-compensation-summary dl { grid-template-columns: minmax(0, 1fr); }
 
   .service-detail-account { display: none; }
   .service-detail-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }

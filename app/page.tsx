@@ -174,7 +174,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#627065]">✨ For creators &amp; affiliates</p>
             <h2 className="mt-1.5 text-xl font-bold tracking-[-.03em]">Share BubsBookings. Earn when providers succeed.</h2>
             <p className="mt-2 text-xs leading-5 text-[#52655a]">Refer real service providers and earn from eligible BubsBookings fee revenue after they complete qualifying paid work.</p>
-            <Link href="/partners" className="mt-3 inline-flex rounded-full border border-[#183126]/20 bg-white/45 px-3.5 py-2 text-xs font-bold transition hover:bg-white/70">Become a creator partner →</Link>
+            <Link href="/partners" className="mt-3 inline-flex rounded-full border border-[#183126]/20 bg-white/45 px-3.5 py-2 text-xs font-bold transition hover:bg-white/70">Become a Partner →</Link>
           </div>
         </div>
       </section>
