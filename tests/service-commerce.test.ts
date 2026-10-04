@@ -30,6 +30,27 @@ test("fixed coupons never reduce the service subtotal below zero",()=>{
   assert.equal(result.serviceSubtotalCents,0);
 });
 
+test("percentage coupons round once at the cent boundary",()=>{
+  const result=calculateCommerceSelection({servicePriceCents:999,addOns:[],coupon:{...coupon,discountValue:33,minimumSubtotalCents:0}});
+  assert.equal(result.discountCents,330);
+  assert.equal(result.serviceSubtotalCents,669);
+});
+
+test("a coupon discounts the package and add-ons together without changing their audit lines",()=>{
+  const result=calculateCommerceSelection({servicePriceCents:10_000,selectedPackage:packageOption,addOns:[{addOn,quantity:3}],coupon:{...coupon,discountType:"fixed",discountValue:2_500,minimumSubtotalCents:0}});
+  assert.equal(result.basePriceCents,12_000);
+  assert.equal(result.addOnTotalCents,4_500);
+  assert.equal(result.originalSubtotalCents,16_500);
+  assert.equal(result.discountCents,2_500);
+  assert.equal(result.serviceSubtotalCents,14_000);
+});
+
+test("100 percent discounts remain mathematically bounded for the booking layer to enforce its minimum",()=>{
+  const result=calculateCommerceSelection({servicePriceCents:10_000,addOns:[],coupon:{...coupon,discountValue:100,minimumSubtotalCents:0}});
+  assert.equal(result.discountCents,10_000);
+  assert.equal(result.serviceSubtotalCents,0);
+});
+
 test("coupon expiration, minimum, and usage limit are enforced",()=>{
   assert.throws(()=>calculateCommerceSelection({servicePriceCents:4_000,addOns:[],coupon}),/minimum/);
   assert.throws(()=>calculateCommerceSelection({servicePriceCents:10_000,addOns:[],coupon:{...coupon,expiresAt:new Date("2020-01-01")}}),/expired/);

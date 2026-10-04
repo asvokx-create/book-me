@@ -9,6 +9,7 @@ import { recordAnalytics } from "@/lib/analytics";
 import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "@/lib/booking-financials";
 import { isServiceDeliveryType, serviceSupportsMethod, type BookingDeliveryMethod, type ServiceDeliveryType } from "@/lib/service-delivery";
 import { calculateCommerceSelection, isRecurrenceOption, nextOccurrence, type CouponRule, type ServiceAddOn, type ServicePackage } from "@/lib/service-commerce";
+import { PLAN_ENTITLEMENTS } from "@/lib/plans";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -112,6 +113,7 @@ export async function POST(request: Request) {
   const addOnById = new Map(addOnResult.rows.map((item) => [item.id,item]));
   let coupon: CouponRule | null = null;
   if (couponCode) {
+    if (!PLAN_ENTITLEMENTS[service.plan].promotions) return NextResponse.json({ error: "That coupon is not valid for this service." }, { status: 400 });
     const couponResult = await database.query<CouponRule & { provider_id: string; service_id: string | null }>(`SELECT id::text,code,discount_type AS "discountType",discount_value AS "discountValue",minimum_subtotal_cents AS "minimumSubtotalCents",first_booking_only AS "firstBookingOnly",repeat_customer_only AS "repeatCustomerOnly",expires_at AS "expiresAt",usage_limit AS "usageLimit",redemption_count AS "redemptionCount",provider_id::text,service_id::text FROM provider_coupons WHERE provider_id::text=$1 AND upper(code)=$2 AND is_active=true AND (service_id IS NULL OR service_id::text=$3)`, [service.provider_id,couponCode,serviceId]);
     coupon = couponResult.rows[0] ?? null;
     if (!coupon) return NextResponse.json({ error: "That coupon is not valid for this service." }, { status: 400 });
@@ -150,7 +152,7 @@ export async function POST(request: Request) {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [service.provider_id]);
     if (coupon) {
-      const reserved = await client.query(`UPDATE provider_coupons SET redemption_count=redemption_count+1 WHERE id=$1::uuid AND is_active=true AND (expires_at IS NULL OR expires_at>now()) AND (usage_limit IS NULL OR redemption_count<usage_limit) RETURNING id`, [coupon.id]);
+      const reserved = await client.query(`UPDATE provider_coupons coupon SET redemption_count=coupon.redemption_count+1 WHERE coupon.id=$1::uuid AND coupon.is_active=true AND (coupon.expires_at IS NULL OR coupon.expires_at>now()) AND (coupon.usage_limit IS NULL OR coupon.redemption_count<coupon.usage_limit) AND EXISTS (SELECT 1 FROM provider_profiles provider WHERE provider.id=coupon.provider_id AND provider.plan IN ('pro','business','owner') AND provider.is_active=true) RETURNING coupon.id`, [coupon.id]);
       if (!reserved.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: "That coupon is no longer available." }, { status: 409 }); }
     }
     const candidate = await client.query<{ member_id: string | null; name: string }>(
@@ -256,7 +258,18 @@ export async function POST(request: Request) {
     if (providerBookingCount.rows[0]?.count === 1) await recordAnalytics({ eventName: "first_booking_received", userId: service.provider_user_id, targetType: "booking", targetId: bookingId });
     if (parentBookingId) await recordAnalytics({ eventName: "customer_rebooked", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { parentBookingId } });
     await sendBookingUpdateEmails(bookingId, "requested");
-    return NextResponse.json({ id: bookingId, status: "requested" }, { status: 201 });
+    return NextResponse.json({
+      id: bookingId,
+      status: "requested",
+      pricing: {
+        originalSubtotalCents: commerce.originalSubtotalCents,
+        discountCents: commerce.discountCents,
+        serviceSubtotalCents: commerce.serviceSubtotalCents,
+        customerServiceFeeCents: financialSnapshot.customerServiceFeeCents,
+        customerTotalCents: financialSnapshot.customerTotalCents,
+        couponCode: coupon?.code ?? null,
+      },
+    }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Booking request failed", error);

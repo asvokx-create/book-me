@@ -65,3 +65,17 @@ export function zonedDateTimeToUtc(date: string, time: string, timeZone: string)
     ? result
     : null;
 }
+
+export function nextCalendarDate(date: string) {
+  const match = date.match(datePattern);
+  if (!match) return null;
+  const value = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  if (value.getUTCFullYear() !== Number(match[1]) || value.getUTCMonth() + 1 !== Number(match[2]) || value.getUTCDate() !== Number(match[3])) return null;
+  value.setUTCDate(value.getUTCDate() + 1);
+  return value.toISOString().slice(0, 10);
+}
+
+export function endOfZonedCalendarDate(date: string, timeZone: string) {
+  const followingDate = nextCalendarDate(date);
+  return followingDate ? zonedDateTimeToUtc(followingDate, "00:00", timeZone) : null;
+}
