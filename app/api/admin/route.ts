@@ -8,10 +8,11 @@ import { assessListingFinancialCrimeRisk } from "@/lib/financial-crime-screening
 import { enforceRateLimit } from "@/lib/request-security";
 
 const reportStatuses = new Set(["reviewing", "resolved", "dismissed"]);
-const accountStatuses = new Set(["active", "suspended", "banned"]);
+const accountStatuses = new Set(["active", "under_review", "suspended", "banned"]);
+const messageModerationStatuses = new Set(["confirmed", "false_positive", "warning_only", "under_review", "suspended", "banned", "resolved"]);
 
 async function loadDashboard() {
-  const [stats, reports, events, accounts, listings, reviews, payouts, audit] = await Promise.all([
+  const [stats, reports, events, messageModeration, accounts, listings, reviews, payouts, audit] = await Promise.all([
     database.query<{
       users: number; active_providers: number; active_services: number; bookings_30d: number;
       open_reports: number; blocked_30d: number;
@@ -22,7 +23,8 @@ async function loadDashboard() {
         (SELECT count(*)::int FROM services s JOIN provider_profiles p ON p.id = s.provider_id WHERE s.is_active = true AND p.is_active = true) AS active_services,
         (SELECT count(*)::int FROM bookings WHERE created_at >= now() - interval '30 days') AS bookings_30d,
         (SELECT count(*)::int FROM safety_reports WHERE status IN ('open', 'reviewing')) AS open_reports,
-        (SELECT count(*)::int FROM moderation_events WHERE created_at >= now() - interval '30 days') AS blocked_30d`,
+        ((SELECT count(*)::int FROM moderation_events WHERE created_at >= now() - interval '30 days') +
+         (SELECT count(*)::int FROM message_moderation_events WHERE action_taken <> 'logged' AND created_at >= now() - interval '30 days')) AS blocked_30d`,
     ),
     database.query(
       `SELECT sr.id::text, sr.category, sr.details, sr.status, sr.created_at,
@@ -46,6 +48,28 @@ async function loadDashboard() {
        JOIN "user" u ON u.id = me.user_id
        ORDER BY me.created_at DESC
        LIMIT 50`,
+    ),
+    database.query(
+      `SELECT event.id::text, event.message_id::text, event.conversation_id::text, event.booking_id::text,
+              event.sender_id, event.recipient_id, event.sender_name, event.sender_email,
+              event.message_content, event.risk_level, event.detection_reason, event.triggered_rules,
+              event.detected_signals, event.booking_context, event.action_taken, event.status,
+              event.account_status_snapshot, event.admin_notes, event.created_at, event.reviewed_at,
+              COALESCE(recipient.name, 'Deleted account') AS recipient_name,
+              COALESCE(restriction.status, 'active') AS current_account_status,
+              COALESCE(service.title, 'General conversation') AS service_title,
+              COALESCE((SELECT count(*)::int FROM message_moderation_events prior
+                        WHERE prior.sender_id = event.sender_id AND prior.created_at < event.created_at), 0) AS previous_violations
+       FROM message_moderation_events event
+       LEFT JOIN "user" recipient ON recipient.id = event.recipient_id
+       LEFT JOIN account_restrictions restriction ON restriction.user_id = event.sender_id
+         AND (restriction.expires_at IS NULL OR restriction.expires_at > now())
+       LEFT JOIN conversations conversation ON conversation.id = event.conversation_id
+       LEFT JOIN services service ON service.id = conversation.service_id
+       ORDER BY CASE event.status WHEN 'under_review' THEN 0 WHEN 'open' THEN 1 WHEN 'suspended' THEN 2 WHEN 'banned' THEN 3 ELSE 4 END,
+                CASE event.risk_level WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+                event.created_at DESC
+       LIMIT 150`,
     ),
     database.query(
       `SELECT u.id, u.name, u.email, u.image, u.role, u."createdAt" AS created_at,
@@ -111,6 +135,7 @@ async function loadDashboard() {
     stats: stats.rows[0],
     reports: reports.rows,
     events: events.rows,
+    messageModeration: messageModeration.rows,
     accounts: accounts.rows,
     listings: listings.rows,
     reviews: reviews.rows,
@@ -229,6 +254,76 @@ export async function PATCH(request: Request) {
       );
       if (!result.rowCount) throw new Error("NOT_FOUND");
       targetType = "safety_report";
+    } else if (action === "message_moderation_status" && messageModerationStatuses.has(status)) {
+      const eventResult = await client.query<{ sender_id: string | null; risk_level: string }>(
+        `SELECT sender_id, risk_level FROM message_moderation_events WHERE id::text = $1 FOR UPDATE`,
+        [targetId],
+      );
+      const event = eventResult.rows[0];
+      if (!event) throw new Error("NOT_FOUND");
+      await client.query(
+        `UPDATE message_moderation_events SET status = $2, admin_notes = $3,
+           reviewed_by = $4, reviewed_at = now(), updated_at = now() WHERE id::text = $1`,
+        [targetId, status, reason, session.user.id],
+      );
+      if (event.sender_id && ["under_review", "suspended", "banned"].includes(status)) {
+        if (event.sender_id === session.user.id) {
+          await client.query("ROLLBACK");
+          return NextResponse.json({ error: "You cannot restrict your own admin account." }, { status: 400 });
+        }
+        const publicReason = reason || (status === "under_review"
+          ? "Possible violation of the BubsBookings marketplace rules"
+          : "Violation of the BubsBookings marketplace rules");
+        await client.query(
+          `INSERT INTO account_restrictions (user_id, status, reason, created_by)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (user_id) DO UPDATE SET status = EXCLUDED.status, reason = EXCLUDED.reason,
+             created_by = EXCLUDED.created_by, expires_at = NULL, updated_at = now()`,
+          [event.sender_id, status, publicReason, session.user.id],
+        );
+        if (status === "suspended" || status === "banned") {
+          await client.query("UPDATE provider_profiles SET is_active = false WHERE user_id = $1", [event.sender_id]);
+          await client.query('DELETE FROM "session" WHERE "userId" = $1', [event.sender_id]);
+        }
+        await client.query(
+          `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+           VALUES ($1, 'account_moderation', $2, $3, '/support', $4)
+           ON CONFLICT (dedupe_key) DO NOTHING`,
+          [event.sender_id,
+            status === "under_review" ? "Your account is under review" : status === "suspended" ? "Your account is suspended" : "Your account is banned",
+            status === "under_review" ? "Your account is under review for a possible marketplace-rules violation. Some features may be limited while the review is completed." : `Your account has been ${status}. ${publicReason}`,
+            `message-moderation-${targetId}-${status}`],
+        );
+      } else if (event.sender_id && (status === "false_positive" || status === "resolved" || status === "warning_only")) {
+        const remaining = await client.query(
+          `SELECT 1 FROM message_moderation_events
+           WHERE sender_id = $1 AND id::text <> $2 AND status = 'under_review' LIMIT 1`,
+          [event.sender_id, targetId],
+        );
+        if (!remaining.rowCount) {
+          const cleared = await client.query(
+            `DELETE FROM account_restrictions WHERE user_id = $1 AND status = 'under_review' RETURNING user_id`,
+            [event.sender_id],
+          );
+          if (cleared.rowCount) await client.query(
+            `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+             VALUES ($1, 'account_review_cleared', 'Account review completed',
+               'Your BubsBookings account review is complete and the temporary messaging limit has been removed.',
+               '/account', $2) ON CONFLICT (dedupe_key) DO NOTHING`,
+            [event.sender_id, `message-moderation-${targetId}-cleared`],
+          );
+        }
+        if (status === "warning_only") await client.query(
+          `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+           VALUES ($1, 'account_warning', 'Marketplace messaging reminder',
+             'Keep bookings and payments that originate on BubsBookings on the platform. Review the marketplace rules before sending another message.',
+             '/terms', $2) ON CONFLICT (dedupe_key) DO NOTHING`,
+          [event.sender_id, `message-moderation-${targetId}-warning`],
+        );
+      }
+      targetType = "message_moderation_event";
+      auditAction = `message_moderation_${status}`;
+      details = { status, notes: reason, riskLevel: event.risk_level, senderId: event.sender_id };
     } else if (action === "account_status" && accountStatuses.has(status)) {
       if (targetId === session.user.id) {
         await client.query("ROLLBACK");
@@ -250,8 +345,10 @@ export async function PATCH(request: Request) {
              created_by = EXCLUDED.created_by, expires_at = NULL, updated_at = now()`,
           [targetId, status, reason, session.user.id],
         );
-        await client.query("UPDATE provider_profiles SET is_active = false WHERE user_id = $1", [targetId]);
-        await client.query('DELETE FROM "session" WHERE "userId" = $1', [targetId]);
+        if (status === "suspended" || status === "banned") {
+          await client.query("UPDATE provider_profiles SET is_active = false WHERE user_id = $1", [targetId]);
+          await client.query('DELETE FROM "session" WHERE "userId" = $1', [targetId]);
+        }
       }
       targetType = "account";
       auditAction = status === "active" ? "account_restored" : "account_" + status;

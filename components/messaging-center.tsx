@@ -103,12 +103,13 @@ export default function MessagingCenter({
     if (!trimmedMessage || sending) return;
     setSending(true);
     setError("");
+    const clientMessageId = crypto.randomUUID();
     const response = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(selectedId
-        ? { conversationId: selectedId, message: trimmedMessage }
-        : { providerId: initialProviderId, serviceId: initialServiceId, message: trimmedMessage }),
+        ? { conversationId: selectedId, message: trimmedMessage, clientMessageId }
+        : { providerId: initialProviderId, serviceId: initialServiceId, message: trimmedMessage, clientMessageId }),
     }).catch(() => null);
     const result = response ? await response.json() as { conversationId?: string; error?: string } : null;
     if (!response?.ok || !result?.conversationId) {
@@ -216,7 +217,7 @@ export default function MessagingCenter({
             </div>
             <form onSubmit={sendMessage} className="sticky bottom-0 border-t border-[#183126]/10 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
               {error && <p role="alert" className="mb-3 rounded-xl bg-[#fff0e8] px-3 py-2 text-xs font-semibold text-[#964f2c]">{error}</p>}{reportNotice && <p role="status" className="mb-3 rounded-xl bg-[#e4f1e5] px-3 py-2 text-xs font-semibold text-[#35704a]">{reportNotice}</p>}
-              <div className="flex items-end gap-2 sm:gap-3"><label className="sr-only" htmlFor="message-body">Message</label><textarea id="message-body" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000} rows={2} placeholder={`Message ${contactName || "provider"}…`} className="min-h-12 min-w-0 flex-1 resize-none rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-base outline-none transition focus:border-[#6f7f4c] focus:ring-2 focus:ring-[#eee25a]/50" /><button type="submit" disabled={!message.trim() || sending} className="h-12 shrink-0 rounded-full bg-[#eee25a] px-4 text-sm font-bold text-[#183126] transition hover:bg-[#e1d43d] disabled:cursor-not-allowed disabled:opacity-50 sm:px-5">{sending ? "Sending…" : "Send"}</button></div><p className="mt-2 text-[10px] leading-4 text-[#859088]">Messages are automatically checked for unsafe or unprofessional content. <Link href="/ai-transparency" className="font-bold underline">How it works</Link></p>
+              <div className="flex items-end gap-2 sm:gap-3"><label className="sr-only" htmlFor="message-body">Message</label><textarea id="message-body" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000} rows={2} placeholder={`Message ${contactName || "provider"}…`} className="min-h-12 min-w-0 flex-1 resize-none rounded-2xl border border-[#183126]/15 bg-[#fafaf6] px-4 py-3 text-base outline-none transition focus:border-[#6f7f4c] focus:ring-2 focus:ring-[#eee25a]/50" /><button type="submit" disabled={!message.trim() || sending} className="h-12 shrink-0 rounded-full bg-[#eee25a] px-4 text-sm font-bold text-[#183126] transition hover:bg-[#e1d43d] disabled:cursor-not-allowed disabled:opacity-50 sm:px-5">{sending ? "Sending…" : "Send"}</button></div><p className="mt-2 text-[10px] leading-4 text-[#859088]">Messages are automatically checked for safety and attempts to move marketplace bookings or payments off platform. <Link href="/ai-transparency" className="font-bold underline">How it works</Link></p>
             </form>
           </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="text-5xl">💬</p><h2 className="mt-4 text-xl font-bold">Choose a conversation</h2><p className="mt-2 text-sm text-[#718078]">Select someone from your inbox to read and reply.</p></div></div>}
         </div>

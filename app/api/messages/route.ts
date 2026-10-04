@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
@@ -6,13 +7,34 @@ import { checkAndRecordContent } from "@/lib/content-safety";
 import { sendTransactionalEmail } from "@/lib/email";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { recordAnalytics } from "@/lib/analytics";
+import { assessOffPlatformMessage, type MessageBookingContext } from "@/lib/off-platform-moderation";
+import { adminNotificationEmails } from "@/lib/admin";
 
 type ConversationRow = {
   id: string; customer_id: string; provider_id: string; provider_user_id: string;
+  service_id?: string | null;
   provider_name: string; customer_name: string; service_title: string | null;
   provider_image: string | null; customer_image: string | null;
   last_message: string | null; last_message_at: Date | null; unread_count: number;
 };
+
+type BookingContextRow = {
+  id: string; status: string; quote_status: string; payment_status: string;
+};
+
+function messageBookingContext(booking?: BookingContextRow): MessageBookingContext {
+  if (!booking) return { bookingId: null, state: "none", quoteStatus: null, bookingStatus: null, paymentStatus: null };
+  const state = booking.status === "completed"
+    ? "completed"
+    : booking.payment_status === "paid"
+      ? "paid"
+      : booking.status === "confirmed"
+        ? "confirmed"
+        : ["pending", "accepted"].includes(booking.quote_status)
+          ? "quote"
+          : "pending";
+  return { bookingId: booking.id, state, quoteStatus: booking.quote_status, bookingStatus: booking.status, paymentStatus: booking.payment_status };
+}
 
 async function getConversation(userId: string, conversationId: string) {
   const result = await database.query<ConversationRow>(
@@ -117,12 +139,16 @@ export async function POST(request: Request) {
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "message-send", limit: 30 })) {
     return NextResponse.json({ error: "You are sending messages too quickly. Please wait a minute." }, { status: 429 });
   }
-  const body = (await request.json()) as { conversationId?: unknown; providerId?: unknown; serviceId?: unknown; message?: unknown };
+  const body = (await request.json()) as { conversationId?: unknown; providerId?: unknown; serviceId?: unknown; message?: unknown; clientMessageId?: unknown };
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   const providerId = typeof body.providerId === "string" ? body.providerId : "";
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const message = typeof body.message === "string" ? body.message.trim() : "";
+  const clientMessageId = typeof body.clientMessageId === "string" ? body.clientMessageId : "";
   if (!message || message.length > 2000) return NextResponse.json({ error: "Write a message between 1 and 2,000 characters." }, { status: 400 });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientMessageId)) {
+    return NextResponse.json({ error: "Refresh this page before sending your message." }, { status: 400 });
+  }
   const safety = await checkAndRecordContent({ userId: session.user.id, surface: "message", fields: [message] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
 
@@ -132,7 +158,7 @@ export async function POST(request: Request) {
     let conversation: ConversationRow | null = null;
     if (conversationId) {
       const result = await client.query<ConversationRow>(
-        `SELECT c.id::text, c.customer_id, c.provider_id::text, p.user_id AS provider_user_id,
+        `SELECT c.id::text, c.customer_id, c.provider_id::text, c.service_id::text, p.user_id AS provider_user_id,
                 COALESCE(s.business_name, p.business_name) AS provider_name, u.name AS customer_name,
                 s.title AS service_title, NULL::text AS last_message, NULL::timestamptz AS last_message_at, 0::int AS unread_count
          FROM conversations c
@@ -154,7 +180,7 @@ export async function POST(request: Request) {
            WHERE p.id::text = $2 AND p.is_active = true AND p.user_id <> $1
            ON CONFLICT (customer_id, provider_id, service_id) WHERE service_id IS NOT NULL DO UPDATE
              SET customer_deleted_at = NULL, provider_deleted_at = NULL, updated_at = now()
-           RETURNING id::text, customer_id, provider_id::text,
+           RETURNING id::text, customer_id, provider_id::text, service_id::text,
              (SELECT user_id FROM provider_profiles WHERE id = provider_id) AS provider_user_id,
              (SELECT business_name FROM services WHERE id = service_id) AS provider_name,
              (SELECT name FROM "user" WHERE id = customer_id) AS customer_name,
@@ -168,7 +194,7 @@ export async function POST(request: Request) {
            WHERE p.id::text = $2 AND p.is_active = true AND p.user_id <> $1
            ON CONFLICT (customer_id, provider_id) WHERE service_id IS NULL DO UPDATE
              SET customer_deleted_at = NULL, provider_deleted_at = NULL, updated_at = now()
-           RETURNING id::text, customer_id, provider_id::text,
+           RETURNING id::text, customer_id, provider_id::text, service_id::text,
              (SELECT user_id FROM provider_profiles WHERE id = provider_id) AS provider_user_id,
              (SELECT business_name FROM provider_profiles WHERE id = provider_id) AS provider_name,
              (SELECT name FROM "user" WHERE id = customer_id) AS customer_name,
@@ -183,17 +209,103 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
     }
 
-    const created = await client.query<{ id: string }>(
-      `INSERT INTO messages (conversation_id, sender_id, body)
-       VALUES ($1, $2, $3)
-       RETURNING id::text`,
-      [conversation.id, session.user.id, message],
+    const bookingResult = await client.query<BookingContextRow>(
+      `SELECT booking.id::text, booking.status, booking.quote_status, booking.payment_status
+       FROM bookings booking
+       WHERE booking.customer_id = $1 AND booking.provider_id::text = $2
+         AND ($3::uuid IS NULL OR booking.service_id = $3::uuid)
+       ORDER BY booking.created_at DESC
+       LIMIT 1`,
+      [conversation.customer_id, conversation.provider_id, conversation.service_id ?? null],
     );
+    const bookingContext = messageBookingContext(bookingResult.rows[0]);
+    const assessment = assessOffPlatformMessage(message, bookingContext);
+    const recipientId = conversation.customer_id === session.user.id ? conversation.provider_user_id : conversation.customer_id;
+    const restrictionResult = await client.query<{ status: string }>(
+      `SELECT status FROM account_restrictions
+       WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > now())`,
+      [session.user.id],
+    );
+    const currentAccountStatus = restrictionResult.rows[0]?.status ?? "active";
+
+    if (assessment.riskLevel !== "none") {
+      const contentHash = createHash("sha256").update(message).digest("hex");
+      const dedupeKey = createHash("sha256")
+        .update(`${session.user.id}:${clientMessageId}`)
+        .digest("hex");
+      const highRisk = assessment.riskLevel === "high";
+      const actionTaken = highRisk ? "blocked_under_review" : assessment.blocked ? "blocked" : "logged";
+      const moderationStatus = highRisk ? "under_review" : assessment.blocked ? "open" : "warning_only";
+      const recorded = await client.query<{ id: string }>(
+        `INSERT INTO message_moderation_events (
+           message_id, conversation_id, booking_id, sender_id, recipient_id, sender_name, sender_email,
+           message_content, content_hash, risk_level, detection_reason, triggered_rules,
+           detected_signals, booking_context, action_taken, status, account_status_snapshot, dedupe_key
+         ) VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17, $18)
+         ON CONFLICT (dedupe_key) DO NOTHING
+         RETURNING id::text`,
+        [clientMessageId, conversation.id, bookingContext.bookingId, session.user.id, recipientId, session.user.name || "BubsBookings user",
+          session.user.email, message, contentHash, assessment.riskLevel, assessment.reason,
+          JSON.stringify(assessment.triggeredRules), JSON.stringify(assessment.signals), JSON.stringify(bookingContext),
+          actionTaken, moderationStatus, currentAccountStatus, dedupeKey],
+      );
+
+      if (highRisk && recorded.rowCount) {
+        await client.query(
+          `INSERT INTO account_restrictions (user_id, status, reason, created_by)
+           VALUES ($1, 'under_review', 'Possible off-platform transaction circumvention', NULL)
+           ON CONFLICT (user_id) DO UPDATE SET status = 'under_review',
+             reason = EXCLUDED.reason, created_by = NULL, expires_at = NULL, updated_at = now()
+           WHERE account_restrictions.status = 'under_review'`,
+          [session.user.id],
+        );
+        await client.query(
+          `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+           VALUES ($1, 'account_review', 'Your account is under review',
+             'Your account is currently under review for a possible violation of the BubsBookings marketplace rules. Some account features may be limited while the review is completed.',
+             '/support', $2)
+           ON CONFLICT (dedupe_key) DO NOTHING`,
+          [session.user.id, `off-platform-review-${session.user.id}`],
+        );
+        await client.query(
+          `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+           SELECT admin.id, 'admin_moderation', 'High-risk message needs review',
+             'A message was blocked for possible off-platform transaction circumvention.', '/admin', $1 || '-' || admin.id
+           FROM "user" admin
+           WHERE admin.id IN (SELECT user_id FROM bookme_admins)
+              OR lower(admin.email) = ANY($2::text[])
+           ON CONFLICT (dedupe_key) DO NOTHING`,
+          [`off-platform-admin-${recorded.rows[0].id}`, adminNotificationEmails()],
+        );
+      }
+
+      if (assessment.blocked || currentAccountStatus === "under_review") {
+        await client.query("COMMIT");
+        const error = currentAccountStatus === "under_review" && !assessment.blocked
+          ? "Your message was not sent while your account is under review. Contact BubsBookings support if you believe this is a mistake."
+          : assessment.reason;
+        return NextResponse.json({ error, moderation: { blocked: true } }, { status: 422 });
+      }
+    } else if (currentAccountStatus === "under_review") {
+      await client.query("COMMIT");
+      return NextResponse.json({ error: "Your message was not sent while your account is under review. Contact BubsBookings support if you believe this is a mistake.", moderation: { blocked: true } }, { status: 422 });
+    }
+
+    const created = await client.query<{ id: string }>(
+      `INSERT INTO messages (id, conversation_id, sender_id, body)
+       VALUES ($1::uuid, $2, $3, $4)
+       ON CONFLICT (id) DO NOTHING
+       RETURNING id::text`,
+      [clientMessageId, conversation.id, session.user.id, message],
+    );
+    if (!created.rowCount) {
+      await client.query("COMMIT");
+      return NextResponse.json({ conversationId: conversation.id, messageId: clientMessageId, duplicate: true }, { status: 200 });
+    }
     await client.query(
       "UPDATE conversations SET updated_at = now(), customer_deleted_at = NULL, provider_deleted_at = NULL WHERE id::text = $1",
       [conversation.id],
     );
-    const recipientId = conversation.customer_id === session.user.id ? conversation.provider_user_id : conversation.customer_id;
     const recipientHref = conversation.customer_id === session.user.id
       ? `/provider/dashboard/messages?conversationId=${conversation.id}`
       : `/account/messages?conversationId=${conversation.id}`;

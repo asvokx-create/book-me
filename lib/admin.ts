@@ -44,3 +44,7 @@ export async function getAdminSession() {
   const twoFactorEnabled = Boolean((session.user as typeof session.user & { twoFactorEnabled?: boolean }).twoFactorEnabled);
   return requiresTwoFactor && !twoFactorEnabled ? null : session;
 }
+
+export function adminNotificationEmails() {
+  return [...new Set([...PRIMARY_ADMIN_EMAILS, ...configuredAdminEmails()])];
+}

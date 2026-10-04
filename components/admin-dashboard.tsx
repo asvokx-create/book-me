@@ -26,6 +26,15 @@ type ModerationEvent = {
   id: string; surface: string; category: string; severity: string; action: string;
   created_at: string; user_name: string; user_email: string;
 };
+type MessageModerationEvent = {
+  id: string; message_id: string; conversation_id: string | null; booking_id: string | null;
+  sender_id: string | null; recipient_id: string | null; sender_name: string; sender_email: string;
+  recipient_name: string; message_content: string; risk_level: "low" | "medium" | "high";
+  detection_reason: string; triggered_rules: string[]; detected_signals: string[];
+  booking_context: { state?: string; quoteStatus?: string | null; bookingStatus?: string | null; paymentStatus?: string | null };
+  action_taken: string; status: string; account_status_snapshot: string; current_account_status: string;
+  admin_notes: string; previous_violations: number; service_title: string; created_at: string; reviewed_at: string | null;
+};
 type Account = {
   id: string; name: string; email: string; image: string | null; role: string; created_at: string;
   restriction_status: string | null; restriction_reason: string | null;
@@ -56,6 +65,7 @@ type Payout = {
 };
 type DashboardData = {
   stats: Stats; reports: SafetyReport[]; events: ModerationEvent[];
+  messageModeration: MessageModerationEvent[];
   accounts: Account[]; listings: Listing[]; reviews: Review[]; payouts: Payout[]; audit: AuditEntry[];
 };
 type AdminActionOptions = {
@@ -142,6 +152,8 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const [error, setError] = useState("");
   const [accountSearch, setAccountSearch] = useState("");
   const [listingDeliveryFilter, setListingDeliveryFilter] = useState<"ALL" | "IN_PERSON" | "REMOTE" | "BOTH">("ALL");
+  const [moderationRiskFilter, setModerationRiskFilter] = useState<"all" | "low" | "medium" | "high">("all");
+  const [moderationStatusFilter, setModerationStatusFilter] = useState("all");
   const [pendingAction, setPendingAction] = useState<AdminActionOptions | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [accountDetails, setAccountDetails] = useState<AccountDetails | null>(null);
@@ -247,6 +259,9 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
       .some((value) => value.toLocaleLowerCase().includes(normalizedAccountSearch));
   }) ?? [];
   const filteredListings = data?.listings.filter((listing) => listingDeliveryFilter === "ALL" || listing.delivery_type === listingDeliveryFilter) ?? [];
+  const filteredMessageModeration = data?.messageModeration.filter((event) =>
+    (moderationRiskFilter === "all" || event.risk_level === moderationRiskFilter)
+    && (moderationStatusFilter === "all" || event.status === moderationStatusFilter)) ?? [];
   const statCards = data ? [
     { label: "Total accounts", value: data.stats.users, detail: "Customers and providers" },
     { label: "Active providers", value: data.stats.active_providers, detail: "Visible businesses" },
@@ -375,10 +390,51 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
           )}
 
           {data && section === "moderation" && (
-            <div className="overflow-hidden rounded-[1.7rem] border border-[#183126]/10 bg-white">
-              <div className="border-b border-[#183126]/10 p-6"><h2 className="text-xl font-bold">Safety Bot activity</h2><p className="mt-1 text-sm text-[#718078]">Privacy-safe records. Blocked message text is not stored here.</p></div>
-              <div className="divide-y divide-[#183126]/10">{data.events.map((event) => <div key={event.id} className="grid gap-3 p-5 sm:grid-cols-[1.2fr_1fr_auto] sm:items-center"><div><p className="font-bold">{event.user_name}</p><p className="text-sm text-[#718078]">{event.user_email}</p></div><div><p className="text-sm font-bold">{label(event.category)} · {label(event.surface)}</p><p className="mt-1 text-xs text-[#718078]">{formatDate(event.created_at)}</p></div><StatusPill value={event.severity} /></div>)}</div>
-              {data.events.length === 0 && <EmptyState title="No blocked content" body="Safety Bot activity will appear here when content is stopped." />}
+            <div className="space-y-5">
+              <section className="overflow-hidden rounded-[1.7rem] border border-[#183126]/10 bg-white" aria-labelledby="message-moderation-title">
+                <div className="border-b border-[#183126]/10 p-5 sm:p-6">
+                  <h2 id="message-moderation-title" className="text-xl font-bold">Off-platform message review</h2>
+                  <p className="mt-1 text-sm text-[#718078]">Secure evidence for marketplace-integrity review. This information is visible only to administrators.</p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
+                    <label className="text-xs font-bold">Risk level<select aria-label="Filter moderation by risk level" value={moderationRiskFilter} onChange={(event) => setModerationRiskFilter(event.target.value as typeof moderationRiskFilter)} className="mt-1 min-h-11 w-full rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-3 text-sm"><option value="all">All risks</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+                    <label className="text-xs font-bold">Review status<select aria-label="Filter moderation by review status" value={moderationStatusFilter} onChange={(event) => setModerationStatusFilter(event.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-[#183126]/15 bg-[#fafaf6] px-3 text-sm"><option value="all">All statuses</option><option value="open">Open</option><option value="resolved">Resolved</option><option value="false_positive">False positive</option><option value="under_review">Under review</option><option value="suspended">Suspended</option><option value="banned">Banned</option><option value="confirmed">Confirmed violation</option><option value="warning_only">Warning only</option></select></label>
+                  </div>
+                </div>
+                <div className="divide-y divide-[#183126]/10">{filteredMessageModeration.map((event) => <article key={event.id} className="p-5 sm:p-6">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2"><StatusPill value={event.risk_level} /><StatusPill value={event.status} /><StatusPill value={event.current_account_status} /></div>
+                      <h3 className="mt-3 text-lg font-bold">{event.sender_name} → {event.recipient_name}</h3>
+                      <p className="mt-1 break-words text-sm text-[#718078]">{event.sender_email} · {event.service_title} · {formatDate(event.created_at)}</p>
+                      <div className="mt-4 rounded-2xl border border-[#183126]/10 bg-[#f7f7f2] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Blocked or reviewed message</p><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{event.message_content}</p></div>
+                      <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
+                        <div><dt className="font-extrabold uppercase tracking-wider text-[#718078]">Detection reason</dt><dd className="mt-1 leading-5">{event.triggered_rules.map(label).join(", ") || "Contextual signal"}</dd></div>
+                        <div><dt className="font-extrabold uppercase tracking-wider text-[#718078]">Booking context</dt><dd className="mt-1 leading-5">{label(event.booking_context?.state || "none")} · {event.booking_id ? `Booking ${event.booking_id}` : "No associated booking"}</dd></div>
+                        <div><dt className="font-extrabold uppercase tracking-wider text-[#718078]">History</dt><dd className="mt-1 leading-5">{event.previous_violations} previous detection{event.previous_violations === 1 ? "" : "s"}</dd></div>
+                        <div><dt className="font-extrabold uppercase tracking-wider text-[#718078]">Conversation ID</dt><dd className="mt-1 break-all leading-5">{event.conversation_id || "Unavailable"}</dd></div>
+                        <div><dt className="font-extrabold uppercase tracking-wider text-[#718078]">Message ID</dt><dd className="mt-1 break-all leading-5">{event.message_id}</dd></div>
+                        <div><dt className="font-extrabold uppercase tracking-wider text-[#718078]">Action</dt><dd className="mt-1 leading-5">{label(event.action_taken)}</dd></div>
+                      </dl>
+                      {event.admin_notes && <p className="mt-3 rounded-xl bg-[#eef3ea] px-3 py-2 text-xs"><strong>Admin notes:</strong> {event.admin_notes}</p>}
+                    </div>
+                    <div className="admin-action-row flex max-w-xl flex-wrap gap-2 xl:w-80 xl:justify-end">
+                      <button disabled={busyId === event.id} onClick={() => void runAction({ action: "message_moderation_status", targetId: event.id, status: "confirmed", successText: "Violation confirmed." })} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold hover:bg-[#eee25a]">Confirm violation</button>
+                      <button disabled={busyId === event.id} onClick={() => void runAction({ action: "message_moderation_status", targetId: event.id, status: "false_positive", confirmText: "Mark this detection as a false positive and clear a related account review when no other review remains?", successText: "Marked as a false positive." })} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold hover:bg-[#e5eddf]">False positive</button>
+                      <button disabled={busyId === event.id} onClick={() => void runAction({ action: "message_moderation_status", targetId: event.id, status: "warning_only", needsReason: true, successText: "Warning-only resolution saved." })} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold hover:bg-[#f5f0c9]">Warning only</button>
+                      <button disabled={busyId === event.id} onClick={() => void runAction({ action: "message_moderation_status", targetId: event.id, status: "under_review", successText: "Account placed under review." })} className="rounded-full bg-[#f5f0c9] px-4 py-2 text-xs font-bold text-[#78681f]">Account review</button>
+                      <button disabled={busyId === event.id} onClick={() => void runAction({ action: "message_moderation_status", targetId: event.id, status: "suspended", needsReason: true, confirmText: "Suspend this account and sign it out everywhere?", successText: "Account suspended." })} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white">Suspend</button>
+                      <button disabled={busyId === event.id} onClick={() => void runAction({ action: "message_moderation_status", targetId: event.id, status: "banned", needsReason: true, confirmText: "Permanently ban this account after reviewing the evidence?", successText: "Account banned." })} className="rounded-full bg-[#521f1f] px-4 py-2 text-xs font-bold text-white">Ban</button>
+                      <button disabled={busyId === event.id} onClick={() => void runAction({ action: "message_moderation_status", targetId: event.id, status: "resolved", confirmText: "Resolve this moderation event?", successText: "Moderation event resolved." })} className="rounded-full bg-[#34704a] px-4 py-2 text-xs font-bold text-white">Resolve</button>
+                    </div>
+                  </div>
+                </article>)}</div>
+                {filteredMessageModeration.length === 0 && <EmptyState title="No matching message reviews" body="Try another risk or status filter." />}
+              </section>
+              <section className="overflow-hidden rounded-[1.7rem] border border-[#183126]/10 bg-white" aria-labelledby="general-safety-title">
+                <div className="border-b border-[#183126]/10 p-6"><h2 id="general-safety-title" className="text-xl font-bold">Other Safety Bot activity</h2><p className="mt-1 text-sm text-[#718078]">Privacy-safe fingerprints for other blocked marketplace content.</p></div>
+                <div className="divide-y divide-[#183126]/10">{data.events.map((event) => <div key={event.id} className="grid gap-3 p-5 sm:grid-cols-[1.2fr_1fr_auto] sm:items-center"><div><p className="font-bold">{event.user_name}</p><p className="text-sm text-[#718078]">{event.user_email}</p></div><div><p className="text-sm font-bold">{label(event.category)} · {label(event.surface)}</p><p className="mt-1 text-xs text-[#718078]">{formatDate(event.created_at)}</p></div><StatusPill value={event.severity} /></div>)}</div>
+                {data.events.length === 0 && <EmptyState title="No other blocked content" body="Other Safety Bot activity will appear here when content is stopped." />}
+              </section>
             </div>
           )}
 
