@@ -43,7 +43,7 @@ async function quotesFor(requestIds: string[], providerId?: string) {
             quote.version, quote.title, quote.description, quote.line_items, quote.total_cents, quote.notes, COALESCE(quote.delivery_method, 'IN_PERSON') AS delivery_method,
             quote.expires_at, CASE WHEN quote.status = 'sent' AND quote.expires_at <= now() THEN 'expired' ELSE quote.status END AS status,
             quote.booking_id::text, quote.created_at, COALESCE(quote.conversation_id, match.conversation_id)::text AS conversation_id,
-            provider.public_slug, provider.public_profile_enabled, provider.is_verified,
+            provider.public_profile_slug AS public_slug, provider.public_profile_visible AS public_profile_enabled, provider.is_verified,
             rating.average_rating, COALESCE(rating.review_count, 0)::int AS review_count
      FROM quotes quote JOIN provider_profiles provider ON provider.id = quote.provider_id
      JOIN services service ON service.id = quote.service_id

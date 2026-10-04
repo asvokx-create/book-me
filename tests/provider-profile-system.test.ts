@@ -19,6 +19,14 @@ test("provider profile slugs are readable, stable, unique, and replace raw publi
   assert.doesNotMatch(sitemap, /providers\/\$\{providerId\}/);
 });
 
+test("service request quotes use the canonical public provider profile columns", () => {
+  const requestsRoute = read("app", "api", "job-requests", "route.ts");
+  assert.match(requestsRoute, /provider\.public_profile_slug AS public_slug/);
+  assert.match(requestsRoute, /provider\.public_profile_visible AS public_profile_enabled/);
+  assert.doesNotMatch(requestsRoute, /provider\.public_slug/);
+  assert.doesNotMatch(requestsRoute, /provider\.public_profile_enabled/);
+});
+
 test("public profiles expose only eligible providers and truthful marketplace evidence", () => {
   const marketplace = read("lib", "marketplace.ts");
   const page = read("app", "providers", "[slug]", "page.tsx");
