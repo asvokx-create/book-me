@@ -63,7 +63,7 @@ test("upcoming service categories stay compact without collapsing their icons", 
 
   assert.match(home, /home-upcoming-grid mt-4 grid gap-2/);
   assert.match(css, /grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 11\.75rem\), 1fr\)\)/);
-  assert.match(categoryCard, /home-upcoming-category[^\"]*min-h-12[^\"]*min-w-0[^\"]*gap-2[^\"]*rounded-xl/);
+  assert.match(categoryCard, /home-upcoming-category[^\"]*min-h-12[^\"]*min-w-0[^\"]*gap-3[^\"]*rounded-lg/);
   assert.match(categoryCard, /text-\[13px\][^\"]*sm:text-sm/);
   assert.match(categoryCard, /home-upcoming-label min-w-0 flex-1/);
   assert.doesNotMatch(categoryCard, /whitespace-nowrap/);

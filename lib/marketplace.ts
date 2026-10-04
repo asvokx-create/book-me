@@ -511,24 +511,18 @@ export async function getProviderById(id: string) {
 
 export function getServiceVisual(category: string) {
   const normalized = category.toLowerCase();
-  if (normalized.includes("car")) return { art: "🚙", gradient: "from-emerald-950 via-emerald-700 to-lime-300" };
-  if (normalized.includes("lawn") || normalized.includes("garden") || normalized.includes("landscap")) return { art: "🌱", gradient: "from-lime-800 via-lime-600 to-yellow-200" };
-  if (normalized.includes("pressure wash")) return { art: "💦", gradient: "from-blue-950 via-cyan-700 to-sky-200" };
-  if (normalized.includes("clean")) return { art: "🏡", gradient: "from-amber-900 via-amber-600 to-orange-100" };
-  if (normalized.includes("furniture") || normalized.includes("assembly")) return { art: "🪑", gradient: "from-stone-950 via-amber-800 to-orange-200" };
-  if (normalized.includes("paint")) return { art: "🖌️", gradient: "from-indigo-950 via-teal-600 to-yellow-200" };
-  if (normalized.includes("photo")) return { art: "📷", gradient: "from-indigo-900 via-violet-600 to-pink-200" };
-  if (normalized.includes("video")) return { art: "🎥", gradient: "from-zinc-950 via-red-800 to-orange-200" };
-  if (normalized.includes("pet")) return { art: "🐾", gradient: "from-orange-800 via-amber-500 to-yellow-100" };
-  if (normalized.includes("moving")) return { art: "📦", gradient: "from-sky-900 via-sky-600 to-cyan-200" };
-  if (normalized.includes("junk") || normalized.includes("removal")) return { art: "🗑️", gradient: "from-zinc-950 via-emerald-800 to-lime-200" };
-  if (normalized.includes("training")) return { art: "🏋️", gradient: "from-slate-950 via-slate-600 to-lime-200" };
-  if (normalized.includes("beauty") || normalized.includes("wellness")) return { art: "✨", gradient: "from-fuchsia-900 via-rose-500 to-pink-100" };
-  if (normalized.includes("tutor")) return { art: "📚", gradient: "from-blue-900 via-indigo-600 to-amber-100" };
-  if (normalized.includes("tech") || normalized.includes("computer")) return { art: "💻", gradient: "from-slate-950 via-blue-700 to-cyan-200" };
-  if (normalized.includes("event")) return { art: "🎉", gradient: "from-purple-900 via-fuchsia-600 to-yellow-200" };
-  if (normalized.includes("plumb")) return { art: "🚿", gradient: "from-cyan-900 via-cyan-600 to-sky-100" };
-  if (normalized.includes("electric")) return { art: "⚡", gradient: "from-slate-900 via-blue-700 to-yellow-200" };
-  if (normalized.includes("repair") || normalized.includes("appliance")) return { art: "🔧", gradient: "from-stone-900 via-emerald-700 to-orange-200" };
-  return { art: "🧰", gradient: "from-slate-800 via-emerald-700 to-amber-200" };
+  if (normalized.includes("car")) return { art: "🚙", gradient: "from-[#dcecf1] to-[#e5efd8]" };
+  if (normalized.includes("lawn") || normalized.includes("garden") || normalized.includes("landscap")) return { art: "🌱", gradient: "from-[#e2f0d2] to-[#f5efc1]" };
+  if (normalized.includes("clean")) return { art: "🏡", gradient: "from-[#dff1e5] to-[#f6f3c7]" };
+  if (normalized.includes("photo") || normalized.includes("video")) return { art: normalized.includes("photo") ? "📷" : "🎥", gradient: "from-[#e5eee4] to-[#f3edcf]" };
+  if (normalized.includes("pressure wash") || normalized.includes("plumb")) return { art: "💦", gradient: "from-[#dcecf1] to-[#e7f0e4]" };
+  if (normalized.includes("pet") || normalized.includes("beauty") || normalized.includes("wellness")) return { art: "🐾", gradient: "from-[#f0e8d9] to-[#f4efc9]" };
+  if (normalized.includes("moving") || normalized.includes("junk") || normalized.includes("removal")) return { art: "📦", gradient: "from-[#e4ebe5] to-[#f3edcf]" };
+  if (normalized.includes("tutor") || normalized.includes("tech") || normalized.includes("computer")) return { art: "📚", gradient: "from-[#dfe9e2] to-[#edf1df]" };
+  if (normalized.includes("furniture") || normalized.includes("assembly")) return { art: "🪑", gradient: "from-[#eee5d9] to-[#f7efc8]" };
+  if (normalized.includes("paint") || normalized.includes("event")) return { art: "🖌️", gradient: "from-[#e7eee2] to-[#f5edca]" };
+  if (normalized.includes("training")) return { art: "🏋️", gradient: "from-[#dce9df] to-[#edf0d2]" };
+  if (normalized.includes("electric")) return { art: "⚡", gradient: "from-[#e6ece3] to-[#f4edbd]" };
+  if (normalized.includes("repair") || normalized.includes("appliance")) return { art: "🔧", gradient: "from-[#e5ece4] to-[#efe8d4]" };
+  return { art: "🧰", gradient: "from-[#e5eee4] to-[#f3edcf]" };
 }

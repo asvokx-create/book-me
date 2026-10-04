@@ -2,6 +2,7 @@ import BrandLockup from "@/components/brand-lockup";
 import Link from "next/link";
 import BugReportButton from "@/components/bug-report-button";
 import { AnalyticsChoicesButton } from "@/components/analytics-consent";
+import UiIcon from "@/components/ui-icon";
 
 const marketplaceLinks = [
   ["Find services", "/services"],
@@ -48,10 +49,9 @@ function FooterLinks({ title, links }: { title: string; links: ReadonlyArray<rea
 
 export default function SiteFooter() {
   return (
-    <footer className="site-footer mt-auto overflow-hidden border-t border-white/10 bg-[linear-gradient(145deg,#102b20,#0b2118_60%,#123426)] text-white">
+    <footer className="site-footer mt-auto overflow-hidden border-t border-white/10 bg-[#102b20] text-white">
       <div className="site-container px-5 py-10 sm:px-6 sm:py-14">
-        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[.065] p-6 shadow-[0_24px_70px_rgba(0,0,0,.18)] sm:p-8">
-          <div aria-hidden="true" className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#eee25a]/10 blur-3xl" />
+        <section className="relative overflow-hidden rounded-xl border border-white/12 bg-white/[.045] p-6 sm:p-8">
           <div className="relative grid items-end gap-7 lg:grid-cols-[1fr_auto]">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#a9c3b4]">Your service marketplace</p>
@@ -59,21 +59,21 @@ export default function SiteFooter() {
               <p className="mt-3 max-w-xl text-sm leading-6 text-[#aec3b8]">Find local or remote service providers, compare your options clearly, and keep every booking in one secure place.</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href="/services" className="rounded-full bg-[#f1e45c] px-6 py-3.5 text-sm font-bold text-[#173d2e] hover:bg-[#fff47c]">Find services</Link>
-              <Link href="/providers/join" className="rounded-full border border-white/20 bg-white/8 px-6 py-3.5 text-sm font-bold hover:border-white/30 hover:bg-white/14">List your service</Link>
+              <Link href="/services" className="rounded-lg bg-[#f1e45c] px-6 py-3.5 text-sm font-bold text-[#173d2e] hover:bg-[#fff47c]">Find services</Link>
+              <Link href="/providers/join" className="rounded-lg border border-white/20 bg-white/8 px-6 py-3.5 text-sm font-bold hover:border-white/30 hover:bg-white/14">List your service</Link>
             </div>
           </div>
           <div className="relative mt-7 grid gap-3 border-t border-white/10 pt-6 text-xs font-semibold text-[#bfd0c7] sm:grid-cols-3">
-            <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Local and remote marketplace</p>
-            <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Stripe-powered payments</p>
-            <p className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/8 text-[#eee25a]">✓</span>Real booking support</p>
+            <p className="flex items-center gap-2"><UiIcon name="map-pin" className="h-4 w-4 text-[#eee25a]" />Local and remote marketplace</p>
+            <p className="flex items-center gap-2"><UiIcon name="card" className="h-4 w-4 text-[#eee25a]" />Stripe-powered payments</p>
+            <p className="flex items-center gap-2"><UiIcon name="messages" className="h-4 w-4 text-[#eee25a]" />Booking support</p>
           </div>
         </section>
 
         <div className="grid gap-10 py-11 sm:grid-cols-2 lg:grid-cols-[1.35fr_.8fr_.8fr_.8fr]">
           <div>
             <Link href="/" aria-label="BubsBookings" className="flex w-fit items-center gap-3 text-xl font-bold tracking-[-.03em]"><BrandLockup /></Link>
-            <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local and remote services, safer conversations, clear choices—and a simpler way to get things done.</p>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local and remote services, clearer conversations, and one place to manage a booking.</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <BugReportButton />
               <Link href="/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-[#c8d7cf] hover:bg-white/10 hover:text-white">Contact support</Link>

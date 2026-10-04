@@ -9,7 +9,7 @@ const styles: Record<string, { background: string; foreground: string }> = {
   "Car detailing": { background: "from-[#dcecf1] to-[#e5efd8]", foreground: "#245a69" },
   "Lawn & garden": { background: "from-[#e2f0d2] to-[#f5efc1]", foreground: "#48702f" },
   Handyman: { background: "from-[#eee5d9] to-[#f7efc8]", foreground: "#7a542d" },
-  Photography: { background: "from-[#e8e3f0] to-[#f4e5dc]", foreground: "#5f4a72" },
+  Photography: { background: "from-[#e5eee4] to-[#f3edcf]", foreground: "#315c47" },
 };
 
 function Illustration({ category }: { category: string }) {
@@ -35,11 +35,11 @@ export default function ServiceCategoryIcon({ category, className = "", compact 
   const style = styles[category] ?? { background: "from-[#e5eee4] to-[#f6efc8]", foreground: "#315c47" };
   return (
     <span
-      className={`relative grid shrink-0 place-items-center overflow-hidden aspect-square bg-gradient-to-br shadow-[inset_0_0_0_1px_rgba(24,49,38,.06),0_8px_18px_rgba(24,49,38,.08)] ${compact ? "h-10 min-h-10 w-10 min-w-10 rounded-xl [&_svg]:h-8 [&_svg]:w-8" : "h-16 min-h-16 w-16 min-w-16 rounded-[1.35rem]"} ${style.background} ${className}`}
+      className={`relative grid shrink-0 place-items-center overflow-hidden aspect-square bg-gradient-to-br shadow-[inset_0_0_0_1px_rgba(24,49,38,.08)] ${compact ? "h-10 min-h-10 w-10 min-w-10 rounded-lg [&_svg]:h-8 [&_svg]:w-8" : "h-16 min-h-16 w-16 min-w-16 rounded-xl"} ${style.background} ${className}`}
       style={{ color: style.foreground }}
     >
       <span className="service-category-icon-decoration absolute -right-3 -top-3 h-10 w-10 rounded-full bg-white/45" />
-      <span className="relative transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-2"><Illustration category={category} /></span>
+      <span className="relative"><Illustration category={category} /></span>
     </span>
   );
 }

@@ -12,6 +12,7 @@ import ContactSupportButton from "@/components/contact-support-button";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 import AccountLocationReminder from "@/components/account-location-reminder";
 import UiIcon from "@/components/ui-icon";
+import ServiceCategoryIcon from "@/components/service-category-icon";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
@@ -19,20 +20,20 @@ type Booking = { id: string; serviceId: string; providerId: string; service: str
 type SavedService = { id: string; slug: string; title: string; provider: string; price: number; category: string; city: string; state: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; imageUrls: string[] };
 
 const initialBookings: Booking[] = [];
-const serviceVisuals: Record<string, { art: string; gradient: string }> = {
-  "Car detailing": { art: "🚙", gradient: "from-emerald-900 via-emerald-700 to-lime-300" },
-  "Lawn & garden": { art: "🌱", gradient: "from-lime-700 via-lime-500 to-yellow-200" },
-  "Home cleaning": { art: "🏡", gradient: "from-orange-800 via-orange-500 to-orange-200" },
-  "Pressure washing": { art: "💦", gradient: "from-blue-950 via-cyan-700 to-sky-200" },
-  Handyman: { art: "🧰", gradient: "from-slate-800 via-slate-600 to-amber-200" },
-  "Furniture assembly": { art: "🪑", gradient: "from-stone-950 via-amber-800 to-orange-200" },
-  "House painting": { art: "🖌️", gradient: "from-indigo-950 via-teal-600 to-yellow-200" },
-  Photography: { art: "📷", gradient: "from-violet-900 via-purple-600 to-pink-200" },
-  "Pet care": { art: "🐾", gradient: "from-orange-800 via-amber-500 to-yellow-100" },
-  "Moving help": { art: "📦", gradient: "from-sky-900 via-sky-600 to-cyan-200" },
-  "Junk removal": { art: "🗑️", gradient: "from-zinc-950 via-emerald-800 to-lime-200" },
-  Tutoring: { art: "📚", gradient: "from-blue-900 via-indigo-600 to-amber-100" },
-  "Tech help": { art: "💻", gradient: "from-slate-950 via-blue-700 to-cyan-200" },
+const serviceVisuals: Record<string, { gradient: string }> = {
+  "Car detailing": { gradient: "from-[#dcecf1] to-[#e5efd8]" },
+  "Lawn & garden": { gradient: "from-[#e2f0d2] to-[#f5efc1]" },
+  "Home cleaning": { gradient: "from-[#dff1e5] to-[#f6f3c7]" },
+  "Pressure washing": { gradient: "from-[#dcecf1] to-[#e5eee4]" },
+  Handyman: { gradient: "from-[#eee5d9] to-[#f7efc8]" },
+  "Furniture assembly": { gradient: "from-[#eee5d9] to-[#f6efc8]" },
+  "House painting": { gradient: "from-[#e5eee4] to-[#f3edcf]" },
+  Photography: { gradient: "from-[#e5eee4] to-[#f3edcf]" },
+  "Pet care": { gradient: "from-[#e8efe1] to-[#f6efc8]" },
+  "Moving help": { gradient: "from-[#dcecf1] to-[#e5efd8]" },
+  "Junk removal": { gradient: "from-[#dfeae2] to-[#f2edc8]" },
+  Tutoring: { gradient: "from-[#e5eee4] to-[#f6efc8]" },
+  "Tech help": { gradient: "from-[#dcecf1] to-[#e5eee4]" },
 };
 
 export default function AccountPage() {
@@ -78,15 +79,6 @@ export default function AccountPage() {
   const accountName = session?.user.name?.trim();
   const firstName = accountName?.split(/\s+/)[0] ?? "there";
   const isProvider = hasProviderProfile || (session?.user as { role?: string } | undefined)?.role === "provider";
-  const bookingVisual = (category: string) => {
-    const normalized = category.toLowerCase();
-    if (normalized.includes("car")) return "🚙";
-    if (normalized.includes("lawn") || normalized.includes("garden") || normalized.includes("landscap")) return "🌱";
-    if (normalized.includes("clean")) return "🏡";
-    if (normalized.includes("handyman")) return "🧰";
-    if (normalized.includes("photo")) return "📷";
-    return "✨";
-  };
   const bookingDate = (startsAt: string) => formatInUserTimeZone(startsAt, { month: "short", day: "numeric", year: "numeric" }, timeZone);
   const bookingTime = (startsAt: string) => formatInUserTimeZone(startsAt, { hour: "numeric", minute: "2-digit" }, timeZone);
 
@@ -124,27 +116,27 @@ export default function AccountPage() {
             <div className="mt-5 space-y-4">
               {upcoming.length ? upcoming.map((booking) => <article key={booking.id} className="rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-[0_5px_22px_rgba(24,49,38,.05)] sm:p-6">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                  <span className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#d8e7d3] to-[#f0e66d] text-4xl">{bookingVisual(booking.category)}</span>
+                  <ServiceCategoryIcon category={booking.category} className="h-20 min-h-20 w-20 min-w-20" />
                   <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.state === "confirmed" ? "bg-[#e3f1e5] text-[#34704a]" : "bg-[#fff1bf] text-[#7e681b]"}`}>{booking.state === "confirmed" ? "Confirmed" : "Awaiting provider"}</span></div><h3 className="mt-2 text-lg font-bold">{booking.service}</h3><p className="mt-1 text-sm text-[#6e7d75]">{booking.provider} · {booking.assigneeName}</p></div>
                   <div className="sm:text-right"><p className="font-bold">{bookingDate(booking.startsAt)}</p><p className="mt-1 text-sm text-[#708078]">{bookingTime(booking.startsAt)} · ${booking.price}</p><p className="mt-1 text-xs text-[#89958f]">{booking.deliveryMethod === "REMOTE" ? "Remote / online" : booking.location}</p></div>
                 </div>
-                <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-[#183126]/10 pt-4"><Link href={`/account/bookings/${booking.id}?reschedule=1`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Reschedule</Link><Link href={`/account/messages?providerId=${booking.providerId}&serviceId=${booking.serviceId}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">✉ Message provider</Link><Link href={`/account/bookings/${booking.id}`} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846]">Manage booking</Link></div>
-              </article>) : <div className="rounded-[2rem] bg-white p-12 text-center"><p className="text-3xl">📅</p><h3 className="mt-3 font-bold">Nothing on the calendar</h3><Link href="/services" className="mt-4 inline-block text-sm font-bold underline">Find a service</Link></div>}
+                <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-[#183126]/10 pt-4"><Link href={`/account/bookings/${booking.id}?reschedule=1`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Reschedule</Link><Link href={`/account/messages?providerId=${booking.providerId}&serviceId=${booking.serviceId}`} className="inline-flex items-center gap-1.5 rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]"><UiIcon name="mail" className="h-3.5 w-3.5" />Message provider</Link><Link href={`/account/bookings/${booking.id}`} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846]">Manage booking</Link></div>
+              </article>) : <div className="rounded-[2rem] bg-white p-12 text-center"><UiIcon name="calendar" className="mx-auto h-8 w-8" /><h3 className="mt-3 font-bold">Nothing on the calendar</h3><Link href="/services" className="mt-4 inline-block text-sm font-bold underline">Find a service</Link></div>}
             </div>
 
             <h2 className="mt-10 text-xl font-bold tracking-tight">History</h2>
-            <div className="mt-4 divide-y divide-[#183126]/10 rounded-2xl border border-[#183126]/10 bg-white px-5">{history.length > 0 ? history.map((booking) => <div key={booking.id} className="flex flex-wrap items-center gap-4 py-4"><Link href={`/account/bookings/${booking.id}`} className="flex min-w-0 flex-1 items-center gap-4 transition hover:opacity-75"><span className="text-2xl grayscale">{bookingVisual(booking.category)}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{booking.service}</p><p className="text-xs text-[#7a8881]">{booking.provider} · {bookingDate(booking.startsAt)}</p></div><span className={`text-xs font-bold capitalize ${booking.state === "cancelled" ? "text-[#9a5a47]" : "text-[#5c7766]"}`}>{booking.state}</span></Link>{booking.state === "completed" && <Link href={`/services/${booking.serviceSlug}?repeatOf=${booking.id}`} className="rounded-full bg-[#eee25a] px-3 py-2 text-xs font-bold">Book again</Link>}<span aria-hidden="true">→</span></div>) : <p className="py-5 text-sm text-[#7a8881]">Completed and cancelled bookings will appear here.</p>}</div>
+            <div className="mt-4 divide-y divide-[#183126]/10 rounded-2xl border border-[#183126]/10 bg-white px-5">{history.length > 0 ? history.map((booking) => <div key={booking.id} className="flex flex-wrap items-center gap-4 py-4"><Link href={`/account/bookings/${booking.id}`} className="flex min-w-0 flex-1 items-center gap-4 transition hover:opacity-75"><ServiceCategoryIcon category={booking.category} compact /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{booking.service}</p><p className="text-xs text-[#7a8881]">{booking.provider} · {bookingDate(booking.startsAt)}</p></div><span className={`text-xs font-bold capitalize ${booking.state === "cancelled" ? "text-[#9a5a47]" : "text-[#5c7766]"}`}>{booking.state}</span></Link>{booking.state === "completed" && <Link href={`/services/${booking.serviceSlug}?repeatOf=${booking.id}`} className="rounded-full bg-[#eee25a] px-3 py-2 text-xs font-bold">Book again</Link>}<span aria-hidden="true">→</span></div>) : <p className="py-5 text-sm text-[#7a8881]">Completed and cancelled bookings will appear here.</p>}</div>
           </div>
 
-          <aside><div className="rounded-[2rem] bg-[#183126] p-6 text-white"><span className="text-3xl">☂</span><h2 className="mt-4 text-xl font-bold">Booking support in one place</h2><p className="mt-2 text-sm leading-6 text-[#b7c6be]">The BubsBookings Promise keeps booking records, payment status, messages, and support together. It is not insurance or a workmanship guarantee.</p><Link href="/promise" className="mt-5 inline-flex rounded-full px-3 py-2 text-sm font-bold text-[#eee25a] transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eee25a]">See coverage and limitations →</Link></div><div className="mt-4 rounded-[2rem] border border-[#183126]/10 bg-white p-6"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#74837b]">Need help?</p><p className="mt-3 text-sm leading-6 text-[#65766d]">Send a message directly to the BubsBookings admin team.</p><ContactSupportButton className="mt-4 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] shadow-sm transition hover:bg-[#f5ea6b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eee25a] focus-visible:ring-offset-2" /></div></aside>
+          <aside><div className="rounded-[2rem] bg-[#183126] p-6 text-white"><UiIcon name="shield" className="h-7 w-7" /><h2 className="mt-4 text-xl font-bold">Booking support in one place</h2><p className="mt-2 text-sm leading-6 text-[#b7c6be]">The BubsBookings Promise keeps booking records, payment status, messages, and support together. It is not insurance or a workmanship guarantee.</p><Link href="/promise" className="mt-5 inline-flex rounded-full px-3 py-2 text-sm font-bold text-[#eee25a] transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eee25a]">See coverage and limitations →</Link></div><div className="mt-4 rounded-[2rem] border border-[#183126]/10 bg-white p-6"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#74837b]">Need help?</p><p className="mt-3 text-sm leading-6 text-[#65766d]">Send a message directly to the BubsBookings admin team.</p><ContactSupportButton className="mt-4 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] shadow-sm transition hover:bg-[#f5ea6b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eee25a] focus-visible:ring-offset-2" /></div></aside>
         </div> : <div className="mt-8">
           <div className="flex items-end justify-between"><div><h2 className="text-2xl font-bold tracking-tight">Saved services</h2><p className="mt-1 text-sm text-[#728179]">Your shortlist of favorite services.</p></div><Link href="/services" className="text-sm font-bold underline decoration-[#c8bc43] decoration-2 underline-offset-4">Explore more</Link></div>
           {savedServices.length > 0 ? <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{savedServices.map((service) => {
-            const visual = serviceVisuals[service.category] ?? { art: "✨", gradient: "from-emerald-800 to-lime-200" };
+            const visual = serviceVisuals[service.category] ?? { gradient: "from-[#e5eee4] to-[#f6efc8]" };
             return <article key={service.id} className="group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition">
               <Link href={`/services/${service.slug}`} className="block">
-                <div style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-52 bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{visual.art}</span>}</div>
-                <div className="p-5"><div className="flex justify-between gap-4 text-sm"><span className="font-semibold text-[#64776d]">{service.deliveryType === "REMOTE" ? "🌐 Available online" : service.deliveryType === "BOTH" ? "🌐 Online or in person" : `📍 ${service.city}, ${service.state}`}</span><span className="shrink-0 font-bold">From ${service.price}</span></div><h3 className="mt-3 text-lg font-bold">{service.title}</h3><p className="mt-1 text-sm text-[#718078]">{service.provider}</p></div>
+                <div style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative grid h-52 place-items-center bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!service.imageUrls[0] && <ServiceCategoryIcon category={service.category} className="h-20 min-h-20 w-20 min-w-20" />}</div>
+                <div className="p-5"><div className="flex justify-between gap-4 text-sm"><span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-[#64776d]"><UiIcon name={service.deliveryType === "IN_PERSON" ? "map-pin" : "globe"} className="h-4 w-4 shrink-0" /><span>{service.deliveryType === "REMOTE" ? "Available online" : service.deliveryType === "BOTH" ? "Online or in person" : `${service.city}, ${service.state}`}</span></span><span className="shrink-0 font-bold">From ${service.price}</span></div><h3 className="mt-3 text-lg font-bold">{service.title}</h3><p className="mt-1 text-sm text-[#718078]">{service.provider}</p></div>
               </Link>
               <FavoriteButton serviceId={service.id} serviceTitle={service.title} onChange={(saved) => { if (!saved) setSavedServices((current) => current.filter((item) => item.id !== service.id)); }} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white text-xl text-[#b54e46] shadow-sm" />
             </article>;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { auth, isAuthConfigured } from "@/lib/auth";
 import OnboardingForm from "./onboarding-form";
+import UiIcon from "@/components/ui-icon";
 
 export const metadata: Metadata = {
   title: "Become a provider",
@@ -54,12 +55,12 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
           {planName && <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#edf3e7] px-4 py-2 text-xs font-bold"><span className="h-2 w-2 rounded-full bg-[#5b9870]" />{planName} plan selected <Link href="/pricing" className="ml-1 underline underline-offset-2">Change</Link></div>}
           <h1 className="type-page-title mt-3">Do great work.<br /><span className="underline decoration-[#eee25a] decoration-[9px] underline-offset-[-3px]">Get booked.</span></h1>
           <p className="mt-6 max-w-md text-lg leading-8 text-[#617169]">Create your profile, offer services locally or remotely, connect with customers, send quotes, and manage bookings in one place.</p>
-          <div className="mt-7 max-w-md rounded-[1.5rem] border border-[#d7ca4d]/45 bg-[#fff9cf] p-5"><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#716a31]">A fairer way to get booked</p><h2 className="mt-2 text-xl font-bold">No lead fees. No charge to chat.</h2><p className="mt-2 text-sm leading-6 text-[#5f6e62]">Customer inquiries, replies, and quotes are free. Your plan&apos;s booking fee applies to paid bookings—not to conversations that go nowhere.</p><Link href="/pricing#plans" className="mt-3 inline-flex text-sm font-bold underline decoration-[#b4a52d] decoration-2 underline-offset-4">See transparent pricing →</Link></div>
+          <div className="mt-7 max-w-md rounded-xl border border-[#d7ca4d]/45 bg-[#fff9cf] p-5"><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#716a31]">Provider pricing</p><h2 className="mt-2 text-xl font-bold">No lead fees. No charge to chat.</h2><p className="mt-2 text-sm leading-6 text-[#5f6e62]">Customer inquiries, replies, and quotes are free. Your plan&apos;s booking fee applies only to paid bookings, not to conversations that do not become work.</p><Link href="/pricing#plans" className="mt-3 inline-flex text-sm font-bold underline decoration-[#b4a52d] decoration-2 underline-offset-4">See pricing <UiIcon name="arrow-right" className="ml-1 h-4 w-4" /></Link></div>
           <div className="mt-9 space-y-4">
-            {["Message customers and send quotes for free", "Keep control of your pricing", "Choose when and where you work", "Build trust with verified reviews"].map((benefit) => <div key={benefit} className="flex items-center gap-3 text-sm font-semibold"><span className="grid h-7 w-7 place-items-center rounded-full bg-[#dfeee2] text-[#37724c]">✓</span>{benefit}</div>)}
+            {["Message customers and send quotes for free", "Keep control of your pricing", "Choose when and where you work", "Build trust with verified reviews"].map((benefit) => <div key={benefit} className="flex items-center gap-3 text-sm font-semibold"><UiIcon name="check" className="h-4 w-4 shrink-0 text-[#37724c]" />{benefit}</div>)}
           </div>
         </div>
-        {session || !isAuthConfigured() ? <OnboardingForm plan={requestedPlan === "pro" ? "pro" : "starter"} /> : <aside className="self-start rounded-[2rem] border border-[#183126]/10 bg-white p-7 shadow-[0_20px_60px_rgba(24,49,38,.08)] sm:p-9">
+        {session || !isAuthConfigured() ? <OnboardingForm plan={requestedPlan === "pro" ? "pro" : "starter"} /> : <aside className="self-start rounded-xl border border-[#183126]/10 bg-white p-7 sm:p-9">
           <p className="text-xs font-bold uppercase tracking-[.15em] text-[#687970]">Start your provider profile</p>
           <h2 className="mt-3 text-3xl font-bold tracking-[-.04em]">Create an account, then publish your first service.</h2>
           <p className="mt-4 text-sm leading-7 text-[#617169]">Choose Starter at $0 per month with a 10% fee on paid bookings, or Pro at $9.99 per month after any eligible trial with a 6% fee on paid bookings. Inquiries, messages, and quotes are free on both plans.</p>

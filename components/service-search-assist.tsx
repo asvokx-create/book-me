@@ -1,7 +1,9 @@
 "use client";
 
 import { useId, useMemo, useRef, useState } from "react";
-import { getServiceCategorySearchMatches, SERVICE_CATEGORY_ICONS, SERVICE_SEARCH_ALIASES } from "@/lib/service-categories";
+import { getServiceCategorySearchMatches, SERVICE_SEARCH_ALIASES } from "@/lib/service-categories";
+import ServiceCategoryIcon from "@/components/service-category-icon";
+import UiIcon, { type UiIconName } from "@/components/ui-icon";
 
 type ServiceSearchAssistProps = {
   id: string;
@@ -10,7 +12,7 @@ type ServiceSearchAssistProps = {
   label?: string;
   className?: string;
   inputClassName?: string;
-  icon?: string;
+  icon?: UiIconName;
   iconClassName?: string;
 };
 
@@ -20,7 +22,7 @@ function suggestionHint(category: ReturnType<typeof getServiceCategorySearchMatc
   return alias ? `Related: ${alias}` : `Browse ${category.toLowerCase()}`;
 }
 
-export default function ServiceSearchAssist({ id, defaultValue = "", placeholder, label = "Service to search for", className = "", inputClassName = "", icon = "⌕", iconClassName = "" }: ServiceSearchAssistProps) {
+export default function ServiceSearchAssist({ id, defaultValue = "", placeholder, label = "Service to search for", className = "", inputClassName = "", icon = "search", iconClassName = "" }: ServiceSearchAssistProps) {
   const listboxId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(defaultValue);
@@ -39,7 +41,7 @@ export default function ServiceSearchAssist({ id, defaultValue = "", placeholder
   return <div className={`relative ${className}`} onBlur={(event) => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
   }}>
-    <span className={iconClassName} aria-hidden="true">{icon}</span>
+    <span className={iconClassName} aria-hidden="true"><UiIcon name={icon} className="h-4 w-4" /></span>
     <label htmlFor={id} className="sr-only">{label}</label>
     <input
       ref={inputRef}
@@ -81,7 +83,7 @@ export default function ServiceSearchAssist({ id, defaultValue = "", placeholder
         onClick={() => choose(category)}
         className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${activeIndex === index ? "bg-[#e8f1e5]" : "hover:bg-[#f1f4ed]"}`}
       >
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#edf3e9] text-lg" aria-hidden="true">{SERVICE_CATEGORY_ICONS[category] ?? "✨"}</span>
+        <ServiceCategoryIcon category={category} compact />
         <span className="min-w-0"><span className="block font-bold text-[#183126]">{category}</span><span className="block truncate text-xs text-[#718078]">{suggestionHint(category, query)}</span></span>
       </button>)}
     </div>}

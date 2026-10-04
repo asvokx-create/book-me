@@ -9,6 +9,7 @@ import { database } from "@/lib/database";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getStripeMode } from "@/lib/stripe";
 import MobileSiteNav from "@/components/mobile-site-nav";
+import UiIcon from "@/components/ui-icon";
 
 export const metadata: Metadata = {
   title: "Provider pricing",
@@ -88,7 +89,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
         <div className="pointer-events-none absolute -bottom-48 -left-36 h-[420px] w-[420px] rounded-full bg-[#eee25a]/15 blur-3xl" />
         <div className="site-container relative grid items-center gap-10 px-5 py-12 text-left sm:px-8 sm:py-16 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.18em] text-[#d2dfd7]"><span className="h-2 w-2 rounded-full bg-[#eee25a]" />Simple, fair provider pricing</p>
+            <p className="text-xs font-bold uppercase tracking-[.18em] text-[#d2dfd7]">Provider pricing</p>
             <h1 className="type-hero mt-6 max-w-3xl">Start free.<br /><span className="text-[#eee25a]">Grow on your terms.</span></h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-[#d1ddd6] sm:text-lg sm:leading-8">Build your profile, talk with customers, and send quotes without paying for leads. Upgrade only when the extra tools make sense for your business.</p>
             <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
@@ -96,12 +97,11 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
               <a href="#plans" className="inline-flex min-h-11 items-center text-sm font-bold text-white underline decoration-white/35 decoration-2 underline-offset-4 transition hover:decoration-[#eee25a]">Compare plans ↓</a>
             </div>
           </div>
-          <aside className="relative overflow-hidden rounded-[2rem] border border-white/20 bg-[rgba(7,42,29,.72)] p-6 shadow-[0_24px_70px_rgba(0,0,0,.22)] backdrop-blur-md sm:p-8">
-            <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#eee25a]/15 blur-3xl" />
+          <aside className="relative overflow-hidden rounded-xl border border-white/20 bg-[#0b2d20] p-6 sm:p-8">
             <p className="relative text-xs font-bold uppercase tracking-[.17em] text-[#c8d7cf]">Your cost before a booking</p>
             <div className="relative mt-3 flex items-end gap-3"><span className="text-6xl font-bold tracking-[-.06em] text-white">$0</span><span className="pb-2 text-sm font-semibold text-[#c8d7cf]">always</span></div>
             <div className="relative mt-6 grid gap-3">
-              {['Receive customer inquiries', 'Chat with customers', 'Create and send quotes'].map((item) => <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0b2d20]/35 px-4 py-3 text-sm font-semibold text-white"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#eee25a] text-xs font-black text-[#183126]">✓</span>{item}</div>)}
+              {['Receive customer inquiries', 'Chat with customers', 'Create and send quotes'].map((item) => <div key={item} className="flex items-center gap-3 rounded-lg border border-white/10 px-4 py-3 text-sm font-semibold text-white"><UiIcon name="check" className="h-4 w-4 shrink-0 text-[#eee25a]" />{item}</div>)}
             </div>
             <p className="relative mt-5 text-sm leading-6 text-[#c8d7cf]">A booking fee applies only after you complete a paid booking.</p>
           </aside>
@@ -118,7 +118,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.id;
             return <article key={plan.id} className={`pricing-plan-card relative flex flex-col rounded-[2rem] border bg-white p-7 sm:p-8 ${plan.featured || isCurrent ? "border-[#183126] ring-4 ring-[#eee25a]/60" : "border-[#183126]/10"}`}>
-            {plan.featured && <span className="absolute -top-3 left-7 rounded-full bg-[#eee25a] px-3 py-1 text-xs font-bold">Most popular</span>}
+            {plan.featured && <span className="absolute -top-3 left-7 rounded-md bg-[#eee25a] px-3 py-1 text-xs font-bold">Lower booking fee</span>}
             {isCurrent && <span className="absolute -top-3 right-7 rounded-full bg-[#183126] px-3 py-1 text-xs font-bold text-white">Current plan</span>}
             <h2 className="text-2xl font-bold">{plan.name}</h2><p className="mt-2 min-h-12 text-sm leading-6 text-[#687970]">{plan.description}</p>
             <div className="mt-7 flex items-end gap-2"><span className="text-4xl font-bold tracking-[-.04em]">{plan.price}</span><span className="pb-1 text-sm text-[#6f7f77]">{plan.cadence}</span></div>
@@ -128,7 +128,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
               {plan.id === "pro" && <span className="inline-flex w-fit rounded-full bg-[#183126] px-3 py-1.5 text-xs font-bold text-white">Save at $250+/month booked</span>}
             </div>
             {plan.id === "pro" && <p className="mt-2 text-xs leading-5 text-[#74827b]">At $250+ in monthly bookings, Pro&apos;s lower 6% fee offsets the monthly price.</p>}
-            <ul className="mt-7 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex gap-3 text-sm"><span className="font-bold text-[#4c8a60]">✓</span><span>{feature}</span></li>)}</ul>
+            <ul className="mt-7 flex-1 space-y-3">{plan.features.map((feature) => <li key={feature} className="flex gap-3 text-sm"><UiIcon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-[#4c8a60]" /><span>{feature}</span></li>)}</ul>
             {isCurrent
               ? <span className="mt-8 rounded-full bg-[#edf3e7] px-5 py-3.5 text-center text-sm font-bold text-[#496756]">Your current plan</span>
               : plan.id === "starter"

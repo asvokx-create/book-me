@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getServices, getServiceVisual } from "@/lib/marketplace";
 import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
-import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORIES, SERVICE_CATEGORY_ICONS } from "@/lib/service-categories";
+import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORIES } from "@/lib/service-categories";
 import LocationFilter from "@/components/location-filter";
 import SortSelect from "@/components/sort-select";
 import ServiceFiltersMenu from "@/components/service-filters-menu";
@@ -15,6 +15,7 @@ import SearchResultsAnalytics from "@/components/search-results-analytics";
 import ServiceSearchAssist from "@/components/service-search-assist";
 import UiIcon from "@/components/ui-icon";
 import { deliveryLabel, type ServiceDeliveryType } from "@/lib/service-delivery";
+import ServiceCategoryIcon from "@/components/service-category-icon";
 
 export const dynamic = "force-dynamic";
 
@@ -112,8 +113,8 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           <p className="mt-4 max-w-2xl text-lg text-[#5d7066]">{delivery === "REMOTE" ? "Compare remote providers, prices, and availability without a distance limit." : location ? `Compare local and online providers around ${location}.` : "Browse services available locally or online."}</p>
 
           <form action={`/services${resultsAnchor}`} className="services-search-panel relative z-30 mt-8 flex max-w-5xl flex-col gap-2 rounded-3xl border border-[#183126]/10 bg-white p-2.5 sm:flex-row sm:items-center sm:rounded-full">
-            <ServiceSearchAssist id="services-service-search" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" label="Search services" className="services-search-query flex flex-1 items-center gap-3 px-5 py-3" inputClassName="services-search-query-input w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" icon="🔎" />
-            {delivery !== "REMOTE" ? <div className="services-search-location border-t border-[#183126]/10 sm:min-w-[350px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div> : <div className="flex min-h-12 items-center rounded-full bg-[#edf3e7] px-5 text-sm font-bold text-[#4f695a]">🌐 Available online</div>}
+            <ServiceSearchAssist id="services-service-search" defaultValue={query} placeholder="Try “cleaning” or “lawn care”" label="Search services" className="services-search-query flex flex-1 items-center gap-3 px-5 py-3" inputClassName="services-search-query-input w-full bg-transparent text-sm outline-none placeholder:text-[#8a9790]" icon="search" />
+            {delivery !== "REMOTE" ? <div className="services-search-location border-t border-[#183126]/10 sm:min-w-[350px] sm:border-l sm:border-t-0"><LocationFilter initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit /></div> : <div className="flex min-h-12 items-center gap-2 rounded-lg bg-[#edf3e7] px-5 text-sm font-bold text-[#4f695a]"><UiIcon name="globe" className="h-4 w-4" />Available online</div>}
             {delivery !== "ALL" && <input type="hidden" name="delivery" value={delivery} />}
             {selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}
             {maxPrice && <input type="hidden" name="maxPrice" value={maxPrice} />}
@@ -139,7 +140,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             <summary className="list-none rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-sm font-semibold transition hover:border-[#496958] hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">More filters <span className="inline-block transition group-open:rotate-180">⌄</span></summary>
             <div className="fixed inset-x-3 bottom-3 z-[80] max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_20px_55px_rgba(24,49,38,.15)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-8 sm:mt-3 sm:max-h-[min(40rem,calc(100dvh-7rem))] sm:w-[620px] sm:p-6">
               <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>
-              <div className="mt-4 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={serviceHref(category)} className={`flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><span className="shrink-0">{SERVICE_CATEGORY_ICONS[category] ?? "✨"}</span><span className="min-w-0 break-words">{category}</span></Link>)}</div>
+              <div className="mt-4 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={serviceHref(category)} className={`flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><ServiceCategoryIcon category={category} compact /><span className="min-w-0 break-words">{category}</span></Link>)}</div>
               <form action={`/services${resultsAnchor}`} className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                 {query && <input type="hidden" name="q" value={query} />}{location && delivery !== "REMOTE" && <input type="hidden" name="location" value={location} />}{delivery !== "REMOTE" && <input type="hidden" name="radius" value={radius} />}{delivery !== "ALL" && <input type="hidden" name="delivery" value={delivery} />}{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}{sort !== (delivery === "REMOTE" ? "newest" : "nearest") && <input type="hidden" name="sort" value={sort} />}
                 <label><span className="mb-2 block text-xs font-bold">Maximum price</span><select name="maxPrice" defaultValue={maxPrice ?? ""} className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any price</option><option value="50">Up to $50</option><option value="100">Up to $100</option><option value="250">Up to $250</option><option value="500">Up to $500</option></select></label>
@@ -174,12 +175,11 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
               <article key={service.slug} className="marketplace-card group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white transition">
                 <Link href={`/services/${service.slug}?from=${encodeURIComponent(currentResultsPath)}`} className="block" aria-label={`View ${service.title}`}>
                 <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${getServiceVisual(service.category).gradient}`}`}>
-                  {!service.imageUrls[0] && <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />}
-                  {!service.imageUrls[0] && <span className="absolute bottom-5 right-6 text-6xl opacity-80">{getServiceVisual(service.category).art}</span>}
+                  {!service.imageUrls[0] && <div className="absolute inset-0 grid place-items-center"><ServiceCategoryIcon category={service.category} className="h-24 min-h-24 w-24 min-w-24 [&_svg]:h-16 [&_svg]:w-16" /></div>}
                 </div>
                 </Link>
                 <div className="p-6">
-                  <div className="flex items-center justify-between gap-3 text-sm"><span className="font-semibold text-[#5f7568]">{service.deliveryType === "REMOTE" ? "🌐 Remote" : service.deliveryType === "BOTH" ? "🌐 Remote or in person" : `📍 ${service.city}, ${service.state}${typeof service.distanceMiles === "number" ? ` · ${service.distanceMiles < 0.1 ? "Nearby" : `${service.distanceMiles.toFixed(1)} mi`}` : ""}`}</span><span className="shrink-0 font-bold">From ${service.price}</span></div>
+                  <div className="flex items-center justify-between gap-3 text-sm"><span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-[#5f7568]"><UiIcon name={service.deliveryType === "IN_PERSON" ? "map-pin" : "globe"} className="h-4 w-4 shrink-0" /><span>{service.deliveryType === "REMOTE" ? "Remote" : service.deliveryType === "BOTH" ? "Remote or in person" : `${service.city}, ${service.state}${typeof service.distanceMiles === "number" ? ` · ${service.distanceMiles < 0.1 ? "Nearby" : `${service.distanceMiles.toFixed(1)} mi`}` : ""}`}</span></span><span className="shrink-0 font-bold">From ${service.price}</span></div>
                   <p className="mt-4 text-xs font-bold uppercase tracking-[.13em] text-[#75847c]">{service.category}</p>
                   <Link href={`/services/${service.slug}?from=${encodeURIComponent(currentResultsPath)}`}><h3 className="mt-1 text-xl font-bold tracking-[-.025em]">{service.title}</h3></Link>
                   <p className="mt-2 text-sm text-[#6a7a72]">by {service.companySlug ? <Link href={`/companies/${service.companySlug}`} className="font-bold underline decoration-[#c7bb41] decoration-2 underline-offset-4">{service.provider}</Link> : service.providerProfileVisible ? <Link href={`/providers/${service.providerSlug}`} className="font-bold underline decoration-[#c7bb41] decoration-2 underline-offset-4">{service.provider}</Link> : <span className="font-bold">{service.provider}</span>}</p>
@@ -190,7 +190,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
           </div>
         ) : (
           <div className="mt-7 rounded-[2rem] border border-[#183126]/10 bg-white px-6 py-16 text-center">
-            <span className="text-4xl">🔎</span>
+            <UiIcon name="search" className="mx-auto h-8 w-8 text-[#496756]" />
             <h3 className="mt-4 text-xl font-bold">No exact matches yet</h3>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6d7c75]">{delivery === "REMOTE" ? "Try another service or request remote help so eligible online providers can send you a quote." : location ? `Adjust one part of your search while keeping ${location} as your area.` : "Try another service or choose your city to check nearby availability."}</p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">

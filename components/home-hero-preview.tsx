@@ -1,4 +1,5 @@
 import Link from "next/link";
+import UiIcon from "@/components/ui-icon";
 
 type HomeHeroPreviewProps = {
   href: string;
@@ -57,9 +58,9 @@ export default function HomeHeroPreview({ href, city, hasLocation }: HomeHeroPre
           <div className="home-preview-road home-preview-road--two" aria-hidden="true" />
           <div className="home-preview-park absolute -right-7 -top-8 h-40 w-40 rounded-full" aria-hidden="true" />
 
-          <span className="home-preview-badge absolute left-4 top-4 inline-flex max-w-[72%] items-center gap-2 overflow-hidden whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[.08em] text-ellipsis">
-            <span className="h-2 w-2 rounded-full bg-[#54a874] shadow-[0_0_0_4px_rgba(84,168,116,.14)]" />
-            {hasLocation ? `Popular in ${areaLabel}` : "Available nearby"}
+          <span className="home-preview-badge absolute left-4 top-4 inline-flex max-w-[72%] items-center gap-2 overflow-hidden whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[.08em] text-ellipsis">
+            <UiIcon name="map-pin" className="h-3.5 w-3.5" />
+            {hasLocation ? `Browse ${areaLabel}` : "Browse nearby"}
           </span>
 
           <MapPin className="left-[12%] top-[57%]"><CleaningIcon /></MapPin>
@@ -69,46 +70,38 @@ export default function HomeHeroPreview({ href, city, hasLocation }: HomeHeroPre
           <div className="home-preview-service absolute bottom-4 left-4 flex items-center gap-3 rounded-2xl p-3">
             <span className="home-preview-service-icon grid h-10 w-10 shrink-0 place-items-center rounded-xl"><CleaningIcon /></span>
             <span>
-              <span className="block text-[10px] font-bold uppercase tracking-[.12em]">Top local match</span>
+              <span className="block text-[10px] font-bold uppercase tracking-[.12em]">Service category</span>
               <span className="mt-0.5 block text-sm font-extrabold">Home cleaning</span>
             </span>
-            <span className="ml-2 rounded-full bg-[#eee25a] px-2 py-1 text-[10px] font-black text-[#183126]">★ 4.9</span>
           </div>
         </div>
 
         <div className="px-2 pb-2 pt-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xl font-extrabold tracking-[-.025em]">Trusted local help, right nearby.</p>
+              <p className="text-xl font-extrabold tracking-[-.025em]">Compare services in one place.</p>
               <p className="mt-1.5 text-sm leading-5 text-[#65766d]">Compare services, message providers, and book with confidence.</p>
             </div>
-            <span className="home-preview-arrow grid h-12 w-12 shrink-0 place-items-center rounded-full text-xl transition duration-300 group-hover:translate-x-1" aria-hidden="true">→</span>
+            <span className="home-preview-arrow grid h-11 w-11 shrink-0 place-items-center rounded-lg" aria-hidden="true"><UiIcon name="arrow-right" className="h-5 w-5" /></span>
           </div>
 
           <div className="mt-5 grid grid-cols-3 gap-2">
             <div className="home-preview-stat rounded-2xl px-3 py-3">
-              <span className="home-preview-stat-icon" aria-hidden="true">⌖</span>
+              <span className="home-preview-stat-icon" aria-hidden="true"><UiIcon name="map-pin" className="h-3.5 w-3.5" /></span>
               <p className="mt-1 text-xs font-extrabold">Local matches</p>
             </div>
             <div className="home-preview-stat rounded-2xl px-3 py-3">
-              <span className="home-preview-stat-icon" aria-hidden="true">◌</span>
+              <span className="home-preview-stat-icon" aria-hidden="true"><UiIcon name="messages" className="h-3.5 w-3.5" /></span>
               <p className="mt-1 text-xs font-extrabold">Direct chat</p>
             </div>
             <div className="home-preview-stat rounded-2xl px-3 py-3">
-              <span className="home-preview-stat-icon" aria-hidden="true">✓</span>
+              <span className="home-preview-stat-icon" aria-hidden="true"><UiIcon name="lock" className="h-3.5 w-3.5" /></span>
               <p className="mt-1 text-xs font-extrabold">Secure booking</p>
             </div>
           </div>
         </div>
       </Link>
 
-      <div className="home-preview-float absolute -bottom-5 -left-7 flex items-center gap-3 rounded-2xl px-4 py-3">
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/10 text-lg" aria-hidden="true">⌂</span>
-        <span>
-          <span className="block text-[10px] font-extrabold uppercase tracking-[.1em]">Help nearby or online</span>
-          <span className="mt-0.5 block text-sm font-bold">The right service, without the hassle.</span>
-        </span>
-      </div>
     </div>
   );
 }

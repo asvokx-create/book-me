@@ -1,5 +1,7 @@
 "use client";
 
+import UiIcon from "@/components/ui-icon";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import RadiusSelector from "@/components/radius-selector";
@@ -198,12 +200,12 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
       <input type="hidden" name="location" value={location} />
       <details ref={detailsRef} className="group relative min-w-0 flex-1">
         <summary className="flex min-h-12 list-none items-center gap-2 rounded-full px-4 text-left text-sm font-semibold transition hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">
-          <span aria-hidden="true">📍</span><span className="min-w-0 flex-1 truncate">{location || "Choose your city"}</span><span className="text-[#76857d] transition group-open:rotate-180">⌄</span>
+          <UiIcon name="map-pin" className="h-4 w-4 shrink-0 text-[#d64d78]" /><span className="min-w-0 flex-1 truncate">{location || "Choose your city"}</span><UiIcon name="chevron-down" className="h-4 w-4 shrink-0 text-[#76857d] transition group-open:rotate-180" />
         </summary>
         <div className="fixed inset-x-3 bottom-3 z-[80] max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[1.5rem] border border-[#183126]/10 bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_20px_55px_rgba(24,49,38,.18)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-3 sm:max-h-[min(38rem,calc(100dvh-7rem))] sm:w-[min(360px,calc(100vw-2.5rem))] sm:pb-5">
           <p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Choose your area</p>
           <label className="mt-4 block"><span className="sr-only">Enter city, state, or ZIP code</span><input value={location} onChange={(event) => { setLocation(event.target.value); setMessage(""); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void applyTypedLocation(); } }} placeholder="City, state, or ZIP code" inputMode="text" autoComplete="postal-code" className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 text-sm outline-none focus:border-[#4d725d]" /></label>
-          <button type="button" onClick={useCurrentLocation} disabled={locating} className="mt-3 w-full rounded-xl border border-[#183126]/12 px-4 py-2.5 text-left text-sm font-bold transition hover:bg-[#edf3e7] disabled:opacity-60">◎ {locating ? "Finding your city…" : "Use my current location"}</button>
+          <button type="button" onClick={useCurrentLocation} disabled={locating} className="mt-3 flex w-full items-center gap-2 rounded-xl border border-[#183126]/12 px-4 py-2.5 text-left text-sm font-bold transition hover:bg-[#edf3e7] disabled:opacity-60"><UiIcon name="locations" className="h-4 w-4" />{locating ? "Finding your city…" : "Use my current location"}</button>
           {message && <p className="mt-2 text-xs leading-5 text-[#6c7d74]">{message}</p>}
           <p className="mt-5 text-xs font-bold text-[#718078]">Nearby cities</p>
           <div className="mt-2 grid grid-cols-2 gap-2">{location.trim() && nearby.map((area) => <button key={area.label} type="button" onClick={() => chooseLocation(area.label)} className="rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[#edf3e7]"><span className="block font-semibold">{area.city}</span><span className="text-[11px] text-[#7a8881]">{typeof area.distance === "number" ? `${Math.round(area.distance)} mi away` : area.state}</span></button>)}</div>
