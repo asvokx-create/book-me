@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
@@ -25,6 +26,8 @@ type SettingsRow = {
   theme: "light" | "dark" | "system";
   time_zone: string;
   is_provider: boolean;
+  is_provider_owner: boolean;
+  public_personal_name_visible: boolean;
 };
 
 export async function GET() {
@@ -46,6 +49,8 @@ export async function GET() {
             COALESCE(us.opportunity_notifications, true) AS opportunity_notifications,
             COALESCE(us.theme, 'light') AS theme,
             COALESCE(us.time_zone, 'auto') AS time_zone,
+            COALESCE(us.public_personal_name_visible, false) AS public_personal_name_visible,
+            (p.id IS NOT NULL) AS is_provider_owner,
             (p.id IS NOT NULL OR EXISTS (
               SELECT 1
               FROM provider_team_members tm
@@ -81,6 +86,8 @@ export async function GET() {
     theme: row.theme,
     timeZone: row.time_zone,
     isProvider: row.is_provider,
+    isProviderOwner: row.is_provider_owner,
+    publicPersonalNameVisible: row.is_provider_owner && row.public_personal_name_visible,
   });
 }
 
@@ -99,6 +106,7 @@ export async function PATCH(request: Request) {
   const opportunityNotifications = body.opportunityNotifications !== false;
   const theme = body.theme === "light" || body.theme === "dark" || body.theme === "system" ? body.theme : "light";
   const timeZone = typeof body.timeZone === "string" ? body.timeZone.trim() : "auto";
+  const publicPersonalNameVisible = body.publicPersonalNameVisible === true;
 
   if (name.length < 2 || name.length > 80) return NextResponse.json({ error: "Enter your full name." }, { status: 400 });
   if (phone.length > 0 && phone.length !== 10) return NextResponse.json({ error: "Enter a 10-digit phone number or leave it blank." }, { status: 400 });
@@ -114,15 +122,21 @@ export async function PATCH(request: Request) {
   const submittedSource = requestedSource === "BROWSER_LOCATION_CONFIRMED" ? requestedSource : "USER_ENTERED";
   let locationSource = submittedSource;
   let verificationRelevantChanged = false;
+  let publicNameVisibilityChanged = false;
+  let isProviderOwner = false;
   try {
     await client.query("BEGIN");
-    const currentResult = await client.query<{ name: string; phone: string | null; city: string | null; state: string | null; postal_code: string | null; country: string | null; source: string | null }>(
+    const currentResult = await client.query<{ name: string; phone: string | null; city: string | null; state: string | null; postal_code: string | null; country: string | null; source: string | null; is_provider_owner: boolean; public_personal_name_visible: boolean }>(
       `SELECT name, phone, location_city AS city, location_state AS state, location_postal_code AS postal_code,
-              location_country AS country, location_source AS source
+              location_country AS country, location_source AS source,
+              EXISTS (SELECT 1 FROM provider_profiles provider WHERE provider.user_id = "user".id AND provider.is_active = true) AS is_provider_owner,
+              COALESCE((SELECT settings.public_personal_name_visible FROM user_settings settings WHERE settings.user_id = "user".id), false) AS public_personal_name_visible
        FROM "user" WHERE id = $1 FOR UPDATE`,
       [session.user.id],
     );
     const current = currentResult.rows[0];
+    isProviderOwner = current?.is_provider_owner === true;
+    publicNameVisibilityChanged = isProviderOwner && current?.public_personal_name_visible !== publicPersonalNameVisible;
     verificationRelevantChanged = Boolean(current && (current.name !== name || (current.phone ?? "").replace(/\D/g, "") !== phone));
     const locationChanged = !current || current.city !== location.location.city || current.state !== location.location.state || current.postal_code !== location.location.postalCode || (current.country ?? "United States") !== location.location.country;
     if (!locationChanged && isAccountLocationSource(current?.source)) locationSource = current.source;
@@ -134,8 +148,8 @@ export async function PATCH(request: Request) {
       [name, phone, location.location.city, location.location.state, location.location.postalCode, location.location.country, locationSource, session.user.id, locationChanged],
     );
     await client.query(
-      `INSERT INTO user_settings (user_id, city, state, search_radius_miles, booking_notifications, message_notifications, request_notifications, opportunity_notifications, theme, time_zone)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO user_settings (user_id, city, state, search_radius_miles, booking_notifications, message_notifications, request_notifications, opportunity_notifications, theme, time_zone, public_personal_name_visible)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CASE WHEN $11::boolean THEN $12::boolean ELSE false END)
        ON CONFLICT (user_id) DO UPDATE SET
          city = EXCLUDED.city, state = EXCLUDED.state,
          search_radius_miles = EXCLUDED.search_radius_miles,
@@ -143,9 +157,17 @@ export async function PATCH(request: Request) {
          message_notifications = EXCLUDED.message_notifications,
          request_notifications = EXCLUDED.request_notifications,
          opportunity_notifications = EXCLUDED.opportunity_notifications,
-         theme = EXCLUDED.theme, time_zone = EXCLUDED.time_zone`,
-      [session.user.id, location.location.city, location.location.state, radius, bookingNotifications, messageNotifications, requestNotifications, opportunityNotifications, theme, timeZone],
+         theme = EXCLUDED.theme, time_zone = EXCLUDED.time_zone,
+         public_personal_name_visible = CASE WHEN $11::boolean THEN EXCLUDED.public_personal_name_visible ELSE user_settings.public_personal_name_visible END`,
+      [session.user.id, location.location.city, location.location.state, radius, bookingNotifications, messageNotifications, requestNotifications, opportunityNotifications, theme, timeZone, isProviderOwner, publicPersonalNameVisible],
     );
+    if (publicNameVisibilityChanged) {
+      await client.query(
+        `INSERT INTO activity_log (user_id, action, target_type, target_id, metadata)
+         VALUES ($1, 'public_personal_name_visibility_updated', 'account', $1, $2::jsonb)`,
+        [session.user.id, JSON.stringify({ visible: publicPersonalNameVisible })],
+      );
+    }
     if (locationChanged) {
       await client.query(
         `INSERT INTO activity_log (user_id, action, target_type, target_id, metadata)
@@ -169,5 +191,13 @@ export async function PATCH(request: Request) {
     });
   }
 
-  return NextResponse.json({ ok: true, location: `${location.location.city}, ${location.location.state}`, postalCode: location.location.postalCode, country: location.location.country, locationSource, radius, theme, timeZone });
+  if (publicNameVisibilityChanged) {
+    revalidatePath("/providers/[slug]", "page");
+    revalidatePath("/companies/[slug]", "page");
+    revalidatePath("/services/[slug]", "page");
+    revalidatePath("/services");
+    revalidatePath("/");
+  }
+
+  return NextResponse.json({ ok: true, location: `${location.location.city}, ${location.location.state}`, postalCode: location.location.postalCode, country: location.location.country, locationSource, radius, theme, timeZone, publicPersonalNameVisible: isProviderOwner && publicPersonalNameVisible });
 }

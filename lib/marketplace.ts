@@ -7,6 +7,7 @@ import { getServiceCategorySearchMatches } from "./service-categories";
 import type { ServiceDeliveryType } from "./service-delivery";
 import type { RecurrenceOption, ServiceAddOn, ServicePackage } from "./service-commerce";
 import { isProviderScreeningCurrent } from "./provider-screening-freshness";
+import { publicPersonalName } from "./public-provider-identity";
 
 const PRIORITY_DISTANCE_BAND_MILES = 10;
 
@@ -315,6 +316,7 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
     id: string;
     public_profile_slug: string;
     owner_name: string;
+    public_personal_name_visible: boolean;
     business_name: string;
     bio: string;
     city: string;
@@ -337,7 +339,9 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
     languages: string[];
     provider_highlights: string[];
   }>(
-    `SELECT p.id::text, p.public_profile_slug, owner.name AS owner_name, p.business_name, p.bio, p.city, p.state,
+    `SELECT p.id::text, p.public_profile_slug, owner.name AS owner_name,
+            COALESCE(settings.public_personal_name_visible, false) AS public_personal_name_visible,
+            p.business_name, p.bio, p.city, p.state,
             p.is_verified, p.screening_status, p.screening_checked_at, owner."emailVerified" AS email_verified, p.phone_verified,
             p.identity_verified, p.business_verified, p.cancellation_window_hours,
             p.cancellation_policy, p.no_show_policy, owner.image AS profile_image_url,
@@ -345,6 +349,7 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
             p.specialties, p.languages, p.provider_highlights
      FROM provider_profiles p
      JOIN "user" owner ON owner.id = p.user_id
+     LEFT JOIN user_settings settings ON settings.user_id = owner.id
      WHERE (lower(p.public_profile_slug) = lower($1) OR p.id::text = $1)
        AND p.is_active = true
        AND (
@@ -409,7 +414,7 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
   return {
     id: provider.id,
     publicSlug: provider.public_profile_slug,
-    ownerName: provider.owner_name,
+    publicOwnerName: publicPersonalName(provider.owner_name, provider.public_personal_name_visible),
     businessName: services[0]?.provider ?? provider.business_name,
     bio: provider.bio,
     city: provider.city,

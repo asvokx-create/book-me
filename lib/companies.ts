@@ -9,7 +9,7 @@ export type CompanyPage = {
   bio: string;
   city: string;
   state: string;
-  ownerName: string;
+  publicOwnerName: string | null;
   verified: boolean;
   locations: Array<{ id: string; name: string; city: string; state: string; serviceRadiusMiles: number }>;
   services: Array<{
@@ -30,13 +30,15 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyPage | null
   if (!isDatabaseConfigured()) return null;
   const companyResult = await database.query<{
     id: string; slug: string; name: string; bio: string; city: string; state: string;
-    owner_name: string; verified: boolean;
+    public_owner_name: string | null; verified: boolean;
   }>(
     `SELECT company.id::text, company.slug, company.name, company.bio, company.city, company.state,
-            owner.name AS owner_name, provider.is_verified AS verified
+            CASE WHEN COALESCE(settings.public_personal_name_visible, false) THEN owner.name ELSE NULL END AS public_owner_name,
+            provider.is_verified AS verified
      FROM provider_companies company
      JOIN provider_profiles provider ON provider.id = company.provider_id AND provider.is_active = true
      JOIN "user" owner ON owner.id = provider.user_id
+     LEFT JOIN user_settings settings ON settings.user_id = owner.id
      WHERE company.slug = $1 AND company.is_active = true
      LIMIT 1`,
     [slug],
@@ -67,7 +69,7 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyPage | null
     bio: company.bio,
     city: company.city,
     state: company.state,
-    ownerName: company.owner_name,
+    publicOwnerName: company.public_owner_name,
     verified: company.verified,
     locations: locationResult.rows.map((location) => ({ id: location.id, name: location.name, city: location.city, state: location.state, serviceRadiusMiles: location.service_radius_miles })),
     services: serviceResult.rows.map((service) => ({
