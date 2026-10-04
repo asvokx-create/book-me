@@ -3,6 +3,7 @@ import { database } from "@/lib/database";
 import { hasAdminAccess, isOwnerEmail } from "@/lib/admin";
 import type { ProviderPlan } from "@/lib/plans";
 import { getProviderAccess } from "@/lib/provider-access";
+import { isProviderScreeningCurrent } from "@/lib/provider-screening-freshness";
 
 export async function GET() {
   const access = await getProviderAccess();
@@ -52,6 +53,7 @@ export async function GET() {
   }
 
   const provider = providerResult.rows[0];
+  const screeningCurrent = isProviderScreeningCurrent(provider.screening_checked_at);
   const verificationResult = await database.query<{ results: Array<{ key: string; label: string; passed: boolean; detail: string }> }>(
     `SELECT results FROM provider_verification_checks WHERE provider_id::text = $1 ORDER BY created_at DESC LIMIT 1`,
     [provider.id],
@@ -159,6 +161,7 @@ export async function GET() {
     screeningScore: provider.screening_score,
     screeningSummary: provider.screening_summary,
     screeningCheckedAt: provider.screening_checked_at,
+    screeningCurrent,
     automaticVerificationChecks: verificationResult.rows[0]?.results ?? null,
     cancellationWindowHours: provider.cancellation_window_hours,
     cancellationPolicy: provider.cancellation_policy,

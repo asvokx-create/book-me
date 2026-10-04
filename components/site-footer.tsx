@@ -86,7 +86,7 @@ export default function SiteFooter() {
 
         <div className="flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-[#7f9b8c] sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} BubsBookings. Built for local and remote work.</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><AnalyticsChoicesButton className="rounded-md font-semibold underline-offset-4 hover:text-white hover:underline focus-visible:text-white" /><p>Connecting local communities across the United States</p></div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><AnalyticsChoicesButton className="rounded-md font-semibold underline-offset-4 hover:text-white hover:underline focus-visible:text-white" /><p>Connecting people with local and remote service providers across the United States</p></div>
         </div>
       </div>
     </footer>

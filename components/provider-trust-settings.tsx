@@ -14,6 +14,7 @@ type TrustSettings = {
   screeningScore: number | null;
   screeningSummary: string;
   screeningCheckedAt: string | null;
+  screeningCurrent: boolean;
   automaticVerificationChecks: Array<{ key: string; label: string; passed: boolean; detail: string }> | null;
   cancellationWindowHours: number;
   cancellationPolicy: string;
@@ -43,9 +44,11 @@ export default function ProviderTrustSettings({ initial }: { initial: TrustSetti
   const initialScore = Math.round(initialPassedCount / initialChecks.length * 100);
   const [automaticChecks, setAutomaticChecks] = useState(initialChecks);
   const [verification, setVerification] = useState({
-    status: initialPassedCount === initialChecks.length ? "passed" : "needs_changes",
+    status: initial.screeningCurrent && initialPassedCount === initialChecks.length ? "passed" : "needs_changes",
     score: initialScore,
-    summary: initialPassedCount === initialChecks.length
+    summary: !initial.screeningCurrent && initial.screeningCheckedAt
+      ? "These results are more than 30 days old. Run the automatic checks again before verification badges are shown publicly."
+      : initialPassedCount === initialChecks.length
       ? "Automated account, phone-detail, Stripe identity, and business-profile checks passed."
       : initialChecks.filter((check) => !check.passed).map((check) => check.detail).join(" "),
     checkedAt: initial.screeningCheckedAt,

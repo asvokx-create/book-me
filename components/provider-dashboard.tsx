@@ -55,6 +55,7 @@ type ProviderSummary = {
   screeningScore: number | null;
   screeningSummary: string;
   screeningCheckedAt: string | null;
+  screeningCurrent: boolean;
   automaticVerificationChecks: Array<{ key: string; label: string; passed: boolean; detail: string }> | null;
   cancellationWindowHours: number;
   cancellationPolicy: string;

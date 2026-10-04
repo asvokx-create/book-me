@@ -85,6 +85,8 @@ test("provider acquisition and guidance welcome local and remote professionals",
   assert.match(messages, /local or remote providers/);
   assert.match(guides, /Remote listings do not use customer distance or a travel radius/);
   assert.match(footer, /Your service marketplace/);
+  assert.match(footer, /local and remote service providers across the United States/);
+  assert.match(source("app/guides/page.tsx"), /hiring local or remote help/);
   assert.match(footer, />Find services</);
 });
 
@@ -112,8 +114,8 @@ test("screening badges use the current automated result and material edits refre
   const listingRoute = source("app/api/providers/services/[serviceId]/route.ts");
   const locationRoute = source("app/api/providers/locations/route.ts");
   const accountRoute = source("app/api/account/settings/route.ts");
-  assert.match(marketplace, /row\.is_verified && row\.screening_status === "passed"/);
-  assert.match(marketplace, /provider\.is_verified && provider\.screening_status === "passed"/);
+  assert.match(marketplace, /screeningCurrent && row\.is_verified && row\.screening_status === "passed"/);
+  assert.match(marketplace, /screeningCurrent && provider\.is_verified && provider\.screening_status === "passed"/);
   assert.doesNotMatch(listing, /Automated profile checks last ran/);
   assert.match(listingRoute, /runAutomatedProviderVerification/);
   assert.match(locationRoute, /runAutomatedProviderVerification/);

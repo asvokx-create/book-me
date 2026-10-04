@@ -1,13 +1,16 @@
 # Authenticated production audit and cleanup
 
 **Audit date:** October 3, 2026  
-**Scope:** Read-only production inspection as the authenticated owner/admin; repository, migration, route, and regression-test review; responsive checks on the live homepage; local lint, tests, and production build.  
+**Scope:** Read-only production inspection as the authenticated owner/admin; repository, migration, route, and regression-test review; responsive checks on the live homepage; local responsive verification from 320px through 3840px; local lint, tests, production build, and safe affiliate simulation.
 **Important limit:** No production records were created, edited, paid, refunded, disputed, or deleted. No Stripe sandbox transaction was initiated from this checkout because it has no local production/test credentials, and a live browser transaction would require an explicit action-time confirmation. This report never treats an unexecuted financial scenario as passed.
 
 ## 1. Confirmed bugs
 
-- The public Partner Agreement exposed an internal drafting label and review sentence. Fixed without changing the underlying milestone policy.
+- The public Partner Agreement exposed a prohibited publication label and review sentence. Fixed without changing the underlying milestone policy.
 - Partner acquisition, its Open Graph image, customer messaging, and the mobile homepage request prompt still used local-only copy despite remote providers being supported. Fixed.
+- The Guides index metadata/hero and footer closing line still described BubsBookings as local-only. Fixed across visible copy and social metadata.
+- Public trust badges could remain active indefinitely after the provider's last successful automated screening. Fixed with one shared 30-day freshness rule used by listings, favorites, and public provider profiles; providers now receive a clear re-run prompt when the result expires.
+- One admin issue prompt used a private-note label that could be confused with drafting language. Reworded to “admin note” without changing the private audit behavior.
 - Provider pricing did not directly state the already-established $2.99 customer service fee. Fixed.
 - Production contains one completed booking while the operations dashboard reports zero paid bookings. This may be legacy/test data; it was not mutated.
 - Production contains a legacy active Partner record with no linked verified BubsBookings account. New approval is blocked correctly, but the historical record needs owner review.
@@ -24,7 +27,7 @@ No horizontal page overflow, missing public image alt text, duplicate remote/Bot
 
 The Partner Agreement heading is now `Provider Growth Milestones`, and the internal review sentence is gone. A new regression scans every public policy page for prohibited drafting labels.
 
-## 5. Legal review items
+## 5. LEGAL ITEMS TO REVIEW
 
 Counsel should still review milestone compensation, entity/contact disclosures, retention periods, state privacy and automatic-renewal requirements, governing law, liability limits, UGC/DMCA process, suspension appeals, and review moderation. These questions remain in internal documentation only.
 
@@ -42,7 +45,7 @@ Profiles label delivery type, hide private addresses, support portfolio/reviews/
 
 ## 9. Screening freshness findings
 
-Material account, profile, service, location, and Stripe-state changes re-run automated verification, and public badges depend on the current pass state. No scheduled age-based revalidation was found. This is an operational/legal decision, not a timestamp to rewrite.
+Material account, profile, service, location, and Stripe-state changes re-run automated verification. Public badges now require both a passing result and a `screening_checked_at` value no more than 30 days old. Missing, invalid, future-dated, or older results fail closed. The provider Trust Center explains that an expired result must be re-run; email verification remains separate because it has its own source of truth. Portfolio text remains subject to its existing safety validation and portfolio media remains subject to its existing moderation status; no unsupported automated image-classification claim was added.
 
 ## 10. Partner account requirement
 
@@ -114,7 +117,7 @@ All/In person/Remote filters, location/radius behavior, Both inclusion, local SE
 
 ## 27. Mobile Safari results
 
-Source/regression coverage includes 320–768 layouts, safe-area padding, dynamic viewport units, and overflow containment. Live responsive checks from approximately 360 through 1920 CSS pixels showed no page overflow or category-card overflow. Native iPhone Safari was not available; final device testing remains manual.
+Source/regression coverage includes 320–768 layouts, safe-area padding, dynamic viewport units, and overflow containment. Local rendered checks at 320, 360, 375, 390, 393, 412, 430, 480, 600, 768, 1024, 1366, 1920, and 3840 CSS pixels showed no page overflow. Native iPhone Safari was not available; final physical-device testing remains manual.
 
 ## 28. Pricing findings
 
@@ -174,7 +177,7 @@ Booking, message, opportunity, Partner milestone/application, recurring booking,
 
 ## 42. SEO findings
 
-`robots.txt`, dynamic sitemap, canonical URLs, listing/provider/company metadata, Open Graph routes, guides, Partner page, and local-location pages are present. Local SEO routes explicitly exclude remote-only services. Partner Open Graph copy now includes all service providers.
+`robots.txt`, dynamic sitemap, canonical URLs, listing/provider/company metadata, Open Graph routes, guides, Partner page, and local-location pages are present. Local SEO routes explicitly exclude remote-only services. Partner and Guides social copy now includes local and remote service providers.
 
 ## 43. Performance findings
 
@@ -190,15 +193,18 @@ Neutral dark-mode rules cover public, authenticated, admin, Partner, pricing, se
 
 ## 46. Files changed
 
-- `app/partner-agreement/page.tsx`
-- `app/partners/page.tsx`
-- `app/partners/opengraph-image.tsx`
-- `app/account/messages/page.tsx`
-- `app/page.tsx`
-- `app/pricing/page.tsx`
+- `app/api/providers/me/route.ts`
+- `app/guides/page.tsx`
+- `app/privacy/page.tsx`
+- `components/admin-issue-queue.tsx`
+- `components/provider-dashboard.tsx`
+- `components/provider-trust-settings.tsx`
+- `components/site-footer.tsx`
+- `lib/marketplace.ts`
+- `lib/provider-screening-freshness.ts`
 - `tests/legal-pages.test.ts`
+- `tests/provider-screening-freshness.test.ts`
 - `tests/remote-services.test.ts`
-- `tests/booking-financials.test.ts`
 - `docs/compliance-audit-2026-10-03.md`
 - `docs/authenticated-production-audit-2026-10-03.md`
 
@@ -212,9 +218,10 @@ None added or modified.
 
 ## 49. Tests added
 
-- Public policy pages reject internal drafting labels.
-- Partner/customer copy cannot regress to local-only language.
-- Pricing must disclose the separate $2.99 customer service fee.
+- Provider screening expires exactly after the shared 30-day freshness window and fails closed for missing, invalid, or future dates.
+- Every public provider trust badge is gated by the same freshness result.
+- Guides and footer copy cannot regress to local-only marketplace positioning.
+- Existing public policy label and remote-delivery regression checks were tightened.
 
 ## 50. Anything requiring Stripe configuration
 
@@ -228,7 +235,6 @@ Native iPhone Safari, screen reader/keyboard/contrast matrix, separate customer/
 
 - Whether future recurring visits should remain separately paid or become automatic off-session charges.
 - Whether each future project milestone should carry a separate $2.99 service fee.
-- Whether/when provider screening should expire and re-run periodically.
 - Whether to deactivate or link the historical unowned active Partner.
 - Whether the completed-without-payment booking is legitimate legacy history or removable test data.
 - Whether to build the currently absent full milestone-project product in a separate feature task.
@@ -239,7 +245,9 @@ No production users, Partners, listings, bookings, ledger entries, reviews, payo
 
 ## Verification summary
 
-- Automated tests: **231 passed** after this audit's new checks.
+- Automated tests: **233 passed** after this audit's new checks.
 - Lint: **passed**.
-- Production build: **passed** (with network access for the configured Google font fetch).
+- Production build: **passed**; 121 static/dynamic routes generated successfully.
+- Affiliate sandbox: **passed in local-simulation mode** with a $250 service, one $2.99 customer fee, $25 provider marketplace fee, $22.50 provider payout, $10 activation bonus, $5 revenue share, 14-day hold, and six-month share expiry. No Stripe PaymentIntent was created because this checkout has no Stripe test credentials.
+- Responsive rendering: **passed** at 320, 360, 375, 390, 393, 412, 430, 480, 600, 768, 1024, 1366, 1920, and 3840 CSS pixels with no document-level horizontal overflow.
 - Production UI: public policy/program/provider/pricing pages plus authenticated customer, provider, Partner-admin, operations, team, billing, and expense surfaces inspected read-only.

@@ -6,6 +6,7 @@ import { findUsCity } from "./us-cities";
 import { getServiceCategorySearchMatches } from "./service-categories";
 import type { ServiceDeliveryType } from "./service-delivery";
 import type { RecurrenceOption, ServiceAddOn, ServicePackage } from "./service-commerce";
+import { isProviderScreeningCurrent } from "./provider-screening-freshness";
 
 const PRIORITY_DISTANCE_BAND_MILES = 10;
 
@@ -77,6 +78,7 @@ type ServiceRow = {
   business_verified: boolean;
   is_verified: boolean;
   screening_status: "not_screened" | "passed" | "needs_changes";
+  screening_checked_at: Date | null;
   cancellation_window_hours: number;
   cancellation_policy: string;
   no_show_policy: string;
@@ -88,6 +90,7 @@ type ServiceRow = {
 };
 
 function mapService(row: ServiceRow): ServiceListing {
+  const screeningCurrent = isProviderScreeningCurrent(row.screening_checked_at);
   return {
     id: row.id,
     slug: row.slug,
@@ -106,10 +109,10 @@ function mapService(row: ServiceRow): ServiceListing {
     city: row.city,
     state: row.state,
     emailVerified: row.email_verified,
-    phoneVerified: row.phone_verified,
-    identityVerified: row.identity_verified,
-    businessVerified: row.business_verified,
-    profileScreened: row.is_verified && row.screening_status === "passed",
+    phoneVerified: screeningCurrent && row.phone_verified,
+    identityVerified: screeningCurrent && row.identity_verified,
+    businessVerified: screeningCurrent && row.business_verified,
+    profileScreened: screeningCurrent && row.is_verified && row.screening_status === "passed",
     cancellationWindowHours: row.cancellation_window_hours,
     cancellationPolicy: row.cancellation_policy,
     noShowPolicy: row.no_show_policy,
@@ -173,7 +176,7 @@ export async function getServices(options: { query?: string; category?: string; 
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.is_verified, p.screening_status, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((SELECT array_agg(lower(area.city || ', ' || area.state)) FROM provider_location_service_areas area WHERE area.location_id = s.location_id), ARRAY[]::text[]) AS service_area_cities,
             COALESCE((
@@ -218,7 +221,7 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.is_verified, p.screening_status, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -290,7 +293,7 @@ export async function getServiceById(id: string) {
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.is_verified, p.screening_status, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -318,6 +321,7 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
     state: string;
     is_verified: boolean;
     screening_status: "not_screened" | "passed" | "needs_changes";
+    screening_checked_at: Date | null;
     email_verified: boolean;
     phone_verified: boolean;
     identity_verified: boolean;
@@ -334,7 +338,7 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
     provider_highlights: string[];
   }>(
     `SELECT p.id::text, p.public_profile_slug, owner.name AS owner_name, p.business_name, p.bio, p.city, p.state,
-            p.is_verified, p.screening_status, owner."emailVerified" AS email_verified, p.phone_verified,
+            p.is_verified, p.screening_status, p.screening_checked_at, owner."emailVerified" AS email_verified, p.phone_verified,
             p.identity_verified, p.business_verified, p.cancellation_window_hours,
             p.cancellation_policy, p.no_show_policy, owner.image AS profile_image_url,
             p.public_profile_visible, p.years_experience, p.experience_summary,
@@ -401,6 +405,7 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
     return parts.length > 1 ? `${parts[0]} ${parts.at(-1)?.charAt(0)}.` : parts[0] || "BubsBookings customer";
   };
   const evidence = evidenceResult.rows[0];
+  const screeningCurrent = isProviderScreeningCurrent(provider.screening_checked_at);
   return {
     id: provider.id,
     publicSlug: provider.public_profile_slug,
@@ -409,11 +414,11 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
     bio: provider.bio,
     city: provider.city,
     state: provider.state,
-    isVerified: provider.is_verified && provider.screening_status === "passed",
+    isVerified: screeningCurrent && provider.is_verified && provider.screening_status === "passed",
     emailVerified: provider.email_verified,
-    phoneVerified: provider.phone_verified,
-    identityVerified: provider.identity_verified,
-    businessVerified: provider.business_verified,
+    phoneVerified: screeningCurrent && provider.phone_verified,
+    identityVerified: screeningCurrent && provider.identity_verified,
+    businessVerified: screeningCurrent && provider.business_verified,
     profileImageUrl: provider.profile_image_url ?? "",
     cancellationWindowHours: provider.cancellation_window_hours,
     cancellationPolicy: provider.cancellation_policy,
@@ -442,7 +447,7 @@ async function getServicesForProvider(providerId: string) {
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.is_verified, p.screening_status, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -466,7 +471,7 @@ export async function getFavoriteServices(customerId: string) {
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.is_verified, p.screening_status, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)

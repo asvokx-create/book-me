@@ -303,7 +303,7 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - `app/layout.tsx`, `components/site-footer.tsx` — render the choice manager and persistent control.
 - `app/cookies/page.tsx`, `app/privacy/page.tsx` — match actual consent behavior.
 - `components/partner-application-form.tsx`, `app/api/affiliates/apply/route.ts`, `database/migrations/069_partner_application_consent.sql` — explicit, enforced, recorded Partner Agreement acceptance.
-- `app/partner-agreement/page.tsx` — explicit age-18 partner eligibility and removal of public internal drafting labels.
+- `app/partner-agreement/page.tsx` — explicit age-18 partner eligibility and removal of prohibited publication labels.
 - `app/page.tsx`, `app/services/page.tsx`, `app/services/[slug]/page.tsx` — business-name destination integrity.
 - `components/use-modal-accessibility.ts`, `components/contact-support-button.tsx` — shared keyboard-dialog behavior and first adoption.
 - `tests/legal-pages.test.ts`, `tests/targeted-marketplace-audit.test.ts` — consent, agreement, age, and business-link regressions.
@@ -327,7 +327,7 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - No legal entity/address was invented or a private address published.
 - No absolute refund, safety, review, income, payment-security, or accessibility guarantee was added.
 - Financial/history deletion rules were not guessed; retention is a counsel/accounting decision.
-- The milestone policy itself was not rewritten; only the internal drafting label and internal review sentence were removed from public display.
+- The milestone policy itself was not rewritten; only the prohibited publication label and review sentence were removed from public display.
 
 ## Required pre-growth follow-up
 
