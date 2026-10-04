@@ -210,11 +210,12 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - No pay-to-remove mechanism or review incentive was found.
 - Legal review: formal written moderation/appeal standards and recordkeeping under the FTC Consumer Reviews and Testimonials Rule as volume grows.
 
-### 31. Affiliate/partner disclosure — **ALREADY CORRECT; NEEDS LEGAL REVIEW**
+### 31. Affiliate/partner disclosure — **PUBLIC LABEL FIXED; NEEDS LEGAL REVIEW**
 
 - Public page, agreement, dashboard, examples, custom terms, activation, share basis, duration, hold, minimum, milestones, campaign payments, tax/payout readiness, reversals, and non-guarantee language are explicit.
 - Partner Agreement requires clear/conspicuous compensated-relationship disclosure near each promotion.
-- Legal review: growth-milestone section is already visibly labeled NEEDS LEGAL REVIEW; also review compensation advertising and contractor/tax classification.
+- Fixed: the internal growth-milestone legal-review label and internal review sentence were removed from the public Partner Agreement while preserving the substantive milestone terms.
+- Legal review: counsel should still review growth-milestone terms, compensation advertising, and contractor/tax classification before paid promotion expands.
 
 ### 32. Affiliate tracking cookie — **ALREADY CORRECT**
 
@@ -260,10 +261,10 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - Terms, Provider Agreement, Partner Agreement, Promise, AI & Safety, Accessibility, Content Removal, and dispute behavior otherwise use consistent marketplace/non-guarantee/payment language.
 - Provider Agreement uses a separate effective date from the shared policy constant; counsel should decide versioning/re-consent rules for each agreement.
 
-### 39. Internal legal notes — **NEEDS LEGAL REVIEW**
+### 39. Internal legal notes — **PUBLIC CLEANUP FIXED; NEEDS LEGAL REVIEW**
 
-- No accidental draft comments were found except the intentional public heading “Provider Growth Milestones — NEEDS LEGAL REVIEW.”
-- Keep it visible until counsel approves or the feature is disabled; removing the warning without review would increase risk.
+- The public heading “Provider Growth Milestones — NEEDS LEGAL REVIEW” and its internal review sentence were removed from the customer-facing Partner Agreement.
+- A regression test now scans every public policy page for the prohibited drafting labels. Substantive unresolved questions remain documented here for counsel instead of being displayed to customers.
 
 ### 40. Final user experience — **ALREADY CORRECT with listed follow-ups**
 
@@ -302,7 +303,7 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - `app/layout.tsx`, `components/site-footer.tsx` — render the choice manager and persistent control.
 - `app/cookies/page.tsx`, `app/privacy/page.tsx` — match actual consent behavior.
 - `components/partner-application-form.tsx`, `app/api/affiliates/apply/route.ts`, `database/migrations/069_partner_application_consent.sql` — explicit, enforced, recorded Partner Agreement acceptance.
-- `app/partner-agreement/page.tsx` — explicit age-18 partner eligibility.
+- `app/partner-agreement/page.tsx` — explicit age-18 partner eligibility and removal of public internal drafting labels.
 - `app/page.tsx`, `app/services/page.tsx`, `app/services/[slug]/page.tsx` — business-name destination integrity.
 - `components/use-modal-accessibility.ts`, `components/contact-support-button.tsx` — shared keyboard-dialog behavior and first adoption.
 - `tests/legal-pages.test.ts`, `tests/targeted-marketplace-audit.test.ts` — consent, agreement, age, and business-link regressions.
@@ -315,6 +316,7 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - Footer offers persistent cookie choices.
 - Partner application requires and records versioned agreement acceptance.
 - Partner Agreement contains adult eligibility.
+- Public policy pages reject internal legal-drafting labels.
 - Business names prefer matching company destinations.
 
 ## Items intentionally unchanged
@@ -325,7 +327,7 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - No legal entity/address was invented or a private address published.
 - No absolute refund, safety, review, income, payment-security, or accessibility guarantee was added.
 - Financial/history deletion rules were not guessed; retention is a counsel/accounting decision.
-- The public milestone legal-review label was not removed without legal approval.
+- The milestone policy itself was not rewritten; only the internal drafting label and internal review sentence were removed from public display.
 
 ## Required pre-growth follow-up
 

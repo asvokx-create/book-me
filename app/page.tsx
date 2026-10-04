@@ -156,7 +156,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
       <div className="home-mobile-request site-container px-4 pb-6 sm:hidden">
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#183126]/10 bg-white px-4 py-3">
-          <div className="min-w-0"><p className="text-sm font-bold">Can’t find the right fit?</p><p className="mt-0.5 text-xs text-[#63756b]">Tell local providers what you need.</p></div>
+          <div className="min-w-0"><p className="text-sm font-bold">Can’t find the right fit?</p><p className="mt-0.5 text-xs text-[#63756b]">Tell eligible providers what you need.</p></div>
           <Link href={requestHref} className="shrink-0 rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white">Request</Link>
         </div>
       </div>

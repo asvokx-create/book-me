@@ -2,6 +2,27 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 
+const publicPolicyPages = [
+  "terms",
+  "privacy",
+  "provider-agreement",
+  "partner-agreement",
+  "cookies",
+  "ai-transparency",
+  "accessibility",
+  "content-removal",
+  "promise",
+];
+
+test("public policy pages never expose internal drafting labels", async () => {
+  const forbiddenDraftingLabels = /NEEDS LEGAL REVIEW|LEGAL REVIEW REQUIRED|TODO LEGAL|ATTORNEY REVIEW|DRAFT ONLY|REVIEW BEFORE PRODUCTION|PLACEHOLDER LEGAL|NOT FINAL/i;
+  const sources = await Promise.all(publicPolicyPages.map((page) => readFile(new URL(`../app/${page}/page.tsx`, import.meta.url), "utf8")));
+
+  for (const [index, source] of sources.entries()) {
+    assert.doesNotMatch(source, forbiddenDraftingLabels, `${publicPolicyPages[index]} contains a public internal drafting label`);
+  }
+});
+
 test("legal pages disclose current affiliate funding, privacy, and analytics behavior", async () => {
   const [terms, privacy, partner, cookies, contentRemoval] = await Promise.all([
     readFile(new URL("../app/terms/page.tsx", import.meta.url), "utf8"),

@@ -12,7 +12,7 @@ import MobileSiteNav from "@/components/mobile-site-nav";
 
 export const metadata: Metadata = {
   title: "Provider pricing",
-  description: "Choose the BubsBookings plan that fits your local service business.",
+  description: "Choose the BubsBookings plan that fits your service business.",
   alternates: { canonical: "/pricing" },
 };
 
@@ -136,7 +136,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
                 : <Link href="/pricing?plan=pro#plans" className="mt-8 rounded-full bg-[#eee25a] px-5 py-3.5 text-center text-sm font-bold transition hover:bg-[#f5ea6b]">{currentPlan === "owner" ? "Pro is included in Owner Plan" : proTrialEligible ? "Start 30-day free trial" : "Choose Pro for $9.99"}</Link>}
           </article>})}
         </div>
-        <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">The Pro trial is available once per provider company and requires a card. It automatically renews at $9.99 per month after 30 days unless canceled before the trial ends. The 6% booking fee applies during the trial. All subscription details are shown again in Stripe Checkout.</p>
+        <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">The Pro trial is available once per provider company and requires a card. It automatically renews at $9.99 per month after 30 days unless canceled before the trial ends. The 6% booking fee applies during the trial. Customers pay a separate $2.99 BubsBookings service fee at checkout; it does not reduce the provider&apos;s listed price or payout. All subscription details are shown again in Stripe Checkout.</p>
         </div>
       </section>
     </main>

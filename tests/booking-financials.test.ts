@@ -8,6 +8,7 @@ import {
   providerNetAfterServiceRefund,
   stripeOperationKey,
 } from "../lib/booking-financials.ts";
+import { readFileSync } from "node:fs";
 
 test("successful booking payment enters secured state", () => {
   assert.equal(paymentReleaseStatusAfterPayment({ heldTransfer: true, serviceCompleted: false, frozen: false, paymentSucceeded: true }), "secured");
@@ -36,6 +37,12 @@ test("customer total includes the $2.99 service fee without reducing provider ne
   assert.equal(snapshot.customerServiceFeeCents, 299);
   assert.equal(snapshot.customerTotalCents, 10_299);
   assert.equal(snapshot.providerNetCents, 9_000);
+});
+
+test("provider pricing discloses the separate customer service fee", () => {
+  const pricing = readFileSync(new URL("../app/pricing/page.tsx", import.meta.url), "utf8");
+  assert.match(pricing, /Customers pay a separate \$2\.99 BubsBookings service fee at checkout/);
+  assert.match(pricing, /does not reduce the provider/);
 });
 
 test("provider completion after payment enters customer review", () => {

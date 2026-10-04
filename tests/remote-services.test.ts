@@ -74,10 +74,15 @@ test("provider acquisition and guidance welcome local and remote professionals",
   const join = source("app/providers/join/page.tsx");
   const guides = source("lib/guides.ts");
   const footer = source("components/site-footer.tsx");
+  const partners = source("app/partners/page.tsx");
+  const messages = source("app/account/messages/page.tsx");
   assert.match(join, /For service providers/);
   assert.match(join, /offer services locally or remotely/);
   assert.match(join, /Offer services in person, remotely, or both/);
   assert.doesNotMatch(join, /For local professionals|connect with nearby customers/);
+  assert.match(partners, /local or remote service providers/);
+  assert.doesNotMatch(partners, /Help local providers grow/);
+  assert.match(messages, /local or remote providers/);
   assert.match(guides, /Remote listings do not use customer distance or a travel radius/);
   assert.match(footer, /Your service marketplace/);
   assert.match(footer, />Find services</);
