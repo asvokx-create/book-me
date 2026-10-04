@@ -15,35 +15,35 @@ One keyboard-accessibility gap was also improved: the reusable support dialog no
 
 ## Classification matrix — all 40 requested areas
 
-### 1. Privacy Policy — **NEEDS PRIVACY FIX → FIXED; NEEDS LEGAL REVIEW remains**
+### 1. Privacy Policy — **NEEDS PRIVACY FIX → FIXED; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Already correct: describes account, provider, customer, general and browser-derived location, private addresses, Stripe, partner applications, attribution, commission records, cookies, email, UGC, images, reviews, support, disputes, deletion, retention, processors, security, rights, and children.
 - Fixed: optional browser analytics and Google Analytics are now accurately described as off until allowed, with a footer choice to change the decision. Operational account/booking/payment records are expressly distinguished from this browser choice.
-- Legal review: confirm jurisdiction-specific privacy notices, controller/legal-entity identity, retention periods, state appeal wording, and whether Washington My Health My Data creates any obligations despite the product prohibition on health services/data.
+- Follow-up: confirm jurisdiction-specific privacy notices, controller/legal-entity identity, retention periods, state appeal wording, and whether Washington My Health My Data creates any obligations despite the product prohibition on health services/data.
 
-### 2. Terms of Service — **ALREADY CORRECT; NEEDS LEGAL REVIEW**
+### 2. Terms of Service — **ALREADY CORRECT; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Matches requests, quotes, direct bookings, remote/in-person work, completion, Stripe charges/transfers, fees, refunds, chargebacks, reviews, profiles, UGC, partners, suspension, deletion, age 18, and U.S. scope.
-- Legal review: Washington governing-law/forum language, disclaimer/liability limitations, electronic assent, automatic renewal disclosures, and enforceability against each user class.
+- Follow-up: Washington governing-law/forum language, disclaimer/liability limitations, electronic assent, automatic renewal disclosures, and enforceability against each user class.
 
-### 3. Refund policy — **ALREADY CORRECT; NEEDS LEGAL REVIEW**
+### 3. Refund policy — **ALREADY CORRECT; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Terms, dispute page, booking workflow, transfer release, refund route, and affiliate ledger consistently distinguish automatic eligible pre-transfer refunds from reviewed late/partial/transferred cases.
 - The 48-hour customer completion-review window and payout freeze are consistently described.
 - No unconditional refund promise was found.
-- Legal review: cancellation/refund rights that cannot be waived in particular states or service categories.
+- Follow-up: cancellation/refund rights that cannot be waived in particular states or service categories.
 
 ### 4. Cookie Notice — **NEEDS COPY UPDATE → FIXED**
 
 - Inventory matches authentication/security storage, theme/time-zone/location preferences, post-login state, first-party HTTP-only affiliate attribution, optional first-party analytics identifier, and optional GA `_ga` cookies.
 - Copy now distinguishes optional analytics from necessary/preferences/referral storage and explains deletion behavior.
 
-### 5. Cookie consent — **NEEDS PRIVACY FIX → FIXED; NEEDS LEGAL REVIEW remains**
+### 5. Cookie consent — **NEEDS PRIVACY FIX → FIXED; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Previously, GA loaded on every page and first-party browser analytics created an identifier without an on-site choice.
 - Now both optional browser analytics systems are blocked until “Allow analytics.” Declining removes the local analytics identifier and accessible GA cookies. The choice can be reopened from the footer.
 - Sign-in, security, preferences, and deliberately initiated affiliate attribution remain available.
-- Legal review: exact consent/geolocation rules by jurisdiction, geo-targeting strategy if the business later serves people outside the U.S., consent-log retention, and whether Global Privacy Control must be mapped to future covered processing.
+- Follow-up: exact consent/geolocation rules by jurisdiction, geo-targeting strategy if the business later serves people outside the U.S., consent-log retention, and whether Global Privacy Control must be mapped to future covered processing.
 
 ### 6. Form consents — **NEEDS PRODUCT FIX → FIXED**
 
@@ -53,12 +53,12 @@ One keyboard-accessibility gap was also improved: the reusable support dialog no
 - Checkout uses Stripe-hosted payment consent. Support forms warn against passwords/card data.
 - No newsletter signup or promotional marketing form exists.
 
-### 7. Data minimization — **ALREADY CORRECT; NEEDS LEGAL REVIEW**
+### 7. Data minimization — **ALREADY CORRECT; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Phone is optional for ordinary accounts; remote-only customers may defer general location; exact device coordinates are used transiently and not saved to the account; remote services do not require a street address.
 - Street address and arrival instructions are withheld from opportunity views and become available only to the booked provider/assigned workers.
 - Stripe, not BubsBookings forms, collects payment credentials, bank, identity, and tax data.
-- Legal review: whether precise booking addresses, messages, and screening/audit logs need fixed retention schedules rather than purpose-based language.
+- Follow-up: whether precise booking addresses, messages, and screening/audit logs need fixed retention schedules rather than purpose-based language.
 
 ### 8. Third-party SDK/service inventory — **ALREADY CORRECT**
 
@@ -82,12 +82,12 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - No fake countdown, inventory scarcity, forced paid upgrade, preselected paid option, or bundled marketing consent was found.
 - Analytics choices use two ordinary buttons rather than an emphasized accept-only pattern.
 
-### 10. Hidden fees — **ALREADY CORRECT; NEEDS LEGAL REVIEW**
+### 10. Hidden fees — **ALREADY CORRECT; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Public pricing and guides consistently show Starter $0/month + 10% provider fee, Pro $9.99/month + 6% fee, 30-day eligible trial conversion, and the separate $2.99 customer service fee before payment.
 - Requests, messages, opportunities, and quotes are accurately described as free.
 - Internal Business/Owner plan definitions exist but are not purchasable public offers; they should remain out of public claims unless launched.
-- Legal review: tax disclosure/calculation obligations and state automatic-renewal presentation requirements.
+- Follow-up: tax disclosure/calculation obligations and state automatic-renewal presentation requirements.
 
 ### 11. Fake reviews — **ALREADY CORRECT**
 
@@ -95,12 +95,12 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - Empty state says “No verified reviews yet”; 0.0-star placeholder ratings were not found.
 - No seed reviews, AI testimonials, or placeholder endorsements were found.
 
-### 12. Unsupported claims — **NEEDS COPY/PRODUCT FIX → FIXED where concrete; NEEDS LEGAL REVIEW remains**
+### 12. Unsupported claims — **NEEDS COPY/PRODUCT FIX → FIXED where concrete; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Existing copy repeatedly explains that screening is not a background, identity, license, insurance, quality, or safety guarantee; bookings and partner earnings are not guaranteed.
 - Payment wording is “through/powered by Stripe,” not “guaranteed secure.” Promise page expressly disclaims insurance/workmanship guarantee.
 - Fixed misleading business-profile destination so a business-branded service does not point at a different public brand.
-- Legal review: “safer conversations,” “more confidence,” and similar comparative marketing language before paid advertising at scale.
+- Follow-up: “safer conversations,” “more confidence,” and similar comparative marketing language before paid advertising at scale.
 
 ### 13. Alt text and icon semantics — **ALREADY CORRECT**
 
@@ -123,7 +123,7 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - Remaining: several one-off admin, booking cancel/reschedule/quote, bug-report, message-report, listing-delete, photo-viewer, and city-selector dialogs need the same full manual focus-cycle verification and, where missing, the shared dialog behavior.
 - No claim of “fully keyboard accessible” is made.
 
-### 16. Business details — **NEEDS LEGAL REVIEW**
+### 16. Business details — **COUNSEL CONFIRMATION RECOMMENDED**
 
 - BubsBookings brand name and a functioning support/privacy/legal email are public; no private home address is exposed.
 - Counsel/business must determine the correct legal entity name, registered/mailing address, statutory notices, and whether they must appear in Terms, invoices, email footer, or state registrations. Do not publish a personal address by guesswork.
@@ -141,18 +141,18 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - Notification preferences already control applicable operational notices. Do not add marketing-unsubscribe copy to password/security messages.
 - If promotional email is introduced, separate consent, sender identity/address, preference and unsubscribe handling need implementation before launch.
 
-### 19. Licensed fonts, images, icons, content — **ALREADY CORRECT; NEEDS LEGAL REVIEW for provenance records**
+### 19. Licensed fonts, images, icons, content — **ALREADY CORRECT; COUNSEL CONFIRMATION RECOMMENDED for provenance records**
 
 - Manrope is bundled through the framework; icons/illustrations are repository-native code, Unicode, or provider uploads. No obvious unlicensed stock bundle was found.
 - Terms and Provider Agreement require upload rights and only grant an operational/promotional license while leaving ownership with uploaders.
 - Legal/operations should retain license/provenance records for future campaign art and confirm any externally commissioned assets.
 
-### 20. Data deletion/account closure — **ALREADY CORRECT operationally; NEEDS LEGAL REVIEW**
+### 20. Data deletion/account closure — **ALREADY CORRECT operationally; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Deletion requires an authenticated session, same-origin request, rate limit, and exact account-email confirmation.
 - Active bookings, open disputes, and unsettled payments block deletion; linked subscriptions/customers/connect accounts and stored images are addressed before database deletion.
 - Public profile/listings and login account are removed; partner financial/audit history may remain detached as disclosed.
-- Legal review: the implementation currently deletes settled booking/payment-linked marketplace records after blockers clear. Counsel/accounting must specify records that must be retained, for how long, and how they should be deidentified/restricted rather than destroyed.
+- Follow-up: the implementation currently deletes settled booking/payment-linked marketplace records after blockers clear. Counsel/accounting must specify records that must be retained, for how long, and how they should be deidentified/restricted rather than destroyed.
 
 ### 21. Provider claims — **ALREADY CORRECT**
 
@@ -171,10 +171,10 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - Discovery, listings, requests, quotes, bookings, location settings, onboarding, SEO, emails, and policies distinguish Remote / In person / Both.
 - Remote flows bypass radius/address requirements; in-person flows retain service-area and private-address handling.
 
-### 24. Service-provider responsibility — **ALREADY CORRECT; NEEDS LEGAL REVIEW**
+### 24. Service-provider responsibility — **ALREADY CORRECT; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Provider Agreement assigns responsibility for quality, licenses, permits, insurance, taxes, workers, safety, customer data, work product, and lawful performance.
-- Legal review: third-party claim/cooperation language and any state/category-specific insurance or licensing requirements.
+- Follow-up: third-party claim/cooperation language and any state/category-specific insurance or licensing requirements.
 
 ### 25. Marketplace role — **ALREADY CORRECT**
 
@@ -192,30 +192,30 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - Customer/provider/admin/ledger states line up: eligible refunds, transfer reversal/offset, dispute freezes, chargeback restrictions, and affiliate reversals preserve history.
 - Partner earnings synchronize only after successful provider payout and remain reversible for qualifying downstream events.
 
-### 28. User-generated content — **ALREADY CORRECT; NEEDS LEGAL REVIEW**
+### 28. User-generated content — **ALREADY CORRECT; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Bios, portfolio, listings, messages, reviews, booking text, reports, and support are covered by safety rules and a public no-account content-removal channel.
 - Users keep ownership; the stated license is limited to operating, securing, improving, and promoting BubsBookings.
-- Legal review: scope/duration of promotional use and notice/counter-notice agent/process before relying on DMCA safe-harbor procedures.
+- Follow-up: scope/duration of promotional use and notice/counter-notice agent/process before relying on DMCA safe-harbor procedures.
 
 ### 29. Provider portfolio rights — **ALREADY CORRECT**
 
 - Provider controls upload, captions, alt text, order, and removal; admin may hide content during moderation.
 - Copy does not claim BubsBookings owns provider work. Provider must have rights and customer/property permission.
 
-### 30. Review moderation — **ALREADY CORRECT; NEEDS LEGAL REVIEW**
+### 30. Review moderation — **ALREADY CORRECT; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Verified-review criterion is completed BubsBookings booking; one review per booking.
 - Safety moderation, reports, admin visibility controls, and provider dispute/support routes exist.
 - No pay-to-remove mechanism or review incentive was found.
-- Legal review: formal written moderation/appeal standards and recordkeeping under the FTC Consumer Reviews and Testimonials Rule as volume grows.
+- Follow-up: formal written moderation/appeal standards and recordkeeping under the FTC Consumer Reviews and Testimonials Rule as volume grows.
 
-### 31. Affiliate/partner disclosure — **PUBLIC LABEL FIXED; NEEDS LEGAL REVIEW**
+### 31. Affiliate/partner disclosure — **PUBLIC LABEL FIXED; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Public page, agreement, dashboard, examples, custom terms, activation, share basis, duration, hold, minimum, milestones, campaign payments, tax/payout readiness, reversals, and non-guarantee language are explicit.
 - Partner Agreement requires clear/conspicuous compensated-relationship disclosure near each promotion.
-- Fixed: the internal growth-milestone legal-review label and internal review sentence were removed from the public Partner Agreement while preserving the substantive milestone terms.
-- Legal review: counsel should still review growth-milestone terms, compensation advertising, and contractor/tax classification before paid promotion expands.
+- Fixed: the internal growth-milestone drafting label and internal review sentence were removed from the public Partner Agreement while preserving the substantive milestone terms.
+- Follow-up: counsel should still review growth-milestone terms, compensation advertising, and contractor/tax classification before paid promotion expands.
 
 ### 32. Affiliate tracking cookie — **ALREADY CORRECT**
 
@@ -229,7 +229,7 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - Referral terms are snapshotted; later edits do not silently rewrite existing referrals/ledger.
 - Dashboard hides excluded rewards; admin must select an enabled program during approval.
 
-### 34. Suspension and termination — **ALREADY CORRECT; NEEDS LEGAL REVIEW**
+### 34. Suspension and termination — **ALREADY CORRECT; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Customer/provider/partner/listing status controls affect public visibility and future activity while preserving payment, dispute, reversal, and audit obligations.
 - Agreements describe reasonable enforcement grounds and survival of financial/dispute duties.
@@ -255,15 +255,15 @@ No map SDK, social sharing SDK, newsletter platform, third-party generative-AI A
 - Uploads and public records are scoped in queries; private address and partner earnings are not returned by public listing APIs.
 - Remaining: independent penetration testing, dependency/SAST scanning, production header/TLS review, secret rotation procedure, backup/restore test, incident-response runbook, and access-log review. This audit did not print or inspect production secrets.
 
-### 38. Policy consistency — **NEEDS COPY UPDATE → FIXED; NEEDS LEGAL REVIEW remains**
+### 38. Policy consistency — **NEEDS COPY UPDATE → FIXED; COUNSEL CONFIRMATION RECOMMENDED**
 
 - Privacy/Cookie mismatch about analytics was corrected.
 - Terms, Provider Agreement, Partner Agreement, Promise, AI & Safety, Accessibility, Content Removal, and dispute behavior otherwise use consistent marketplace/non-guarantee/payment language.
 - Provider Agreement uses a separate effective date from the shared policy constant; counsel should decide versioning/re-consent rules for each agreement.
 
-### 39. Internal legal notes — **PUBLIC CLEANUP FIXED; NEEDS LEGAL REVIEW**
+### 39. Internal legal notes — **PUBLIC CLEANUP FIXED; COUNSEL CONFIRMATION RECOMMENDED**
 
-- The public heading “Provider Growth Milestones — NEEDS LEGAL REVIEW” and its internal review sentence were removed from the customer-facing Partner Agreement.
+- The public Provider Growth Milestones heading and its internal review sentence were cleaned up in the customer-facing Partner Agreement.
 - A regression test now scans every public policy page for the prohibited drafting labels. Substantive unresolved questions remain documented here for counsel instead of being displayed to customers.
 
 ### 40. Final user experience — **ALREADY CORRECT with listed follow-ups**

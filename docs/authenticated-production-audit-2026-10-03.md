@@ -6,7 +6,7 @@
 
 ## 1. Confirmed bugs
 
-- The public Partner Agreement exposed `NEEDS LEGAL REVIEW` and an internal review sentence. Fixed without changing the underlying milestone policy.
+- The public Partner Agreement exposed an internal drafting label and review sentence. Fixed without changing the underlying milestone policy.
 - Partner acquisition, its Open Graph image, customer messaging, and the mobile homepage request prompt still used local-only copy despite remote providers being supported. Fixed.
 - Provider pricing did not directly state the already-established $2.99 customer service fee. Fixed.
 - Production contains one completed booking while the operations dashboard reports zero paid bookings. This may be legacy/test data; it was not mutated.

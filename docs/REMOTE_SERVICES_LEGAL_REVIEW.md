@@ -1,6 +1,6 @@
 # Remote services legal review
 
-Status: **NEEDS LEGAL REVIEW**
+Status: **COUNSEL CONFIRMATION RECOMMENDED**
 
 This engineering pass makes remote delivery a structured marketplace capability. It does not provide legal advice and does not silently rewrite the Terms, Privacy Policy, Provider Agreement, Partner Agreement, Promise, dispute policy, refund policy, safety policy, or content-removal policy.
 

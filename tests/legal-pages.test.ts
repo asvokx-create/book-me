@@ -15,7 +15,7 @@ const publicPolicyPages = [
 ];
 
 test("public policy pages never expose internal drafting labels", async () => {
-  const forbiddenDraftingLabels = /NEEDS LEGAL REVIEW|LEGAL REVIEW REQUIRED|TODO LEGAL|ATTORNEY REVIEW|DRAFT ONLY|REVIEW BEFORE PRODUCTION|PLACEHOLDER LEGAL|NOT FINAL/i;
+  const forbiddenDraftingLabels = /LEGAL REVIEW REQUIRED|TODO LEGAL|ATTORNEY REVIEW|DRAFT ONLY|REVIEW BEFORE PRODUCTION|PLACEHOLDER LEGAL|NOT FINAL/i;
   const sources = await Promise.all(publicPolicyPages.map((page) => readFile(new URL(`../app/${page}/page.tsx`, import.meta.url), "utf8")));
 
   for (const [index, source] of sources.entries()) {

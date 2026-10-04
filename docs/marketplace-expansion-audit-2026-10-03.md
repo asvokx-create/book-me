@@ -88,7 +88,7 @@ Not implemented. A future workspace should compose the existing booking, quote, 
 
 ## 20. Contract/project agreement status
 
-Not implemented. The safe future label is Project Details or Project Agreement with two timestamped acceptances. Any stronger legal or e-signature claim requires legal review.
+Not implemented. The safe future label is Project Details or Project Agreement with two timestamped acceptances. Any stronger legal or e-signature claim requires counsel confirmation.
 
 ## 21. Invoice status
 
@@ -186,7 +186,7 @@ Run authenticated customer/provider/admin flows against a migrated staging datab
 
 Stripe test secret/publishable keys, webhook secret, connected test accounts, a migrated staging database, and test webhook delivery are required for the requested card/3DS/refund/dispute/transfer matrix. Never use live credentials or real cards for that matrix.
 
-## 45. Anything requiring legal review
+## 45. Anything requiring counsel confirmation
 
 Recurring cancellation wording, external-recommendation disclosures, future Project Agreement naming/acceptance, any escrow-like language, outside invoicing, tax treatment, and calendar privacy disclosures.
 
