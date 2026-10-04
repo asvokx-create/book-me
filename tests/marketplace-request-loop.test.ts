@@ -8,11 +8,27 @@ test("request matching is eligibility, area, availability, and payment aware", (
   const route = source("app/api/job-requests/route.ts");
   assert.match(route, /provider\.is_verified = true/);
   assert.match(route, /provider\.screening_status = 'passed'/);
+  assert.match(route, /provider\.screening_checked_at BETWEEN now\(\) - interval '30 days' AND now\(\)/);
   assert.match(route, /stripe_charges_enabled = true AND provider\.stripe_payouts_enabled = true/);
   assert.match(route, /account_restrictions/);
   assert.match(route, /provider_location_service_areas/);
   assert.match(route, /EXTRACT\(DOW FROM/);
   assert.match(route, /matched_provider_count/);
+});
+
+test("request opportunities and quote acceptance recheck current provider eligibility", () => {
+  const route = source("app/api/job-requests/route.ts");
+  const action = source("app/api/job-requests/[requestId]/route.ts");
+  const quoteCreate = source("app/api/job-requests/[requestId]/quotes/route.ts");
+  const quoteResponse = source("app/api/quotes/[quoteId]/route.ts");
+  for (const content of [route, action, quoteCreate, quoteResponse]) {
+    assert.match(content, /screening_checked_at BETWEEN now\(\) - interval '30 days' AND now\(\)/);
+  }
+  assert.match(quoteResponse, /provider\.stripe_charges_enabled = true AND provider\.stripe_payouts_enabled = true/);
+  assert.match(quoteResponse, /account_restrictions/);
+  assert.match(quoteResponse, /AS provider_eligible/);
+  assert.match(quoteResponse, /if \(!quote\.provider_eligible\)/);
+  assert.match(route, /AS is_verified/);
 });
 
 test("one request preserves its provider conversation and response lifecycle", () => {

@@ -20,9 +20,15 @@ test("provider screening expires after the documented freshness window", () => {
 
 test("every public provider trust badge is gated by screening freshness", () => {
   const marketplace = source("lib/marketplace.ts");
+  const companies = source("lib/companies.ts");
+  const companyPage = source("app/companies/[slug]/page.tsx");
   assert.match(marketplace, /screeningCurrent && row\.phone_verified/);
   assert.match(marketplace, /screeningCurrent && row\.identity_verified/);
   assert.match(marketplace, /screeningCurrent && row\.business_verified/);
   assert.match(marketplace, /screeningCurrent && row\.is_verified && row\.screening_status === "passed"/);
   assert.match(marketplace, /screeningCurrent && provider\.is_verified && provider\.screening_status === "passed"/);
+  assert.match(companies, /isProviderScreeningCurrent\(company\.screening_checked_at\)/);
+  assert.match(companies, /screeningCurrent && company\.is_verified && company\.screening_status === "passed"/);
+  assert.match(companyPage, /✓ Profile screened/);
+  assert.doesNotMatch(companyPage, /BubsBookings screened/);
 });

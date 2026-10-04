@@ -43,7 +43,9 @@ async function quotesFor(requestIds: string[], providerId?: string) {
             quote.version, quote.title, quote.description, quote.line_items, quote.total_cents, quote.notes, COALESCE(quote.delivery_method, 'IN_PERSON') AS delivery_method,
             quote.expires_at, CASE WHEN quote.status = 'sent' AND quote.expires_at <= now() THEN 'expired' ELSE quote.status END AS status,
             quote.booking_id::text, quote.created_at, COALESCE(quote.conversation_id, match.conversation_id)::text AS conversation_id,
-            provider.public_profile_slug AS public_slug, provider.public_profile_visible AS public_profile_enabled, provider.is_verified,
+            provider.public_profile_slug AS public_slug, provider.public_profile_visible AS public_profile_enabled,
+            (provider.is_verified = true AND provider.screening_status = 'passed'
+              AND provider.screening_checked_at BETWEEN now() - interval '30 days' AND now()) AS is_verified,
             rating.average_rating, COALESCE(rating.review_count, 0)::int AS review_count
      FROM quotes quote JOIN provider_profiles provider ON provider.id = quote.provider_id
      JOIN services service ON service.id = quote.service_id
@@ -93,6 +95,7 @@ async function getJobRequests(request: Request) {
        WHERE match.provider_id::text = $1 AND match.status <> 'dismissed'
          AND request.status IN ('open', 'receiving_responses') AND request.expires_at > now()
          AND eligible.is_active = true AND eligible.is_verified = true AND eligible.screening_status = 'passed'
+         AND eligible.screening_checked_at BETWEEN now() - interval '30 days' AND now()
          AND eligible.stripe_charges_enabled = true AND eligible.stripe_payouts_enabled = true
          AND NOT EXISTS (SELECT 1 FROM account_restrictions restriction WHERE restriction.user_id = eligible.user_id
            AND restriction.status IN ('suspended', 'banned') AND (restriction.expires_at IS NULL OR restriction.expires_at > now()))
@@ -171,6 +174,7 @@ export async function POST(request: Request) {
          OR ($6 = 'IN_PERSON' AND service.delivery_type IN ('IN_PERSON','BOTH'))
          OR ($6 = 'EITHER'))
        AND provider.is_verified = true AND provider.screening_status = 'passed'
+       AND provider.screening_checked_at BETWEEN now() - interval '30 days' AND now()
        AND provider.stripe_charges_enabled = true AND provider.stripe_payouts_enabled = true
        AND NOT EXISTS (
          SELECT 1 FROM account_restrictions restriction

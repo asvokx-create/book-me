@@ -1,6 +1,7 @@
 import "server-only";
 
 import { database, isDatabaseConfigured } from "@/lib/database";
+import { isProviderScreeningCurrent } from "@/lib/provider-screening-freshness";
 
 export type CompanyPage = {
   id: string;
@@ -30,11 +31,11 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyPage | null
   if (!isDatabaseConfigured()) return null;
   const companyResult = await database.query<{
     id: string; slug: string; name: string; bio: string; city: string; state: string;
-    public_owner_name: string | null; verified: boolean;
+    public_owner_name: string | null; is_verified: boolean; screening_status: string; screening_checked_at: Date | null;
   }>(
     `SELECT company.id::text, company.slug, company.name, company.bio, company.city, company.state,
             CASE WHEN COALESCE(settings.public_personal_name_visible, false) THEN owner.name ELSE NULL END AS public_owner_name,
-            provider.is_verified AS verified
+            provider.is_verified, provider.screening_status, provider.screening_checked_at
      FROM provider_companies company
      JOIN provider_profiles provider ON provider.id = company.provider_id AND provider.is_active = true
      JOIN "user" owner ON owner.id = provider.user_id
@@ -45,6 +46,7 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyPage | null
   );
   const company = companyResult.rows[0];
   if (!company) return null;
+  const screeningCurrent = isProviderScreeningCurrent(company.screening_checked_at);
   const locationResult = await database.query<{ id: string; name: string; city: string; state: string; service_radius_miles: number }>(
     `SELECT id::text, name, city, state, service_radius_miles FROM provider_locations
      WHERE company_id::text = $1 AND is_active = true ORDER BY is_primary DESC, created_at`, [company.id],
@@ -70,7 +72,7 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyPage | null
     city: company.city,
     state: company.state,
     publicOwnerName: company.public_owner_name,
-    verified: company.verified,
+    verified: screeningCurrent && company.is_verified && company.screening_status === "passed",
     locations: locationResult.rows.map((location) => ({ id: location.id, name: location.name, city: location.city, state: location.state, serviceRadiusMiles: location.service_radius_miles })),
     services: serviceResult.rows.map((service) => ({
       id: service.id,

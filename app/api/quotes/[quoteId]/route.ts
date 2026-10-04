@@ -23,14 +23,19 @@ export async function PATCH(request: Request, context: RouteContext<"/api/quotes
       id: string; customer_id: string; provider_id: string; provider_user_id: string; service_id: string; job_request_id: string;
       booking_id: string | null; quote_status: string; total_cents: number; request_status: string; preferred_starts_at: Date;
       address_line1: string | null; address_line2: string | null; city: string | null; state: string | null; postal_code: string | null; description: string; delivery_method: "IN_PERSON" | "REMOTE";
-      duration_minutes: number; service_title: string; plan: BookingFinancialPlan;
+      duration_minutes: number; service_title: string; plan: BookingFinancialPlan; provider_eligible: boolean;
     }>(
       `SELECT quote.id::text, quote.customer_id, quote.provider_id::text, provider.user_id AS provider_user_id,
               quote.service_id::text, quote.job_request_id::text, quote.booking_id::text, quote.status AS quote_status,
               quote.total_cents, request.status AS request_status, request.preferred_starts_at, COALESCE(quote.delivery_method, 'IN_PERSON') AS delivery_method,
               request.service_address_line1 AS address_line1, request.service_address_line2 AS address_line2,
               request.city, request.state, request.postal_code, request.description,
-              service.duration_minutes, service.title AS service_title, provider.plan
+              service.duration_minutes, service.title AS service_title, provider.plan,
+              (provider.is_active = true AND provider.is_verified = true AND provider.screening_status = 'passed'
+                AND provider.screening_checked_at BETWEEN now() - interval '30 days' AND now()
+                AND provider.stripe_charges_enabled = true AND provider.stripe_payouts_enabled = true
+                AND NOT EXISTS (SELECT 1 FROM account_restrictions restriction WHERE restriction.user_id = provider.user_id
+                  AND restriction.status IN ('suspended', 'banned') AND (restriction.expires_at IS NULL OR restriction.expires_at > now()))) AS provider_eligible
        FROM quotes quote JOIN job_requests request ON request.id = quote.job_request_id
        JOIN services service ON service.id = quote.service_id JOIN provider_profiles provider ON provider.id = quote.provider_id
        WHERE quote.id::text = $1 AND quote.customer_id = $2
@@ -48,6 +53,10 @@ export async function PATCH(request: Request, context: RouteContext<"/api/quotes
         VALUES ($1,'job_quote','Quote declined',$2,'/provider/dashboard/opportunities',$3) ON CONFLICT (dedupe_key) DO NOTHING`, [quote.provider_user_id, `${session.user.name || "The customer"} declined your quote for ${quote.service_title}.`, `job-quote-declined-${quoteId}`]);
       await client.query("COMMIT");
       return NextResponse.json({ ok: true });
+    }
+    if (!quote.provider_eligible) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "This provider is no longer eligible to accept bookings. Choose another quote or post a new request." }, { status: 409 });
     }
 
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [quote.provider_id]);

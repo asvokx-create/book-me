@@ -9,6 +9,11 @@ import { normalizeAccountLocation } from "./account-location";
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 const configuredAuthSecret = process.env.BETTER_AUTH_SECRET?.trim();
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+if (process.env.NODE_ENV === "production" && !configuredAuthSecret && !isProductionBuild) {
+  throw new Error("BETTER_AUTH_SECRET is required in production.");
+}
+const authSecret = configuredAuthSecret ?? "bookme-local-development-secret-change-before-deploy";
 const authBaseUrl = process.env.NODE_ENV === "production"
   ? "https://bubsbookings.com"
   : process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -24,9 +29,17 @@ const trustedOrigins = Array.from(new Set([
 export const auth = betterAuth({
   appName: "BubsBookings",
   database,
-  secret: configuredAuthSecret ?? "bookme-local-development-secret-change-before-deploy",
+  secret: authSecret,
   baseURL: authBaseUrl,
   trustedOrigins,
+  advanced: {
+    ipAddress: {
+      // DigitalOcean App Platform injects the real client address here.
+      // Keep x-forwarded-for as a development fallback; Better Auth rejects
+      // untrusted multi-hop values when no proxy allowlist is configured.
+      ipAddressHeaders: ["do-connecting-ip", "x-forwarded-for"],
+    },
+  },
   rateLimit: {
     enabled: true,
     window: 60,

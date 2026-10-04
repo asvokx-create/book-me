@@ -53,6 +53,7 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
        WHERE request.id::text = $1 AND match.provider_id::text = $2 AND match.service_id::text = $3
          AND request.status IN ('open','receiving_responses') AND request.expires_at > now()
          AND eligible.is_active = true AND eligible.is_verified = true AND eligible.screening_status = 'passed'
+         AND eligible.screening_checked_at BETWEEN now() - interval '30 days' AND now()
          AND eligible.stripe_charges_enabled = true AND eligible.stripe_payouts_enabled = true
          AND NOT EXISTS (SELECT 1 FROM account_restrictions restriction WHERE restriction.user_id = eligible.user_id
            AND restriction.status IN ('suspended', 'banned') AND (restriction.expires_at IS NULL OR restriction.expires_at > now()))

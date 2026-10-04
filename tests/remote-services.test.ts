@@ -102,10 +102,14 @@ test("homepage search asks for delivery type before using local controls", () =>
 
 test("remote provider profiles avoid blank local areas and label every service", () => {
   const profile = source("app/providers/[slug]/page.tsx");
+  const company = source("app/companies/[slug]/page.tsx");
   assert.match(profile, /Remote services available across the supported U\.S\. marketplace/);
   assert.match(profile, /provider\.hasInPersonServices/);
   assert.match(profile, /deliveryLabel\(service\.deliveryType\)/);
   assert.match(profile, /provider\.hasInPersonServices \? "ProfessionalService" : "Organization"/);
+  assert.match(company, /hasRemoteServices && <span/);
+  assert.match(company, /hasInPersonServices && company\.locations\.map/);
+  assert.match(company, /Remote or in person/);
 });
 
 test("screening badges use the current automated result and material edits refresh it", () => {
