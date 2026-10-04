@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import CustomSelect from "@/components/custom-select";
 
 const PRESET_RADII = [5, 10, 25, 50, 100, 250];
+const RADIUS_OPTIONS = [...PRESET_RADII.map((radius) => ({ value: String(radius), label: `${radius} mi` })), { value: "custom", label: "Custom…" }];
 
 type RadiusSelectorProps = {
   value: number;
@@ -16,27 +18,27 @@ export default function RadiusSelector({ value, onChange, name, compact = false 
 
   const normalizedValue = Number.isFinite(value) ? value : 25;
   const selectClass = compact
-    ? "compact-radius-select bg-transparent font-semibold outline-none"
-    : "w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-sm outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
+    ? "compact-radius-select min-h-10 bg-transparent font-semibold"
+    : "min-h-12 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 text-sm transition focus-within:border-[#4d725d] focus-within:ring-2 focus-within:ring-[#4d725d]/10";
 
   return (
     <div className={compact ? "flex items-center gap-2" : "space-y-2"}>
-      <select
-        aria-label="Radius options"
+      <CustomSelect
+        ariaLabel="Radius options"
         value={custom ? "custom" : String(normalizedValue)}
-        onChange={(event) => {
-          if (event.target.value === "custom") {
+        options={RADIUS_OPTIONS}
+        onChange={(nextValue) => {
+          if (nextValue === "custom") {
             setCustom(true);
             return;
           }
           setCustom(false);
-          onChange(Number(event.target.value));
+          onChange(Number(nextValue));
         }}
         className={selectClass}
-      >
-        {PRESET_RADII.map((radius) => <option key={radius} value={radius}>{radius} mi</option>)}
-        <option value="custom">Custom…</option>
-      </select>
+        buttonClassName={compact ? "min-h-10 text-sm" : "min-h-12 text-sm"}
+        menuClassName={compact ? "right-0 left-auto w-36" : "w-full"}
+      />
       {custom ? (
         <div className={compact ? "flex items-center gap-1" : "flex items-center gap-2"}>
           <input

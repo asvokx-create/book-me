@@ -4,10 +4,18 @@ import test from "node:test";
 
 const read=(...parts:string[])=>readFileSync(new URL(`../${parts.join("/")}`,import.meta.url),"utf8");
 
-test("homepage delivery filter uses one consistent surface without browser select chrome",()=>{
+test("homepage delivery filter uses an accessible custom listbox instead of OS select chrome",()=>{
   const component=read("components","home-service-search.tsx");
+  const customSelect=read("components","custom-select.tsx");
   const styles=read("app","globals.css");
   assert.match(component,/home-search-delivery-select/);
+  assert.match(component,/<CustomSelect ariaLabel="Service delivery type"/);
+  assert.doesNotMatch(component,/<select[^>]*aria-label="Service delivery type"/);
+  assert.match(customSelect,/aria-haspopup="listbox"/);
+  assert.match(customSelect,/role="listbox"/);
+  assert.match(customSelect,/role="option"/);
+  assert.match(customSelect,/event\.key === "ArrowDown"/);
+  assert.match(customSelect,/event\.key === "Escape"/);
   assert.match(styles,/\.home-search-delivery-select[\s\S]*?background: transparent !important/);
   assert.match(styles,/\.home-search-delivery:focus-within/);
   assert.match(styles,/html\[data-theme="dark"\] \.home-search-delivery/);

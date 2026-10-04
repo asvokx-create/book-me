@@ -75,7 +75,7 @@ test("search assistance finds related service categories from two typed characte
   assert.match(searchAssist, /role="listbox"/);
   assert.match(searchAssist, /requestSubmit/);
   assert.match(homeSearch, /home-search-bar relative z-40/);
-  assert.match(homeSearch, /<option value="REMOTE">Remote<\/option>/);
+  assert.match(homeSearch, /\{ value: "REMOTE", label: "Remote" \}/);
 });
 
 test("location action remains readable when enabled or disabled", () => {

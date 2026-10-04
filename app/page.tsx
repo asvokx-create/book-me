@@ -47,7 +47,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const nearbyParams = new URLSearchParams({ radius: String(radius) });
   if (location) nearbyParams.set("location", location);
   const nearbyServicesHref = `/services?${nearbyParams.toString()}#service-listings`;
-  const remoteServicesHref = "/services?delivery=REMOTE&sort=newest#service-listings";
   const requestParams = new URLSearchParams({ radius: String(radius) });
   if (location) requestParams.set("location", location);
   const requestHref = `/requests?${requestParams.toString()}`;
@@ -101,7 +100,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
 
         <HomeServiceSearch initialDelivery={initialDelivery} initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} />
-        <div className="mt-3 max-w-5xl text-center sm:text-left"><Link href={remoteServicesHref} className="inline-flex min-h-10 items-center rounded-full border border-[#183126]/12 bg-white/70 px-4 py-2 text-sm font-bold transition hover:bg-white">Browse services available online →</Link></div>
         <div className="home-request-banner relative z-0 mt-4 flex max-w-5xl flex-col items-center justify-between gap-3 rounded-2xl border border-[#183126]/10 bg-white/65 px-5 py-4 text-center backdrop-blur sm:flex-row sm:text-left"><div><p className="text-sm font-bold">Not sure which listing fits?</p><p className="mt-1 text-xs text-[#63756b]">Share what you need once and receive free quotes from eligible providers.</p></div><Link href={requestHref} className="min-h-11 shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>
         </div>
       </section>

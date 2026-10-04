@@ -795,6 +795,32 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
   outline: none !important;
 }
 
+.custom-select-trigger:focus-visible {
+  border-radius: .75rem;
+  box-shadow: 0 0 0 3px rgba(77, 114, 93, .2);
+}
+
+.custom-select-menu {
+  color: #183126 !important;
+}
+
+html[data-theme="dark"] .custom-select-menu {
+  border-color: var(--border) !important;
+  background: #252529 !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .42) !important;
+}
+
+html[data-theme="dark"] .custom-select-option[aria-selected="true"] {
+  background: #294236 !important;
+  color: #f3f7f4 !important;
+}
+
+html[data-theme="dark"] .custom-select-option:not([aria-selected="true"]):hover,
+html[data-theme="dark"] .custom-select-option:not([aria-selected="true"]):focus-visible {
+  background: #323237 !important;
+}
+
 .home-search-delivery:focus-within {
   border-color: rgba(18, 61, 45, .38) !important;
   box-shadow: 0 0 0 3px rgba(91, 157, 112, .12);

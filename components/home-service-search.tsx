@@ -3,8 +3,15 @@
 import { useState } from "react";
 import LocationFilter from "@/components/location-filter";
 import ServiceSearchAssist from "@/components/service-search-assist";
+import CustomSelect from "@/components/custom-select";
 
 type HomeDeliveryFilter = "ALL" | "IN_PERSON" | "REMOTE";
+
+const DELIVERY_OPTIONS = [
+  { value: "ALL", label: "Any delivery type" },
+  { value: "IN_PERSON", label: "In person" },
+  { value: "REMOTE", label: "Remote" },
+] as const;
 
 function DeliveryIcon({ delivery }: { delivery: HomeDeliveryFilter }) {
   if (delivery === "IN_PERSON") return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21s6-5.1 6-11a6 6 0 1 0-12 0c0 5.9 6 11 6 11Z"/><circle cx="12" cy="10" r="2.2"/></svg>;
@@ -38,15 +45,10 @@ export default function HomeServiceSearch({
         ))}
       </div>
 
-      <label className="home-search-delivery home-search-delivery-desktop flex min-h-14 items-center gap-3 rounded-full border border-[#183126]/10 bg-[#f6f8f3] px-5 lg:min-w-[190px] xl:min-w-[220px]">
+      <div className="home-search-delivery home-search-delivery-desktop relative flex min-h-14 items-center gap-3 rounded-full border border-[#183126]/10 bg-[#f6f8f3] px-5 lg:min-w-[190px] xl:min-w-[220px]">
         <span className="home-search-delivery-icon grid h-9 w-9 shrink-0 place-items-center rounded-full" aria-hidden="true"><DeliveryIcon delivery={delivery}/></span>
-        <span className="sr-only">Service delivery type</span>
-        <select aria-label="Service delivery type" value={delivery} onChange={(event) => setDelivery(event.target.value as HomeDeliveryFilter)} className="home-search-delivery-select min-w-0 flex-1 text-sm font-bold outline-none">
-          <option value="ALL">Any delivery type</option>
-          <option value="IN_PERSON">In person</option>
-          <option value="REMOTE">Remote</option>
-        </select>
-      </label>
+        <CustomSelect ariaLabel="Service delivery type" value={delivery} options={DELIVERY_OPTIONS} onChange={(value) => setDelivery(value as HomeDeliveryFilter)} className="min-w-0 flex-1" buttonClassName="home-search-delivery-select min-h-11 text-sm font-bold" menuClassName="w-56" />
+      </div>
 
       {delivery !== "REMOTE" ? (
         <div className="home-search-location lg:min-w-[330px] xl:min-w-[365px]">

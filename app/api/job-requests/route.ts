@@ -64,6 +64,15 @@ async function quotesFor(requestIds: string[], providerId?: string) {
 }
 
 export async function GET(request: Request) {
+  try {
+    return await getJobRequests(request);
+  } catch (error) {
+    console.error("Service request loading failed", error);
+    return NextResponse.json({ error: "Service requests are temporarily unavailable. Please try again." }, { status: 500 });
+  }
+}
+
+async function getJobRequests(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to view service requests." }, { status: 401 });
   const providerView = new URL(request.url).searchParams.get("view") === "provider";
