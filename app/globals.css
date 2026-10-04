@@ -848,6 +848,30 @@ html[data-theme="dark"] .custom-select-option:not([aria-selected="true"]):focus-
   box-shadow: 0 14px 30px rgba(138, 122, 15, .22);
 }
 
+@media (min-width: 1024px) {
+  .home-search-submit {
+    align-self: center;
+    display: inline-flex;
+    min-width: 9rem;
+    min-height: 4rem !important;
+    margin-block: .25rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .home-request-banner {
+    min-height: 6rem;
+  }
+
+  .home-request-cta {
+    display: inline-flex;
+    min-width: 12rem;
+    min-height: 4rem;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 /* Keep the location panel action readable when broad search-bar color rules apply. */
 .location-apply-button {
   color: #ffffff !important;

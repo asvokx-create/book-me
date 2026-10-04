@@ -97,7 +97,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
 
         <HomeServiceSearch initialDelivery={initialDelivery} initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} />
-        <div className="home-request-banner relative z-0 mt-4 flex max-w-5xl flex-col items-center justify-between gap-3 rounded-xl border border-[#183126]/10 bg-white px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="text-sm font-bold">Not sure which listing fits?</p><p className="mt-1 text-xs text-[#63756b]">Describe the job once and receive quotes from eligible providers.</p></div><Link href={requestHref} className="min-h-11 shrink-0 rounded-lg bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>
+        <div className="home-request-banner relative z-0 mt-4 flex w-full max-w-6xl flex-col items-center justify-between gap-3 rounded-xl border border-[#183126]/10 bg-white px-5 py-4 text-center sm:flex-row sm:text-left"><div><p className="text-sm font-bold">Not sure which listing fits?</p><p className="mt-1 text-xs text-[#63756b]">Describe the job once and receive quotes from eligible providers.</p></div><Link href={requestHref} className="home-request-cta min-h-11 shrink-0 rounded-lg bg-[#183126] px-5 py-3 text-sm font-bold text-white">Request a service</Link></div>
         </div>
       </section>
 
