@@ -19,6 +19,7 @@ type RequestRow = {
   budget_min_cents: number | null; budget_max_cents: number | null; status: string; expires_at: Date;
   created_at: Date; service_address_line1?: string; service_address_line2?: string | null;
   matched_service_id?: string; matched_service_title?: string; matched_service_delivery_type?: ServiceDeliveryType; distance_miles?: number;
+  matched_service_pricing_type?: "FIXED" | "HOURLY"; matched_service_hourly_rate_cents?: number | null; matched_service_minimum_duration_minutes?: number | null; matched_service_maximum_duration_minutes?: number | null; matched_service_billing_increment_minutes?: number | null; matched_service_default_duration_minutes?: number | null;
   conversation_id?: string | null; match_status?: string; viewed_at?: Date | null; responded_at?: Date | null;
 };
 
@@ -29,10 +30,11 @@ type QuoteRow = {
   conversation_id: string | null; public_slug: string | null; public_profile_enabled: boolean; is_verified: boolean;
   average_rating: number | null; review_count: number;
   delivery_method: "IN_PERSON" | "REMOTE";
+  pricing_type: "FIXED" | "HOURLY"; hourly_rate_cents: number | null; duration_minutes: number | null;
 };
 
 function mapQuote(row: QuoteRow) {
-  return { id: row.id, requestId: row.job_request_id, providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceTitle: row.service_title, version: row.version, title: row.title, description: row.description, lineItems: Array.isArray(row.line_items) ? row.line_items : [], total: row.total_cents / 100, notes: row.notes, expiresAt: row.expires_at, status: row.status, bookingId: row.booking_id, createdAt: row.created_at, conversationId: row.conversation_id, publicProfileHref: row.public_profile_enabled && row.public_slug ? `/providers/${row.public_slug}` : null, verified: row.is_verified, averageRating: row.average_rating, reviewCount: row.review_count, deliveryMethod: row.delivery_method };
+  return { id: row.id, requestId: row.job_request_id, providerId: row.provider_id, providerName: row.provider_name, serviceId: row.service_id, serviceTitle: row.service_title, version: row.version, title: row.title, description: row.description, lineItems: Array.isArray(row.line_items) ? row.line_items : [], total: row.total_cents / 100, notes: row.notes, expiresAt: row.expires_at, status: row.status, bookingId: row.booking_id, createdAt: row.created_at, conversationId: row.conversation_id, publicProfileHref: row.public_profile_enabled && row.public_slug ? `/providers/${row.public_slug}` : null, verified: row.is_verified, averageRating: row.average_rating, reviewCount: row.review_count, deliveryMethod: row.delivery_method, pricingType: row.pricing_type, hourlyRate: row.hourly_rate_cents === null ? null : row.hourly_rate_cents / 100, durationMinutes: row.duration_minutes };
 }
 
 async function quotesFor(requestIds: string[], providerId?: string) {
@@ -41,6 +43,7 @@ async function quotesFor(requestIds: string[], providerId?: string) {
     `SELECT quote.id::text, quote.job_request_id::text, quote.provider_id::text,
             provider.business_name AS provider_name, quote.service_id::text, service.title AS service_title,
             quote.version, quote.title, quote.description, quote.line_items, quote.total_cents, quote.notes, COALESCE(quote.delivery_method, 'IN_PERSON') AS delivery_method,
+            quote.pricing_type,quote.hourly_rate_cents,quote.duration_minutes,
             quote.expires_at, CASE WHEN quote.status = 'sent' AND quote.expires_at <= now() THEN 'expired' ELSE quote.status END AS status,
             quote.booking_id::text, quote.created_at, COALESCE(quote.conversation_id, match.conversation_id)::text AS conversation_id,
             provider.public_profile_slug AS public_slug, provider.public_profile_visible AS public_profile_enabled,
@@ -87,6 +90,9 @@ async function getJobRequests(request: Request) {
               request.city, request.state, request.postal_code, request.delivery_type, request.preferred_starts_at, request.preferred_time_zone, request.is_flexible,
               request.budget_min_cents, request.budget_max_cents, request.status, request.expires_at, request.created_at,
               match.service_id::text AS matched_service_id, service.title AS matched_service_title, service.delivery_type AS matched_service_delivery_type, match.distance_miles,
+              service.pricing_type AS matched_service_pricing_type,service.hourly_rate_cents AS matched_service_hourly_rate_cents,
+              service.minimum_duration_minutes AS matched_service_minimum_duration_minutes,service.maximum_duration_minutes AS matched_service_maximum_duration_minutes,
+              service.billing_increment_minutes AS matched_service_billing_increment_minutes,service.default_duration_minutes AS matched_service_default_duration_minutes,
               match.conversation_id::text, match.status AS match_status, match.viewed_at, match.responded_at
        FROM job_request_matches match
        JOIN job_requests request ON request.id = match.request_id
@@ -116,7 +122,7 @@ async function getJobRequests(request: Request) {
     const metrics = metricResult.rows[0] ?? { opportunities: 0, responded: 0, accepted: 0, average_response_minutes: null };
     return NextResponse.json({
       metrics: { opportunities: metrics.opportunities, responded: metrics.responded, accepted: metrics.accepted, responseRate: metrics.opportunities >= 5 ? Math.round((metrics.responded / metrics.opportunities) * 100) : null, averageResponseMinutes: metrics.responded >= 3 ? Math.round(metrics.average_response_minutes ?? 0) : null, sampleProtected: metrics.opportunities < 5 },
-      requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, city: item.city, state: item.state, postalCode: item.postal_code, deliveryType: item.delivery_type, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, matchedServiceId: item.matched_service_id, matchedServiceTitle: item.matched_service_title, matchedServiceDeliveryType: item.matched_service_delivery_type, distanceMiles: item.distance_miles, conversationId: item.conversation_id, matchStatus: item.match_status, viewedAt: item.viewed_at, respondedAt: item.responded_at, quotes: groupedQuotes.get(item.id) ?? [] })),
+      requests: result.rows.map((item) => ({ id: item.id, category: item.category, title: item.title, description: item.description, city: item.city, state: item.state, postalCode: item.postal_code, deliveryType: item.delivery_type, preferredStartsAt: item.preferred_starts_at, preferredTimeZone: item.preferred_time_zone ?? "UTC", flexible: item.is_flexible, budgetMin: item.budget_min_cents === null ? null : item.budget_min_cents / 100, budgetMax: item.budget_max_cents === null ? null : item.budget_max_cents / 100, status: item.status, expiresAt: item.expires_at, createdAt: item.created_at, matchedServiceId: item.matched_service_id, matchedServiceTitle: item.matched_service_title, matchedServiceDeliveryType: item.matched_service_delivery_type, matchedServicePricingType: item.matched_service_pricing_type, matchedServiceHourlyRate: item.matched_service_hourly_rate_cents == null ? null : item.matched_service_hourly_rate_cents / 100, matchedServiceMinimumDurationMinutes: item.matched_service_minimum_duration_minutes, matchedServiceMaximumDurationMinutes: item.matched_service_maximum_duration_minutes, matchedServiceBillingIncrementMinutes: item.matched_service_billing_increment_minutes, matchedServiceDefaultDurationMinutes: item.matched_service_default_duration_minutes, distanceMiles: item.distance_miles, conversationId: item.conversation_id, matchStatus: item.match_status, viewedAt: item.viewed_at, respondedAt: item.responded_at, quotes: groupedQuotes.get(item.id) ?? [] })),
     });
   }
 

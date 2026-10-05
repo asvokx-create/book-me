@@ -11,6 +11,7 @@ import { isServiceDeliveryType, serviceSupportsMethod, type BookingDeliveryMetho
 import { calculateCommerceSelection, isRecurrenceOption, nextOccurrence, type CouponRule, type ServiceAddOn, type ServicePackage } from "@/lib/service-commerce";
 import { PLAN_ENTITLEMENTS } from "@/lib/plans";
 import { readMarketingToken } from "@/lib/provider-marketing";
+import { calculateHourlyBasePriceCents, formatDurationMinutes, validateHourlyDuration, type HourlyPricingConfig, type PricingType } from "@/lib/service-pricing";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many booking requests. Please wait a minute and try again." }, { status: 429 });
   }
 
-  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; deliveryMethod?: unknown; addressLine1?: unknown; addressLine2?: unknown; city?: unknown; state?: unknown; postalCode?: unknown; accessInstructions?: unknown; notes?: unknown; answers?: unknown; parentBookingId?: unknown; packageId?: unknown; addOns?: unknown; recurrence?: unknown; couponCode?: unknown };
+  const body = (await request.json()) as { serviceId?: unknown; date?: unknown; time?: unknown; durationMinutes?: unknown; deliveryMethod?: unknown; addressLine1?: unknown; addressLine2?: unknown; city?: unknown; state?: unknown; postalCode?: unknown; accessInstructions?: unknown; notes?: unknown; answers?: unknown; parentBookingId?: unknown; packageId?: unknown; addOns?: unknown; recurrence?: unknown; couponCode?: unknown };
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const date = typeof body.date === "string" ? body.date : "";
   const time = typeof body.time === "string" ? body.time : "";
@@ -76,14 +77,19 @@ export async function POST(request: Request) {
   const requestedAddOns = Array.isArray(body.addOns) ? body.addOns.slice(0, 10).map((entry) => entry && typeof entry === "object" ? entry as Record<string, unknown> : {}).map((entry) => ({ addOnId: typeof entry.addOnId === "string" ? entry.addOnId : "", quantity: Number(entry.quantity) })) : [];
   const recurrence = isRecurrenceOption(body.recurrence) ? body.recurrence : "one_time";
   const couponCode = typeof body.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
+  const requestedDurationMinutes = Number(body.durationMinutes);
   if (!serviceId || !datePattern.test(date) || !timePattern.test(time) || !requestedDeliveryMethod || addressLine1.length > 120 || addressLine2.length > 80 || city.length > 80 || accessInstructions.length > 500 || notes.length > 1000) {
     return NextResponse.json({ error: "Complete the delivery, date, and time fields." }, { status: 400 });
   }
   const serviceResult = await database.query<{
-    id: string; provider_id: string; duration_minutes: number; price_cents: number;
+    id: string; provider_id: string; duration_minutes: number; price_cents: number; pricing_type: PricingType;
+    hourly_rate_cents: number | null; minimum_duration_minutes: number | null; maximum_duration_minutes: number | null;
+    billing_increment_minutes: 15 | 30 | 60 | null; default_duration_minutes: number | null;
     timezone: string; provider_user_id: string; title: string; booking_questions: unknown; plan: BookingFinancialPlan; delivery_type: ServiceDeliveryType; recurrence_options: string[]; service_kind: "standard" | "consultation";
   }>(
-    `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.title, s.delivery_type, s.recurrence_options, s.service_kind,
+    `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.pricing_type, s.hourly_rate_cents,
+            s.minimum_duration_minutes,s.maximum_duration_minutes,s.billing_increment_minutes,s.default_duration_minutes,
+            s.title, s.delivery_type, s.recurrence_options, s.service_kind,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions,
             COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id AND (service_id = s.id OR service_id IS NULL) ORDER BY (service_id = s.id) DESC LIMIT 1),
                      (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id WHERE member.provider_id = p.id AND assigned_location.location_id = s.location_id LIMIT 1),
@@ -110,6 +116,7 @@ export async function POST(request: Request) {
   const selectedPackageResult = packageId ? await database.query<ServicePackage>(`SELECT id::text,name,description,price_cents AS "priceCents",duration_minutes AS "durationMinutes",delivery_days AS "deliveryDays",revision_count AS "revisionCount",features FROM service_packages WHERE id::text=$1 AND service_id::text=$2 AND is_active=true`, [packageId,serviceId]) : null;
   const selectedPackage = selectedPackageResult?.rows[0] ?? null;
   if (packageId && !selectedPackage) return NextResponse.json({ error: "That package is no longer available." }, { status: 409 });
+  if (service.pricing_type === "HOURLY" && selectedPackage) return NextResponse.json({ error: "Packages cannot be combined with hourly pricing." }, { status: 400 });
   const addOnIds = requestedAddOns.map((item) => item.addOnId).filter(Boolean);
   const addOnResult = addOnIds.length ? await database.query<ServiceAddOn>(`SELECT id::text,name,description,price_cents AS "priceCents",additional_minutes AS "additionalMinutes",allows_quantity AS "allowsQuantity",max_quantity AS "maxQuantity" FROM service_add_ons WHERE service_id::text=$1 AND id::text=ANY($2::text[]) AND is_active=true`, [serviceId,addOnIds]) : { rows: [] as ServiceAddOn[] };
   if (new Set(addOnIds).size !== addOnIds.length || addOnResult.rows.length !== addOnIds.length) return NextResponse.json({ error: "One of those add-ons is no longer available." }, { status: 409 });
@@ -124,12 +131,24 @@ export async function POST(request: Request) {
     if (coupon.firstBookingOnly && priorCount.rows[0].count > 0) return NextResponse.json({ error: "That coupon is for first-time customers." }, { status: 400 });
     if (coupon.repeatCustomerOnly && priorCount.rows[0].count < 1) return NextResponse.json({ error: "That coupon is for returning customers." }, { status: 400 });
   }
+  let billableDurationMinutes = selectedPackage?.durationMinutes ?? service.duration_minutes;
+  let serviceBasePriceCents = selectedPackage?.priceCents ?? service.price_cents;
+  if (service.pricing_type === "HOURLY") {
+    try {
+      const config: HourlyPricingConfig = { pricingType: "HOURLY", hourlyRateCents: service.hourly_rate_cents!, minimumDurationMinutes: service.minimum_duration_minutes!, maximumDurationMinutes: service.maximum_duration_minutes, billingIncrementMinutes: service.billing_increment_minutes!, defaultDurationMinutes: service.default_duration_minutes! };
+      billableDurationMinutes = validateHourlyDuration(config, requestedDurationMinutes);
+      serviceBasePriceCents = calculateHourlyBasePriceCents(config.hourlyRateCents, billableDurationMinutes);
+    } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Choose a valid booking duration." }, { status: 400 }); }
+  }
   let commerce;
-  try { commerce = calculateCommerceSelection({ servicePriceCents: service.price_cents, selectedPackage, addOns: requestedAddOns.map((item) => ({ addOn: addOnById.get(item.addOnId)!, quantity: item.quantity })), coupon }); }
+  try { commerce = calculateCommerceSelection({ servicePriceCents: serviceBasePriceCents, selectedPackage, addOns: requestedAddOns.map((item) => ({ addOn: addOnById.get(item.addOnId)!, quantity: item.quantity })), coupon }); }
   catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Choose valid booking options." }, { status: 400 }); }
   if (commerce.serviceSubtotalCents < 50) return NextResponse.json({ error: "The discounted booking total must be at least $0.50." }, { status: 400 });
   const financialSnapshot = calculateBookingFinancialSnapshot(commerce.serviceSubtotalCents, service.plan);
-  const selectedDurationMinutes = (selectedPackage?.durationMinutes ?? service.duration_minutes) + commerce.selectedAddOns.reduce((total,item) => total + item.additionalMinutes * item.quantity,0);
+  const selectedDurationMinutes = billableDurationMinutes + commerce.selectedAddOns.reduce((total,item) => total + item.additionalMinutes * item.quantity,0);
+  const pricingSummary = service.pricing_type === "HOURLY"
+    ? `${formatDurationMinutes(billableDurationMinutes)} at $${(service.hourly_rate_cents! / 100).toFixed(2)}/hr; $${(commerce.serviceSubtotalCents / 100).toFixed(2)} service subtotal.`
+    : `$${(commerce.serviceSubtotalCents / 100).toFixed(2)} service subtotal.`;
   const questions = Array.isArray(service.booking_questions) ? service.booking_questions.filter((question): question is string => typeof question === "string") : [];
   const answers: Record<string, string> = {};
   for (const question of questions) {
@@ -206,15 +225,19 @@ export async function POST(request: Request) {
           access_instructions, notes, price_cents, assigned_team_member_id, booking_answers,
           provider_plan_snapshot, provider_fee_basis_points, platform_fee_cents, provider_payout_cents,
           customer_service_fee_cents, customer_total_cents, parent_booking_id, delivery_method,
-          base_price_cents,add_on_total_cents,discount_cents,package_snapshot,add_on_snapshot,coupon_id,coupon_code_snapshot,recurring_series_id,recurrence_index,booking_kind)
+          base_price_cents,add_on_total_cents,discount_cents,package_snapshot,add_on_snapshot,coupon_id,coupon_code_snapshot,recurring_series_id,recurrence_index,booking_kind,
+          pricing_type_snapshot,hourly_rate_cents_snapshot,billable_duration_minutes,billing_increment_minutes_snapshot,minimum_duration_minutes_snapshot,maximum_duration_minutes_snapshot)
        VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), $13, $14, $15::uuid, $16::jsonb,
           $17, $18, $19, $20, $21, $22, NULLIF($23, '')::uuid, $24,
-          $25,$26,$27,$28::jsonb,$29::jsonb,$30::uuid,$31,$32::uuid,$33,$34)
+          $25,$26,$27,$28::jsonb,$29::jsonb,$30::uuid,$31,$32::uuid,$33,$34,$35,$36,$37,$38,$39,$40)
        RETURNING id::text`,
       [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, commerce.serviceSubtotalCents, candidate.rows[0].member_id, JSON.stringify(answers),
         financialSnapshot.providerPlan, financialSnapshot.providerFeeBasisPoints, financialSnapshot.providerFeeCents,
         financialSnapshot.providerNetCents, financialSnapshot.customerServiceFeeCents, financialSnapshot.customerTotalCents, parentBookingId, requestedDeliveryMethod,
-        commerce.basePriceCents,commerce.addOnTotalCents,commerce.discountCents,selectedPackage ? JSON.stringify(selectedPackage) : null,JSON.stringify(commerce.selectedAddOns),coupon?.id ?? null,coupon?.code ?? null,recurringSeriesId,recurringSeriesId ? 1 : null,service.service_kind],
+        commerce.basePriceCents,commerce.addOnTotalCents,commerce.discountCents,selectedPackage ? JSON.stringify(selectedPackage) : null,JSON.stringify(commerce.selectedAddOns),coupon?.id ?? null,coupon?.code ?? null,recurringSeriesId,recurringSeriesId ? 1 : null,service.service_kind,
+        service.pricing_type,service.pricing_type === "HOURLY" ? service.hourly_rate_cents : null,billableDurationMinutes,
+        service.pricing_type === "HOURLY" ? service.billing_increment_minutes : null,service.pricing_type === "HOURLY" ? service.minimum_duration_minutes : null,
+        service.pricing_type === "HOURLY" ? service.maximum_duration_minutes : null],
     );
     const bookingId = created.rows[0].id;
     if (campaignAttribution?.r && campaignAttribution.p === service.provider_id && campaignAttribution.u === session.user.id) {
@@ -248,13 +271,13 @@ export async function POST(request: Request) {
         service.provider_user_id,
         session.user.id,
         bookingId,
-        `${session.user.name || "A customer"} requested ${service.title}.`,
-        `Your request for ${service.title} was sent to the provider.`,
+        `${session.user.name || "A customer"} requested ${service.title}: ${pricingSummary}`,
+        `Your request for ${service.title} was sent to the provider: ${pricingSummary}`,
       ],
     );
     await client.query("COMMIT");
     await recordActivity({ userId: session.user.id, action: "booking_created", targetType: "booking", targetId: bookingId });
-    await recordAnalytics({ eventName: "booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { deliveryMethod: requestedDeliveryMethod, packageSelected: Boolean(selectedPackage), addOnCount: commerce.selectedAddOns.length, recurrence, couponApplied: Boolean(coupon), bookingKind: service.service_kind } });
+    await recordAnalytics({ eventName: "booking_requested", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { deliveryMethod: requestedDeliveryMethod, packageSelected: Boolean(selectedPackage), addOnCount: commerce.selectedAddOns.length, recurrence, couponApplied: Boolean(coupon), bookingKind: service.service_kind, pricingType: service.pricing_type, billableDurationMinutes } });
     if (selectedPackage) await recordAnalytics({ eventName: "package_selected", userId: session.user.id, targetType: "booking", targetId: bookingId });
     if (commerce.selectedAddOns.length) await recordAnalytics({ eventName: "add_on_purchased", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { count: commerce.selectedAddOns.length } });
     if (recurringSeriesId) await recordAnalytics({ eventName: "recurring_booking_created", userId: session.user.id, targetType: "recurring_series", targetId: recurringSeriesId, metadata: { recurrence } });
@@ -275,6 +298,9 @@ export async function POST(request: Request) {
         customerServiceFeeCents: financialSnapshot.customerServiceFeeCents,
         customerTotalCents: financialSnapshot.customerTotalCents,
         couponCode: coupon?.code ?? null,
+        pricingType: service.pricing_type,
+        hourlyRateCents: service.pricing_type === "HOURLY" ? service.hourly_rate_cents : null,
+        billableDurationMinutes,
       },
     }, { status: 201 });
   } catch (error) {

@@ -75,7 +75,7 @@ export async function GET(
         [userId, providerId ?? null],
       ),
       database.query(
-        `SELECT id::text, slug, title, category, business_name, price_cents,
+        `SELECT id::text, slug, title, category, business_name, price_cents,pricing_type,hourly_rate_cents,minimum_duration_minutes,
                 duration_minutes, is_active, created_at, updated_at
          FROM services WHERE $1::uuid IS NOT NULL AND provider_id = $1::uuid
          ORDER BY created_at DESC LIMIT 50`,

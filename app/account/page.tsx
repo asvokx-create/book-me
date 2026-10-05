@@ -13,11 +13,12 @@ import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-
 import AccountLocationReminder from "@/components/account-location-reminder";
 import UiIcon from "@/components/ui-icon";
 import ServiceCategoryIcon from "@/components/service-category-icon";
+import { formatServicePrice } from "@/lib/service-pricing";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
 type Booking = { id: string; serviceId: string; providerId: string; service: string; serviceSlug: string; category: string; provider: string; startsAt: string; price: number; location: string; deliveryMethod: "IN_PERSON" | "REMOTE"; state: BookingState; assigneeName: string };
-type SavedService = { id: string; slug: string; title: string; provider: string; price: number; category: string; city: string; state: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; imageUrls: string[] };
+type SavedService = { id: string; slug: string; title: string; provider: string; price: number; pricingType: "FIXED" | "HOURLY"; hourlyRateCents: number | null; category: string; city: string; state: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; imageUrls: string[] };
 
 const initialBookings: Booking[] = [];
 const serviceVisuals: Record<string, { gradient: string }> = {
@@ -136,7 +137,7 @@ export default function AccountPage() {
             return <article key={service.id} className="group relative overflow-hidden rounded-[2rem] border border-[#183126]/10 bg-white shadow-[0_6px_24px_rgba(24,49,38,.05)] transition">
               <Link href={`/services/${service.slug}`} className="block">
                 <div style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative grid h-52 place-items-center bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>{!service.imageUrls[0] && <ServiceCategoryIcon category={service.category} className="h-20 min-h-20 w-20 min-w-20" />}</div>
-                <div className="p-5"><div className="flex justify-between gap-4 text-sm"><span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-[#64776d]"><UiIcon name={service.deliveryType === "IN_PERSON" ? "map-pin" : "globe"} className="h-4 w-4 shrink-0" /><span>{service.deliveryType === "REMOTE" ? "Available online" : service.deliveryType === "BOTH" ? "Online or in person" : `${service.city}, ${service.state}`}</span></span><span className="shrink-0 font-bold">From ${service.price}</span></div><h3 className="mt-3 text-lg font-bold">{service.title}</h3><p className="mt-1 text-sm text-[#718078]">{service.provider}</p></div>
+                <div className="p-5"><div className="flex justify-between gap-4 text-sm"><span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-[#64776d]"><UiIcon name={service.deliveryType === "IN_PERSON" ? "map-pin" : "globe"} className="h-4 w-4 shrink-0" /><span>{service.deliveryType === "REMOTE" ? "Available online" : service.deliveryType === "BOTH" ? "Online or in person" : `${service.city}, ${service.state}`}</span></span><span className="shrink-0 font-bold">{service.pricingType === "FIXED" ? "From " : ""}{formatServicePrice(service)}</span></div><h3 className="mt-3 text-lg font-bold">{service.title}</h3><p className="mt-1 text-sm text-[#718078]">{service.provider}</p></div>
               </Link>
               <FavoriteButton serviceId={service.id} serviceTitle={service.title} onChange={(saved) => { if (!saved) setSavedServices((current) => current.filter((item) => item.id !== service.id)); }} className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full bg-white text-xl text-[#b54e46] shadow-sm" />
             </article>;

@@ -19,8 +19,8 @@ export default function SortSelect({ value, remote = false }: { value: string; r
       <select value={value} onChange={(event) => changeSort(event.target.value)} className="sort-control-select min-w-0 bg-transparent font-bold outline-none" aria-label="Sort services">
         {!remote && <option value="nearest">Nearest</option>}
         <option value="newest">Newest</option>
-        <option value="price-low">Lowest price</option>
-        <option value="price-high">Highest price</option>
+        <option value="price-low">Lowest displayed price/rate</option>
+        <option value="price-high">Highest displayed price/rate</option>
       </select>
     </label>
   );

@@ -11,6 +11,8 @@ type BookingDatePickerProps = {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  durationMinutes?: number;
+  additionalMinutes?: number;
 };
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -35,7 +37,7 @@ function CalendarDay({ date, disabled, selected, today, onKeyDown, onSelect }: C
   );
 }
 
-export default function BookingDatePicker({ serviceId, value, onChange, disabled = false }: BookingDatePickerProps) {
+export default function BookingDatePicker({ serviceId, value, onChange, disabled = false, durationMinutes, additionalMinutes = 0 }: BookingDatePickerProps) {
   const today = todayDateOnly();
   const currentMonth = monthForDate(today);
   const [open, setOpen] = useState(false);
@@ -48,7 +50,7 @@ export default function BookingDatePicker({ serviceId, value, onChange, disabled
   const panelRef = useRef<HTMLDivElement>(null);
   const pendingFocusDate = useRef("");
   const monthKey = `${displayedMonth.year}-${String(displayedMonth.month).padStart(2, "0")}`;
-  const requestKey = `${monthKey}:${retryKey}`;
+  const requestKey = `${monthKey}:${durationMinutes ?? "default"}:${additionalMinutes}:${retryKey}`;
   const loading = open && availability.requestKey !== requestKey;
   const availableDates = loading ? noDates : availability.dates;
   const availabilityError = loading ? "" : availability.error;
@@ -94,7 +96,7 @@ export default function BookingDatePicker({ serviceId, value, onChange, disabled
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    fetch(`/api/services/${serviceId}/availability?month=${encodeURIComponent(monthKey)}`, { signal: controller.signal })
+    fetch(`/api/services/${serviceId}/availability?month=${encodeURIComponent(monthKey)}${durationMinutes ? `&durationMinutes=${durationMinutes}` : ""}${additionalMinutes ? `&additionalMinutes=${additionalMinutes}` : ""}`, { signal: controller.signal })
       .then(async (response) => {
         let data: { dates?: string[]; error?: string } = {};
         try {
@@ -110,7 +112,7 @@ export default function BookingDatePicker({ serviceId, value, onChange, disabled
         setAvailability({ requestKey, dates: noDates, error: error instanceof Error ? error.message : "Availability could not be loaded." });
       })
     return () => controller.abort();
-  }, [monthKey, open, requestKey, serviceId]);
+  }, [additionalMinutes, durationMinutes, monthKey, open, requestKey, serviceId]);
 
   useLayoutEffect(() => {
     if (!open) return;

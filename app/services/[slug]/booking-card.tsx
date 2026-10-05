@@ -5,11 +5,18 @@ import Link from "next/link";
 import BookingDatePicker from "@/components/booking-date-picker";
 import type { ServiceDeliveryType } from "@/lib/service-delivery";
 import { recurrenceLabel, type RecurrenceOption, type ServiceAddOn, type ServicePackage } from "@/lib/service-commerce";
+import { calculateHourlyBasePriceCents, formatDurationMinutes, hourlyDurationOptions, type HourlyPricingConfig, type PricingType } from "@/lib/service-pricing";
 
 type BookingCardProps = {
   serviceId: string;
   price: number;
   duration: string;
+  pricingType: PricingType;
+  hourlyRateCents: number | null;
+  minimumDurationMinutes: number | null;
+  maximumDurationMinutes: number | null;
+  billingIncrementMinutes: number | null;
+  defaultDurationMinutes: number | null;
   serviceTitle: string;
   provider: string;
   serviceCity: string;
@@ -52,7 +59,7 @@ async function responseJson<T>(response: Response | null) {
   return response.json().catch(() => null) as Promise<T | null>;
 }
 
-export default function BookingCard({ serviceId, price, duration, serviceTitle, provider, serviceCity, serviceState, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false, parentBookingId = "", requestAnotherTimeHref, deliveryType, packages, addOns, recurrenceOptions, serviceKind, preparationNotes }: BookingCardProps) {
+export default function BookingCard({ serviceId, price, duration, pricingType, hourlyRateCents, minimumDurationMinutes, maximumDurationMinutes, billingIncrementMinutes, defaultDurationMinutes, serviceTitle, provider, serviceCity, serviceState, isSignedIn, returnPath, cancellationPolicy, cancellationWindowHours, noShowPolicy, bookingQuestions, bookingDisabled = false, parentBookingId = "", requestAnotherTimeHref, deliveryType, packages, addOns, recurrenceOptions, serviceKind, preparationNotes }: BookingCardProps) {
   const [deliveryMethod, setDeliveryMethod] = useState<"IN_PERSON" | "REMOTE" | "">(deliveryType === "BOTH" ? "" : deliveryType);
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
@@ -78,8 +85,12 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponMessage, setCouponMessage] = useState("");
   const [confirmedPricing, setConfirmedPricing] = useState<CouponPricing | null>(null);
+  const hourlyConfig: HourlyPricingConfig | null = pricingType === "HOURLY" && hourlyRateCents !== null && minimumDurationMinutes !== null && (billingIncrementMinutes === 15 || billingIncrementMinutes === 30 || billingIncrementMinutes === 60) && defaultDurationMinutes !== null ? { pricingType: "HOURLY", hourlyRateCents, minimumDurationMinutes, maximumDurationMinutes, billingIncrementMinutes, defaultDurationMinutes } : null;
+  const [selectedDurationMinutes, setSelectedDurationMinutes] = useState(defaultDurationMinutes ?? Math.max(15, Math.round(Number(duration.split(" ")[0]) * 60) || 60));
   const selectedPackage = packages.find((item) => item.id === packageId);
-  const visiblePriceCents = (selectedPackage?.priceCents ?? Math.round(price * 100)) + addOns.reduce((total, item) => total + item.priceCents * (addOnQuantities[item.id] ?? 0), 0);
+  const visibleBasePriceCents = hourlyConfig ? calculateHourlyBasePriceCents(hourlyConfig.hourlyRateCents, selectedDurationMinutes) : (selectedPackage?.priceCents ?? Math.round(price * 100));
+  const visiblePriceCents = visibleBasePriceCents + addOns.reduce((total, item) => total + item.priceCents * (addOnQuantities[item.id] ?? 0), 0);
+  const additionalDurationMinutes = addOns.reduce((total, item) => total + item.additionalMinutes * (addOnQuantities[item.id] ?? 0), 0);
   const displayedServiceSubtotalCents = couponPricing?.serviceSubtotalCents ?? visiblePriceCents;
 
   function clearCouponPricing() {
@@ -96,7 +107,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
       const response = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceId, packageId: packageId || null, addOns: Object.entries(addOnQuantities).filter(([, quantity]) => quantity > 0).map(([addOnId, quantity]) => ({ addOnId, quantity })), couponCode }),
+        body: JSON.stringify({ serviceId, durationMinutes: hourlyConfig ? selectedDurationMinutes : null, packageId: packageId || null, addOns: Object.entries(addOnQuantities).filter(([, quantity]) => quantity > 0).map(([addOnId, quantity]) => ({ addOnId, quantity })), couponCode }),
       });
       const data = await responseJson<CouponPricing & { error?: string }>(response);
       if (!response.ok || !data) { setCouponMessage(data?.error ?? "That coupon could not be applied. Please try again."); return; }
@@ -127,7 +138,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     if (!date) { setError("Choose a date to see available times."); return; }
     setError("");
     setLoading(true);
-    const response = await fetch(`/api/services/${serviceId}/availability?date=${encodeURIComponent(date)}`).catch(() => null);
+    const response = await fetch(`/api/services/${serviceId}/availability?date=${encodeURIComponent(date)}${hourlyConfig ? `&durationMinutes=${selectedDurationMinutes}` : ""}${additionalDurationMinutes ? `&additionalMinutes=${additionalDurationMinutes}` : ""}`).catch(() => null);
     if (!response) {
       setLoading(false);
       setError("We could not check availability. Please try again.");
@@ -154,7 +165,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
     const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serviceId, date, time, deliveryMethod, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, answers, parentBookingId, packageId: packageId || null, addOns: Object.entries(addOnQuantities).filter(([, quantity]) => quantity > 0).map(([addOnId, quantity]) => ({ addOnId, quantity })), recurrence, couponCode }),
+      body: JSON.stringify({ serviceId, date, time, durationMinutes: hourlyConfig ? selectedDurationMinutes : null, deliveryMethod, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, answers, parentBookingId, packageId: packageId || null, addOns: Object.entries(addOnQuantities).filter(([, quantity]) => quantity > 0).map(([addOnId, quantity]) => ({ addOnId, quantity })), recurrence, couponCode }),
     }).catch(() => null);
     if (!response) {
       setLoading(false);
@@ -186,7 +197,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         <div className="mt-6 rounded-2xl bg-[#f7f6f1] p-4 text-left">
           <p className="text-xs font-bold uppercase tracking-wider text-[#78867f]">Booking summary</p>
           <p className="mt-2 font-bold">{serviceTitle}</p>
-          <p className="mt-1 text-sm text-[#6c7b74]">{deliveryMethod === "REMOTE" ? "Remote service" : <>{addressLine1}{addressLine2 ? `, ${addressLine2}` : ""}, {city}, {state.toUpperCase()} {postalCode}</>} · ${((confirmedPricing?.serviceSubtotalCents ?? visiblePriceCents) / 100).toFixed(2)} service subtotal{recurrence !== "one_time" ? ` · ${recurrenceLabel(recurrence)}` : ""}</p>
+          <p className="mt-1 text-sm text-[#6c7b74]">{deliveryMethod === "REMOTE" ? "Remote service" : <>{addressLine1}{addressLine2 ? `, ${addressLine2}` : ""}, {city}, {state.toUpperCase()} {postalCode}</>} · {hourlyConfig ? `${formatDurationMinutes(selectedDurationMinutes)} at $${(hourlyConfig.hourlyRateCents / 100).toFixed(2)}/hr · ` : ""}${((confirmedPricing?.serviceSubtotalCents ?? visiblePriceCents) / 100).toFixed(2)} service subtotal{recurrence !== "one_time" ? ` · ${recurrenceLabel(recurrence)}` : ""}</p>
           {confirmedPricing && <p className="mt-2 text-xs text-[#718078]">${(confirmedPricing.customerServiceFeeCents / 100).toFixed(2)} service fee · ${(confirmedPricing.customerTotalCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })} total after provider confirmation{confirmedPricing.discountCents > 0 ? ` · ${(confirmedPricing.discountCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })} coupon savings` : ""}</p>}
         </div>
         <Link href="/account" className="mt-5 block w-full rounded-full bg-[#183126] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#294a3a]">View my bookings</Link>
@@ -202,12 +213,13 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
 
   return (
     <div className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 shadow-[0_20px_50px_rgba(24,49,38,.12)] sm:p-7">
-      <div className="flex items-end justify-between">
-        <div><p className="text-sm text-[#6f7f77]">{packages.length || couponPricing ? "Selected service subtotal" : "Starting at"}</p><p className="mt-1 text-3xl font-bold tracking-tight">${(displayedServiceSubtotalCents / 100).toFixed(2)}</p>{couponPricing && <p className="mt-1 text-xs font-semibold text-[#34704a]">You save ${(couponPricing.discountCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}</p>}</div>
-        <p className="rounded-full bg-[#f1f0eb] px-3 py-1.5 text-xs font-semibold text-[#5f7067]">Estimated time: {duration}</p>
+      <div className="flex items-end justify-between gap-3">
+        <div><p className="text-sm text-[#6f7f77]">{hourlyConfig ? `$${(hourlyConfig.hourlyRateCents / 100).toFixed(2)}/hr × ${formatDurationMinutes(selectedDurationMinutes)}` : packages.length || couponPricing ? "Selected service subtotal" : "Starting at"}</p><p className="mt-1 text-3xl font-bold tracking-tight">${(displayedServiceSubtotalCents / 100).toFixed(2)}</p>{couponPricing && <p className="mt-1 text-xs font-semibold text-[#34704a]">You save ${(couponPricing.discountCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}</p>}</div>
+        <p className="rounded-full bg-[#f1f0eb] px-3 py-1.5 text-xs font-semibold text-[#5f7067]">{hourlyConfig ? "Estimated service subtotal" : `Estimated time: ${duration}`}</p>
       </div>
 
       <form onSubmit={checkAvailability} className="mt-7 space-y-3">
+        {hourlyConfig && <fieldset className="rounded-2xl border border-[#183126]/10 bg-[#f5f7f2] p-4"><legend className="px-1 text-sm font-bold">Choose your booking duration</legend><label className="mt-3 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Duration</span><select value={selectedDurationMinutes} onChange={(event) => { setSelectedDurationMinutes(Number(event.target.value)); setTime(""); setTimeSlots([]); setStep("details"); clearCouponPricing(); }} className="min-h-12 w-full rounded-xl border border-[#183126]/15 bg-white px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4d725d]" aria-describedby="hourly-duration-help">{hourlyDurationOptions(hourlyConfig).map((minutes) => <option key={minutes} value={minutes}>{formatDurationMinutes(minutes)} — ${(calculateHourlyBasePriceCents(hourlyConfig.hourlyRateCents, minutes) / 100).toFixed(2)}</option>)}</select></label><p id="hourly-duration-help" className="mt-2 text-xs leading-5 text-[#718078]">{formatDurationMinutes(hourlyConfig.minimumDurationMinutes)} minimum · {hourlyConfig.billingIncrementMinutes}-minute increments{hourlyConfig.maximumDurationMinutes ? ` · ${formatDurationMinutes(hourlyConfig.maximumDurationMinutes)} maximum` : ""}. Changing duration recalculates availability.</p></fieldset>}
         {packages.length > 0 && <fieldset><legend className="mb-3 text-xs font-bold uppercase tracking-wider text-[#708078]">Choose a package</legend><div className="grid gap-2">{packages.map((item) => <label key={item.id} className={`cursor-pointer rounded-2xl border p-4 ${packageId === item.id ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/12 bg-white"}`}><input type="radio" className="sr-only" name="package" checked={packageId === item.id} onChange={() => { setPackageId(item.id); clearCouponPricing(); }} /><span className="flex items-start justify-between gap-3"><span><strong className="block">{item.name}</strong><span className="mt-1 block text-xs leading-5 text-[#6d7c75]">{item.description}</span></span><strong className="shrink-0">${(item.priceCents / 100).toFixed(2)}</strong></span>{item.features.length > 0 && <span className="mt-2 block text-xs text-[#52665b]">{item.features.join(" · ")}</span>}</label>)}</div></fieldset>}
         {addOns.length > 0 && <fieldset className="rounded-2xl bg-[#f5f7f2] p-4"><legend className="px-1 text-sm font-bold">Optional add-ons</legend><div className="mt-3 grid gap-2">{addOns.map((item) => { const quantity = addOnQuantities[item.id] ?? 0; return <div key={item.id} className="flex min-w-0 items-center gap-3 rounded-xl bg-white p-3"><label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3"><input type="checkbox" className="mt-1" checked={quantity > 0} onChange={(event) => { setAddOnQuantities((current) => ({ ...current, [item.id]: event.target.checked ? 1 : 0 })); clearCouponPricing(); }} /><span className="min-w-0"><strong className="block text-sm">{item.name} · +${(item.priceCents / 100).toFixed(2)}</strong>{item.description && <span className="block text-xs leading-5 text-[#718078]">{item.description}</span>}</span></label>{item.allowsQuantity && quantity > 0 && <select aria-label={`${item.name} quantity`} value={quantity} onChange={(event) => { setAddOnQuantities((current) => ({ ...current, [item.id]: Number(event.target.value) })); clearCouponPricing(); }} className="shrink-0 rounded-lg border border-[#183126]/15 px-2 py-2 text-sm">{Array.from({ length: item.maxQuantity }, (_, index) => index + 1).map((value) => <option key={value}>{value}</option>)}</select>}</div>; })}</div></fieldset>}
         {recurrenceOptions.length > 1 && <fieldset className="rounded-2xl border border-[#183126]/10 p-4"><legend className="px-1 text-sm font-bold">One time or recurring?</legend><div className="mt-3 grid grid-cols-2 gap-2">{recurrenceOptions.map((option) => <label key={option} className={`flex min-h-12 cursor-pointer items-center justify-center rounded-xl border px-3 text-center text-sm font-bold ${recurrence === option ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/15 bg-white"}`}><input type="radio" className="sr-only" name="recurrence" checked={recurrence === option} onChange={() => setRecurrence(option)} />{recurrenceLabel(option)}</label>)}</div><p className="mt-3 text-xs leading-5 text-[#718078]">Recurring visits create separate booking and payment records. You can cancel future visits without removing completed history.</p></fieldset>}
@@ -228,7 +240,7 @@ export default function BookingCard({ serviceId, price, duration, serviceTitle, 
         <div className="block"><label htmlFor="booking-coupon" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Coupon <span className="normal-case font-normal">(optional)</span></label><div className="flex gap-2"><input id="booking-coupon" value={couponCode} onChange={(event) => { setCouponCode(event.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 32)); clearCouponPricing(); }} autoComplete="off" placeholder="Enter provider coupon" className="min-w-0 flex-1 rounded-xl border border-[#183126]/15 bg-white px-4 py-3 text-sm uppercase outline-none focus:border-[#4d725d]" /><button type="button" onClick={()=>void applyCoupon()} disabled={couponLoading || !couponCode} className="min-h-12 shrink-0 rounded-xl border border-[#183126]/15 bg-[#edf3e7] px-4 text-sm font-bold disabled:opacity-50">{couponLoading?"Checking…":"Apply"}</button></div>{couponMessage&&<p role={couponPricing?"status":"alert"} className={`mt-2 text-xs font-semibold ${couponPricing?"text-[#34704a]":"text-[#9a4e25]"}`}>{couponMessage}</p>}{couponPricing&&<div className="mt-3 rounded-xl bg-[#f5f7f2] p-3 text-xs"><div className="flex justify-between gap-3"><span>Service before coupon</span><span>${(couponPricing.originalSubtotalCents/100).toFixed(2)}</span></div><div className="mt-1 flex justify-between gap-3 font-bold text-[#34704a]"><span>Coupon savings</span><span>−${(couponPricing.discountCents/100).toFixed(2)}</span></div><div className="mt-2 flex justify-between gap-3 border-t border-[#183126]/10 pt-2 font-bold"><span>Service subtotal</span><span>${(couponPricing.serviceSubtotalCents/100).toFixed(2)}</span></div><div className="mt-1 flex justify-between gap-3 text-[#718078]"><span>BubsBookings service fee</span><span>${(couponPricing.customerServiceFeeCents/100).toFixed(2)}</span></div><div className="mt-2 flex justify-between gap-3 text-sm font-bold"><span>Total after confirmation</span><span>${(couponPricing.customerTotalCents/100).toFixed(2)}</span></div></div>}<span className="mt-1.5 block text-xs text-[#718078]">The provider funds valid discounts. The $2.99 BubsBookings service fee is shown separately at checkout.{recurrence!=="one_time"?" A coupon applies to this first occurrence unless a future offer states otherwise.":""}</span></div>
         <div className="block">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#708078]">Preferred date</span>
-          <BookingDatePicker serviceId={serviceId} value={date} disabled={bookingDisabled} onChange={(nextDate) => { setDate(nextDate); setTime(""); setTimeSlots([]); setStep("details"); setError(""); }} />
+          <BookingDatePicker serviceId={serviceId} value={date} disabled={bookingDisabled} durationMinutes={hourlyConfig ? selectedDurationMinutes : undefined} additionalMinutes={additionalDurationMinutes} onChange={(nextDate) => { setDate(nextDate); setTime(""); setTimeSlots([]); setStep("details"); setError(""); }} />
         </div>
 
         {step === "times" && (

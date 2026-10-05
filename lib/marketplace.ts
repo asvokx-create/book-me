@@ -8,6 +8,7 @@ import type { ServiceDeliveryType } from "./service-delivery";
 import type { RecurrenceOption, ServiceAddOn, ServicePackage } from "./service-commerce";
 import { isProviderScreeningCurrent } from "./provider-screening-freshness";
 import { publicPersonalName } from "./public-provider-identity";
+import type { PricingType } from "./service-pricing";
 
 const PRIORITY_DISTANCE_BAND_MILES = 10;
 
@@ -21,6 +22,12 @@ export type ServiceListing = {
   description: string;
   price: number;
   durationMinutes: number;
+  pricingType: PricingType;
+  hourlyRateCents: number | null;
+  minimumDurationMinutes: number | null;
+  maximumDurationMinutes: number | null;
+  billingIncrementMinutes: number | null;
+  defaultDurationMinutes: number | null;
   providerId: string;
   providerSlug: string;
   providerProfileVisible: boolean;
@@ -66,6 +73,12 @@ type ServiceRow = {
   description: string;
   price_cents: number;
   duration_minutes: number;
+  pricing_type: PricingType;
+  hourly_rate_cents: number | null;
+  minimum_duration_minutes: number | null;
+  maximum_duration_minutes: number | null;
+  billing_increment_minutes: number | null;
+  default_duration_minutes: number | null;
   provider_id: string;
   provider_slug: string;
   provider_profile_visible: boolean;
@@ -100,8 +113,14 @@ function mapService(row: ServiceRow): ServiceListing {
     deliveryType: row.delivery_type,
     remoteDeliveryDetails: row.remote_delivery_details,
     description: row.description,
-    price: row.price_cents / 100,
+    price: (row.pricing_type === "HOURLY" ? row.hourly_rate_cents ?? row.price_cents : row.price_cents) / 100,
     durationMinutes: row.duration_minutes,
+    pricingType: row.pricing_type,
+    hourlyRateCents: row.hourly_rate_cents,
+    minimumDurationMinutes: row.minimum_duration_minutes,
+    maximumDurationMinutes: row.maximum_duration_minutes,
+    billingIncrementMinutes: row.billing_increment_minutes,
+    defaultDurationMinutes: row.default_duration_minutes,
     providerId: row.provider_id,
     providerSlug: row.provider_slug,
     providerProfileVisible: row.provider_profile_visible,
@@ -160,19 +179,21 @@ export async function getServices(options: { query?: string; category?: string; 
   }
   if (options.maxPrice && Number.isFinite(options.maxPrice)) {
     values.push(Math.round(options.maxPrice * 100));
-    conditions.push(`s.price_cents <= $${values.length}`);
+    conditions.push(`CASE WHEN s.pricing_type='HOURLY' THEN s.hourly_rate_cents ELSE s.price_cents END <= $${values.length}`);
   }
   if (options.maxDuration && Number.isFinite(options.maxDuration)) {
     values.push(options.maxDuration);
-    conditions.push(`s.duration_minutes <= $${values.length}`);
+    conditions.push(`CASE WHEN s.pricing_type='HOURLY' THEN s.default_duration_minutes ELSE s.duration_minutes END <= $${values.length}`);
   }
   values.push(searchOrigin ? Math.max(requestedLimit, 200) : requestedLimit);
 
   const planPriority = "CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN 0 ELSE 1 END";
-  const orderBy = options.sort === "price-low" ? `s.price_cents ASC, ${planPriority}, s.created_at DESC` : options.sort === "price-high" ? `s.price_cents DESC, ${planPriority}, s.created_at DESC` : `${planPriority}, s.created_at DESC`;
+  const displayedPrice = "CASE WHEN s.pricing_type='HOURLY' THEN s.hourly_rate_cents ELSE s.price_cents END";
+  const orderBy = options.sort === "price-low" ? `${displayedPrice} ASC, ${planPriority}, s.created_at DESC` : options.sort === "price-high" ? `${displayedPrice} DESC, ${planPriority}, s.created_at DESC` : `${planPriority}, s.created_at DESC`;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
+            s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
+            p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, company.slug AS company_slug,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
@@ -217,7 +238,8 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
   if (!isDatabaseConfigured()) return null;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
+            s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
+            p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, company.slug AS company_slug,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
@@ -290,7 +312,8 @@ export async function getServiceById(id: string) {
   if (!isDatabaseConfigured()) return null;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
+            s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
+            p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
@@ -448,7 +471,8 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
 async function getServicesForProvider(providerId: string) {
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
+            s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
+            p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
@@ -472,7 +496,8 @@ export async function getFavoriteServices(customerId: string) {
   if (!isDatabaseConfigured()) return [];
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
-            s.duration_minutes, p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
+            s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
+            p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,

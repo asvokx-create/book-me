@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { database } from "@/lib/database";
+import { validateHourlyDuration, type HourlyPricingConfig, type PricingType } from "@/lib/service-pricing";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -7,12 +8,31 @@ const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
 export async function GET(request: Request, context: RouteContext<"/api/services/[serviceId]/availability">) {
   const { serviceId } = await context.params;
   const searchParams = new URL(request.url).searchParams;
+  const serviceResult = await database.query<{
+    duration_minutes: number; pricing_type: PricingType; hourly_rate_cents: number | null;
+    minimum_duration_minutes: number | null; maximum_duration_minutes: number | null;
+    billing_increment_minutes: 15 | 30 | 60 | null; default_duration_minutes: number | null;
+  }>(`SELECT s.duration_minutes,s.pricing_type,s.hourly_rate_cents,s.minimum_duration_minutes,s.maximum_duration_minutes,s.billing_increment_minutes,s.default_duration_minutes
+      FROM services s JOIN provider_profiles p ON p.id=s.provider_id
+      WHERE s.id::text=$1 AND s.is_active=true AND p.is_active=true`, [serviceId]);
+  const service = serviceResult.rows[0];
+  if (!service) return NextResponse.json({ error: "Service not found." }, { status: 404 });
+  const additionalMinutes = Number(searchParams.get("additionalMinutes") ?? 0);
+  if (!Number.isSafeInteger(additionalMinutes) || additionalMinutes < 0 || additionalMinutes > 10_080) return NextResponse.json({ error: "Choose valid add-ons." }, { status: 400 });
+  let selectedDurationMinutes = service.duration_minutes;
+  if (service.pricing_type === "HOURLY") {
+    const requestedDuration = Number(searchParams.get("durationMinutes") ?? service.default_duration_minutes);
+    try {
+      selectedDurationMinutes = validateHourlyDuration({ pricingType: "HOURLY", hourlyRateCents: service.hourly_rate_cents!, minimumDurationMinutes: service.minimum_duration_minutes!, maximumDurationMinutes: service.maximum_duration_minutes, billingIncrementMinutes: service.billing_increment_minutes!, defaultDurationMinutes: service.default_duration_minutes! } satisfies HourlyPricingConfig, requestedDuration);
+    } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Choose a valid duration." }, { status: 400 }); }
+  }
+  selectedDurationMinutes += additionalMinutes;
   const month = searchParams.get("month") ?? "";
   if (month) {
     if (!monthPattern.test(month)) return NextResponse.json({ error: "Choose a valid month." }, { status: 400 });
     const result = await database.query<{ date: string }>(
       `WITH service_info AS (
-         SELECT s.id, s.provider_id, s.duration_minutes, s.location_id
+         SELECT s.id, s.provider_id, $3::integer AS duration_minutes, s.location_id
          FROM services s
          JOIN provider_profiles p ON p.id = s.provider_id
          WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true
@@ -63,7 +83,7 @@ export async function GET(request: Request, context: RouteContext<"/api/services
              AND b.ends_at > gs.starts_at
          )
        ORDER BY date`,
-      [serviceId, `${month}-01`],
+      [serviceId, `${month}-01`, selectedDurationMinutes],
     );
     return NextResponse.json({ dates: result.rows.map((row) => row.date) });
   }
@@ -73,7 +93,7 @@ export async function GET(request: Request, context: RouteContext<"/api/services
 
   const result = await database.query<{ time: string }>(
     `WITH service_info AS (
-       SELECT s.id, s.provider_id, s.duration_minutes, s.location_id
+       SELECT s.id, s.provider_id, $3::integer AS duration_minutes, s.location_id
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
        WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true
@@ -121,7 +141,7 @@ export async function GET(request: Request, context: RouteContext<"/api/services
            AND b.ends_at > gs.starts_at
        )
      ORDER BY time`,
-    [serviceId, date],
+    [serviceId, date, selectedDurationMinutes],
   );
 
   return NextResponse.json({ times: result.rows.map((row) => row.time.slice(0, 5)) });

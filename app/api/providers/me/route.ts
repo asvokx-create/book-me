@@ -69,6 +69,9 @@ export async function GET() {
     category: string;
     price_cents: number;
     duration_minutes: number;
+    pricing_type: "FIXED" | "HOURLY";
+    hourly_rate_cents: number | null;
+    minimum_duration_minutes: number | null;
     image_urls: string[] | null;
     location_id: string | null;
     location_name: string | null;
@@ -79,7 +82,8 @@ export async function GET() {
     delivery_type: "IN_PERSON" | "REMOTE" | "BOTH";
   }>(
     `SELECT s.id::text, s.company_id::text, company.slug AS company_slug, company.name AS business_name,
-            s.slug, s.title, s.category, s.price_cents, s.duration_minutes, s.created_at, s.delivery_type,
+            s.slug, s.title, s.category, s.price_cents, s.duration_minutes, s.pricing_type,
+            s.hourly_rate_cents, s.minimum_duration_minutes, s.created_at, s.delivery_type,
             location.id::text AS location_id, location.name AS location_name, location.city, location.state,
             COALESCE((
               SELECT count(*)::int
@@ -114,6 +118,9 @@ export async function GET() {
     category: service.category,
     price: service.price_cents / 100,
     durationMinutes: service.duration_minutes,
+    pricingType: service.pricing_type,
+    hourlyRateCents: service.hourly_rate_cents,
+    minimumDurationMinutes: service.minimum_duration_minutes,
     createdAt: service.created_at,
     viewCount: service.view_count,
     imageUrls: service.image_urls ?? [],

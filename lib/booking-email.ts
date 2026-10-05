@@ -2,6 +2,7 @@ import "server-only";
 
 import { database } from "./database";
 import { sendTransactionalEmail } from "./email";
+import { formatDurationMinutes } from "./service-pricing";
 
 type BookingEmailRow = {
   id: string;
@@ -16,11 +17,17 @@ type BookingEmailRow = {
   provider_email: string;
   provider_notifications: boolean;
   payment_status: string;
+  ends_at: Date;
+  pricing_type_snapshot: "FIXED" | "HOURLY";
+  hourly_rate_cents_snapshot: number | null;
+  billable_duration_minutes: number;
+  price_cents: number;
 };
 
 async function bookingForEmail(bookingId: string) {
   const result = await database.query<BookingEmailRow>(
-    `SELECT b.id::text, s.title AS service_title, b.starts_at, b.payment_status,
+    `SELECT b.id::text, s.title AS service_title, b.starts_at, b.ends_at, b.payment_status, b.price_cents,
+            b.pricing_type_snapshot,b.hourly_rate_cents_snapshot,b.billable_duration_minutes,
             b.customer_id, customer.name AS customer_name, customer.email AS customer_email,
             COALESCE(customer_settings.booking_notifications, true) AS customer_notifications,
             p.user_id AS provider_user_id, s.business_name AS provider_name,
@@ -47,15 +54,19 @@ export async function sendBookingUpdateEmails(bookingId: string, event: "request
   const booking = await bookingForEmail(bookingId);
   if (!booking) return;
   const when = appointmentLabel(booking.starts_at);
+  const until = appointmentLabel(booking.ends_at);
+  const pricing = booking.pricing_type_snapshot === "HOURLY" && booking.hourly_rate_cents_snapshot !== null
+    ? ` ${formatDurationMinutes(booking.billable_duration_minutes)} at $${(booking.hourly_rate_cents_snapshot / 100).toFixed(2)}/hr; service subtotal $${(booking.price_cents / 100).toFixed(2)}.`
+    : ` Service price $${(booking.price_cents / 100).toFixed(2)}.`;
 
   if (event === "requested") {
-    if (booking.provider_notifications) await sendTransactionalEmail({ to: booking.provider_email, userId: booking.provider_user_id, bookingId, emailType: "booking_requested_provider", subject: `New request for ${booking.service_title}`, heading: "You have a new booking request", message: `${booking.customer_name} requested ${booking.service_title} for ${when}.`, actionLabel: "Review request", actionUrl: "/provider/dashboard/bookings" });
-    if (booking.customer_notifications) await sendTransactionalEmail({ to: booking.customer_email, userId: booking.customer_id, bookingId, emailType: "booking_requested_customer", subject: "Your BubsBookings request was sent", heading: "Your request is with the provider", message: `${booking.provider_name} received your request for ${booking.service_title} on ${when}.`, actionLabel: "View booking", actionUrl: `/account/bookings/${bookingId}` });
+    if (booking.provider_notifications) await sendTransactionalEmail({ to: booking.provider_email, userId: booking.provider_user_id, bookingId, emailType: "booking_requested_provider", subject: `New request for ${booking.service_title}`, heading: "You have a new booking request", message: `${booking.customer_name} requested ${booking.service_title} for ${when}.${pricing}`, actionLabel: "Review request", actionUrl: "/provider/dashboard/bookings" });
+    if (booking.customer_notifications) await sendTransactionalEmail({ to: booking.customer_email, userId: booking.customer_id, bookingId, emailType: "booking_requested_customer", subject: "Your BubsBookings request was sent", heading: "Your request is with the provider", message: `${booking.provider_name} received your request for ${booking.service_title} on ${when}.${pricing}`, actionLabel: "View booking", actionUrl: `/account/bookings/${bookingId}` });
     return;
   }
 
   const content = {
-    accepted: { subject: "Your BubsBookings booking is confirmed", heading: "Booking confirmed", message: `${booking.provider_name} accepted ${booking.service_title} for ${when}. Open your booking to pay through Stripe before the appointment.` },
+    accepted: { subject: "Your BubsBookings booking is confirmed", heading: "Booking confirmed", message: `${booking.provider_name} accepted ${booking.service_title} from ${when} to ${until}.${pricing} Open your booking to pay through Stripe before the appointment.` },
     declined: { subject: "Your BubsBookings request was declined", heading: "Booking request declined", message: `${booking.provider_name} could not accept ${booking.service_title} for ${when}.` },
     cancelled: { subject: "A BubsBookings booking was cancelled", heading: "Booking cancelled", message: `${booking.service_title}, scheduled for ${when}, was cancelled.` },
     completed: booking.payment_status === "paid"
@@ -68,7 +79,11 @@ export async function sendBookingUpdateEmails(bookingId: string, event: "request
 
 export async function sendBookingReminder(booking: BookingEmailRow, hours: 24 | 1) {
   const when = appointmentLabel(booking.starts_at);
-  const providerMessage = `${booking.service_title} is scheduled for ${when}. Open BubsBookings for the latest details or to message the other person.`;
+  const until = appointmentLabel(booking.ends_at);
+  const pricing = booking.pricing_type_snapshot === "HOURLY" && booking.hourly_rate_cents_snapshot !== null
+    ? ` ${formatDurationMinutes(booking.billable_duration_minutes)} at $${(booking.hourly_rate_cents_snapshot / 100).toFixed(2)}/hr; service subtotal $${(booking.price_cents / 100).toFixed(2)}.`
+    : ` Service price $${(booking.price_cents / 100).toFixed(2)}.`;
+  const providerMessage = `${booking.service_title} is scheduled from ${when} to ${until}.${pricing} Open BubsBookings for the latest details or to message the other person.`;
   const customerMessage = booking.payment_status === "paid"
     ? providerMessage
     : `${booking.service_title} is scheduled for ${when}, and payment is still due. Open your booking to pay through Stripe before the provider arrives.`;

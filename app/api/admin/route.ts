@@ -85,6 +85,7 @@ async function loadDashboard() {
     ),
     database.query(
       `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.delivery_type, s.is_active, s.price_cents,
+              s.pricing_type,s.hourly_rate_cents,s.minimum_duration_minutes,
               s.created_at, s.business_name, p.city, p.state, p.id::text AS provider_id
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id

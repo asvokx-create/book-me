@@ -14,7 +14,10 @@ export async function GET(request:Request){
     if(!await eligible(access.providerId,customerId))return NextResponse.json({error:"Client not found."},{status:404});
     const [client,bookings,quotes,notes,reviews,events,tags,allTags]=await Promise.all([
       listProviderClients(access.providerId,{customerId},1,0).then(r=>r.rows[0]),
-      database.query(`SELECT b.id::text,b.status,b.starts_at,b.created_at,b.price_cents,b.refunded_amount_cents,b.package_snapshot,b.add_on_snapshot,b.coupon_code_snapshot,b.recurring_series_id::text,s.title service,s.category FROM bookings b JOIN services s ON s.id=b.service_id WHERE b.provider_id::text=$1 AND b.customer_id=$2 ORDER BY b.created_at DESC LIMIT 100`,[access.providerId,customerId]),
+      database.query(`SELECT b.id::text,b.status,b.starts_at,b.created_at,b.price_cents,b.refunded_amount_cents,
+        b.pricing_type_snapshot,b.hourly_rate_cents_snapshot,b.billable_duration_minutes,b.base_price_cents,
+        b.package_snapshot,b.add_on_snapshot,b.coupon_code_snapshot,b.recurring_series_id::text,s.title service,s.category
+        FROM bookings b JOIN services s ON s.id=b.service_id WHERE b.provider_id::text=$1 AND b.customer_id=$2 ORDER BY b.created_at DESC LIMIT 100`,[access.providerId,customerId]),
       database.query(`SELECT q.id::text,q.status,q.amount_cents,q.created_at,r.title FROM quotes q JOIN job_requests r ON r.id=q.request_id WHERE q.provider_id::text=$1 AND r.customer_id=$2 ORDER BY q.created_at DESC LIMIT 50`,[access.providerId,customerId]),
       database.query(`SELECT n.id::text,n.body,n.created_at,u.name author FROM provider_client_notes n LEFT JOIN "user" u ON u.id=n.author_user_id WHERE n.provider_id::text=$1 AND n.customer_id=$2 ORDER BY n.created_at DESC`,[access.providerId,customerId]),
       database.query(`SELECT r.id::text,r.rating,r.body,r.created_at,s.title service FROM reviews r JOIN bookings b ON b.id=r.booking_id JOIN services s ON s.id=b.service_id WHERE b.provider_id::text=$1 AND b.customer_id=$2 ORDER BY r.created_at DESC`,[access.providerId,customerId]),

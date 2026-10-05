@@ -8,6 +8,7 @@ import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { recordAnalytics } from "@/lib/analytics";
 import { refundUnreleasedBooking } from "@/lib/payment-release";
 import { unavailableBookingProfessionals } from "@/lib/booking-staff";
+import { calculateHourlyBasePriceCents, validateHourlyDuration, type HourlyPricingConfig } from "@/lib/service-pricing";
 
 type BookingAction = "accepted" | "declined" | "completed" | "cancel" | "approve_reschedule" | "decline_reschedule" | "assign" | "send_quote";
 
@@ -35,7 +36,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
     return NextResponse.json({ error: "Too many booking changes. Please wait a minute and try again." }, { status: 429 });
   }
   const { bookingId } = await context.params;
-  const body = (await request.json()) as { action?: unknown; reason?: unknown; memberId?: unknown; memberIds?: unknown; price?: unknown };
+  const body = (await request.json()) as { action?: unknown; reason?: unknown; memberId?: unknown; memberIds?: unknown; price?: unknown; hourlyRate?: unknown; durationMinutes?: unknown };
   const action = body.action as BookingAction;
   if (!(["accepted", "declined", "completed", "cancel", "approve_reschedule", "decline_reschedule", "assign", "send_quote"] as BookingAction[]).includes(action)) {
     return NextResponse.json({ error: "Choose a valid booking action." }, { status: 400 });
@@ -57,11 +58,16 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       customer_id: string; customer_name: string; service_title: string; service_business_name: string;
       reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null;
       assigned_team_member_id: string | null; quote_status: string; payment_status: string; payment_flow: string | null; service_location_id: string; recurring_series_id: string | null;
+      pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number;
+      billing_increment_minutes_snapshot: 15 | 30 | 60 | null; minimum_duration_minutes_snapshot: number | null; maximum_duration_minutes_snapshot: number | null;
+      add_on_total_cents: number; discount_cents: number;
     }>(
       `SELECT b.id::text, b.provider_id::text, b.service_id::text, b.starts_at, b.ends_at, b.status,
               b.customer_id, u.name AS customer_name, s.title AS service_title, s.business_name AS service_business_name,
               b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.assigned_team_member_id::text,
-              b.quote_status, b.payment_status, b.payment_flow, s.location_id::text AS service_location_id, b.recurring_series_id::text
+              b.quote_status, b.payment_status, b.payment_flow, s.location_id::text AS service_location_id, b.recurring_series_id::text,
+              b.pricing_type_snapshot,b.hourly_rate_cents_snapshot,b.billable_duration_minutes,b.billing_increment_minutes_snapshot,
+              b.minimum_duration_minutes_snapshot,b.maximum_duration_minutes_snapshot,b.add_on_total_cents,b.discount_cents
        FROM bookings b
        JOIN provider_profiles p ON p.id = b.provider_id
        JOIN services s ON s.id = b.service_id
@@ -77,18 +83,40 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
     }
 
     if (action === "send_quote") {
-      const price = Number(body.price);
       if (booking.status !== "requested") { await client.query("ROLLBACK"); return NextResponse.json({ error: "Quotes can only be sent before a booking is confirmed." }, { status: 409 }); }
-      if (!Number.isFinite(price) || price < 1 || price > 1000000) { await client.query("ROLLBACK"); return NextResponse.json({ error: "Enter a quote between $1 and $1,000,000." }, { status: 400 }); }
-      const cents = Math.round(price * 100);
+      let cents: number;
+      let quotedRateCents: number | null = null;
+      let quotedDuration: number | null = null;
+      if (booking.pricing_type_snapshot === "HOURLY") {
+        quotedRateCents = Math.round(Number(body.hourlyRate) * 100);
+        quotedDuration = Number(body.durationMinutes);
+        try {
+          validateHourlyDuration({ pricingType: "HOURLY", hourlyRateCents: quotedRateCents,
+            minimumDurationMinutes: booking.minimum_duration_minutes_snapshot!, maximumDurationMinutes: booking.maximum_duration_minutes_snapshot,
+            billingIncrementMinutes: booking.billing_increment_minutes_snapshot!, defaultDurationMinutes: booking.billable_duration_minutes } satisfies HourlyPricingConfig, quotedDuration);
+        } catch (error) {
+          await client.query("ROLLBACK");
+          return NextResponse.json({ error: error instanceof Error ? error.message : "Enter a valid hourly rate and duration." }, { status: 400 });
+        }
+        const laborCents = calculateHourlyBasePriceCents(quotedRateCents, quotedDuration);
+        cents = Math.max(50, laborCents + booking.add_on_total_cents - booking.discount_cents);
+      } else {
+        const price = Number(body.price);
+        if (!Number.isFinite(price) || price < 1 || price > 1000000) { await client.query("ROLLBACK"); return NextResponse.json({ error: "Enter a quote between $1 and $1,000,000." }, { status: 400 }); }
+        cents = Math.round(price * 100);
+      }
+      if (cents > 100_000_000) { await client.query("ROLLBACK"); return NextResponse.json({ error: "The quoted total is too large." }, { status: 400 }); }
       await client.query(`UPDATE bookings SET quote_status = 'pending', quoted_price_cents = $2,
-        quote_message = $3, quote_sent_at = now(), quote_responded_at = NULL WHERE id::text = $1`, [bookingId, cents, reason]);
+        quote_message = $3, quote_sent_at = now(), quote_responded_at = NULL,
+        quoted_pricing_type=$4,quoted_hourly_rate_cents=$5,quoted_duration_minutes=$6 WHERE id::text = $1`,
+        [bookingId, cents, reason, booking.pricing_type_snapshot, quotedRateCents, quotedDuration]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message, metadata)
-        VALUES ($1::uuid, $2, 'quote_sent', $3, jsonb_build_object('priceCents', $4::integer))`, [bookingId, session.user.id, `Provider sent a $${price.toFixed(2)} quote: ${reason}`, cents]);
+        VALUES ($1::uuid, $2, 'quote_sent', $3, jsonb_build_object('priceCents', $4::integer,'hourlyRateCents',$5::integer,'durationMinutes',$6::integer))`,
+        [bookingId, session.user.id, `Provider sent a $${(cents / 100).toFixed(2)} quote: ${reason}`, cents, quotedRateCents, quotedDuration]);
       await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
         VALUES ($1, $2::uuid, 'booking_quote', 'New quote from your provider', $3,
         '/account/bookings/' || $2::uuid::text, 'booking-quote-' || $2::uuid::text || '-' || extract(epoch from now())::bigint)`,
-        [booking.customer_id, bookingId, `${booking.service_title}: $${price.toFixed(2)}. Review and approve it before the booking is confirmed.`]);
+        [booking.customer_id, bookingId, `${booking.service_title}: $${(cents / 100).toFixed(2)}${quotedRateCents && quotedDuration ? ` (${quotedDuration} minutes at $${(quotedRateCents / 100).toFixed(2)}/hour)` : ""}. Review and approve it before the booking is confirmed.`]);
     } else if (action === "assign") {
       if (!["requested", "confirmed"].includes(booking.status)) { await client.query("ROLLBACK"); return NextResponse.json({ error: "This booking can no longer be assigned." }, { status: 409 }); }
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);

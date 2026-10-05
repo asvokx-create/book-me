@@ -18,6 +18,7 @@ import { recordAnalytics } from "@/lib/analytics";
 import { AFFILIATE_COOKIE, lockAffiliateAttribution, normalizeAffiliateCode } from "@/lib/affiliates";
 import { slugifyProviderName } from "@/lib/provider-profile-options";
 import { isServiceDeliveryType } from "@/lib/service-delivery";
+import { isHourlyBillingIncrement, isPricingType, validateHourlyPricing } from "@/lib/service-pricing";
 
 const weekdayNumbers: Record<string, number> = {
   Sun: 0,
@@ -63,6 +64,12 @@ export async function POST(request: Request) {
   const durationMinutes = Number(body.durationMinutes);
   const phone = typeof body.phone === "string" ? body.phone.replace(/\D/g, "") : "";
   const price = Number(body.price);
+  const pricingType = isPricingType(body.pricingType) ? body.pricingType : "FIXED";
+  const hourlyRateCents = Math.round(Number(body.hourlyRate) * 100);
+  const minimumDurationMinutes = Number(body.minimumDurationMinutes);
+  const maximumDurationMinutes = body.maximumDurationMinutes === null || body.maximumDurationMinutes === "" ? null : Number(body.maximumDurationMinutes);
+  const billingIncrementMinutes = Number(body.billingIncrementMinutes);
+  const defaultDurationMinutes = Number(body.defaultDurationMinutes);
   const serviceRadiusMiles = deliveryType === "REMOTE" ? 25 : Number(body.serviceRadiusMiles ?? 25);
   const acceptedProviderAgreement = body.acceptedProviderAgreement === true;
   const referralCode = normalizeAffiliateCode(body.referralCode);
@@ -76,7 +83,12 @@ export async function POST(request: Request) {
   }) : [];
   const validTime = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-  if (!business || !category || category.length > 80 || !serviceArea || !coordinates || !service || !description || phone.length !== 10 || !Number.isFinite(price) || price <= 0 || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 2_147_483_647 || remoteDeliveryDetails.length > 1000 || availabilitySlots.length === 0 || availabilitySlots.some((slot) => !validTime.test(slot.startTime) || !validTime.test(slot.endTime) || slot.startTime >= slot.endTime)) {
+  let hourlyValid = pricingType === "FIXED";
+  if (pricingType === "HOURLY" && isHourlyBillingIncrement(billingIncrementMinutes)) {
+    try { validateHourlyPricing({ pricingType, hourlyRateCents, minimumDurationMinutes, maximumDurationMinutes, billingIncrementMinutes, defaultDurationMinutes }); hourlyValid = true; } catch { hourlyValid = false; }
+  }
+  const fixedPricingValid = pricingType === "HOURLY" || Number.isFinite(price) && price >= 0.5 && Number.isInteger(durationMinutes) && durationMinutes >= 15 && durationMinutes <= 2_147_483_647;
+  if (!business || !category || category.length > 80 || !serviceArea || !coordinates || !service || !description || phone.length !== 10 || !fixedPricingValid || !Number.isInteger(serviceRadiusMiles) || serviceRadiusMiles < 1 || serviceRadiusMiles > 250 || !hourlyValid || remoteDeliveryDetails.length > 1000 || availabilitySlots.length === 0 || availabilitySlots.some((slot) => !validTime.test(slot.startTime) || !validTime.test(slot.endTime) || slot.startTime >= slot.endTime)) {
     return NextResponse.json({ error: "Complete all provider, service, and availability fields." }, { status: 400 });
   }
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "provider-onboarding", limit: 6, windowSeconds: 3600 })) return NextResponse.json({ error: "Too many setup attempts. Please try again later." }, { status: 429 });
@@ -88,7 +100,7 @@ export async function POST(request: Request) {
   const financialRisk = await checkAndRecordListingFinancialCrimeRisk({
     userId: session.user.id,
     surface: "provider_listing_financial_risk",
-    input: { businessName: business, title: service, category, description, priceCents: Math.round(price * 100) },
+    input: { businessName: business, title: service, category, description, priceCents: pricingType === "HOURLY" ? hourlyRateCents : Math.round(price * 100) },
   });
   if (!financialRisk.allowed) {
     return NextResponse.json({ error: financialRisk.message, financialRisk: { level: financialRisk.level, score: financialRisk.score } }, { status: 422 });
@@ -217,10 +229,16 @@ export async function POST(request: Request) {
     }
 
     const serviceResult = await client.query<{ id: string }>(
-      `INSERT INTO services (provider_id, company_id, location_id, business_name, slug, category, delivery_type, remote_delivery_details, title, description, price_cents, duration_minutes, city, state, latitude, longitude)
-       VALUES ($1, $2, CASE WHEN $7='REMOTE' THEN NULL ELSE $3::uuid END, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      `INSERT INTO services (provider_id, company_id, location_id, business_name, slug, category, delivery_type, remote_delivery_details, title, description, price_cents, duration_minutes, city, state, latitude, longitude,
+          pricing_type,hourly_rate_cents,minimum_duration_minutes,maximum_duration_minutes,billing_increment_minutes,default_duration_minutes)
+       VALUES ($1, $2, CASE WHEN $7='REMOTE' THEN NULL ELSE $3::uuid END, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,$17,$18,$19,$20,$21,$22)
        RETURNING id::text`,
-      [providerId, companyId, serviceLocation.id, business, slugify(service), category, deliveryType, remoteDeliveryDetails, service, description, Math.round(price * 100), durationMinutes, serviceLocation.city, serviceLocation.state, serviceLocation.latitude, serviceLocation.longitude],
+      [providerId, companyId, serviceLocation.id, business, slugify(service), category, deliveryType, remoteDeliveryDetails, service, description,
+        pricingType === "HOURLY" ? hourlyRateCents : Math.round(price * 100), pricingType === "HOURLY" ? defaultDurationMinutes : durationMinutes,
+        serviceLocation.city, serviceLocation.state, serviceLocation.latitude, serviceLocation.longitude, pricingType,
+        pricingType === "HOURLY" ? hourlyRateCents : null, pricingType === "HOURLY" ? minimumDurationMinutes : null,
+        pricingType === "HOURLY" ? maximumDurationMinutes : null, pricingType === "HOURLY" ? billingIncrementMinutes : null,
+        pricingType === "HOURLY" ? defaultDurationMinutes : null],
     );
 
     if (!existing) {

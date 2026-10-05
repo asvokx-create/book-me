@@ -6,12 +6,14 @@ import { database } from "@/lib/database";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { enforceRateLimit } from "@/lib/request-security";
 import { calculateCommerceSelection, type CouponRule, type ServiceAddOn, type ServicePackage } from "@/lib/service-commerce";
+import { calculateHourlyBasePriceCents, validateHourlyDuration, type HourlyPricingConfig, type PricingType } from "@/lib/service-pricing";
 
 type CouponRequest = {
   serviceId?: unknown;
   packageId?: unknown;
   addOns?: unknown;
   couponCode?: unknown;
+  durationMinutes?: unknown;
 };
 
 export async function POST(request: Request) {
@@ -25,14 +27,15 @@ export async function POST(request: Request) {
   const serviceId = typeof body?.serviceId === "string" ? body.serviceId : "";
   const packageId = typeof body?.packageId === "string" ? body.packageId : "";
   const couponCode = typeof body?.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
+  const requestedDurationMinutes = Number(body?.durationMinutes);
   const requestedAddOns = Array.isArray(body?.addOns)
     ? body.addOns.slice(0, 10).map((entry) => entry && typeof entry === "object" ? entry as Record<string, unknown> : {})
       .map((entry) => ({ addOnId: typeof entry.addOnId === "string" ? entry.addOnId : "", quantity: Number(entry.quantity) }))
     : [];
   if (!serviceId || !/^[A-Z0-9_-]{3,32}$/.test(couponCode)) return NextResponse.json({ error: "Enter a valid coupon code." }, { status: 400 });
 
-  const serviceResult = await database.query<{ price_cents: number; provider_id: string; plan: ProviderPlan }>(
-    `SELECT s.price_cents,s.provider_id::text,p.plan FROM services s
+  const serviceResult = await database.query<{ price_cents: number; provider_id: string; plan: ProviderPlan; pricing_type: PricingType; hourly_rate_cents: number | null; minimum_duration_minutes: number | null; maximum_duration_minutes: number | null; billing_increment_minutes: 15 | 30 | 60 | null; default_duration_minutes: number | null }>(
+    `SELECT s.price_cents,s.pricing_type,s.hourly_rate_cents,s.minimum_duration_minutes,s.maximum_duration_minutes,s.billing_increment_minutes,s.default_duration_minutes,s.provider_id::text,p.plan FROM services s
      JOIN provider_profiles p ON p.id=s.provider_id AND p.is_active=true
      WHERE s.id::text=$1 AND s.is_active=true LIMIT 1`,
     [serviceId],
@@ -46,6 +49,7 @@ export async function POST(request: Request) {
     : null;
   const selectedPackage = selectedPackageResult?.rows[0] ?? null;
   if (packageId && !selectedPackage) return NextResponse.json({ error: "That package is no longer available." }, { status: 409 });
+  if (service.pricing_type === "HOURLY" && selectedPackage) return NextResponse.json({ error: "Packages cannot be combined with hourly pricing." }, { status: 400 });
 
   const addOnIds = requestedAddOns.map((item) => item.addOnId).filter(Boolean);
   const addOnResult = addOnIds.length
@@ -66,8 +70,13 @@ export async function POST(request: Request) {
   if (coupon.repeatCustomerOnly && priorCount.rows[0].count < 1) return NextResponse.json({ error: "That coupon is for returning customers." }, { status: 400 });
 
   try {
+    let servicePriceCents = service.price_cents;
+    if (service.pricing_type === "HOURLY") {
+      const config: HourlyPricingConfig = { pricingType: "HOURLY", hourlyRateCents: service.hourly_rate_cents!, minimumDurationMinutes: service.minimum_duration_minutes!, maximumDurationMinutes: service.maximum_duration_minutes, billingIncrementMinutes: service.billing_increment_minutes!, defaultDurationMinutes: service.default_duration_minutes! };
+      servicePriceCents = calculateHourlyBasePriceCents(config.hourlyRateCents, validateHourlyDuration(config, requestedDurationMinutes));
+    }
     const commerce = calculateCommerceSelection({
-      servicePriceCents: service.price_cents,
+      servicePriceCents,
       selectedPackage,
       addOns: requestedAddOns.map((item) => ({ addOn: addOnById.get(item.addOnId)!, quantity: item.quantity })),
       coupon,

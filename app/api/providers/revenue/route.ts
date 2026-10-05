@@ -17,7 +17,7 @@ export async function GET() {
   if (!providerId) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
   const stripeMode = getStripeMode();
 
-  const [totalsResult, monthlyResult, recentResult, repeatResult] = await Promise.all([
+  const [totalsResult, monthlyResult, recentResult, repeatResult, hourlyResult] = await Promise.all([
     database.query<{
       total_cents: string;
       this_month_cents: string;
@@ -120,6 +120,11 @@ export async function GET() {
         count(*)::int AS completed_booking_count,
         COALESCE(sum(price_cents-refunded_amount_cents) FILTER(WHERE customer_booking_number>1),0)::bigint AS returning_revenue_cents
       FROM ordered`,[providerId]),
+    database.query<{ hourly_bookings: number; booked_minutes: string; average_minutes: number | null; hourly_revenue_cents: string }>(
+      `SELECT count(*)::int AS hourly_bookings,COALESCE(sum(billable_duration_minutes),0)::bigint AS booked_minutes,
+              round(avg(billable_duration_minutes))::integer AS average_minutes,
+              COALESCE(sum(price_cents-refunded_amount_cents),0)::bigint AS hourly_revenue_cents
+       FROM bookings WHERE provider_id::text=$1 AND pricing_type_snapshot='HOURLY' AND status IN ('confirmed','completed')`, [providerId]),
   ]);
 
   const totals = totalsResult.rows[0];
@@ -155,5 +160,11 @@ export async function GET() {
       repeatBookingRate:repeat.completed_booking_count?Math.round(repeat.repeat_booking_count/repeat.completed_booking_count*100):0,
       returningRevenue:Number(repeat.returning_revenue_cents)/100,
     }:null,
+    hourlyMetrics: {
+      bookings: hourlyResult.rows[0]?.hourly_bookings ?? 0,
+      bookedHours: Number(hourlyResult.rows[0]?.booked_minutes ?? 0) / 60,
+      averageDurationMinutes: hourlyResult.rows[0]?.average_minutes ?? null,
+      serviceRevenue: Number(hourlyResult.rows[0]?.hourly_revenue_cents ?? 0) / 100,
+    },
   });
 }

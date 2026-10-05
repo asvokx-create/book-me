@@ -9,6 +9,7 @@ import { enforceRateLimit } from "@/lib/request-security";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { isServiceDeliveryType, type ServiceDeliveryType } from "@/lib/service-delivery";
 import { isRecurrenceOption, type RecurrenceOption } from "@/lib/service-commerce";
+import { isHourlyBillingIncrement, isPricingType, validateHourlyPricing, type PricingType } from "@/lib/service-pricing";
 
 async function getSessionUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -31,6 +32,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
     description: string;
     price_cents: number;
     duration_minutes: number;
+    pricing_type: PricingType;
+    hourly_rate_cents: number | null;
+    minimum_duration_minutes: number | null;
+    maximum_duration_minutes: number | null;
+    billing_increment_minutes: number | null;
+    default_duration_minutes: number | null;
     city: string;
     state: string;
     booking_questions: string[];
@@ -45,7 +52,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
     add_ons: unknown[] | null;
   }>(
     `SELECT s.id::text, s.business_name, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description,
-            s.price_cents, s.duration_minutes, COALESCE(s.city, p.city) AS city, COALESCE(s.state, p.state) AS state,
+            s.price_cents, s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes,
+            s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
+            COALESCE(s.city, p.city) AS city, COALESCE(s.state, p.state) AS state,
             s.booking_questions, p.plan, s.service_kind, s.preparation_notes, s.recurrence_options,
             (SELECT jsonb_agg(jsonb_build_object('id', package.id::text, 'name', package.name, 'description', package.description, 'price', package.price_cents::numeric/100, 'durationMinutes', package.duration_minutes, 'deliveryDays', package.delivery_days, 'revisionCount', package.revision_count, 'features', package.features) ORDER BY package.sort_order) FROM service_packages package WHERE package.service_id=s.id AND package.is_active=true) AS packages,
             (SELECT jsonb_agg(jsonb_build_object('id', addon.id::text, 'name', addon.name, 'description', addon.description, 'price', addon.price_cents::numeric/100, 'additionalMinutes', addon.additional_minutes, 'allowsQuantity', addon.allows_quantity, 'maxQuantity', addon.max_quantity) ORDER BY addon.sort_order) FROM service_add_ons addon WHERE addon.service_id=s.id AND addon.is_active=true) AS add_ons,
@@ -74,6 +83,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
     description: service.description,
     price: service.price_cents / 100,
     durationMinutes: service.duration_minutes,
+    pricingType: service.pricing_type,
+    hourlyRate: service.hourly_rate_cents === null ? null : service.hourly_rate_cents / 100,
+    minimumDurationMinutes: service.minimum_duration_minutes,
+    maximumDurationMinutes: service.maximum_duration_minutes,
+    billingIncrementMinutes: service.billing_increment_minutes,
+    defaultDurationMinutes: service.default_duration_minutes,
     location: `${service.city}, ${service.state}`,
     locationId: service.location_id,
     locationName: service.location_name,
@@ -105,6 +120,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   const locationId = typeof body.locationId === "string" ? body.locationId.trim() : "";
   const price = Number(body.price);
   const durationMinutes = Number(body.durationMinutes);
+  const pricingType = isPricingType(body.pricingType) ? body.pricingType : "FIXED";
+  const hourlyRateCents = Math.round(Number(body.hourlyRate) * 100);
+  const minimumDurationMinutes = Number(body.minimumDurationMinutes);
+  const maximumDurationMinutes = body.maximumDurationMinutes === null || body.maximumDurationMinutes === "" ? null : Number(body.maximumDurationMinutes);
+  const billingIncrementMinutes = Number(body.billingIncrementMinutes);
+  const defaultDurationMinutes = Number(body.defaultDurationMinutes);
   const bookingQuestions = Array.isArray(body.bookingQuestions) ? body.bookingQuestions.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean) : [];
   const serviceKind = body.serviceKind === "consultation" ? "consultation" : "standard";
   const preparationNotes = typeof body.preparationNotes === "string" ? body.preparationNotes.trim() : "";
@@ -121,15 +142,25 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
 
   const packagesValid = packages.length <= 3 && packages.every((item) => item.name && item.name.length <= 60 && item.description.length <= 500 && Number.isSafeInteger(item.priceCents) && item.priceCents >= 50 && Number.isInteger(item.durationMinutes) && item.durationMinutes > 0 && (item.deliveryDays === null || Number.isInteger(item.deliveryDays) && item.deliveryDays >= 0 && item.deliveryDays <= 365) && (item.revisionCount === null || Number.isInteger(item.revisionCount) && item.revisionCount >= 0 && item.revisionCount <= 100));
   const addOnsValid = addOns.length <= 10 && addOns.every((item) => item.name && item.name.length <= 80 && item.description.length <= 500 && Number.isSafeInteger(item.priceCents) && item.priceCents >= 0 && Number.isInteger(item.additionalMinutes) && item.additionalMinutes >= 0 && item.additionalMinutes <= 43200 && Number.isInteger(item.maxQuantity) && item.maxQuantity >= 1 && item.maxQuantity <= 20);
-  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !category || category.length > 80 || !deliveryType || description.length < 10 || description.length > 2000 || preparationNotes.length > 1000 || (deliveryType !== "REMOTE" && !locationId) || !Number.isFinite(price) || price <= 0 || price > 1_000_000 || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 2_147_483_647 || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180) || !packagesValid || !addOnsValid) {
+  let hourlyValid = pricingType === "FIXED";
+  if (pricingType === "HOURLY" && isHourlyBillingIncrement(billingIncrementMinutes)) {
+    try {
+      validateHourlyPricing({ pricingType, hourlyRateCents, minimumDurationMinutes, maximumDurationMinutes, billingIncrementMinutes, defaultDurationMinutes });
+      hourlyValid = true;
+    } catch { hourlyValid = false; }
+  }
+  const fixedPricingValid = pricingType === "HOURLY" || Number.isFinite(price) && price > 0 && price <= 1_000_000 && Number.isInteger(durationMinutes) && durationMinutes >= 15 && durationMinutes <= 2_147_483_647;
+  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !category || category.length > 80 || !deliveryType || description.length < 10 || description.length > 2000 || preparationNotes.length > 1000 || (deliveryType !== "REMOTE" && !locationId) || !fixedPricingValid || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180) || !packagesValid || !addOnsValid || !hourlyValid || (pricingType === "HOURLY" && packages.length > 0)) {
     return NextResponse.json({ error: "Complete every field with valid listing details." }, { status: 400 });
   }
+  const effectivePriceCents = pricingType === "HOURLY" ? hourlyRateCents : Math.round(price * 100);
+  const effectiveDurationMinutes = pricingType === "HOURLY" ? defaultDurationMinutes : durationMinutes;
   const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [businessName, title, description, preparationNotes, ...packages.flatMap((item) => [item.name,item.description,...item.features]), ...addOns.flatMap((item) => [item.name,item.description])] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
   const financialRisk = await checkAndRecordListingFinancialCrimeRisk({
     userId,
     surface: "provider_listing_financial_risk",
-    input: { businessName, title, category, description, priceCents: Math.round(price * 100) },
+    input: { businessName, title, category, description, priceCents: effectivePriceCents },
   });
   if (!financialRisk.allowed) {
     return NextResponse.json({ error: financialRisk.message, financialRisk: { level: financialRisk.level, score: financialRisk.score } }, { status: 422 });
@@ -181,9 +212,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
            location_id = CASE WHEN $4='REMOTE' THEN NULL ELSE $10::uuid END,
            city = CASE WHEN $4='REMOTE' THEN city ELSE $11 END, state = CASE WHEN $4='REMOTE' THEN state ELSE $12 END,
            latitude = CASE WHEN $4='REMOTE' THEN latitude ELSE $13 END, longitude = CASE WHEN $4='REMOTE' THEN longitude ELSE $14 END,
-           service_kind=$16, preparation_notes=$17, recurrence_options=$18::text[]
+           service_kind=$16, preparation_notes=$17, recurrence_options=$18::text[],
+           pricing_type=$19, hourly_rate_cents=$20, minimum_duration_minutes=$21,
+           maximum_duration_minutes=$22, billing_increment_minutes=$23, default_duration_minutes=$24
        WHERE id::text = $15`,
-      [businessName, title, category, deliveryType, remoteDeliveryDetails, description, Math.round(price * 100), durationMinutes, JSON.stringify(bookingQuestions), locationId || null, selected?.city ?? null, selected?.state ?? null, selected?.latitude ?? null, selected?.longitude ?? null, serviceId, serviceKind, preparationNotes, recurrenceOptions],
+      [businessName, title, category, deliveryType, remoteDeliveryDetails, description, effectivePriceCents, effectiveDurationMinutes, JSON.stringify(bookingQuestions), locationId || null, selected?.city ?? null, selected?.state ?? null, selected?.latitude ?? null, selected?.longitude ?? null, serviceId, serviceKind, preparationNotes, recurrenceOptions, pricingType,
+        pricingType === "HOURLY" ? hourlyRateCents : null, pricingType === "HOURLY" ? minimumDurationMinutes : null,
+        pricingType === "HOURLY" ? maximumDurationMinutes : null, pricingType === "HOURLY" ? billingIncrementMinutes : null,
+        pricingType === "HOURLY" ? defaultDurationMinutes : null],
     );
     await client.query("DELETE FROM service_packages WHERE service_id::text=$1", [serviceId]);
     for (const [index, item] of packages.entries()) await client.query(`INSERT INTO service_packages

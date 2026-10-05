@@ -10,6 +10,7 @@ import { recordAnalytics } from "@/lib/analytics";
 import { refundUnreleasedBooking } from "@/lib/payment-release";
 import { unavailableBookingProfessionals } from "@/lib/booking-staff";
 import { CUSTOMER_SERVICE_FEE_CENTS } from "@/lib/booking-fees";
+import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "@/lib/booking-financials";
 
 export async function GET(_request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -26,6 +27,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null; reschedule_requested_at: Date | null;
     assigned_team_member_id: string | null; assignee_name: string; quote_status: string;
     quoted_price_cents: number | null; quote_message: string; quote_sent_at: Date | null; quote_responded_at: Date | null;
+    quoted_pricing_type: "FIXED" | "HOURLY" | null; quoted_hourly_rate_cents: number | null; quoted_duration_minutes: number | null;
     payment_status: "unpaid" | "pending" | "paid" | "refunded" | "failed"; paid_at: Date | null;
     stripe_mode: "test" | "live" | null;
     refund_status: "none" | "requested" | "processing" | "refunded" | "rejected" | "failed";
@@ -35,6 +37,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     provider_payout_cents: number; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
     payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null; delivery_method: "IN_PERSON" | "REMOTE";
     base_price_cents: number; add_on_total_cents: number; discount_cents: number; package_snapshot: Record<string, unknown> | null; add_on_snapshot: unknown[]; coupon_code_snapshot: string | null; recurring_series_id: string | null; recurrence_index: number | null; recurrence_frequency: string | null; recurrence_status: string | null; booking_kind: string;
+    pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number; billing_increment_minutes_snapshot: number | null; minimum_duration_minutes_snapshot: number | null; maximum_duration_minutes_snapshot: number | null; actual_duration_minutes: number | null;
   }>(
     `SELECT b.id::text, b.customer_id, customer.name AS customer_name, b.provider_id::text, p.user_id AS provider_user_id,
             s.business_name AS provider_name, b.service_id::text, s.slug AS service_slug, s.title AS service_title, s.location_id::text AS service_location_id,
@@ -45,6 +48,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             p.cancellation_policy, b.completed_at, b.reschedule_requested_by,
             b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.reschedule_requested_at,
             b.quote_status, b.quoted_price_cents, b.quote_message, b.quote_sent_at, b.quote_responded_at,
+            b.quoted_pricing_type,b.quoted_hourly_rate_cents,b.quoted_duration_minutes,
             b.payment_status, b.paid_at, b.stripe_mode, b.refund_status, b.refund_reason,
             b.refund_amount_cents, b.refunded_amount_cents, b.refund_failure_reason,
             b.payment_release_status, b.platform_fee_cents, b.provider_payout_cents,
@@ -52,6 +56,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             b.completion_confirmation_due_at, b.customer_confirmed_at, b.payout_released_at,
             b.payout_failure_reason, b.payout_freeze_reason,
             b.base_price_cents,b.add_on_total_cents,b.discount_cents,b.package_snapshot,b.add_on_snapshot,b.coupon_code_snapshot,b.recurring_series_id::text,b.recurrence_index,b.booking_kind,
+            b.pricing_type_snapshot,b.hourly_rate_cents_snapshot,b.billable_duration_minutes,b.billing_increment_minutes_snapshot,b.minimum_duration_minutes_snapshot,b.maximum_duration_minutes_snapshot,b.actual_duration_minutes,
             series.frequency AS recurrence_frequency,series.status AS recurrence_status,
             b.assigned_team_member_id::text, owner.name AS owner_name, COALESCE(member.name, owner.name) AS assignee_name,
             c.id::text AS conversation_id, r.id::text AS review_id, r.rating, r.body AS review_body
@@ -87,6 +92,11 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
   const history = await database.query<{ id: string; event_type: string; message: string; created_at: Date }>(
     `SELECT id::text, event_type, message, created_at FROM booking_events WHERE booking_id::text = $1 ORDER BY created_at DESC`, [bookingId],
   );
+  const pendingChange = await database.query<{ id: string; requested_by: string; original_duration_minutes: number; requested_duration_minutes: number; original_service_subtotal_cents: number; requested_service_subtotal_cents: number; reason: string; created_at: Date }>(
+    `SELECT id::text,requested_by,original_duration_minutes,requested_duration_minutes,original_service_subtotal_cents,
+            requested_service_subtotal_cents,reason,created_at FROM booking_change_requests
+     WHERE booking_id::text=$1 AND status='pending' ORDER BY created_at DESC LIMIT 1`, [bookingId],
+  );
   const viewerRole = row.customer_id === session.user.id ? "customer" : row.provider_user_id === session.user.id ? "provider" : "worker";
   const approximateLocation = [row.service_city, row.service_state].filter(Boolean).join(", ") + (row.service_postal_code ? ` ${row.service_postal_code}` : "");
   const canSeeExactAddress = viewerRole === "customer" || ["confirmed", "completed"].includes(row.status) || row.was_confirmed;
@@ -102,6 +112,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     addressIsApproximate: row.delivery_method !== "REMOTE" && !canSeeExactAddress,
     accessInstructions: row.delivery_method !== "REMOTE" && canSeeExactAddress ? row.access_instructions : "",
     notes: row.notes, bookingAnswers: row.booking_answers ?? {}, price: row.price_cents / 100,
+    pricing: { type: row.pricing_type_snapshot, hourlyRate: row.hourly_rate_cents_snapshot === null ? null : row.hourly_rate_cents_snapshot / 100, billableDurationMinutes: row.billable_duration_minutes, billingIncrementMinutes: row.billing_increment_minutes_snapshot, minimumDurationMinutes: row.minimum_duration_minutes_snapshot, maximumDurationMinutes: row.maximum_duration_minutes_snapshot, actualDurationMinutes: row.actual_duration_minutes },
     commerce: { basePrice: row.base_price_cents/100, addOnTotal: row.add_on_total_cents/100, discount: row.discount_cents/100, package: row.package_snapshot, addOns: row.add_on_snapshot ?? [], couponCode: row.coupon_code_snapshot, bookingKind: row.booking_kind },
     recurrence: row.recurring_series_id ? { seriesId: row.recurring_series_id, index: row.recurrence_index, frequency: row.recurrence_frequency, status: row.recurrence_status } : null,
     customerServiceFee: (["paid", "refunded"] as string[]).includes(row.payment_status)
@@ -134,11 +145,20 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     assigneeName: assignedProfessionals.map((professional) => professional.name).join(", "),
     assignedProfessionals,
     quote: { status: row.quote_status, price: row.quoted_price_cents === null ? null : row.quoted_price_cents / 100,
-      message: row.quote_message, sentAt: row.quote_sent_at, respondedAt: row.quote_responded_at },
+      message: row.quote_message, sentAt: row.quote_sent_at, respondedAt: row.quote_responded_at,
+      pricingType: row.quoted_pricing_type, hourlyRate: row.quoted_hourly_rate_cents === null ? null : row.quoted_hourly_rate_cents / 100,
+      durationMinutes: row.quoted_duration_minutes },
     teamMembers: team,
     reschedule: row.reschedule_starts_at ? { requestedBy: row.reschedule_requested_by, startsAt: row.reschedule_starts_at,
       endsAt: row.reschedule_ends_at, reason: row.reschedule_reason, requestedAt: row.reschedule_requested_at } : null,
     history: history.rows.map((event) => ({ id: event.id, type: event.event_type, message: event.message, createdAt: event.created_at })),
+    pendingDurationChange: pendingChange.rows[0] ? { id: pendingChange.rows[0].id,
+      requestedByViewer: pendingChange.rows[0].requested_by === session.user.id,
+      originalDurationMinutes: pendingChange.rows[0].original_duration_minutes,
+      requestedDurationMinutes: pendingChange.rows[0].requested_duration_minutes,
+      originalSubtotal: pendingChange.rows[0].original_service_subtotal_cents / 100,
+      requestedSubtotal: pendingChange.rows[0].requested_service_subtotal_cents / 100,
+      reason: pendingChange.rows[0].reason, createdAt: pendingChange.rows[0].created_at } : null,
     review: row.review_id ? { id: row.review_id, rating: row.rating, body: row.review_body ?? "" } : null,
   } });
 }
@@ -159,9 +179,11 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ provider_id: string; provider_user_id: string; service_id: string; service_title: string; status: string; duration_minutes: number; assigned_team_member_id: string | null; starts_at: Date; cancellation_window_hours: number; quote_status: string; quoted_price_cents: number | null }>(
-      `SELECT b.provider_id::text, p.user_id AS provider_user_id, b.service_id::text, s.title AS service_title, b.status, s.duration_minutes,
-              b.starts_at, p.cancellation_window_hours, b.quote_status, b.quoted_price_cents,
+    const result = await client.query<{ provider_id: string; provider_user_id: string; service_id: string; service_title: string; status: string; duration_minutes: number; billable_duration_minutes: number; assigned_team_member_id: string | null; starts_at: Date; cancellation_window_hours: number; quote_status: string; quoted_price_cents: number | null; quoted_pricing_type: "FIXED" | "HOURLY" | null; quoted_hourly_rate_cents: number | null; quoted_duration_minutes: number | null; provider_plan: BookingFinancialPlan; add_on_total_cents: number; discount_cents: number }>(
+      `SELECT b.provider_id::text, p.user_id AS provider_user_id, b.service_id::text, s.title AS service_title, b.status,
+              round(EXTRACT(EPOCH FROM (b.ends_at-b.starts_at))/60)::integer AS duration_minutes,b.billable_duration_minutes,
+              b.starts_at, p.cancellation_window_hours, p.plan AS provider_plan, b.quote_status, b.quoted_price_cents,
+              b.quoted_pricing_type,b.quoted_hourly_rate_cents,b.quoted_duration_minutes,b.add_on_total_cents,b.discount_cents,
               b.assigned_team_member_id::text
        FROM bookings b JOIN provider_profiles p ON p.id = b.provider_id JOIN services s ON s.id = b.service_id
        WHERE b.id::text = $1 AND b.customer_id = $2 FOR UPDATE OF b`, [bookingId, session.user.id],
@@ -175,12 +197,33 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
     if (action === "accept_quote" || action === "decline_quote") {
       if (booking.status !== "requested" || booking.quote_status !== "pending" || booking.quoted_price_cents === null) { await client.query("ROLLBACK"); return NextResponse.json({ error: "This quote is no longer awaiting your response." }, { status: 409 }); }
       const accepted = action === "accept_quote";
+      const snapshot = accepted ? calculateBookingFinancialSnapshot(booking.quoted_price_cents, booking.provider_plan) : null;
+      const quotedDuration = accepted && booking.quoted_pricing_type === "HOURLY" ? booking.quoted_duration_minutes : null;
+      const addOnMinutes = Math.max(0, booking.duration_minutes - booking.billable_duration_minutes);
+      const quotedEnd = quotedDuration ? new Date(booking.starts_at.getTime() + (quotedDuration + addOnMinutes) * 60_000) : null;
+      if (accepted && quotedEnd) {
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
+        const unavailable = await unavailableBookingProfessionals(client, { bookingId, providerId: booking.provider_id,
+          serviceId: booking.service_id, startsAt: booking.starts_at, endsAt: quotedEnd });
+        if (unavailable.length) { await client.query("ROLLBACK"); return NextResponse.json({ error: "The quoted duration no longer fits the provider's availability. Ask for a revised quote." }, { status: 409 }); }
+      }
       await client.query(`UPDATE bookings SET quote_status = $2, quote_responded_at = now(),
         price_cents = CASE WHEN $2 = 'accepted' THEN quoted_price_cents ELSE price_cents END,
-        base_price_cents = CASE WHEN $2 = 'accepted' THEN quoted_price_cents ELSE base_price_cents END,
-        add_on_total_cents = CASE WHEN $2 = 'accepted' THEN 0 ELSE add_on_total_cents END,
-        discount_cents = CASE WHEN $2 = 'accepted' THEN 0 ELSE discount_cents END
-        WHERE id::text = $1`, [bookingId, accepted ? "accepted" : "declined"]);
+        base_price_cents = CASE WHEN $2 = 'accepted' THEN quoted_price_cents-add_on_total_cents+discount_cents ELSE base_price_cents END,
+        pricing_type_snapshot = CASE WHEN $2 = 'accepted' THEN COALESCE(quoted_pricing_type,pricing_type_snapshot) ELSE pricing_type_snapshot END,
+        hourly_rate_cents_snapshot = CASE WHEN $2 = 'accepted' AND quoted_pricing_type='HOURLY' THEN quoted_hourly_rate_cents ELSE hourly_rate_cents_snapshot END,
+        billable_duration_minutes = CASE WHEN $2 = 'accepted' AND quoted_duration_minutes IS NOT NULL THEN quoted_duration_minutes ELSE billable_duration_minutes END,
+        ends_at = CASE WHEN $2 = 'accepted' AND $3::timestamptz IS NOT NULL THEN $3::timestamptz ELSE ends_at END,
+        provider_plan_snapshot=CASE WHEN $2='accepted' THEN $4 ELSE provider_plan_snapshot END,
+        provider_fee_basis_points=CASE WHEN $2='accepted' THEN $5 ELSE provider_fee_basis_points END,
+        platform_fee_cents=CASE WHEN $2='accepted' THEN $6 ELSE platform_fee_cents END,
+        provider_payout_cents=CASE WHEN $2='accepted' THEN $7 ELSE provider_payout_cents END,
+        customer_service_fee_cents=CASE WHEN $2='accepted' THEN $8 ELSE customer_service_fee_cents END,
+        customer_total_cents=CASE WHEN $2='accepted' THEN $9 ELSE customer_total_cents END
+        WHERE id::text = $1`, [bookingId, accepted ? "accepted" : "declined", quotedEnd,
+          snapshot?.providerPlan ?? booking.provider_plan, snapshot?.providerFeeBasisPoints ?? 0,
+          snapshot?.providerFeeCents ?? 0, snapshot?.providerNetCents ?? 0,
+          snapshot?.customerServiceFeeCents ?? 0, snapshot?.customerTotalCents ?? 0]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
         VALUES ($1::uuid, $2, $3, $4)`, [bookingId, session.user.id, accepted ? "quote_accepted" : "quote_declined", accepted ? "Customer approved the provider's quote." : "Customer declined the provider's quote."]);
       await client.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)
