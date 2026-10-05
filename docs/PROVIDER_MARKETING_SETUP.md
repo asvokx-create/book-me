@@ -6,7 +6,8 @@ Provider campaigns are intentionally disabled until all marketing-only settings 
 2. Publish the exact SPF and DKIM records Resend supplies. Add a DMARC record for the organizational domain with reporting enabled; move enforcement from monitoring to quarantine/reject only after reviewing reports. Do not replace an existing SPF record—merge authorized senders into the single record permitted by SPF.
 3. Set `RESEND_MARKETING_API_KEY`, `MARKETING_EMAIL_FROM`, and a separate high-entropy `MARKETING_TOKEN_SECRET` in DigitalOcean.
 4. Create a Resend webhook for delivered, bounced, and complained events pointing to `/api/webhooks/marketing-email`. Set its signing secret as `RESEND_MARKETING_WEBHOOK_SECRET`.
-5. Schedule `POST /api/cron/marketing-campaigns` every minute with `Authorization: Bearer $CRON_SECRET`. The job claims small database batches, is retry-safe, and rechecks preferences and suppressions per recipient.
-6. Send seed tests to Gmail, Apple Mail, and Outlook; verify From alignment, DKIM pass, SPF pass, DMARC pass, visible unsubscribe, and one-click unsubscribe before enabling a provider.
+5. The production server runs the campaign queue every five minutes. `POST /api/cron/marketing-campaigns` with `Authorization: Bearer $CRON_SECRET` remains available as a manual fallback. The job claims small database batches, is retry-safe, and rechecks preferences and suppressions per recipient.
+6. The shared free-plan budget defaults to 75 marketing messages per UTC day, including test sends. This reserves 25 of Resend's 100 daily messages for booking, security, and account emails. Set `MARKETING_DAILY_SEND_LIMIT` only if the Resend plan changes; the app caps this setting at 95.
+7. Send seed tests to Gmail, Apple Mail, and Outlook; verify From alignment, DKIM pass, SPF pass, DMARC pass, visible unsubscribe, and one-click unsubscribe before enabling a provider.
 
 DNS and provider-console status cannot be inferred from source code. Confirm them in Resend and the authoritative DNS console before production sending.

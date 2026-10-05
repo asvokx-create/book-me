@@ -26,6 +26,30 @@ export function emailHash(email:string){return createHash("sha256").update(email
 function marketingApiKey(){return process.env.RESEND_MARKETING_API_KEY??process.env.RESEND_API_KEY??"";}
 function marketingEmailFrom(){const configured=(process.env.MARKETING_EMAIL_FROM??process.env.EMAIL_FROM??"").trim();const mailbox=configured.match(/<([^<>]+)>\s*$/)?.[1]?.trim();return mailbox??configured;}
 function tokenSecret(){const dedicated=process.env.MARKETING_TOKEN_SECRET??"";if(dedicated)return dedicated;const shared=process.env.BETTER_AUTH_SECRET??"";return shared?createHmac("sha256",shared).update("bubsbookings-marketing-token-v1").digest("hex"):"";}
+export function marketingDailySendLimit(){const configured=Number(process.env.MARKETING_DAILY_SEND_LIMIT??75);return Number.isFinite(configured)?Math.min(Math.max(Math.floor(configured),1),95):75;}
+export async function getMarketingQuotaStatus(){
+  const limit=marketingDailySendLimit();
+  const result=await database.query<{used:number}>(`SELECT count(*)::int used FROM marketing_email_daily_quota WHERE quota_day=(now() AT TIME ZONE 'UTC')::date`);
+  const used=result.rows[0]?.used??0;
+  const tomorrow=await database.query<{resets_at:Date}>(`SELECT ((date_trunc('day',now() AT TIME ZONE 'UTC')+interval '1 day') AT TIME ZONE 'UTC') resets_at`);
+  return {limit,used,remaining:Math.max(0,limit-used),resetsAt:tomorrow.rows[0]?.resets_at??new Date()};
+}
+async function reserveMarketingQuota(idempotencyKey:string){
+  const client=await database.connect();
+  try{
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock($1)",[62420751]);
+    const existing=await client.query<{status:string;is_today:boolean}>(`SELECT status,quota_day=(now() AT TIME ZONE 'UTC')::date is_today FROM marketing_email_daily_quota WHERE idempotency_key=$1`,[idempotencyKey]);
+    if(existing.rows[0]?.status==="sent"||existing.rows[0]?.is_today){await client.query("COMMIT");return true;}
+    const usage=await client.query<{used:number}>(`SELECT count(*)::int used FROM marketing_email_daily_quota WHERE quota_day=(now() AT TIME ZONE 'UTC')::date`);
+    if((usage.rows[0]?.used??0)>=marketingDailySendLimit()){await client.query("COMMIT");return false;}
+    if(existing.rows[0])await client.query(`UPDATE marketing_email_daily_quota SET quota_day=(now() AT TIME ZONE 'UTC')::date,created_at=now() WHERE idempotency_key=$1`,[idempotencyKey]);
+    else await client.query(`INSERT INTO marketing_email_daily_quota(idempotency_key) VALUES($1)`,[idempotencyKey]);
+    await client.query("COMMIT");
+    return true;
+  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+}
+async function releaseMarketingQuota(idempotencyKey:string){await database.query(`DELETE FROM marketing_email_daily_quota WHERE idempotency_key=$1 AND status='reserved'`,[idempotencyKey]);}
 export function signedMarketingToken(payload:Record<string,string>,days=365){
   const body=Buffer.from(JSON.stringify({...payload,exp:String(Date.now()+days*86400000)})).toString("base64url");
   const signature=createHmac("sha256",tokenSecret()).update(body).digest("base64url");
@@ -93,9 +117,15 @@ export function renderCampaignEmail(input:{content:CampaignContent;subject:strin
 }
 
 export function isMarketingConfigured(){return Boolean(marketingApiKey()&&validMarketingEmail(marketingEmailFrom())&&tokenSecret());}
-export async function sendMarketingEmail(input:{to:string;fromName:string;subject:string;html:string;unsubscribeUrl:string;idempotencyKey:string;replyTo?:string}){
-  if(!isMarketingConfigured())return {sent:false,error:"Marketing email infrastructure is not configured."};
+export async function sendMarketingEmail(input:{to:string;fromName:string;subject:string;html:string;unsubscribeUrl:string;idempotencyKey:string;replyTo?:string}):Promise<{sent:true;deferred:false;id:string}|{sent:false;deferred:boolean;error:string}>{
+  if(!isMarketingConfigured())return {sent:false,deferred:false,error:"Marketing email infrastructure is not configured."};
+  if(!await reserveMarketingQuota(input.idempotencyKey))return {sent:false,deferred:true,error:"Daily marketing email allowance reached."};
   const oneClickUrl=input.unsubscribeUrl.replace("/unsubscribe?","/api/marketing/unsubscribe?");
-  const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${marketingApiKey()}`,"Content-Type":"application/json","Idempotency-Key":input.idempotencyKey},body:JSON.stringify({from:`${input.fromName.replace(/[<>]/g,"")} via BubsBookings <${marketingEmailFrom()}>`,to:[input.to],subject:input.subject,html:input.html,reply_to:input.replyTo||undefined,headers:{"List-Unsubscribe":`<${oneClickUrl}>`,"List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}})});
-  const result=await response.json().catch(()=>({})) as {id?:string;message?:string};return response.ok?{sent:true,id:result.id??""}:{sent:false,error:result.message??`Email provider returned ${response.status}.`};
+  try{
+    const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${marketingApiKey()}`,"Content-Type":"application/json","Idempotency-Key":input.idempotencyKey},body:JSON.stringify({from:`${input.fromName.replace(/[<>]/g,"")} via BubsBookings <${marketingEmailFrom()}>`,to:[input.to],subject:input.subject,html:input.html,reply_to:input.replyTo||undefined,headers:{"List-Unsubscribe":`<${oneClickUrl}>`,"List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}})});
+    const result=await response.json().catch(()=>({})) as {id?:string;message?:string};
+    if(!response.ok){await releaseMarketingQuota(input.idempotencyKey);return {sent:false,deferred:false,error:result.message??`Email provider returned ${response.status}.`};}
+    await database.query(`UPDATE marketing_email_daily_quota SET status='sent',provider_message_id=$2,sent_at=now() WHERE idempotency_key=$1`,[input.idempotencyKey,result.id??""]);
+    return {sent:true,deferred:false,id:result.id??""};
+  }catch(error){await releaseMarketingQuota(input.idempotencyKey);return {sent:false,deferred:false,error:error instanceof Error?error.message:"Email delivery failed."};}
 }

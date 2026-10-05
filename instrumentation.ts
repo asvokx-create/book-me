@@ -1,5 +1,6 @@
 const schedulerState = globalThis as typeof globalThis & {
   __bubsBookingsReminderTimer?: NodeJS.Timeout;
+  __bubsBookingsMarketingTimer?: NodeJS.Timeout;
 };
 
 export async function register() {
@@ -13,15 +14,27 @@ export async function register() {
     throw new Error(`Missing or invalid production configuration: ${missingVariables.join(", ")}`);
   }
 
-  if (schedulerState.__bubsBookingsReminderTimer) return;
   if (!process.env.DATABASE_URL || !process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) return;
 
-  const { runBookingReminders } = await import("./lib/booking-reminders");
-  const run = () => {
-    void runBookingReminders().catch((error) => console.error("Scheduled booking reminders failed", error));
-  };
-  const initialRun = setTimeout(run, 60_000);
-  initialRun.unref();
-  schedulerState.__bubsBookingsReminderTimer = setInterval(run, 10 * 60_000);
-  schedulerState.__bubsBookingsReminderTimer.unref();
+  if (!schedulerState.__bubsBookingsReminderTimer) {
+    const { runBookingReminders } = await import("./lib/booking-reminders");
+    const runReminders = () => {
+      void runBookingReminders().catch((error) => console.error("Scheduled booking reminders failed", error));
+    };
+    const initialReminderRun = setTimeout(runReminders, 60_000);
+    initialReminderRun.unref();
+    schedulerState.__bubsBookingsReminderTimer = setInterval(runReminders, 10 * 60_000);
+    schedulerState.__bubsBookingsReminderTimer.unref();
+  }
+
+  if (!schedulerState.__bubsBookingsMarketingTimer) {
+    const { runMarketingCampaignBatch } = await import("./lib/marketing-jobs");
+    const runMarketing = () => {
+      void runMarketingCampaignBatch().catch((error) => console.error("Scheduled marketing campaign delivery failed", error));
+    };
+    const initialMarketingRun = setTimeout(runMarketing, 90_000);
+    initialMarketingRun.unref();
+    schedulerState.__bubsBookingsMarketingTimer = setInterval(runMarketing, 5 * 60_000);
+    schedulerState.__bubsBookingsMarketingTimer.unref();
+  }
 }
