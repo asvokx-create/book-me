@@ -2414,6 +2414,21 @@ html[data-theme="dark"] .account-page > header {
   }
 }
 
+/* Shared, accessible field treatment used by the compact campaign builder. */
+.input {
+  display: block;
+  width: 100%;
+  min-height: 3rem;
+  margin-top: .5rem;
+  border: 1px solid rgb(24 49 38 / 15%);
+  border-radius: .75rem;
+  background: #fff;
+  padding: .75rem;
+  color: #183126;
+  font: inherit;
+}
+.input:focus-visible { outline: 3px solid rgb(238 226 90 / 70%); outline-offset: 2px; }
+
 /* Mobile application ergonomics shared across the marketplace and dashboards. */
 @media (max-width: 640px) {
   body {

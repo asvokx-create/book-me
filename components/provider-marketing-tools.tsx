@@ -6,6 +6,7 @@ import QRCode from "react-qr-code";
 import ListingShareButton from "@/components/listing-share-button";
 import ProviderCouponManager from "@/components/provider-coupon-manager";
 import ProviderRecommendationManager from "@/components/provider-recommendation-manager";
+import ProviderCampaignManager from "@/components/provider-campaign-manager";
 import type { ProviderPlan } from "@/lib/plans";
 
 type MarketingService = {
@@ -124,6 +125,7 @@ export default function ProviderMarketingTools({ services, providerProfile, plan
       </section>
     </div>
     <ProviderCouponManager services={services.map(({id,title})=>({id,title}))} allowed={plan !== "starter"} />
+    <ProviderCampaignManager />
     <ProviderRecommendationManager />
   </div>;
 }

@@ -10,6 +10,7 @@ import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "@/
 import { isServiceDeliveryType, serviceSupportsMethod, type BookingDeliveryMethod, type ServiceDeliveryType } from "@/lib/service-delivery";
 import { calculateCommerceSelection, isRecurrenceOption, nextOccurrence, type CouponRule, type ServiceAddOn, type ServicePackage } from "@/lib/service-commerce";
 import { PLAN_ENTITLEMENTS } from "@/lib/plans";
+import { readMarketingToken } from "@/lib/provider-marketing";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -51,6 +52,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in before requesting a booking." }, { status: 401 });
+  const campaignCookie = request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith("bb_campaign="))?.slice("bb_campaign=".length) ?? "";
+  const campaignAttribution = readMarketingToken(decodeURIComponent(campaignCookie));
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "booking-create", limit: 8 })) {
     return NextResponse.json({ error: "Too many booking requests. Please wait a minute and try again." }, { status: 429 });
   }
@@ -214,6 +217,10 @@ export async function POST(request: Request) {
         commerce.basePriceCents,commerce.addOnTotalCents,commerce.discountCents,selectedPackage ? JSON.stringify(selectedPackage) : null,JSON.stringify(commerce.selectedAddOns),coupon?.id ?? null,coupon?.code ?? null,recurringSeriesId,recurringSeriesId ? 1 : null,service.service_kind],
     );
     const bookingId = created.rows[0].id;
+    if (campaignAttribution?.r && campaignAttribution.p === service.provider_id && campaignAttribution.u === session.user.id) {
+      await client.query(`UPDATE marketing_attributions SET booking_id=$2,attributed_at=now() WHERE recipient_id::text=$1 AND provider_id::text=$3 AND customer_id=$4 AND booking_id IS NULL`, [campaignAttribution.r,bookingId,service.provider_id,session.user.id]);
+      await client.query(`INSERT INTO marketing_email_events(recipient_id,provider_id,event_type,metadata) SELECT id,provider_id,'booking',$4::jsonb FROM marketing_campaign_recipients WHERE id::text=$1 AND provider_id::text=$2 AND customer_id=$3`, [campaignAttribution.r,service.provider_id,session.user.id,JSON.stringify({bookingId})]);
+    }
     await client.query(
       `INSERT INTO booking_assignees (booking_id, team_member_id, is_owner)
        VALUES ($1::uuid, $2::uuid, $2::uuid IS NULL)`,
