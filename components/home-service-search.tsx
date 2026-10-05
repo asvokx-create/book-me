@@ -59,7 +59,7 @@ export default function HomeServiceSearch({
         <div className="flex min-h-14 items-center gap-2 rounded-lg bg-[#edf3e7] px-5 text-sm font-bold text-[#4f695a] lg:min-w-[250px]"><UiIcon name="globe" className="h-4 w-4" />Search without a distance limit</div>
       )}
 
-      <button type="submit" className="home-search-submit rounded-full bg-[#eee25a] px-8 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b]">
+      <button type="submit" className="home-search-submit rounded-full bg-[#eee25a] px-6 py-3 text-sm font-bold text-[#183126] transition hover:bg-[#f5ea6b]">
         Find a pro
       </button>
     </form>

@@ -13,6 +13,8 @@ test("coupon administration is owner-only, plan-gated, bounded, and rejects cont
   assert.match(route,/\^\[A-Z0-9_-\]\{3,32\}\$/);
   assert.match(route,/usageLimit > 100000/);
   assert.match(route,/provider_id::text=\$2/);
+  assert.match(route,/export async function DELETE/);
+  assert.match(route,/DELETE FROM provider_coupons WHERE id::text=\$1 AND provider_id::text=\$2/);
 });
 
 test("customer coupon preview is authenticated, rate-limited, scoped, and financially explicit", async()=>{
@@ -71,6 +73,10 @@ test("provider coupon controls recover from network and non-JSON failures", asyn
   const manager=await read("components/provider-coupon-manager.tsx");
   assert.match(manager,/response\.json\(\)\.catch\(\(\) => null\)/);
   assert.match(manager,/Check your connection and try again/);
-  assert.match(manager,/finally\{setWorking\(false\);\}/);
+  assert.match(manager,/finally\s*\{\s*setWorking\(false\);/);
   assert.match(manager,/disabled=\{working\}/);
+  assert.match(manager,/method: "DELETE"/);
+  assert.match(manager,/Past bookings keep their recorded discount details/);
+  assert.match(manager,/CustomSelect/);
+  assert.doesNotMatch(manager,/<select/);
 });

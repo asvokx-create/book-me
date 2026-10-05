@@ -852,9 +852,9 @@ html[data-theme="dark"] .custom-select-option:not([aria-selected="true"]):focus-
   .home-search-submit {
     align-self: center;
     display: inline-flex;
-    min-width: 9rem;
-    min-height: 4rem !important;
-    margin-block: .25rem;
+    min-width: 7.75rem;
+    min-height: 3.5rem !important;
+    margin-block: .5rem;
     align-items: center;
     justify-content: center;
   }

@@ -73,3 +73,20 @@ export async function PATCH(request: Request) {
   if (!updated.rowCount) return NextResponse.json({ error: "Coupon not found." }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(request: Request) {
+  const access = await ownerAccess(request);
+  if (!access) return NextResponse.json({ error: "Provider owner access is required." }, { status: 403 });
+  if (access === "limited") return NextResponse.json({ error: "Too many promotion changes. Please wait a minute." }, { status: 429 });
+  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+  const id = typeof body?.id === "string" ? body.id : "";
+  if (!id) return NextResponse.json({ error: "Choose a coupon to delete." }, { status: 400 });
+  try {
+    const deleted = await database.query(`DELETE FROM provider_coupons WHERE id::text=$1 AND provider_id::text=$2 RETURNING id`, [id, access.providerId]);
+    if (!deleted.rowCount) return NextResponse.json({ error: "Coupon not found." }, { status: 404 });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Coupon deletion failed", error);
+    return NextResponse.json({ error: "We could not delete this coupon." }, { status: 500 });
+  }
+}
