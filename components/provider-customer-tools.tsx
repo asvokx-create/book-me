@@ -32,7 +32,7 @@ export default function ProviderCustomerTools() {
 
   async function openClient(id: string) { setDetailLoading(true); const response = await fetch(`/api/providers/clients?customerId=${encodeURIComponent(id)}`, { cache: "no-store" }); const data = await response.json().catch(() => null) as Detail | null; if (response.ok) setDetail(data); else setError("That client record could not be loaded."); setDetailLoading(false); }
   async function change(payload: Record<string, unknown>) { setWorking(true); const response = await fetch("/api/providers/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).catch(() => null); setWorking(false); if (!response?.ok) { setError("The client update could not be saved."); return false; } if (detail) await openClient(detail.client.customer_id); return true; }
-  async function addNote(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!detail) return; const form = new FormData(event.currentTarget); if (await change({ action: "note_create", customerId: detail.client.customer_id, note: form.get("note") })) event.currentTarget.reset(); }
+  async function addNote(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!detail) return; const formElement = event.currentTarget; const form = new FormData(formElement); if (await change({ action: "note_create", customerId: detail.client.customer_id, note: form.get("note") })) formElement.reset(); }
 
   return <div className="space-y-6">
     <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-5 sm:p-7">

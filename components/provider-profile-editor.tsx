@@ -52,11 +52,12 @@ export default function ProviderProfileEditor() {
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!profile) return;
+    const formElement = event.currentTarget;
     setUploading(true); setError("");
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     const response = await fetch("/api/providers/profile/portfolio", { method: "POST", body: form });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) setError(data.error || "Could not upload that image."); else { await load(); event.currentTarget.reset(); setMessage("Portfolio image added."); }
+    if (!response.ok) setError(data.error || "Could not upload that image."); else { await load(); formElement.reset(); setMessage("Portfolio image added."); }
     setUploading(false);
   }
 
