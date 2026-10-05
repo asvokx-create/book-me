@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import UiIcon from "@/components/ui-icon";
+import CustomSelect from "@/components/custom-select";
 
 type CityChoice = { city: string; state: string; latitude: number; longitude: number; label: string; distance?: number };
 
@@ -44,22 +45,23 @@ export default function UsCitySelector({ value, onChange, className = "" }: { va
 
   return (
     <div>
-      <select
+      <CustomSelect
+        ariaLabel="U.S. city"
         value={value}
-        onChange={(event) => {
-          if (event.target.value === "__all__") {
+        onChange={(nextValue) => {
+          if (nextValue === "__all__") {
             setShowAll(true);
             window.setTimeout(() => searchRef.current?.focus(), 0);
             return;
           }
-          choose(event.target.value);
+          choose(nextValue);
         }}
-        className={className}
+        buttonClassName={className}
       >
         <option value={value}>{value}</option>
         {nearby.map((city) => <option key={city.label} value={city.label}>{city.label}{typeof city.distance === "number" ? ` · ${city.distance} mi away` : ""}</option>)}
         <option value="__all__">View all U.S. cities…</option>
-      </select>
+      </CustomSelect>
 
       {showAll && <div className="fixed inset-0 z-[80] grid place-items-center bg-[#10251c]/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="city-picker-title" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAll(false); }}>
         <div className="flex max-h-[82vh] w-full max-w-xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">

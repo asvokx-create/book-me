@@ -801,7 +801,13 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
 }
 
 .custom-select-menu {
+  z-index: 360;
   color: #183126 !important;
+}
+
+.custom-select-options {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(24, 49, 38, .3) transparent;
 }
 
 html[data-theme="dark"] .custom-select-menu {
@@ -819,6 +825,17 @@ html[data-theme="dark"] .custom-select-option[aria-selected="true"] {
 html[data-theme="dark"] .custom-select-option:not([aria-selected="true"]):hover,
 html[data-theme="dark"] .custom-select-option:not([aria-selected="true"]):focus-visible {
   background: #323237 !important;
+}
+
+html[data-theme="dark"] .custom-select-trigger,
+html[data-theme="dark"] .custom-select-search {
+  border-color: var(--border) !important;
+  background: #202024 !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .custom-select-search::placeholder {
+  color: #929a96 !important;
 }
 
 .home-search-delivery:focus-within {

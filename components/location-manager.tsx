@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import RadiusSelector from "@/components/radius-selector";
 import UsCitySelector from "@/components/us-city-selector";
+import CustomSelect from "@/components/custom-select";
 
 type Location = { id: string; companyId: string; companyName: string; name: string; location: string; serviceRadiusMiles: number; isPrimary: boolean; listingCount: number; workerIds: string[]; serviceAreas: string[] };
 type Member = { id: string; name: string; companyId: string };
@@ -77,7 +78,7 @@ export default function LocationManager() {
     <div className="mt-7 grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
       <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6"><h2 className="text-xl font-bold">{editing ? `Edit ${editing.name}` : "Add a service location"}</h2><p className="mt-1 text-sm text-[#738179]">Use a clear internal name such as “Issaquah” or “Downtown branch.”</p>
         {!canAdd && !editing ? <div className="mt-5 rounded-2xl bg-[#fff7cb] p-5"><p className="font-bold">Starter includes one location</p><p className="mt-2 text-sm leading-6 text-[#746b40]">Upgrade to Pro to add branches and additional service areas.</p><Link href="/provider/dashboard/billing" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white">View Pro</Link></div> : <form onSubmit={save} className="mt-5 space-y-4">
-          {companies.length > 1 && !editing && <label className="block text-sm font-bold">Company<select value={companyId} onChange={(event) => { setCompanyId(event.target.value); setWorkerIds([]); }} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 outline-none">{companies.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>}
+      {companies.length > 1 && !editing && <label className="block text-sm font-bold">Company<CustomSelect ariaLabel="Company" searchable={companies.length > 8} value={companyId} onChange={(value) => { setCompanyId(value); setWorkerIds([]); }} className="mt-2" buttonClassName="w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 outline-none">{companies.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</CustomSelect></label>}
           <label className="block text-sm font-bold">Location name<input required minLength={2} maxLength={80} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Issaquah branch" className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 outline-none" /></label>
           <label className="block text-sm font-bold">City and state<UsCitySelector value={location} onChange={setLocation} className="mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 outline-none" /></label>
           <RadiusSelector value={radius} onChange={setRadius} />

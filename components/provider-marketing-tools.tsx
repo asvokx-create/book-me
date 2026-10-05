@@ -8,6 +8,7 @@ import ProviderCouponManager from "@/components/provider-coupon-manager";
 import ProviderRecommendationManager from "@/components/provider-recommendation-manager";
 import ProviderCampaignManager from "@/components/provider-campaign-manager";
 import type { ProviderPlan } from "@/lib/plans";
+import CustomSelect from "@/components/custom-select";
 
 type MarketingService = {
   id: string;
@@ -79,9 +80,9 @@ export default function ProviderMarketingTools({ services, providerProfile, plan
         <p className="text-xs font-bold uppercase tracking-[.14em] text-[#b9c9c0]">Choose a listing</p>
         {services.length > 1 ? <label className="mt-4 block">
           <span className="sr-only">Service listing</span>
-          <select value={selected.id} onChange={(event) => { setSelectedId(event.target.value); setDownloadError(""); }} className="marketing-listing-select w-full rounded-2xl border px-5 py-3.5 text-sm font-bold outline-none">
+          <CustomSelect ariaLabel="Service listing" searchable={services.length > 8} value={selected.id} onChange={(value) => { setSelectedId(value); setDownloadError(""); }} buttonClassName="marketing-listing-select w-full rounded-2xl border px-5 py-3.5 text-sm font-bold outline-none">
             {services.map((service) => <option key={service.id} value={service.id}>{service.title} — {service.businessName}</option>)}
-          </select>
+          </CustomSelect>
         </label> : null}
 
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-5">

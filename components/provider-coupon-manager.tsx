@@ -164,7 +164,7 @@ export default function ProviderCouponManager({ services, allowed }: { services:
             <label className="text-xs font-bold">{form.discountType === "percentage" ? "Percent off" : "Amount off ($)"}<input required type="number" min="1" max={form.discountType === "percentage" ? 100 : 1000000} step={form.discountType === "percentage" ? 1 : .01} value={form.discountValue} onChange={(event) => setForm({ ...form, discountValue: event.target.value })} className={`${input} mt-1.5`} /></label>
             <div className="text-xs font-bold">
               <span>Service</span>
-              <CustomSelect ariaLabel="Coupon service" value={form.serviceId} options={serviceOptions} onChange={(value) => setForm({ ...form, serviceId: value })} className="mt-1.5" buttonClassName={selectButton} menuClassName="max-h-72 overflow-y-auto" />
+              <CustomSelect ariaLabel="Coupon service" value={form.serviceId} options={serviceOptions} onChange={(value) => setForm({ ...form, serviceId: value })} className="mt-1.5" buttonClassName={selectButton} />
             </div>
             <label className="text-xs font-bold">Minimum booking ($)<input type="number" min="0" step=".01" value={form.minimumSubtotal} onChange={(event) => setForm({ ...form, minimumSubtotal: event.target.value })} className={`${input} mt-1.5`} /></label>
             <label className="text-xs font-bold">Expiration date<input type="date" value={form.expiresAt} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} className={`${input} mt-1.5`} /></label>

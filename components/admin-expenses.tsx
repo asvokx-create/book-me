@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { AdminExpense, annualEquivalentCents, ExpenseBillingCycle, monthlyEquivalentCents, summarizeExpenses } from "@/lib/admin-expenses";
+import CustomSelect from "@/components/custom-select";
 
 type FormState = { serviceName: string; cost: string; billingCycle: ExpenseBillingCycle; renewalDate: string; notes: string };
 const emptyForm: FormState = { serviceName: "", cost: "", billingCycle: "monthly", renewalDate: "", notes: "" };
@@ -78,7 +79,7 @@ export default function AdminExpenses({ initialExpenses }: { initialExpenses: Ad
       <form onSubmit={submit} className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Field label="Service"><input required maxLength={160} value={form.serviceName} onChange={(e) => setForm({ ...form, serviceName: e.target.value })} placeholder="Example: Website hosting" className="expense-input" /></Field>
         <Field label="Cost ($)"><input required min="0.01" step="0.01" type="number" inputMode="decimal" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder="0.00" className="expense-input" /></Field>
-        <Field label="Billing cycle"><select value={form.billingCycle} onChange={(e) => setForm({ ...form, billingCycle: e.target.value as ExpenseBillingCycle, renewalDate: e.target.value === "one_time" ? "" : form.renewalDate })} className="expense-input"><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="one_time">One-time</option></select></Field>
+        <Field label="Billing cycle"><CustomSelect ariaLabel="Billing cycle" value={form.billingCycle} onChange={(billingCycle) => setForm({ ...form, billingCycle: billingCycle as ExpenseBillingCycle, renewalDate: billingCycle === "one_time" ? "" : form.renewalDate })} buttonClassName="expense-input"><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="one_time">One-time</option></CustomSelect></Field>
         <Field label={form.billingCycle === "one_time" ? "Renewal date (not needed)" : "Next renewal date"}><input required={form.billingCycle !== "one_time"} disabled={form.billingCycle === "one_time"} type="date" value={form.renewalDate} onChange={(e) => setForm({ ...form, renewalDate: e.target.value })} className="expense-input disabled:cursor-not-allowed disabled:opacity-45" /></Field>
         <label className="font-bold md:col-span-2 lg:col-span-4">Notes <span className="font-normal text-[#718078]">(optional)</span><textarea maxLength={2000} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Account, plan, or reminder details" className="expense-input mt-2 min-h-24 resize-y" /></label>
         <div className="md:col-span-2 lg:col-span-4"><button disabled={saving} className="min-h-12 rounded-full bg-[#f7e84b] px-6 py-3 font-bold text-[#183126] shadow-[0_12px_30px_rgba(247,232,75,.2)] disabled:opacity-55">{saving ? "Saving…" : editingId ? "Save changes" : "Add expense"}</button></div>

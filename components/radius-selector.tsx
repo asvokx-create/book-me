@@ -35,9 +35,9 @@ export default function RadiusSelector({ value, onChange, name, compact = false 
           setCustom(false);
           onChange(Number(nextValue));
         }}
-        className={selectClass}
-        buttonClassName={compact ? "min-h-10 text-sm" : "min-h-12 text-sm"}
-        menuClassName={compact ? "right-0 left-auto w-36" : "w-full"}
+        className={compact ? "min-w-0" : "w-full"}
+        buttonClassName={selectClass}
+        menuClassName={compact ? "w-36" : ""}
       />
       {custom ? (
         <div className={compact ? "flex items-center gap-1" : "flex items-center gap-2"}>
