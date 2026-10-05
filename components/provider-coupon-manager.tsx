@@ -173,7 +173,7 @@ export default function ProviderCouponManager({ services, allowed }: { services:
               <label className="flex items-center gap-2"><input type="checkbox" checked={form.firstBookingOnly} onChange={(event) => setForm({ ...form, firstBookingOnly: event.target.checked, repeatCustomerOnly: event.target.checked ? false : form.repeatCustomerOnly })} />First booking only</label>
               <label className="flex items-center gap-2"><input type="checkbox" checked={form.repeatCustomerOnly} onChange={(event) => setForm({ ...form, repeatCustomerOnly: event.target.checked, firstBookingOnly: event.target.checked ? false : form.firstBookingOnly })} />Returning customers only</label>
             </div>
-            <button disabled={working} className="min-h-11 w-fit self-end justify-self-start rounded-full bg-[#eee25a] px-5 py-2.5 text-sm font-bold transition hover:bg-[#e4d746] disabled:opacity-50">{working ? "Creating…" : "Create coupon"}</button>
+            <button disabled={working} className="min-h-11 w-fit self-end justify-self-end rounded-full bg-[#eee25a] px-5 py-2.5 text-sm font-bold transition hover:bg-[#e4d746] disabled:opacity-50 sm:col-start-2 lg:col-start-3">{working ? "Creating…" : "Create coupon"}</button>
           </form>
           {error && <p role="alert" className="mt-4 rounded-xl bg-[#fff1e8] p-3 text-sm font-bold text-[#9a4e25]">{error}</p>}
           {saved && <p role="status" className="mt-4 rounded-xl bg-[#e6f1e5] p-3 text-sm font-bold text-[#34704a]">{saved}</p>}

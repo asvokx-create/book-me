@@ -44,6 +44,12 @@ test("public listings and provider marketing use the same accessible sharing com
   assert.doesNotMatch(component, /instagram/i);
 });
 
+test("marketing share actions preserve readable contrast inside the dark card", () => {
+  const marketing = read("components", "provider-marketing-tools.tsx");
+  assert.match(marketing, /!bg-\[#eee25a\] !text-\[#183126\]/);
+  assert.match(marketing, /!bg-transparent !text-white/);
+});
+
 test("listing previews use a primary photo or a branded 1200 by 630 fallback", () => {
   const listing = read("app", "services", "[slug]", "page.tsx");
   const fallback = read("app", "services", "[slug]", "opengraph-image.tsx");
@@ -71,4 +77,3 @@ test("share UI includes explicit neutral dark mode styles without a social SDK",
   assert.match(styles, /\.listing-share-option:focus-visible/);
   assert.doesNotMatch(packageJson, /facebook-sdk|linkedin-sdk|twitter-sdk|whatsapp-sdk/);
 });
-

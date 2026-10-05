@@ -2927,7 +2927,8 @@ html:not([data-theme="dark"]) .pricing-hero { background: #123d2e; }
 .home-preview-card:hover { box-shadow: 0 10px 30px rgba(24, 49, 38, .1); }
 .home-preview-visual { border-radius: .9rem; box-shadow: none; }
 .home-preview-service, .home-preview-float, .home-preview-arrow { box-shadow: none; backdrop-filter: none; }
-.home-hero-eyebrow {
+html:not([data-theme="dark"]) .home-hero-eyebrow,
+html[data-theme="dark"] .home-hero-eyebrow {
   display: block !important;
   width: fit-content;
   border: 0 !important;

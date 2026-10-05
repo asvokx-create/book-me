@@ -24,10 +24,16 @@ test("homepage delivery filter uses an accessible custom listbox instead of OS s
 test("desktop search bar uses the available hero width without crowding its controls",()=>{
   const component=read("components","home-service-search.tsx");
   assert.match(component,/w-full max-w-6xl/);
+  assert.match(component,/px-3\.5 py-2\.5/);
   assert.match(component,/xl:min-w-\[300px\]/);
   assert.match(component,/xl:min-w-\[220px\]/);
   assert.match(component,/xl:min-w-\[365px\]/);
   assert.doesNotMatch(component,/home-search-bar[^\n]*max-w-5xl/);
+});
+
+test("homepage marketplace eyebrow blends into the hero background",()=>{
+  const styles=read("app","globals.css");
+  assert.match(styles,/html:not\(\[data-theme="dark"\]\) \.home-hero-eyebrow,[\s\S]*?html\[data-theme="dark"\] \.home-hero-eyebrow[\s\S]*?background: transparent !important/);
 });
 
 test("delivery filter uses matching icons for any, in-person, and remote modes",()=>{

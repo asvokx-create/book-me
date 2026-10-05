@@ -94,8 +94,8 @@ export default function ProviderMarketingTools({ services, providerProfile, plan
           <p className="text-xs font-bold uppercase tracking-[.12em] text-[#acc0b5]">Your direct link</p>
           <div className="mt-2 break-all rounded-2xl border border-white/10 bg-[#0f271d] p-4 text-sm text-[#eef5f0]">{listingUrl}</div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <ListingShareButton action="copy" serviceId={selected.id} slug={selected.slug} title={selected.title} className="border-0 bg-[#eee25a] text-[#183126] hover:bg-[#f7ed74]" />
-            <ListingShareButton serviceId={selected.id} slug={selected.slug} title={selected.title} description={`Check out ${selected.title} by ${selected.businessName} on BubsBookings.`} className="border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/10" />
+            <ListingShareButton action="copy" serviceId={selected.id} slug={selected.slug} title={selected.title} className="!border-0 !bg-[#eee25a] !text-[#183126] hover:!bg-[#f7ed74]" />
+            <ListingShareButton serviceId={selected.id} slug={selected.slug} title={selected.title} description={`Check out ${selected.title} by ${selected.businessName} on BubsBookings.`} className="!border-white/20 !bg-transparent !text-white hover:!border-white/40 hover:!bg-white/10" />
           </div>
           <Link href={`/services/${selected.slug}`} target="_blank" className="mt-4 inline-flex text-sm font-bold text-[#eee25a] underline decoration-[#eee25a]/60 underline-offset-4">Preview public listing ↗</Link>
         </div>

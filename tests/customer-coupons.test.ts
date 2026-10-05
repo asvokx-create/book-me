@@ -79,4 +79,5 @@ test("provider coupon controls recover from network and non-JSON failures", asyn
   assert.match(manager,/Past bookings keep their recorded discount details/);
   assert.match(manager,/CustomSelect/);
   assert.doesNotMatch(manager,/<select/);
+  assert.match(manager,/justify-self-end[^"]*sm:col-start-2[^"]*lg:col-start-3/);
 });
