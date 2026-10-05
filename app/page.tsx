@@ -81,7 +81,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <p className="home-hero-eyebrow mb-4 text-xs font-bold uppercase tracking-[0.16em] text-[#4d6b59]">Local and remote service marketplace</p>
 
           <h1 className="type-hero">
-            Find the right provider for the work you need.
+            Your to-do list just got <span className="underline decoration-[#eee25a] decoration-[10px] underline-offset-[-4px]">a lot lighter.</span>
           </h1>
 
           <p className="home-hero-copy mt-6 max-w-2xl text-lg leading-8 text-[#5a6d63]">
