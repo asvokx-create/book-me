@@ -55,6 +55,14 @@ test("homepage section headings follow the page heading without skipping directl
   assert.doesNotMatch(home, /<h3 className="text-3xl font-bold tracking-/);
 });
 
+test("homepage hero uses the supplied browse-services city map without duplicate overlays", () => {
+  const preview = read("components/home-hero-preview.tsx");
+  assert.match(preview, /browse-services-city-map\.png/);
+  assert.match(preview, /aspect-\[3\/2\]/);
+  assert.match(preview, /Illustrated city map showing local home, repair, pet, photography, and transportation services/);
+  assert.doesNotMatch(preview, /function MapPin|home-preview-road--one|Home cleaning/);
+});
+
 test("the account loading placeholder cannot cover the wordmark on the narrowest phones", () => {
   const accountNav = read("components/account-nav.tsx");
   assert.match(accountNav, /w-10[^"]*min-\[380px\]:w-28/);
