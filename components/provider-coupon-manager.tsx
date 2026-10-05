@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import CustomSelect from "@/components/custom-select";
+import DatePicker from "@/components/date-picker";
+import { todayDateOnly } from "@/lib/calendar-date";
 
 type Coupon = {
   id: string;
@@ -167,7 +169,7 @@ export default function ProviderCouponManager({ services, allowed }: { services:
               <CustomSelect ariaLabel="Coupon service" value={form.serviceId} options={serviceOptions} onChange={(value) => setForm({ ...form, serviceId: value })} className="mt-1.5" buttonClassName={selectButton} />
             </div>
             <label className="text-xs font-bold">Minimum booking ($)<input type="number" min="0" step=".01" value={form.minimumSubtotal} onChange={(event) => setForm({ ...form, minimumSubtotal: event.target.value })} className={`${input} mt-1.5`} /></label>
-            <label className="text-xs font-bold">Expiration date<input type="date" value={form.expiresAt} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} className={`${input} mt-1.5`} /></label>
+            <label className="text-xs font-bold">Expiration date<DatePicker ariaLabel="Coupon expiration date" value={form.expiresAt} onChange={(expiresAt) => setForm({ ...form, expiresAt })} min={todayDateOnly()} clearable className="mt-1.5" buttonClassName={input} /></label>
             <label className="text-xs font-bold">Usage limit<input type="number" min="1" value={form.usageLimit} onChange={(event) => setForm({ ...form, usageLimit: event.target.value })} className={`${input} mt-1.5`} placeholder="No limit" /></label>
             <div className="flex flex-col justify-end gap-2 text-sm">
               <label className="flex items-center gap-2"><input type="checkbox" checked={form.firstBookingOnly} onChange={(event) => setForm({ ...form, firstBookingOnly: event.target.checked, repeatCustomerOnly: event.target.checked ? false : form.repeatCustomerOnly })} />First booking only</label>

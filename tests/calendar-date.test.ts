@@ -44,6 +44,29 @@ test("booking calendar retains the existing date-only booking contract", () => {
   assert.match(availabilityRoute, /return NextResponse\.json\(\{ times:/);
 });
 
+test("the shared date and time controls avoid operating-system pickers while preserving accessible form contracts", () => {
+  const datePicker = readFileSync(join(projectRoot, "components", "date-picker.tsx"), "utf8");
+  const timePicker = readFileSync(join(projectRoot, "components", "time-picker.tsx"), "utf8");
+  const dateTimePicker = readFileSync(join(projectRoot, "components", "date-time-picker.tsx"), "utf8");
+  const dateRangePicker = readFileSync(join(projectRoot, "components", "date-range-picker.tsx"), "utf8");
+  const userFacingSources = [
+    "components/admin-expenses.tsx", "components/affiliate-admin.tsx", "components/availability-editor.tsx",
+    "components/booking-details.tsx", "components/post-job-form.tsx", "components/provider-coupon-manager.tsx",
+    "components/staff-scheduler.tsx", "app/providers/join/onboarding-form.tsx",
+  ].map((path) => readFileSync(join(projectRoot, path), "utf8")).join("\n");
+
+  assert.match(datePicker, /role="grid"/);
+  assert.match(datePicker, /Calendar month/);
+  assert.match(datePicker, /Calendar year/);
+  assert.match(datePicker, /ArrowLeft/);
+  assert.match(datePicker, /sm:hidden/);
+  assert.match(timePicker, /CustomSelect/);
+  assert.match(dateTimePicker, /DatePicker/);
+  assert.match(dateTimePicker, /TimePicker/);
+  assert.match(dateRangePicker, /value\.end < start/);
+  assert.doesNotMatch(userFacingSources, /type="(?:date|datetime-local|month|week|time)"/);
+});
+
 test("the desktop booking panel uses contained CSS sticky positioning", () => {
   const bookingCard = readFileSync(join(projectRoot, "app", "services", "[slug]", "booking-card.tsx"), "utf8");
   const stationaryPanel = readFileSync(join(projectRoot, "components", "stationary-booking-panel.tsx"), "utf8");
