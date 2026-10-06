@@ -40,7 +40,7 @@ type MessageModerationEvent = {
 type Account = {
   id: string; name: string; email: string; image: string | null; role: string; created_at: string;
   restriction_status: string | null; restriction_reason: string | null;
-  provider_id: string | null; business_name: string | null; provider_plan: ProviderPlan | null; provider_active: boolean | null;
+  provider_id: string | null; business_name: string | null; provider_plan: ProviderPlan | null; provider_active: boolean | null; is_partner: boolean;
   phone_verified: boolean | null; identity_verified: boolean | null; business_verified: boolean | null;
 };
 type Listing = {
@@ -258,7 +258,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const normalizedAccountSearch = accountSearch.trim().toLocaleLowerCase();
   const filteredAccounts = data?.accounts.filter((account) => {
     if (!normalizedAccountSearch) return true;
-    return [account.id, account.name, account.email, account.role, account.business_name ?? ""]
+    return [account.id, account.name, account.email, account.role, account.provider_id ? "provider" : "", account.is_partner ? "partner" : "", account.business_name ?? ""]
       .some((value) => value.toLocaleLowerCase().includes(normalizedAccountSearch));
   }) ?? [];
   const filteredListings = data?.listings.filter((listing) => listingDeliveryFilter === "ALL" || listing.delivery_type === listingDeliveryFilter) ?? [];
@@ -453,7 +453,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                       type="search"
                       value={accountSearch}
                       onChange={(event) => setAccountSearch(event.target.value)}
-                      placeholder="Search by name, email, account ID, role, or business"
+                      placeholder="Search by name, email, account ID, role, account type, or business"
                       autoComplete="off"
                       className="w-full rounded-2xl border border-[#183126]/15 bg-[#fafaf6] py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-[#8a9690] focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/20"
                     />
@@ -468,7 +468,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                   <div className="grid gap-4 2xl:grid-cols-[minmax(20rem,1fr)_minmax(0,2fr)] 2xl:items-center">
                     <button type="button" onClick={() => void openAccount(account)} className="group -m-2 flex min-w-0 items-start gap-4 rounded-2xl p-2 text-left transition hover:bg-[#f4f6f1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#34704a] sm:items-center" aria-label={`View ${account.name}'s account details`}>
                       <ProfileAvatar name={account.name} imageUrl={account.image} className="h-12 w-12 shrink-0 text-sm" />
-                      <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold group-hover:underline">{account.name}</h2><StatusPill value={account.restriction_status ?? "active"} /><span className="rounded-full bg-[#f0f1eb] px-2.5 py-1 text-[10px] font-bold uppercase">{account.role}</span>{account.provider_plan && <span className="rounded-full bg-[#fff3c4] px-2.5 py-1 text-[10px] font-extrabold uppercase text-[#775f00]">{PLAN_ENTITLEMENTS[account.provider_plan].name}</span>}</div><p className="mt-1 break-words text-sm text-[#718078] [overflow-wrap:anywhere]">{account.email}</p><p className="mt-1 text-xs text-[#8a9690]">Joined {formatDate(account.created_at)}{account.business_name ? " · " + account.business_name : ""}</p>{account.restriction_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Reason: {account.restriction_reason}</p>}<span className="mt-2 inline-block text-xs font-bold text-[#34704a]">View account →</span></div>
+                      <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold group-hover:underline">{account.name}</h2><StatusPill value={account.restriction_status ?? "active"} /><span className="rounded-full bg-[#f0f1eb] px-2.5 py-1 text-[10px] font-bold uppercase">{account.role}</span>{account.provider_id && <span className="rounded-full bg-[#e5f1e5] px-2.5 py-1 text-[10px] font-extrabold uppercase text-[#34704a]">Provider</span>}{account.is_partner && <span className="rounded-full bg-[#e8effa] px-2.5 py-1 text-[10px] font-extrabold uppercase text-[#315a8c]">Partner</span>}{account.provider_plan && <span className="rounded-full bg-[#fff3c4] px-2.5 py-1 text-[10px] font-extrabold uppercase text-[#775f00]">{PLAN_ENTITLEMENTS[account.provider_plan].name}</span>}</div><p className="mt-1 break-words text-sm text-[#718078] [overflow-wrap:anywhere]">{account.email}</p><p className="mt-1 text-xs text-[#8a9690]">Joined {formatDate(account.created_at)}{account.business_name ? " · " + account.business_name : ""}</p>{account.restriction_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Reason: {account.restriction_reason}</p>}<span className="mt-2 inline-block text-xs font-bold text-[#34704a]">View account →</span></div>
                     </button>
                     <div className="admin-action-row flex flex-wrap gap-2 2xl:justify-end">
                       <button disabled={busyId === account.id} onClick={() => void runAction({ action: "warn_account", targetId: account.id, needsReason: true, successText: "Warning sent to the account." })} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#eee25a]">Warn</button>
@@ -482,7 +482,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                   </div>
                 </article>
               ))}
-              {filteredAccounts.length === 0 && <EmptyState title="No matching accounts" body="Try searching with a different name, email, account ID, role, or business." />}
+              {filteredAccounts.length === 0 && <EmptyState title="No matching accounts" body="Try searching with a different name, email, account ID, role, account type, or business." />}
             </div>
           )}
 
