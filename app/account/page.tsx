@@ -3,6 +3,7 @@
 import BrandLockup from "@/components/brand-lockup";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import FavoriteButton from "@/components/favorite-button";
@@ -14,6 +15,7 @@ import AccountLocationReminder from "@/components/account-location-reminder";
 import UiIcon from "@/components/ui-icon";
 import ServiceCategoryIcon from "@/components/service-category-icon";
 import { formatServicePrice } from "@/lib/service-pricing";
+import CustomSelect from "@/components/custom-select";
 
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
@@ -38,6 +40,7 @@ const serviceVisuals: Record<string, { gradient: string }> = {
 };
 
 export default function AccountPage() {
+  const router = useRouter();
   const timeZone = useUserTimeZone();
   const { data: session } = authClient.useSession();
   const [activeTab, setActiveTab] = useState<"bookings" | "saved">("bookings");
@@ -103,7 +106,7 @@ export default function AccountPage() {
         </section>}
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div><p className="text-sm font-semibold text-[#687a70]">Customer account</p><h1 className="mt-1 text-4xl font-bold tracking-[-.045em]">Hi, {firstName}.</h1><p className="mt-2 text-[#687a70]">Keep track of your bookings and favorite providers.</p></div>
-          <div className="mobile-scroll-row -mx-4 flex w-[calc(100%+2rem)] flex-nowrap gap-2 self-start overflow-x-auto px-4 pb-2 sm:mx-0 sm:w-auto sm:flex-wrap sm:px-0 sm:pb-0 sm:self-auto">{hasAdminAccess && <Link href="/admin/affiliates" className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#315846]">Partners dashboard</Link>}<Link href="/account/requests" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="opportunities" className="h-4 w-4" />Service requests</Link><Link href="/account/calendar" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="calendar" className="h-4 w-4" />Calendar</Link><Link href="/account/payments" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="card" className="h-4 w-4" />Payments</Link><Link href="/account/settings" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="settings" className="h-4 w-4" />Settings</Link><Link href="/account/messages" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="mail" className="h-4 w-4" />Messages</Link><Link href="/services" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition"><UiIcon name="plus" className="h-4 w-4" />Book a service</Link></div>
+          <div className="w-full self-start sm:hidden"><CustomSelect ariaLabel="Customer account navigation" value="" placeholder="Choose an account area" onChange={(href) => router.push(href)} buttonClassName="min-h-12 rounded-2xl border-[#183126]/15 bg-white px-4 text-sm font-bold shadow-sm">{hasAdminAccess && <option value="/admin/affiliates">Partners dashboard</option>}<option value="/account/requests">Service requests</option><option value="/account/calendar">Calendar</option><option value="/account/payments">Payments</option><option value="/account/settings">Settings</option><option value="/account/messages">Messages</option><option value="/services">Book a service</option></CustomSelect></div><div className="hidden w-auto flex-wrap gap-2 self-auto sm:flex">{hasAdminAccess && <Link href="/admin/affiliates" className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#315846]">Partners dashboard</Link>}<Link href="/account/requests" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="opportunities" className="h-4 w-4" />Service requests</Link><Link href="/account/calendar" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="calendar" className="h-4 w-4" />Calendar</Link><Link href="/account/payments" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="card" className="h-4 w-4" />Payments</Link><Link href="/account/settings" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="settings" className="h-4 w-4" />Settings</Link><Link href="/account/messages" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#183126]/15 bg-white px-5 py-3 text-sm font-bold transition hover:bg-[#e5eddf]"><UiIcon name="mail" className="h-4 w-4" />Messages</Link><Link href="/services" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold shadow-sm transition"><UiIcon name="plus" className="h-4 w-4" />Book a service</Link></div>
         </div>
 
         <div className="mt-9 flex gap-2 border-b border-[#183126]/10">

@@ -2693,7 +2693,7 @@ html[data-theme="dark"] .account-page > header {
     display: grid;
     grid-template-columns: 2.5rem minmax(0, 1fr);
     grid-template-rows: auto auto;
-    column-gap: .65rem;
+    column-gap: .5rem;
     min-height: 5.5rem;
     padding: .75rem !important;
     border-radius: 1.15rem !important;
@@ -2702,17 +2702,17 @@ html[data-theme="dark"] .account-page > header {
   .home-category-card > span:first-of-type {
     grid-column: 1;
     grid-row: 1 / span 2;
-    width: 2.5rem !important;
-    min-width: 2.5rem !important;
-    height: 2.5rem !important;
-    min-height: 2.5rem !important;
+    width: 2rem !important;
+    min-width: 2rem !important;
+    height: 2rem !important;
+    min-height: 2rem !important;
     border-radius: .8rem !important;
   }
 
-  .home-category-card > span:first-of-type svg { width: 2rem; height: 2rem; }
+  .home-category-card > span:first-of-type svg { width: 1.6rem; height: 1.6rem; }
   .home-category-card > div:not(.pointer-events-none) { grid-column: 2; grid-row: 1; min-width: 0; margin-top: 0 !important; }
-  .home-category-card > div:not(.pointer-events-none) p { min-width: 0; overflow-wrap: anywhere; font-size: .82rem; line-height: 1.2; }
-  .home-category-card > div:not(.pointer-events-none) span { display: none; }
+  .home-category-card > div:not(.pointer-events-none) p { min-width: 0; overflow-wrap: normal; white-space: nowrap; font-size: .7rem; letter-spacing: -.025em; line-height: 1.2; }
+  .home-category-card > div:not(.pointer-events-none) > svg { display: none; }
   .home-category-card > p { grid-column: 2; grid-row: 2; margin-top: .2rem !important; font-size: .68rem; line-height: 1.25; }
 
   .home-upcoming-panel {
