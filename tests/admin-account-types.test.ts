@@ -10,7 +10,7 @@ test("admin account cards show provider and approved Partner account types", () 
 
   assert.match(route, /EXISTS \(SELECT 1 FROM affiliate_profiles partner WHERE partner\.user_id = u\.id AND partner\.status IN \('approved','active','paused','suspended'\)\) AS is_partner/);
   assert.match(dashboard, /is_partner: boolean/);
-  assert.match(dashboard, /account\.provider_id && <span[^>]*>Provider<\/span>/);
+  assert.match(dashboard, /account\.provider_id && account\.role !== "provider" && <span[^>]*>Provider<\/span>/);
   assert.match(dashboard, /account\.is_partner && <span[^>]*>Partner<\/span>/);
   assert.match(dashboard, /account type/);
 });
