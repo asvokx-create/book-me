@@ -67,13 +67,13 @@ test("the shared date and time controls avoid operating-system pickers while pre
   assert.doesNotMatch(userFacingSources, /type="(?:date|datetime-local|month|week|time)"/);
 });
 
-test("the desktop booking panel uses contained CSS sticky positioning", () => {
+test("the desktop booking panel stays anchored without an inner scrollbar", () => {
   const bookingCard = readFileSync(join(projectRoot, "app", "services", "[slug]", "booking-card.tsx"), "utf8");
   const stationaryPanel = readFileSync(join(projectRoot, "components", "stationary-booking-panel.tsx"), "utf8");
 
   assert.match(stationaryPanel, /lg:sticky/);
   assert.match(stationaryPanel, /lg:top-6/);
-  assert.match(stationaryPanel, /lg:max-h-\[calc\(100dvh-3rem\)\]/);
+  assert.doesNotMatch(stationaryPanel, /overflow-y-auto|overscroll-contain|max-h-\[calc\(100dvh-3rem\)\]/);
   assert.doesNotMatch(stationaryPanel, /position = "fixed"|addEventListener\("scroll"/);
   assert.ok((bookingCard.match(/lg:hidden/g) ?? []).length >= 3);
 });
