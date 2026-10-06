@@ -3,17 +3,20 @@ import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
 import { getAdminFinancialSummary } from "@/lib/admin-financial-summary";
+import { getAdminExpenseChargeTotal, nextUpcomingRenewalDate, reconcileAdminExpenseRenewals } from "@/lib/admin-expense-charges";
+import type { ExpenseBillingCycle } from "@/lib/admin-expenses";
 
 const billingCycles = new Set(["monthly", "yearly", "one_time"]);
 
 export async function GET() {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
-  const [result, financialSummary] = await Promise.all([database.query(`SELECT id::text, service_name, notes, cost_cents, billing_cycle,
+  await reconcileAdminExpenseRenewals();
+  const [result, financialSummary, trackedExpenseCents] = await Promise.all([database.query(`SELECT id::text, service_name, notes, cost_cents, billing_cycle,
     next_renewal_date::text, status, created_at, updated_at
     FROM admin_expenses
-    ORDER BY status ASC, next_renewal_date ASC NULLS LAST, service_name ASC`), getAdminFinancialSummary()]);
-  return NextResponse.json({ expenses: result.rows, platformRevenueCents: financialSummary.platformRevenueCents }, { headers: { "Cache-Control": "private, no-store" } });
+    ORDER BY status ASC, next_renewal_date ASC NULLS LAST, service_name ASC`), getAdminFinancialSummary(), getAdminExpenseChargeTotal()]);
+  return NextResponse.json({ expenses: result.rows, platformRevenueCents: financialSummary.platformRevenueCents, trackedExpenseCents }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -25,12 +28,29 @@ export async function POST(request: Request) {
   const body = await request.json() as Record<string, unknown>;
   const expense = parseExpense(body);
   if (!expense) return NextResponse.json({ error: "Enter a service, valid cost, billing cycle, and renewal date for recurring expenses." }, { status: 400 });
-  const result = await database.query<{ id: string }>(`INSERT INTO admin_expenses
-    (service_name, notes, cost_cents, billing_cycle, next_renewal_date, created_by)
-    VALUES ($1, $2, $3, $4, $5::date, $6) RETURNING id::text`,
-  [expense.serviceName, expense.notes, expense.costCents, expense.billingCycle, expense.renewalDate, session.user.id]);
-  await audit(session.user.id, "expense_created", result.rows[0].id, expense);
-  return NextResponse.json({ ok: true, id: result.rows[0].id });
+  const nextRenewalDate = expense.billingCycle === "one_time" || !expense.renewalDate
+    ? null
+    : nextUpcomingRenewalDate(expense.renewalDate, expense.billingCycle);
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query<{ id: string }>(`INSERT INTO admin_expenses
+      (service_name, notes, cost_cents, billing_cycle, next_renewal_date, created_by)
+      VALUES ($1, $2, $3, $4, $5::date, $6) RETURNING id::text`,
+    [expense.serviceName, expense.notes, expense.costCents, expense.billingCycle, nextRenewalDate, session.user.id]);
+    const expenseId = result.rows[0].id;
+    await client.query(`INSERT INTO admin_expense_charges (expense_id, charge_kind, charged_on, amount_cents)
+      VALUES ($1::uuid, 'initial', CURRENT_DATE, $2)`, [expenseId, expense.costCents]);
+    await client.query(`INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
+      VALUES ($1, 'expense_created', 'admin_expense', $2, $3::jsonb)`, [session.user.id, expenseId, JSON.stringify(expense)]);
+    await client.query("COMMIT");
+    return NextResponse.json({ ok: true, id: expenseId });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -64,7 +84,7 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ ok: true });
 }
 
-function parseExpense(body: Record<string, unknown>) {
+function parseExpense(body: Record<string, unknown>): { serviceName: string; notes: string; costCents: number; billingCycle: ExpenseBillingCycle; renewalDate: string | null } | null {
   const serviceName = typeof body.serviceName === "string" ? body.serviceName.trim().slice(0, 160) : "";
   const notes = typeof body.notes === "string" ? body.notes.trim().slice(0, 2000) : "";
   const billingCycle = typeof body.billingCycle === "string" ? body.billingCycle : "";
@@ -72,7 +92,7 @@ function parseExpense(body: Record<string, unknown>) {
   const costCents = Math.round(Number(body.cost) * 100);
   const validDate = renewalDate === null || isDateOnly(renewalDate);
   if (!serviceName || !billingCycles.has(billingCycle) || !Number.isInteger(costCents) || costCents <= 0 || !validDate || (billingCycle !== "one_time" && !renewalDate)) return null;
-  return { serviceName, notes, costCents, billingCycle, renewalDate: billingCycle === "one_time" ? null : renewalDate };
+  return { serviceName, notes, costCents, billingCycle: billingCycle as ExpenseBillingCycle, renewalDate: billingCycle === "one_time" ? null : renewalDate };
 }
 
 function isDateOnly(value: string) {

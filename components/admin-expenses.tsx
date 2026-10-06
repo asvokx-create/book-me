@@ -1,16 +1,17 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { AdminExpense, annualEquivalentCents, ExpenseBillingCycle, monthlyEquivalentCents, summarizeExpenses, totalProfitCents, totalTrackedExpenseCents } from "@/lib/admin-expenses";
+import { AdminExpense, annualEquivalentCents, ExpenseBillingCycle, monthlyEquivalentCents, summarizeExpenses } from "@/lib/admin-expenses";
 import CustomSelect from "@/components/custom-select";
 import DatePicker from "@/components/date-picker";
 
 type FormState = { serviceName: string; cost: string; billingCycle: ExpenseBillingCycle; renewalDate: string; notes: string };
 const emptyForm: FormState = { serviceName: "", cost: "", billingCycle: "monthly", renewalDate: "", notes: "" };
 
-export default function AdminExpenses({ initialExpenses, initialPlatformRevenueCents }: { initialExpenses: AdminExpense[]; initialPlatformRevenueCents: number }) {
+export default function AdminExpenses({ initialExpenses, initialPlatformRevenueCents, initialTrackedExpenseCents }: { initialExpenses: AdminExpense[]; initialPlatformRevenueCents: number; initialTrackedExpenseCents: number }) {
   const [expenses, setExpenses] = useState<AdminExpense[]>(initialExpenses);
   const [platformRevenueCents, setPlatformRevenueCents] = useState(initialPlatformRevenueCents);
+  const [trackedExpenseCents, setTrackedExpenseCents] = useState(initialTrackedExpenseCents);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -22,17 +23,18 @@ export default function AdminExpenses({ initialExpenses, initialPlatformRevenueC
     setLoading(true);
     try {
       const response = await fetch("/api/admin/expenses", { cache: "no-store" });
-      const data = await response.json() as { expenses?: AdminExpense[]; platformRevenueCents?: number; error?: string };
+      const data = await response.json() as { expenses?: AdminExpense[]; platformRevenueCents?: number; trackedExpenseCents?: number; error?: string };
       if (!response.ok) throw new Error(data.error || "Expenses could not be loaded.");
       setExpenses(data.expenses ?? []);
       if (typeof data.platformRevenueCents === "number") setPlatformRevenueCents(data.platformRevenueCents);
+      if (typeof data.trackedExpenseCents === "number") setTrackedExpenseCents(data.trackedExpenseCents);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Expenses could not be loaded."); }
     finally { setLoading(false); }
   }
 
   const totals = useMemo(() => summarizeExpenses(expenses), [expenses]);
-  const totalExpensesCents = totalTrackedExpenseCents(totals);
-  const totalProfit = totalProfitCents(platformRevenueCents, totals);
+  const totalExpensesCents = trackedExpenseCents;
+  const totalProfit = platformRevenueCents - trackedExpenseCents;
   const visibleExpenses = expenses.filter((expense) => expense.status === (showArchived ? "archived" : "active"));
 
   async function submit(event: FormEvent) {
@@ -75,8 +77,8 @@ export default function AdminExpenses({ initialExpenses, initialPlatformRevenueC
         <SummaryCard label="Monthly forecast" value={money(totals.monthlyRecurringCents)} detail="Active recurring services" />
         <SummaryCard label="Annual forecast" value={money(totals.annualRecurringCents)} detail="Active recurring services" />
         <SummaryCard label="One-time tracked" value={money(totals.oneTimeCents)} detail="Included when recorded" />
-        <SummaryCard label="Total expenses" value={money(totalExpensesCents)} detail="Charges incurred through today" />
-        <SummaryCard label="Total profit" value={money(totalProfit)} detail="Platform revenue after refunds, less incurred expenses" />
+        <SummaryCard label="Total expenses" value={money(totalExpensesCents)} detail="Paid charges, including renewals" />
+        <SummaryCard label="Total profit" value={money(totalProfit)} detail="Platform revenue after refunds, less paid expenses" />
         <SummaryCard label="Renewals in 30 days" value={String(totals.renewalsDue)} detail="Active recurring services" />
       </div>
     </section>
