@@ -15,7 +15,7 @@ async function loadDashboard() {
   const [stats, reports, events, messageModeration, accounts, listings, reviews, payouts, audit] = await Promise.all([
     database.query<{
       users: number; active_providers: number; active_services: number; bookings_30d: number;
-      open_reports: number; blocked_30d: number;
+      open_reports: number; blocked_30d: number; unique_site_views: number;
     }>(
       `SELECT
         (SELECT count(*)::int FROM "user") AS users,
@@ -24,7 +24,19 @@ async function loadDashboard() {
         (SELECT count(*)::int FROM bookings WHERE created_at >= now() - interval '30 days') AS bookings_30d,
         (SELECT count(*)::int FROM safety_reports WHERE status IN ('open', 'reviewing')) AS open_reports,
         ((SELECT count(*)::int FROM moderation_events WHERE created_at >= now() - interval '30 days') +
-         (SELECT count(*)::int FROM message_moderation_events WHERE action_taken <> 'logged' AND created_at >= now() - interval '30 days')) AS blocked_30d`,
+         (SELECT count(*)::int FROM message_moderation_events WHERE action_taken <> 'logged' AND created_at >= now() - interval '30 days')) AS blocked_30d,
+        (SELECT count(DISTINCT COALESCE(NULLIF(event.user_id, ''), known_visitor.user_id, NULLIF(event.anonymous_id, '')))::int
+         FROM analytics_events event
+         LEFT JOIN (
+           SELECT anonymous_id, max(user_id) AS user_id
+           FROM analytics_events
+           WHERE anonymous_id IS NOT NULL AND user_id IS NOT NULL
+           GROUP BY anonymous_id
+         ) known_visitor ON known_visitor.anonymous_id = event.anonymous_id
+         WHERE event.event_name = 'page_view'
+           AND COALESCE(NULLIF(event.user_id, ''), known_visitor.user_id, NULLIF(event.anonymous_id, '')) IS NOT NULL
+           AND event.path !~ '^/(admin|account|affiliate)(/|\\?|$)'
+           AND event.path !~ '^/provider/dashboard(/|\\?|$)') AS unique_site_views`,
     ),
     database.query(
       `SELECT sr.id::text, sr.category, sr.details, sr.status, sr.created_at,

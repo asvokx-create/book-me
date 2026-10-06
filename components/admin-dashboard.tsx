@@ -17,7 +17,7 @@ import { formatDurationMinutes, formatHourlyRate } from "@/lib/service-pricing";
 type AdminSection = "overview" | "reports" | "moderation" | "accounts" | "listings" | "reviews" | "payouts" | "audit";
 type Stats = {
   users: number; active_providers: number; active_services: number; bookings_30d: number;
-  open_reports: number; blocked_30d: number;
+  open_reports: number; blocked_30d: number; unique_site_views: number;
 };
 type SafetyReport = {
   id: string; category: string; details: string; status: string; created_at: string;
@@ -269,6 +269,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
     { label: "Total accounts", value: data.stats.users, detail: "Customers and providers" },
     { label: "Active providers", value: data.stats.active_providers, detail: "Visible businesses" },
     { label: "Active listings", value: data.stats.active_services, detail: "Bookable services" },
+    { label: "Site views", value: data.stats.unique_site_views, detail: "Unique visitors · all time" },
     { label: "Bookings", value: data.stats.bookings_30d, detail: "Last 30 days" },
     { label: "Open reports", value: data.stats.open_reports, detail: "Needs review" },
     { label: "Safety blocks", value: data.stats.blocked_30d, detail: "Last 30 days" },
