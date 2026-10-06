@@ -72,7 +72,8 @@ test("the desktop booking panel is fixed in its original desktop position withou
   const stationaryPanel = readFileSync(join(projectRoot, "components", "stationary-booking-panel.tsx"), "utf8");
 
   assert.match(stationaryPanel, /position: "fixed"/);
-  assert.match(stationaryPanel, /initialTop \?\?= frameBounds\.top/);
+  assert.match(stationaryPanel, /initialPosition \?\?= \{/);
+  assert.match(stationaryPanel, /panelBounds\.left/);
   assert.match(stationaryPanel, /window\.matchMedia\("\(min-width: 1024px\)"\)/);
   assert.doesNotMatch(stationaryPanel, /overflow-y-auto|overscroll-contain|max-h-\[calc\(100dvh-3rem\)\]/);
   assert.doesNotMatch(stationaryPanel, /addEventListener\("scroll"/);

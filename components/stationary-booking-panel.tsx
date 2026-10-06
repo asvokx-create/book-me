@@ -16,7 +16,7 @@ export default function StationaryBookingPanel({ children }: { children: ReactNo
 
   useLayoutEffect(() => {
     const desktopViewport = window.matchMedia("(min-width: 1024px)");
-    let initialTop: number | null = null;
+    let initialPosition: Omit<PinnedPosition, "height"> | null = null;
     let animationFrame = 0;
 
     const syncPosition = () => {
@@ -24,17 +24,19 @@ export default function StationaryBookingPanel({ children }: { children: ReactNo
       const panel = panelRef.current;
 
       if (!desktopViewport.matches || !frame || !panel) {
-        initialTop = null;
+        initialPosition = null;
         setPinnedPosition(null);
         return;
       }
 
-      const frameBounds = frame.getBoundingClientRect();
-      initialTop ??= frameBounds.top;
+      const panelBounds = panel.getBoundingClientRect();
+      initialPosition ??= {
+        top: panelBounds.top,
+        left: panelBounds.left,
+        width: panelBounds.width,
+      };
       const nextPosition = {
-        top: initialTop,
-        left: frameBounds.left,
-        width: frameBounds.width,
+        ...initialPosition,
         height: panel.offsetHeight,
       };
 
@@ -54,18 +56,24 @@ export default function StationaryBookingPanel({ children }: { children: ReactNo
       animationFrame = window.requestAnimationFrame(syncPosition);
     };
 
+    const resetPosition = () => {
+      initialPosition = null;
+      setPinnedPosition(null);
+      scheduleSync();
+    };
+
     const resizeObserver = new ResizeObserver(scheduleSync);
     if (frameRef.current) resizeObserver.observe(frameRef.current);
     if (panelRef.current) resizeObserver.observe(panelRef.current);
-    desktopViewport.addEventListener("change", scheduleSync);
-    window.addEventListener("resize", scheduleSync);
-    scheduleSync();
+    desktopViewport.addEventListener("change", resetPosition);
+    window.addEventListener("resize", resetPosition);
+    syncPosition();
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
-      desktopViewport.removeEventListener("change", scheduleSync);
-      window.removeEventListener("resize", scheduleSync);
+      desktopViewport.removeEventListener("change", resetPosition);
+      window.removeEventListener("resize", resetPosition);
     };
   }, []);
 
