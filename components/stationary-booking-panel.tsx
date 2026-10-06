@@ -1,9 +1,89 @@
-import { type ReactNode } from "react";
+"use client";
+
+import { type CSSProperties, type ReactNode, useLayoutEffect, useRef, useState } from "react";
+
+type PinnedPosition = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
 
 export default function StationaryBookingPanel({ children }: { children: ReactNode }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pinnedPosition, setPinnedPosition] = useState<PinnedPosition | null>(null);
+
+  useLayoutEffect(() => {
+    const desktopViewport = window.matchMedia("(min-width: 1024px)");
+    let initialTop: number | null = null;
+    let animationFrame = 0;
+
+    const syncPosition = () => {
+      const frame = frameRef.current;
+      const panel = panelRef.current;
+
+      if (!desktopViewport.matches || !frame || !panel) {
+        initialTop = null;
+        setPinnedPosition(null);
+        return;
+      }
+
+      const frameBounds = frame.getBoundingClientRect();
+      initialTop ??= frameBounds.top;
+      const nextPosition = {
+        top: initialTop,
+        left: frameBounds.left,
+        width: frameBounds.width,
+        height: panel.offsetHeight,
+      };
+
+      setPinnedPosition((currentPosition) => (
+        currentPosition
+        && currentPosition.top === nextPosition.top
+        && currentPosition.left === nextPosition.left
+        && currentPosition.width === nextPosition.width
+        && currentPosition.height === nextPosition.height
+          ? currentPosition
+          : nextPosition
+      ));
+    };
+
+    const scheduleSync = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(syncPosition);
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleSync);
+    if (frameRef.current) resizeObserver.observe(frameRef.current);
+    if (panelRef.current) resizeObserver.observe(panelRef.current);
+    desktopViewport.addEventListener("change", scheduleSync);
+    window.addEventListener("resize", scheduleSync);
+    scheduleSync();
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      desktopViewport.removeEventListener("change", scheduleSync);
+      window.removeEventListener("resize", scheduleSync);
+    };
+  }, []);
+
+  const panelStyle: CSSProperties | undefined = pinnedPosition
+    ? {
+        position: "fixed",
+        top: pinnedPosition.top,
+        left: pinnedPosition.left,
+        width: pinnedPosition.width,
+        zIndex: 30,
+      }
+    : undefined;
+
   return (
-    <div className="service-booking-panel min-w-0 lg:sticky lg:top-[6.75rem]">
-      {children}
+    <div ref={frameRef} className="service-booking-panel min-w-0" style={pinnedPosition ? { minHeight: pinnedPosition.height } : undefined}>
+      <div ref={panelRef} className="min-w-0" style={panelStyle}>
+        {children}
+      </div>
     </div>
   );
 }

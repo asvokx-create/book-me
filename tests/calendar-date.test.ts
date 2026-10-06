@@ -67,13 +67,14 @@ test("the shared date and time controls avoid operating-system pickers while pre
   assert.doesNotMatch(userFacingSources, /type="(?:date|datetime-local|month|week|time)"/);
 });
 
-test("the desktop booking panel stays aligned without an inner scrollbar", () => {
+test("the desktop booking panel is fixed in its original desktop position without an inner scrollbar", () => {
   const bookingCard = readFileSync(join(projectRoot, "app", "services", "[slug]", "booking-card.tsx"), "utf8");
   const stationaryPanel = readFileSync(join(projectRoot, "components", "stationary-booking-panel.tsx"), "utf8");
 
-  assert.match(stationaryPanel, /lg:sticky/);
-  assert.match(stationaryPanel, /lg:top-\[6\.75rem\]/);
+  assert.match(stationaryPanel, /position: "fixed"/);
+  assert.match(stationaryPanel, /initialTop \?\?= frameBounds\.top/);
+  assert.match(stationaryPanel, /window\.matchMedia\("\(min-width: 1024px\)"\)/);
   assert.doesNotMatch(stationaryPanel, /overflow-y-auto|overscroll-contain|max-h-\[calc\(100dvh-3rem\)\]/);
-  assert.doesNotMatch(stationaryPanel, /position = "fixed"|addEventListener\("scroll"/);
+  assert.doesNotMatch(stationaryPanel, /addEventListener\("scroll"/);
   assert.ok((bookingCard.match(/lg:hidden/g) ?? []).length >= 3);
 });
