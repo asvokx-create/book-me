@@ -72,11 +72,11 @@ export default function AdminExpenses({ initialExpenses, initialPlatformRevenueC
     <section aria-labelledby="expense-summary-title">
       <div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Private admin tracker</p><h1 id="expense-summary-title" className="mt-2 text-3xl font-bold sm:text-4xl">Expenses</h1><p className="mt-2 max-w-2xl text-[#617169]">Track subscriptions and one-time business costs manually. No bank or Stripe account is connected.</p></div>
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard label="Monthly recurring" value={money(totals.monthlyRecurringCents)} detail="Includes 1/12 of annual bills" />
-        <SummaryCard label="Annual recurring" value={money(totals.annualRecurringCents)} detail="Normalized yearly cost" />
-        <SummaryCard label="One-time tracked" value={money(totals.oneTimeCents)} detail="Not included in recurring totals" />
-        <SummaryCard label="Total expenses" value={money(totalExpensesCents)} detail="Annual recurring plus one-time tracked" />
-        <SummaryCard label="Total profit" value={money(totalProfit)} detail="Platform revenue after refunds, less tracked expenses" />
+        <SummaryCard label="Monthly forecast" value={money(totals.monthlyRecurringCents)} detail="Active recurring services" />
+        <SummaryCard label="Annual forecast" value={money(totals.annualRecurringCents)} detail="Active recurring services" />
+        <SummaryCard label="One-time tracked" value={money(totals.oneTimeCents)} detail="Included when recorded" />
+        <SummaryCard label="Total expenses" value={money(totalExpensesCents)} detail="Charges incurred through today" />
+        <SummaryCard label="Total profit" value={money(totalProfit)} detail="Platform revenue after refunds, less incurred expenses" />
         <SummaryCard label="Renewals in 30 days" value={String(totals.renewalsDue)} detail="Active recurring services" />
       </div>
     </section>

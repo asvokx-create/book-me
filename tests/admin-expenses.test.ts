@@ -7,9 +7,9 @@ import { annualEquivalentCents, monthlyEquivalentCents, summarizeExpenses, total
 const projectRoot = process.cwd();
 const read = (...parts: string[]) => readFileSync(join(projectRoot, ...parts), "utf8");
 
-test("expense totals normalize recurring charges and separate one-time costs", () => {
+test("expense totals forecast recurring charges but record them only on their renewal date", () => {
   const expenses: AdminExpense[] = [
-    expense("monthly", 2500, "2026-10-10"),
+    expense("monthly", 2500, "2026-09-10"),
     expense("yearly", 12000, "2026-10-20"),
     expense("one_time", 5000, null),
     { ...expense("monthly", 9999, "2026-10-01"), status: "archived" },
@@ -23,10 +23,11 @@ test("expense totals normalize recurring charges and separate one-time costs", (
     monthlyRecurringCents: 3500,
     annualRecurringCents: 42000,
     oneTimeCents: 5000,
-    renewalsDue: 2,
+    incurredExpenseCents: 7500,
+    renewalsDue: 1,
   });
-  assert.equal(totalTrackedExpenseCents(summary), 47000);
-  assert.equal(totalProfitCents(125000, summary), 78000);
+  assert.equal(totalTrackedExpenseCents(summary), 7500);
+  assert.equal(totalProfitCents(125000, summary), 117500);
 });
 
 test("admin expenses are protected, audited, manual, and recoverably archived", () => {
@@ -46,7 +47,8 @@ test("admin expenses are protected, audited, manual, and recoverably archived", 
   assert.match(component, /No bank or Stripe account is connected/);
   assert.match(component, /label="Total expenses"/);
   assert.match(component, /label="Total profit"/);
-  assert.match(component, /Platform revenue after refunds, less tracked expenses/);
+  assert.match(component, /Charges incurred through today/);
+  assert.match(component, /Platform revenue after refunds, less incurred expenses/);
   assert.match(page, /initialPlatformRevenueCents/);
   assert.match(component, /role="region"/);
   assert.match(component, /tabIndex=\{0\}/);

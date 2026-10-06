@@ -35,15 +35,20 @@ export function summarizeExpenses(expenses: AdminExpense[], now = new Date()) {
     monthlyRecurringCents: active.reduce((sum, expense) => sum + monthlyEquivalentCents(expense), 0),
     annualRecurringCents: active.reduce((sum, expense) => sum + annualEquivalentCents(expense), 0),
     oneTimeCents: active.reduce((sum, expense) => sum + (expense.billing_cycle === "one_time" ? expense.cost_cents : 0), 0),
+    incurredExpenseCents: active.reduce((sum, expense) => sum + (
+      expense.billing_cycle === "one_time" || (expense.next_renewal_date !== null && expense.next_renewal_date <= today)
+        ? expense.cost_cents
+        : 0
+    ), 0),
     renewalsDue: active.filter((expense) => expense.next_renewal_date && expense.next_renewal_date >= today && expense.next_renewal_date <= renewalCutoff).length,
   };
 }
 
-export function totalTrackedExpenseCents(summary: Pick<ReturnType<typeof summarizeExpenses>, "annualRecurringCents" | "oneTimeCents">) {
-  return summary.annualRecurringCents + summary.oneTimeCents;
+export function totalTrackedExpenseCents(summary: Pick<ReturnType<typeof summarizeExpenses>, "incurredExpenseCents">) {
+  return summary.incurredExpenseCents;
 }
 
-export function totalProfitCents(platformRevenueCents: number, expenses: Pick<ReturnType<typeof summarizeExpenses>, "annualRecurringCents" | "oneTimeCents">) {
+export function totalProfitCents(platformRevenueCents: number, expenses: Pick<ReturnType<typeof summarizeExpenses>, "incurredExpenseCents">) {
   return platformRevenueCents - totalTrackedExpenseCents(expenses);
 }
 
