@@ -64,9 +64,11 @@ test("public Partner copy distinguishes standard terms from account-specific com
   const publicPage=read("app","partners","page.tsx");
   const termsLink=read("components","partner-terms-link.tsx");
   assert.match(publicPage,/Standard Partner Program/);
-  assert.match(publicPage,/Most Partners start with the standard program below\. Some Partners may have custom compensation terms\./);
-  assert.match(publicPage,/Standard terms apply unless your Partner account has custom compensation settings\./);
+  assert.match(publicPage,/Partners are rewarded for helping qualified providers join and grow on BubsBookings\./);
+  assert.match(publicPage,/Compensation varies by approved Partner terms\./);
+  assert.match(publicPage,/Provider Growth Milestones/);
   assert.match(publicPage,/Earnings become payable after the required hold period/);
+  assert.doesNotMatch(publicPage,/\$10|20%|\$250|\$25|\$5|\$900/);
   assert.doesNotMatch(publicPage,/Standard creator program/i);
   assert.match(termsLink,/result\?\.authenticated && result\.isAffiliate/);
   assert.match(termsLink,/href="\/affiliate#partner-terms"/);
