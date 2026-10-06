@@ -39,6 +39,14 @@ export function summarizeExpenses(expenses: AdminExpense[], now = new Date()) {
   };
 }
 
+export function totalTrackedExpenseCents(summary: Pick<ReturnType<typeof summarizeExpenses>, "annualRecurringCents" | "oneTimeCents">) {
+  return summary.annualRecurringCents + summary.oneTimeCents;
+}
+
+export function totalProfitCents(platformRevenueCents: number, expenses: Pick<ReturnType<typeof summarizeExpenses>, "annualRecurringCents" | "oneTimeCents">) {
+  return platformRevenueCents - totalTrackedExpenseCents(expenses);
+}
+
 function localDateKey(value: Date) {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, "0");

@@ -1,15 +1,16 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { AdminExpense, annualEquivalentCents, ExpenseBillingCycle, monthlyEquivalentCents, summarizeExpenses } from "@/lib/admin-expenses";
+import { AdminExpense, annualEquivalentCents, ExpenseBillingCycle, monthlyEquivalentCents, summarizeExpenses, totalProfitCents, totalTrackedExpenseCents } from "@/lib/admin-expenses";
 import CustomSelect from "@/components/custom-select";
 import DatePicker from "@/components/date-picker";
 
 type FormState = { serviceName: string; cost: string; billingCycle: ExpenseBillingCycle; renewalDate: string; notes: string };
 const emptyForm: FormState = { serviceName: "", cost: "", billingCycle: "monthly", renewalDate: "", notes: "" };
 
-export default function AdminExpenses({ initialExpenses }: { initialExpenses: AdminExpense[] }) {
+export default function AdminExpenses({ initialExpenses, initialPlatformRevenueCents }: { initialExpenses: AdminExpense[]; initialPlatformRevenueCents: number }) {
   const [expenses, setExpenses] = useState<AdminExpense[]>(initialExpenses);
+  const [platformRevenueCents, setPlatformRevenueCents] = useState(initialPlatformRevenueCents);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -21,14 +22,17 @@ export default function AdminExpenses({ initialExpenses }: { initialExpenses: Ad
     setLoading(true);
     try {
       const response = await fetch("/api/admin/expenses", { cache: "no-store" });
-      const data = await response.json() as { expenses?: AdminExpense[]; error?: string };
+      const data = await response.json() as { expenses?: AdminExpense[]; platformRevenueCents?: number; error?: string };
       if (!response.ok) throw new Error(data.error || "Expenses could not be loaded.");
       setExpenses(data.expenses ?? []);
+      if (typeof data.platformRevenueCents === "number") setPlatformRevenueCents(data.platformRevenueCents);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Expenses could not be loaded."); }
     finally { setLoading(false); }
   }
 
   const totals = useMemo(() => summarizeExpenses(expenses), [expenses]);
+  const totalExpensesCents = totalTrackedExpenseCents(totals);
+  const totalProfit = totalProfitCents(platformRevenueCents, totals);
   const visibleExpenses = expenses.filter((expense) => expense.status === (showArchived ? "archived" : "active"));
 
   async function submit(event: FormEvent) {
@@ -67,10 +71,12 @@ export default function AdminExpenses({ initialExpenses }: { initialExpenses: Ad
   return <div className="dashboard-container px-5 py-8">
     <section aria-labelledby="expense-summary-title">
       <div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Private admin tracker</p><h1 id="expense-summary-title" className="mt-2 text-3xl font-bold sm:text-4xl">Expenses</h1><p className="mt-2 max-w-2xl text-[#617169]">Track subscriptions and one-time business costs manually. No bank or Stripe account is connected.</p></div>
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <SummaryCard label="Monthly recurring" value={money(totals.monthlyRecurringCents)} detail="Includes 1/12 of annual bills" />
         <SummaryCard label="Annual recurring" value={money(totals.annualRecurringCents)} detail="Normalized yearly cost" />
         <SummaryCard label="One-time tracked" value={money(totals.oneTimeCents)} detail="Not included in recurring totals" />
+        <SummaryCard label="Total expenses" value={money(totalExpensesCents)} detail="Annual recurring plus one-time tracked" />
+        <SummaryCard label="Total profit" value={money(totalProfit)} detail="Platform revenue after refunds, less tracked expenses" />
         <SummaryCard label="Renewals in 30 days" value={String(totals.renewalsDue)} detail="Active recurring services" />
       </div>
     </section>

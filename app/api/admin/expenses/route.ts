@@ -2,17 +2,18 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
+import { getAdminFinancialSummary } from "@/lib/admin-financial-summary";
 
 const billingCycles = new Set(["monthly", "yearly", "one_time"]);
 
 export async function GET() {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
-  const result = await database.query(`SELECT id::text, service_name, notes, cost_cents, billing_cycle,
+  const [result, financialSummary] = await Promise.all([database.query(`SELECT id::text, service_name, notes, cost_cents, billing_cycle,
     next_renewal_date::text, status, created_at, updated_at
     FROM admin_expenses
-    ORDER BY status ASC, next_renewal_date ASC NULLS LAST, service_name ASC`);
-  return NextResponse.json({ expenses: result.rows }, { headers: { "Cache-Control": "private, no-store" } });
+    ORDER BY status ASC, next_renewal_date ASC NULLS LAST, service_name ASC`), getAdminFinancialSummary()]);
+  return NextResponse.json({ expenses: result.rows, platformRevenueCents: financialSummary.platformRevenueCents }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function POST(request: Request) {
