@@ -5,7 +5,7 @@ import AccountLocationReminder from "@/components/account-location-reminder";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import ServiceImageManager from "@/components/service-image-manager";
 import AvailabilityEditor from "@/components/availability-editor";
@@ -153,12 +153,18 @@ const sectionsNeedingPageHeading: Partial<Record<DashboardSection, string>> = {
   settings: "Provider settings",
 };
 
+type DashboardNotice = { kind: "welcome" } | { kind: "saved"; message: string };
+const welcomeNoticeStorageKey = (userId: string) => `bubsbookings.provider-welcome-dismissed.${userId}`;
+const SAVED_NOTICE_DURATION_MS = 5000;
+
 export default function ProviderDashboard({ section = "overview", initialConversationId = "" }: { section?: DashboardSection; initialConversationId?: string }) {
   const router = useRouter();
   const timeZone = useUserTimeZone();
   const { data: session } = authClient.useSession();
+  const userId = session?.user.id;
   const [requests, setRequests] = useState(initialRequests);
-  const [notice, setNotice] = useState(true);
+  const [notice, setNotice] = useState<DashboardNotice | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
   const [provider, setProvider] = useState<ProviderSummary | null>(null);
   const [providerLoaded, setProviderLoaded] = useState(false);
   const [photoUploadFailed, setPhotoUploadFailed] = useState(false);
@@ -176,6 +182,35 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   const [widgetSaving, setWidgetSaving] = useState(false);
   const [widgetError, setWidgetError] = useState("");
   const providerAccessRole = provider?.accessRole;
+
+  function clearNoticeTimer() {
+    if (noticeTimerRef.current !== null) {
+      window.clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+  }
+
+  function showSavedNotice(message: string) {
+    clearNoticeTimer();
+    setNotice({ kind: "saved", message });
+    noticeTimerRef.current = window.setTimeout(() => setNotice(null), SAVED_NOTICE_DURATION_MS);
+  }
+
+  function dismissNotice() {
+    if (notice?.kind === "welcome" && userId) window.localStorage.setItem(welcomeNoticeStorageKey(userId), "1");
+    clearNoticeTimer();
+    setNotice(null);
+  }
+
+  useEffect(() => () => clearNoticeTimer(), []);
+
+  useEffect(() => {
+    if (!userId) {
+      setNotice(null);
+      return;
+    }
+    if (window.localStorage.getItem(welcomeNoticeStorageKey(userId)) !== "1") setNotice({ kind: "welcome" });
+  }, [userId]);
 
   useEffect(() => {
     const photoNoticeTimer = window.setTimeout(() => {
@@ -277,6 +312,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
       setDashboardWidgets(payload.widgets);
       setWidgetDraft(payload.widgets);
       setWidgetCustomizerOpen(false);
+      showSavedNotice("Your dashboard layout has been saved.");
     }
     setWidgetSaving(false);
   }
@@ -375,7 +411,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           <nav aria-label="Provider dashboard sections" className="mb-6 lg:hidden"><CustomSelect ariaLabel="Provider dashboard section" value={visibleNav.some((item) => item.section === section) ? section : "overview"} options={visibleNav.map((item) => ({ value: item.section, label: item.label, icon: <ProviderDashboardIcon name={item.section} /> }))} onChange={(nextSection) => { const next = visibleNav.find((item) => item.section === nextSection); if (next) router.push(next.href); }} buttonClassName="min-h-12 rounded-2xl border-[#183126]/15 bg-white px-4 text-sm font-bold shadow-sm" /></nav>
           {!ownerOnlySection && sectionsNeedingPageHeading[section] && <h1 className="sr-only">{sectionsNeedingPageHeading[section]}</h1>}
           {ownerOnlySection && <section className="rounded-[2rem] border border-[#d6ca65] bg-[#fff8cd] p-7"><h1 className="text-2xl font-bold">Owner-only company area</h1><p className="mt-2 text-sm leading-6 text-[#6f6840]">Workers can view assigned bookings and manage their own requested hours. Revenue, billing, listings, company messages, and business settings stay private to the company owner.</p><Link href="/provider/dashboard/team" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Open my worker area</Link></section>}
-          {notice && provider && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Welcome to BubsBookings, {firstName}!</p><p className="mt-1 text-[#567060]">{isWorker ? `You have worker access to ${provider.businessName}.` : "Your provider profile and services are saved."}</p></div><button onClick={() => setNotice(false)} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#64786a] transition hover:bg-[#cbdcc8]"><UiIcon name="close" className="h-4 w-4" /></button></div>}
+          {notice && provider && <div role="status" aria-live="polite" className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">{notice.kind === "welcome" ? `Welcome to BubsBookings, ${firstName}!` : "Changes saved"}</p><p className="mt-1 text-[#567060]">{notice.kind === "welcome" ? (isWorker ? `You have worker access to ${provider.businessName}.` : "Your provider profile and services are saved.") : notice.message}</p></div><button onClick={dismissNotice} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#64786a] transition hover:bg-[#cbdcc8]"><UiIcon name="close" className="h-4 w-4" /></button></div>}
           {photoUploadFailed && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#e0b58f] bg-[#fff3e9] p-4 text-sm"><div><p className="font-bold">Your listing was saved, but a photo did not upload.</p><p className="mt-1 text-[#765e4c]">You can add it again under Your services below.</p></div><button onClick={() => setPhotoUploadFailed(false)} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#806b5b] transition hover:bg-[#f4d8cc]"><UiIcon name="close" className="h-4 w-4" /></button></div>}
           {listingDeleted && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Listing deleted.</p><p className="mt-1 text-[#567060]">It is no longer visible in customer searches.</p></div><button onClick={() => setListingDeleted(false)} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#64786a] transition hover:bg-[#cbdcc8]"><UiIcon name="close" className="h-4 w-4" /></button></div>}
 
