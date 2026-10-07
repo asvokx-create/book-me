@@ -1012,6 +1012,16 @@ html[data-theme="dark"] .location-apply-button:disabled {
   justify-self: end;
 }
 
+@media (min-width: 1024px) {
+  .service-booking-panel {
+    position: fixed;
+    z-index: 30;
+    top: 11rem;
+    right: max(3rem, calc((100vw - 63.625rem) / 2));
+    width: min(21.25rem, calc(100vw - 6rem));
+  }
+}
+
 .service-detail-meta,
 .service-detail-meta-primary,
 .service-detail-provider,
