@@ -13,14 +13,16 @@ function sameStyle(a: CSSProperties, b: CSSProperties) {
 }
 
 export default function StationaryBookingPanel({ children }: { children: ReactNode }) {
-  const columnRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const pinnedTopRef = useRef<number | null>(null);
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({});
 
   const updatePosition = useCallback(() => {
-    const column = columnRef.current;
     const panel = panelRef.current;
+    // The page owns this aside because it is a grid item. Keeping that markup
+    // in the page preserves the booking card's original desktop placement; this
+    // component only changes the card's positioning inside that existing column.
+    const column = panel?.closest<HTMLElement>(".service-booking-column");
     const layout = column?.closest<HTMLElement>(".service-detail-layout");
     if (!column || !panel || !layout) return;
 
@@ -73,8 +75,8 @@ export default function StationaryBookingPanel({ children }: { children: ReactNo
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(updatePosition);
     };
-    const column = columnRef.current;
     const panel = panelRef.current;
+    const column = panel?.closest<HTMLElement>(".service-booking-column");
     const header = document.querySelector<HTMLElement>("[data-service-detail-header]");
     const resizeObserver = new ResizeObserver(scheduleUpdate);
     if (column) resizeObserver.observe(column);
@@ -96,10 +98,8 @@ export default function StationaryBookingPanel({ children }: { children: ReactNo
   }, [updatePosition]);
 
   return (
-    <aside ref={columnRef} className="service-booking-column min-w-0">
-      <div ref={panelRef} className="service-booking-panel min-w-0" style={panelStyle}>
-        {children}
-      </div>
-    </aside>
+    <div ref={panelRef} className="service-booking-panel min-w-0" style={panelStyle}>
+      {children}
+    </div>
   );
 }
