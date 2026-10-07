@@ -22,12 +22,13 @@ test("large displays gain useful columns without allowing cards and booking pane
   const home = read("app", "page.tsx");
   const services = read("app", "services", "page.tsx");
   const listing = read("app", "services", "[slug]", "page.tsx");
+  const bookingPanel = read("components", "stationary-booking-panel.tsx");
   const css = read("app", "globals.css");
 
   assert.match(home, /min-\[1536px\]:grid-cols-4/);
   assert.match(services, /min-\[1536px\]:grid-cols-4/);
   assert.match(listing, /minmax\(20rem,25rem\)/);
-  assert.match(listing, /service-booking-column/);
+  assert.match(bookingPanel, /service-booking-column/);
   assert.match(css, /\.service-booking-column[\s\S]*?max-width: 25rem/);
 });
 
