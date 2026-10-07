@@ -1022,8 +1022,6 @@ html[data-theme="dark"] .location-apply-button:disabled {
     position: sticky;
     top: 7rem;
     z-index: 40;
-    max-height: calc(100dvh - 8rem);
-    overflow-y: auto;
   }
 }
 
