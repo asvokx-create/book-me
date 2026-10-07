@@ -1021,6 +1021,10 @@ html[data-theme="dark"] .location-apply-button:disabled {
   .service-booking-panel {
     position: sticky;
     top: 10rem;
+    /* Most booking cards fit without scrolling. Expanded controls can exceed the
+       visible space below the header, so only then does this panel scroll. */
+    max-height: calc(100dvh - 10rem);
+    overflow-y: auto;
   }
 }
 

@@ -76,7 +76,7 @@ test("the desktop booking panel stays aligned at the gallery top without an inne
   assert.match(stationaryPanel, /service-booking-panel min-w-0/);
   assert.match(servicePage, /lg:grid-cols-\[minmax\(0,1fr\)_minmax\(20rem,25rem\)\]/);
   assert.match(servicePage, /<aside className="service-booking-column min-w-0">/);
-  assert.match(globalCss, /@media \(min-width: 1024px\) \{[\s\S]*?\.service-booking-panel \{[\s\S]*?position: sticky;[\s\S]*?top: 10rem;/);
+  assert.match(globalCss, /@media \(min-width: 1024px\) \{[\s\S]*?\.service-booking-panel \{[\s\S]*?position: sticky;[\s\S]*?top: 10rem;[\s\S]*?max-height: calc\(100dvh - 10rem\);[\s\S]*?overflow-y: auto;/);
   assert.match(globalCss, /@media \(min-width: 1024px\) \{[\s\S]*?\.service-booking-column \{ align-self: stretch; \}/);
   assert.doesNotMatch(stationaryPanel, /overflow-y-auto|overscroll-contain|max-h-\[calc\(100dvh-3rem\)\]/);
   assert.doesNotMatch(stationaryPanel, /position: "fixed"|addEventListener\("scroll"/);
