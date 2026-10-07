@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/app/terms/page";
+import { POLICY_EFFECTIVE_DATE } from "@/lib/policy-consent";
 
 export const metadata: Metadata = { title: "Provider Agreement", alternates: { canonical: "/provider-agreement" } };
 
@@ -20,5 +21,5 @@ const sections = [
 ] as const;
 
 export default function ProviderAgreementPage() {
-  return <LegalPage eyebrow="For service professionals" title="Provider Agreement" intro="The marketplace, payment, and service standards that apply when you offer work through BubsBookings." sections={sections} effectiveDate="October 4, 2026" />;
+  return <LegalPage eyebrow="For service professionals" title="Provider Agreement" intro="The marketplace, payment, and service standards that apply when you offer work through BubsBookings." sections={sections} effectiveDate={POLICY_EFFECTIVE_DATE} />;
 }

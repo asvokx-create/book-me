@@ -12,7 +12,8 @@ test("guides and homepage explain current marketplace, partner, and payout behav
 
   assert.match(guides, /creator-partner-earnings-tracking-and-payouts/);
   assert.match(guides, /A click or signup does not create earnings/);
-  assert.match(guides, /does not pay 20% of the provider’s service price/);
+  assert.match(guides, /eligible BubsBookings revenue, not the provider’s gross service price/);
+  assert.match(guides, /Do not promise a particular amount, rate, or payout date/);
   assert.match(guides, /protected amount is based on recorded unpaid affiliate obligations/);
   assert.match(guides, /A marketplace request is matched by category and delivery type/);
   assert.match(guides, /a private street address is never needed for remote work/);

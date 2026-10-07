@@ -11,6 +11,7 @@ const publicPolicyPages = [
   "ai-transparency",
   "accessibility",
   "content-removal",
+  "disputes",
   "promise",
 ];
 
@@ -48,6 +49,21 @@ test("legal pages disclose current affiliate funding, privacy, and analytics beh
   assert.match(privacy, /stay off unless you choose “Allow analytics.”/);
   assert.match(contentRemoval, /no later than 48 hours/);
   assert.match(contentRemoval, /copyright\.gov\/512/);
+});
+
+test("published legal versions and guide compensation language stay current", async () => {
+  const [policyConsent, providerAgreement, guides] = await Promise.all([
+    readFile(new URL("../lib/policy-consent.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/provider-agreement/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/guides.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(policyConsent, /POLICY_VERSION = "2026-10-07"/);
+  assert.match(policyConsent, /PROVIDER_AGREEMENT_VERSION = "2026-10-07"/);
+  assert.match(policyConsent, /POLICY_EFFECTIVE_DATE = "October 7, 2026"/);
+  assert.match(providerAgreement, /effectiveDate=\{POLICY_EFFECTIVE_DATE\}/);
+  assert.doesNotMatch(guides, /\$10 activation bonus|20% share|60-day attribution window/);
+  assert.equal((guides.match(/updatedAt: "2026-10-07"/g) ?? []).length, 21);
 });
 
 test("optional analytics is consent-gated without disabling necessary storage or affiliate attribution", async () => {
