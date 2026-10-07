@@ -1016,12 +1016,7 @@ html[data-theme="dark"] .location-apply-button:disabled {
    header while its own right column stays in the document flow. None of its
    ancestors create a nested scroll or clipping container. */
 @media (min-width: 1024px) {
-  /* Keep the grid's natural two columns, with enough end space for the sticky
-     booking card to remain pinned after the left content finishes. */
-  .service-detail-layout {
-    align-items: stretch;
-    padding-bottom: calc(100dvh - 7rem);
-  }
+  .service-detail-layout { align-items: stretch; }
   .service-booking-column { align-self: stretch; }
   .service-booking-panel {
     position: sticky;
