@@ -84,6 +84,7 @@ test("the desktop booking panel uses a normal sticky grid sidebar", () => {
   assert.match(bookingPanelCss, /top: 7rem;/);
   assert.doesNotMatch(globalCss, /\.service-detail-container \{ animation: none !important; \}/);
   assert.match(globalCss, /@media \(min-width: 1024px\) \{[\s\S]*?\.service-booking-column \{ align-self: stretch; \}/);
+  assert.match(bookingPanelCss, /padding-bottom: calc\(100dvh - 7rem\);/);
   assert.doesNotMatch(bookingPanelCss, /position: relative/);
   assert.doesNotMatch(bookingPanelCss, /max-height|overflow-y: (?:auto|scroll)/);
   assert.match(bookingCard, /<BookingDatePicker/);
