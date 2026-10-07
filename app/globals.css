@@ -1012,6 +1012,18 @@ html[data-theme="dark"] .location-apply-button:disabled {
   justify-self: end;
 }
 
+/* The listing grid becomes two columns at Tailwind's lg breakpoint (1024px).
+   Keep the sidebar in that grid row so sticky positioning ends with the listing,
+   rather than continuing into the footer. */
+@media (min-width: 1024px) {
+  .service-detail-layout { align-items: stretch; }
+  .service-booking-column { align-self: stretch; }
+  .service-booking-panel {
+    position: sticky;
+    top: 10rem;
+  }
+}
+
 .service-detail-meta,
 .service-detail-meta-primary,
 .service-detail-provider,

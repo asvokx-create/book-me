@@ -70,10 +70,16 @@ test("the shared date and time controls avoid operating-system pickers while pre
 test("the desktop booking panel stays aligned at the gallery top without an inner scrollbar", () => {
   const bookingCard = readFileSync(join(projectRoot, "app", "services", "[slug]", "booking-card.tsx"), "utf8");
   const stationaryPanel = readFileSync(join(projectRoot, "components", "stationary-booking-panel.tsx"), "utf8");
+  const servicePage = readFileSync(join(projectRoot, "app", "services", "[slug]", "page.tsx"), "utf8");
+  const globalCss = readFileSync(join(projectRoot, "app", "globals.css"), "utf8");
 
-  assert.match(stationaryPanel, /lg:sticky/);
-  assert.match(stationaryPanel, /lg:top-40/);
+  assert.match(stationaryPanel, /service-booking-panel min-w-0/);
+  assert.match(servicePage, /lg:grid-cols-\[minmax\(0,1fr\)_minmax\(20rem,25rem\)\]/);
+  assert.match(servicePage, /<aside className="service-booking-column min-w-0">/);
+  assert.match(globalCss, /@media \(min-width: 1024px\) \{[\s\S]*?\.service-booking-panel \{[\s\S]*?position: sticky;[\s\S]*?top: 10rem;/);
+  assert.match(globalCss, /@media \(min-width: 1024px\) \{[\s\S]*?\.service-booking-column \{ align-self: stretch; \}/);
   assert.doesNotMatch(stationaryPanel, /overflow-y-auto|overscroll-contain|max-h-\[calc\(100dvh-3rem\)\]/);
   assert.doesNotMatch(stationaryPanel, /position: "fixed"|addEventListener\("scroll"/);
+  assert.match(bookingCard, /<BookingDatePicker/);
   assert.ok((bookingCard.match(/lg:hidden/g) ?? []).length >= 3);
 });
