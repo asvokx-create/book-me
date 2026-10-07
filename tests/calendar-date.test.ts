@@ -75,7 +75,8 @@ test("the desktop booking panel docks to its grid column without an internal scr
 
   assert.match(stationaryPanel, /service-booking-panel min-w-0/);
   assert.match(stationaryPanel, /<div ref=\{anchorRef\} className="min-w-0">/);
-  assert.match(stationaryPanel, /position: "fixed", top, left: anchorRect\.left, width: anchorRect\.width, zIndex: 40/);
+  assert.match(stationaryPanel, /const containingBlockLeft = anchor\.closest<HTMLElement>\("\.service-detail-container"\)\?\.getBoundingClientRect\(\)\.left \?\? 0/);
+  assert.match(stationaryPanel, /position: "fixed", top, left: anchorRect\.left - containingBlockLeft, width: anchorRect\.width, zIndex: 40/);
   assert.match(stationaryPanel, /const top = 6 \* parseFloat\(getComputedStyle\(document\.documentElement\)\.fontSize\)/);
   assert.match(stationaryPanel, /window\.addEventListener\("scroll", syncDock, \{ passive: true \}\)/);
   assert.match(servicePage, /lg:grid-cols-\[minmax\(0,1fr\)_minmax\(20rem,25rem\)\]/);
