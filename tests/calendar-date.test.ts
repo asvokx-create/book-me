@@ -67,21 +67,22 @@ test("the shared date and time controls avoid operating-system pickers while pre
   assert.doesNotMatch(userFacingSources, /type="(?:date|datetime-local|month|week|time)"/);
 });
 
-test("the desktop booking panel uses a normal sticky grid sidebar", () => {
+test("the desktop booking panel docks to its grid column without an internal scroll area", () => {
   const bookingCard = readFileSync(join(projectRoot, "app", "services", "[slug]", "booking-card.tsx"), "utf8");
   const stationaryPanel = readFileSync(join(projectRoot, "components", "stationary-booking-panel.tsx"), "utf8");
   const servicePage = readFileSync(join(projectRoot, "app", "services", "[slug]", "page.tsx"), "utf8");
   const globalCss = readFileSync(join(projectRoot, "app", "globals.css"), "utf8");
 
   assert.match(stationaryPanel, /service-booking-panel min-w-0/);
-  assert.doesNotMatch(stationaryPanel, /<aside/);
-  assert.doesNotMatch(stationaryPanel, /useLayoutEffect|ResizeObserver|window\.addEventListener|position: "fixed"/);
+  assert.match(stationaryPanel, /<div ref=\{anchorRef\} className="min-w-0">/);
+  assert.match(stationaryPanel, /position: "fixed", top, left: anchorRect\.left, width: anchorRect\.width, zIndex: 40/);
+  assert.match(stationaryPanel, /const top = 6 \* parseFloat\(getComputedStyle\(document\.documentElement\)\.fontSize\)/);
+  assert.match(stationaryPanel, /window\.addEventListener\("scroll", syncDock, \{ passive: true \}\)/);
   assert.match(servicePage, /lg:grid-cols-\[minmax\(0,1fr\)_minmax\(20rem,25rem\)\]/);
   assert.doesNotMatch(servicePage, /data-service-detail-header/);
   assert.match(servicePage, /<aside className="service-booking-column min-w-0">/);
   const bookingPanelCss = globalCss.slice(globalCss.indexOf(".service-booking-column"), globalCss.indexOf(".service-detail-meta"));
-  assert.match(bookingPanelCss, /position: sticky;/);
-  assert.match(bookingPanelCss, /top: 7rem;/);
+  assert.doesNotMatch(bookingPanelCss, /position: sticky|top: 7rem/);
   assert.doesNotMatch(globalCss, /\.service-detail-container \{ animation: none !important; \}/);
   assert.match(globalCss, /@media \(min-width: 1024px\) \{[\s\S]*?\.service-booking-column \{ align-self: stretch; \}/);
   assert.doesNotMatch(bookingPanelCss, /position: relative/);

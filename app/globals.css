@@ -1012,17 +1012,11 @@ html[data-theme="dark"] .location-apply-button:disabled {
   justify-self: end;
 }
 
-/* The booking card remains a normal grid child, then pins below the desktop
-   header while its own right column stays in the document flow. None of its
-   ancestors create a nested scroll or clipping container. */
+/* The desktop dock measures this unchanged grid column and keeps the booking
+   card aligned to it once it reaches the viewport offset. */
 @media (min-width: 1024px) {
   .service-detail-layout { align-items: stretch; }
   .service-booking-column { align-self: stretch; }
-  .service-booking-panel {
-    position: sticky;
-    top: 7rem;
-    z-index: 40;
-  }
 }
 
 .service-detail-meta,
