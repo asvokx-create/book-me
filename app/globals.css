@@ -1007,21 +1007,24 @@ html[data-theme="dark"] .location-apply-button:disabled {
 }
 
 .service-booking-column {
-  position: relative;
   width: 100%;
   max-width: 25rem;
   justify-self: end;
 }
 
 /* The listing grid becomes two columns at Tailwind's lg breakpoint (1024px).
-   The booking component measures this column and pins the card to its exact
-   rendered width and horizontal position. The stretched column is its docking
-   boundary, so the card returns to document flow before the footer. */
+   Its booking card measures this column and stays aligned to it. */
 @media (min-width: 1024px) {
   .service-detail-layout { align-items: stretch; }
   .service-booking-column { align-self: stretch; }
   .service-booking-panel { z-index: 40; }
 }
+
+/* `page-enter` retains an identity transform after the animation. A transformed
+   ancestor changes fixed-position coordinates, which pushed the booking card
+   outside its measured column. This page's main container must stay untransformed
+   so the card's measured viewport position remains exact. */
+.service-detail-container { animation: none !important; }
 
 .service-detail-meta,
 .service-detail-meta-primary,

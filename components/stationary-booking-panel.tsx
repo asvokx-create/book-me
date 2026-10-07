@@ -24,7 +24,8 @@ export default function StationaryBookingPanel({ children }: { children: ReactNo
     // component only changes the card's positioning inside that existing column.
     const column = panel?.closest<HTMLElement>(".service-booking-column");
     const layout = column?.closest<HTMLElement>(".service-detail-layout");
-    if (!column || !panel || !layout) return;
+    const page = layout?.closest<HTMLElement>(".service-detail-page");
+    if (!column || !panel || !layout || !page) return;
 
     if (!window.matchMedia(desktopQuery).matches) {
       pinnedTopRef.current = null;
@@ -33,7 +34,7 @@ export default function StationaryBookingPanel({ children }: { children: ReactNo
     }
 
     const columnRect = column.getBoundingClientRect();
-    const layoutRect = layout.getBoundingClientRect();
+    const pageRect = page.getBoundingClientRect();
     const headerBottom = document.querySelector<HTMLElement>("[data-service-detail-header]")?.getBoundingClientRect().bottom ?? 0;
 
     if (pinnedTopRef.current === null) {
@@ -45,26 +46,18 @@ export default function StationaryBookingPanel({ children }: { children: ReactNo
     const naturalHeight = panel.scrollHeight;
     const visibleHeight = Math.min(naturalHeight, maxHeight);
     const needsPanelScroll = naturalHeight > maxHeight;
-    const reachesListingEnd = columnRect.height >= visibleHeight && layoutRect.bottom <= top + visibleHeight;
-
-    const nextStyle: CSSProperties = reachesListingEnd
-      ? {
-          position: "absolute",
-          right: 0,
-          bottom: 0,
-          left: 0,
-          width: "100%",
-          maxHeight,
-          overflowY: needsPanelScroll ? "auto" : "visible",
-        }
-      : {
-          position: "fixed",
-          top,
-          left: columnRect.left,
-          width: columnRect.width,
-          maxHeight,
-          overflowY: needsPanelScroll ? "auto" : "visible",
-        };
+    // Keep the card fixed in its original column while the listing is active.
+    // Near the service page's lower boundary, move it upward just enough to
+    // finish before the footer rather than covering it.
+    const dockedTop = Math.min(top, pageRect.bottom - visibleHeight);
+    const nextStyle: CSSProperties = {
+      position: "fixed",
+      top: dockedTop,
+      left: columnRect.left,
+      width: columnRect.width,
+      maxHeight,
+      overflowY: needsPanelScroll ? "auto" : "visible",
+    };
 
     setPanelStyle((current) => sameStyle(current, nextStyle) ? current : nextStyle);
   }, []);

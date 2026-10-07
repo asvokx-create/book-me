@@ -76,7 +76,7 @@ test("the desktop booking panel pins to its measured column and docks before the
   assert.match(stationaryPanel, /service-booking-panel min-w-0/);
   assert.doesNotMatch(stationaryPanel, /<aside/);
   assert.match(stationaryPanel, /position: "fixed"/);
-  assert.match(stationaryPanel, /position: "absolute"/);
+  assert.doesNotMatch(stationaryPanel, /position: "absolute"/);
   assert.match(stationaryPanel, /getBoundingClientRect\(\)/);
   assert.match(stationaryPanel, /window\.matchMedia\(desktopQuery\)/);
   assert.match(servicePage, /lg:grid-cols-\[minmax\(0,1fr\)_minmax\(20rem,25rem\)\]/);
@@ -84,8 +84,9 @@ test("the desktop booking panel pins to its measured column and docks before the
   assert.match(servicePage, /<aside className="service-booking-column min-w-0">/);
   const bookingPanelCss = globalCss.slice(globalCss.indexOf(".service-booking-column"), globalCss.indexOf(".service-detail-meta"));
   assert.doesNotMatch(bookingPanelCss, /position: sticky/);
+  assert.match(globalCss, /\.service-detail-container \{ animation: none !important; \}/);
   assert.match(globalCss, /@media \(min-width: 1024px\) \{[\s\S]*?\.service-booking-column \{ align-self: stretch; \}/);
-  assert.match(globalCss, /\.service-booking-column \{[\s\S]*?position: relative;/);
+  assert.doesNotMatch(bookingPanelCss, /position: relative/);
   assert.match(stationaryPanel, /overflowY: needsPanelScroll \? "auto" : "visible"/);
   assert.match(bookingCard, /<BookingDatePicker/);
   assert.ok((bookingCard.match(/lg:hidden/g) ?? []).length >= 3);
