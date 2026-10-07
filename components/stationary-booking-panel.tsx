@@ -30,12 +30,10 @@ export default function StationaryBookingPanel({ children }: { children: ReactNo
       // The page-entry animation makes this container the fixed-position
       // reference frame. Convert the viewport measurement back to that frame
       // so docking never adds the container's left offset a second time.
-      const containingBlockRect = anchor.closest<HTMLElement>(".service-detail-container")?.getBoundingClientRect();
-      const containingBlockLeft = containingBlockRect?.left ?? 0;
-      const containingBlockTop = containingBlockRect?.top ?? 0;
+      const containingBlockLeft = anchor.closest<HTMLElement>(".service-detail-container")?.getBoundingClientRect().left ?? 0;
       const top = 6 * parseFloat(getComputedStyle(document.documentElement).fontSize);
       const nextStyle: CSSProperties = anchorRect.top <= top
-        ? { position: "fixed", top: top - containingBlockTop, left: anchorRect.left - containingBlockLeft, width: anchorRect.width, zIndex: 40 }
+        ? { position: "fixed", top, left: anchorRect.left - containingBlockLeft, width: anchorRect.width, zIndex: 40 }
         : {};
 
       setPanelStyle((current) => sameStyle(current, nextStyle) ? current : nextStyle);
