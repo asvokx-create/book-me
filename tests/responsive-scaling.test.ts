@@ -28,7 +28,8 @@ test("large displays gain useful columns without allowing cards and booking pane
   assert.match(home, /min-\[1536px\]:grid-cols-4/);
   assert.match(services, /min-\[1536px\]:grid-cols-4/);
   assert.match(listing, /minmax\(20rem,25rem\)/);
-  assert.match(bookingPanel, /service-booking-column/);
+  assert.match(bookingPanel, /service-booking-panel/);
+  assert.match(listing, /service-booking-column/);
   assert.match(css, /\.service-booking-column[\s\S]*?max-width: 25rem/);
 });
 

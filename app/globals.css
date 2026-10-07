@@ -1012,19 +1012,20 @@ html[data-theme="dark"] .location-apply-button:disabled {
   justify-self: end;
 }
 
-/* The listing grid becomes two columns at Tailwind's lg breakpoint (1024px).
-   Its booking card measures this column and stays aligned to it. */
+/* The booking card remains a normal grid child, then pins below the desktop
+   header while its own right column stays in the document flow. None of its
+   ancestors create a nested scroll or clipping container. */
 @media (min-width: 1024px) {
   .service-detail-layout { align-items: stretch; }
   .service-booking-column { align-self: stretch; }
-  .service-booking-panel { z-index: 40; }
+  .service-booking-panel {
+    position: sticky;
+    top: 7rem;
+    z-index: 40;
+    max-height: calc(100dvh - 8rem);
+    overflow-y: auto;
+  }
 }
-
-/* `page-enter` retains an identity transform after the animation. A transformed
-   ancestor changes fixed-position coordinates, which pushed the booking card
-   outside its measured column. This page's main container must stay untransformed
-   so the card's measured viewport position remains exact. */
-.service-detail-container { animation: none !important; }
 
 .service-detail-meta,
 .service-detail-meta-primary,
