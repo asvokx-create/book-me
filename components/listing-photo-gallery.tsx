@@ -4,16 +4,17 @@ import type { ReactNode, TouchEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import UiIcon from "@/components/ui-icon";
+import ServiceCategoryIcon from "@/components/service-category-icon";
 
 type ListingPhotoGalleryProps = {
   images: string[];
   title: string;
   fallbackGradient: string;
-  fallbackArt: string;
+  fallbackCategory: string;
   children?: ReactNode;
 };
 
-export default function ListingPhotoGallery({ images, title, fallbackGradient, fallbackArt, children }: ListingPhotoGalleryProps) {
+export default function ListingPhotoGallery({ images, title, fallbackGradient, fallbackCategory, children }: ListingPhotoGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const touchStart = useRef<number | null>(null);
@@ -65,7 +66,7 @@ export default function ListingPhotoGallery({ images, title, fallbackGradient, f
       <div className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-gradient-to-br sm:h-[420px] ${fallbackGradient}`}>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />
         <div className="absolute bottom-[-40%] left-[18%] h-[90%] w-[80%] rounded-[50%] border-[36px] border-white/20" />
-        <span className="absolute bottom-8 right-10 text-8xl opacity-80 sm:text-9xl">{fallbackArt}</span>
+        <ServiceCategoryIcon category={fallbackCategory} className="absolute bottom-8 right-10 h-28 min-h-28 w-28 min-w-28 opacity-90 sm:h-32 sm:min-h-32 sm:w-32 sm:min-w-32 [&_svg]:h-20 [&_svg]:w-20" />
         {children}
       </div>
     );

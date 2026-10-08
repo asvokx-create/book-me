@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getServiceCategoryIconConfig } from "./service-category-icons";
 import { database, isDatabaseConfigured } from "./database";
 import { distanceMiles } from "./service-areas";
 import { findUsCity } from "./us-cities";
@@ -535,19 +536,6 @@ export async function getProviderById(id: string) {
 }
 
 export function getServiceVisual(category: string) {
-  const normalized = category.toLowerCase();
-  if (normalized.includes("car")) return { art: "🚙", gradient: "from-[#dcecf1] to-[#e5efd8]" };
-  if (normalized.includes("lawn") || normalized.includes("garden") || normalized.includes("landscap")) return { art: "🌱", gradient: "from-[#e2f0d2] to-[#f5efc1]" };
-  if (normalized.includes("clean")) return { art: "🏡", gradient: "from-[#dff1e5] to-[#f6f3c7]" };
-  if (normalized.includes("photo") || normalized.includes("video")) return { art: normalized.includes("photo") ? "📷" : "🎥", gradient: "from-[#e5eee4] to-[#f3edcf]" };
-  if (normalized.includes("pressure wash") || normalized.includes("plumb")) return { art: "💦", gradient: "from-[#dcecf1] to-[#e7f0e4]" };
-  if (normalized.includes("pet") || normalized.includes("beauty") || normalized.includes("wellness")) return { art: "🐾", gradient: "from-[#f0e8d9] to-[#f4efc9]" };
-  if (normalized.includes("moving") || normalized.includes("junk") || normalized.includes("removal")) return { art: "📦", gradient: "from-[#e4ebe5] to-[#f3edcf]" };
-  if (normalized.includes("tutor") || normalized.includes("tech") || normalized.includes("computer")) return { art: "📚", gradient: "from-[#dfe9e2] to-[#edf1df]" };
-  if (normalized.includes("furniture") || normalized.includes("assembly")) return { art: "🪑", gradient: "from-[#eee5d9] to-[#f7efc8]" };
-  if (normalized.includes("paint") || normalized.includes("event")) return { art: "🖌️", gradient: "from-[#e7eee2] to-[#f5edca]" };
-  if (normalized.includes("training")) return { art: "🏋️", gradient: "from-[#dce9df] to-[#edf0d2]" };
-  if (normalized.includes("electric")) return { art: "⚡", gradient: "from-[#e6ece3] to-[#f4edbd]" };
-  if (normalized.includes("repair") || normalized.includes("appliance")) return { art: "🔧", gradient: "from-[#e5ece4] to-[#efe8d4]" };
-  return { art: "🧰", gradient: "from-[#e5eee4] to-[#f3edcf]" };
+  // Legacy callers still use the category background. The icon always comes from ServiceCategoryIcon.
+  return { gradient: getServiceCategoryIconConfig(category).background };
 }

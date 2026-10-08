@@ -108,35 +108,3 @@ export function serviceCategorySlug(category: string) {
 export function getServiceCategoryBySlug(slug: string) {
   return SERVICE_CATEGORIES.find((category) => serviceCategorySlug(category) === slug.toLowerCase());
 }
-
-export const SERVICE_CATEGORY_ICONS: Record<string, string> = {
-  "Home cleaning": "🧽",
-  "Pressure washing": "💦",
-  "Car detailing": "🚗",
-  "Lawn & garden": "🌿",
-  Handyman: "🔨",
-  "Furniture assembly": "🪑",
-  "House painting": "🖌️",
-  Photography: "📷",
-  Videography: "🎥",
-  "Pet care": "🐾",
-  "Moving help": "📦",
-  "Junk removal": "🗑️",
-  "Personal training": "🏋️",
-  "Beauty & wellness": "✨",
-  Tutoring: "📚",
-  "Tech help": "💻",
-  "Event services": "🎉",
-  "Home repair": "🏠",
-  "Appliance repair": "🔧",
-  Plumbing: "🚿",
-  Electrical: "⚡",
-  "Graphic design": "🎨",
-  "Video editing": "🎬",
-  "Web development": "🌐",
-  "Writing & editing": "✍️",
-  "Digital marketing": "📣",
-  "Virtual assistance": "🗂️",
-  Consulting: "💬",
-  Bookkeeping: "🧾",
-};

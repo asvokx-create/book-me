@@ -134,7 +134,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
             {quickCategories.map((category) => {
               const active = category === selectedCategory;
               return (
-                <Link key={category} href={serviceHref(category)} className={`shrink-0 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${active ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white hover:border-[#496958] hover:bg-[#edf3e7]"}`}>{category}</Link>
+                <Link key={category} href={serviceHref(category)} className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition ${active ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white hover:border-[#496958] hover:bg-[#edf3e7]"}`}>{category !== "All services" && <ServiceCategoryIcon category={category} compact className="h-6 min-h-6 w-6 min-w-6 rounded-md [&_svg]:h-4 [&_svg]:w-4" />}{category}</Link>
               );
             })}
           </div>

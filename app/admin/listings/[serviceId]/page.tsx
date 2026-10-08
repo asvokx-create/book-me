@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { database } from "@/lib/database";
 import { formatDuration, getServiceVisual } from "@/lib/marketplace";
+import ServiceCategoryIcon from "@/components/service-category-icon";
 import { getAdminSession } from "@/lib/admin";
 import { formatDurationMinutes, formatHourlyRate } from "@/lib/service-pricing";
 
@@ -52,7 +53,7 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
       <div className="mt-7 grid gap-7 lg:grid-cols-[1.25fr_.75fr]">
         <section>
           <div role="img" aria-label={`${listing.title} cover`} style={images[0] ? { backgroundImage: `url("${images[0]}")` } : undefined} className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-cover bg-center sm:h-[420px] ${images[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
-            {!images[0] && <span className="absolute bottom-8 right-10 text-8xl opacity-80 sm:text-9xl">{visual.art}</span>}
+            {!images[0] && <ServiceCategoryIcon category={listing.category} className="absolute bottom-8 right-10 h-28 min-h-28 w-28 min-w-28 opacity-90 sm:h-32 sm:min-h-32 sm:w-32 sm:min-w-32 [&_svg]:h-20 [&_svg]:w-20" />}
             <span className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-xs font-bold">{listing.is_active ? "Active listing" : "Removed listing"}</span>
           </div>
           {images.length > 1 && <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{images.slice(1).map((url, index) => <div key={url} role="img" aria-label={`${listing.title} photo ${index + 2}`} style={{ backgroundImage: `url("${url}")` }} className="aspect-[4/3] rounded-2xl bg-cover bg-center" />)}</div>}
