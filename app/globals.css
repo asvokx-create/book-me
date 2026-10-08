@@ -2453,6 +2453,14 @@ html[data-theme="dark"] .account-page > header {
 }
 .input:focus-visible { outline: 3px solid rgb(238 226 90 / 70%); outline-offset: 2px; }
 
+/* Campaign-builder selects share the .input surface. Restore the select's
+   flex layout after .input's block display so its chevron stays right-aligned. */
+.input.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 /* Mobile application ergonomics shared across the marketplace and dashboards. */
 @media (max-width: 640px) {
   body {

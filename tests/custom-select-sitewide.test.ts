@@ -80,4 +80,5 @@ test("popup styles cover layering, dark mode, scrolling, and mobile-size touch t
   assert.match(component, /min-h-11/);
   assert.match(component, /overflow-y-auto/);
   assert.match(component, /maxHeight: position\.maxHeight/);
+  assert.match(styles, /\.input\.custom-select-trigger\s*\{[\s\S]*?display:\s*flex;[\s\S]*?justify-content:\s*space-between;/);
 });
