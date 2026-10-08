@@ -3004,6 +3004,12 @@ html[data-theme="dark"] .services-search-panel { box-shadow: none !important; }
   .type-hero { font-size: 2.25rem; }
 }
 
+@media (min-width: 360px) and (max-width: 399px) {
+  /* A two-column upcoming grid makes long category names wrap awkwardly on
+     narrow phones. Keep the complete label readable without truncation. */
+  .home-upcoming-grid { grid-template-columns: 1fr; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {

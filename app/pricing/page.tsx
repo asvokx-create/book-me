@@ -25,7 +25,7 @@ const plans = [
     cadence: "forever",
     fee: "10% booking fee",
     description: "Everything you need to start getting booked.",
-    features: ["No lead, inquiry, message, or quote fees", "2 services with up to 5 photos", "Share link, QR code & listing tools", "Booking calendar & customer messaging", "Customer records, tags & email campaigns", "24-hour reminders & basic analytics", "Single-owner access"],
+    features: ["No lead, inquiry, message, or quote fees", "2 services with up to 5 photos", "Share links, QR codes & listing tools", "Booking calendar & customer messaging", "Customer records, booking history, private tags & notes", "Email campaigns with audience segments, branded templates & reporting", "Unsubscribe and suppression handling", "24-hour reminders & basic analytics", "Single-owner access"],
     featured: false,
   },
   {
@@ -35,7 +35,7 @@ const plans = [
     cadence: "per month",
     fee: "6% booking fee",
     description: "Every growth tool in one affordable plan.",
-    features: ["No lead, inquiry, message, or quote fees", "Unlimited services, photos & locations", "Share links, QR codes & listing tools", "Customer records, tags & email campaigns", "Custom questions & advanced reminders", "Advanced analytics & repeat-customer insights", "3 team seats included", "Extra employees for $0.50/month each", "Priority support & browse placement"],
+    features: ["Everything in Starter", "Unlimited services, photos & locations", "Custom booking questions & advanced reminders", "Advanced analytics & repeat-customer insights", "Coupon promotions & repeat-customer offers", "3 team seats included", "Extra employees for $0.50/month each", "Priority support & browse placement"],
     featured: true,
   },
 ] as const;

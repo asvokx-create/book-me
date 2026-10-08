@@ -29,12 +29,12 @@ import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { isAllDayAvailability } from "@/lib/availability-hours";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 import { dashboardWidgetDetails, ownerDashboardWidgets, workerDashboardWidgets, type DashboardWidgetId } from "@/lib/provider-dashboard-widgets";
-import { formatDurationMinutes, formatServicePrice } from "@/lib/service-pricing";
+import { formatDurationMinutes, formatHourlyRate, formatServicePrice } from "@/lib/service-pricing";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
 export type DashboardSection = "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "customers" | "revenue" | "services" | "profile" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
 
-type ProviderBooking = { id: string; customer: string; customerImage: string; initials: string; service: string; startsAt: string; location: string; price: number; status: RequestStatus; assigneeName: string; repeatBookings: number };
+type ProviderBooking = { id: string; customer: string; customerImage: string; initials: string; service: string; startsAt: string; location: string; price: number; pricingType: "FIXED" | "HOURLY"; hourlyRateCents: number | null; status: RequestStatus; assigneeName: string; repeatBookings: number };
 const initialRequests: ProviderBooking[] = [];
 
 type ProviderSummary = {
@@ -96,6 +96,13 @@ type ProviderReview = {
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
+}
+
+function formatBookedPrice(booking: ProviderBooking) {
+  const total = formatCurrency(booking.price);
+  return booking.pricingType === "HOURLY" && booking.hourlyRateCents !== null
+    ? `${formatHourlyRate(booking.hourlyRateCents)} · ${total} booked`
+    : total;
 }
 
 function formatDuration(minutes: number) {
@@ -206,11 +213,14 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   useEffect(() => () => clearNoticeTimer(), []);
 
   useEffect(() => {
-    if (!userId) {
-      setNotice(null);
-      return;
-    }
-    if (window.localStorage.getItem(welcomeNoticeStorageKey(userId)) !== "1") setNotice({ kind: "welcome" });
+    const welcomeNoticeTimer = window.setTimeout(() => {
+      if (!userId) {
+        setNotice(null);
+        return;
+      }
+      if (window.localStorage.getItem(welcomeNoticeStorageKey(userId)) !== "1") setNotice({ kind: "welcome" });
+    }, 0);
+    return () => window.clearTimeout(welcomeNoticeTimer);
   }, [userId]);
 
   useEffect(() => {
@@ -467,7 +477,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
               {requests.length === 0 && <div className="rounded-2xl bg-[#f5f5ef] px-5 py-8 text-center"><p className="font-bold">No booking requests yet</p><p className="mt-1 text-sm text-[#73827b]">New customer requests will appear here.</p></div>}
               {requests.map((request) => <div key={request.id} className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 xl:flex-row xl:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-4"><ProfileAvatar name={request.customer} imageUrl={request.customerImage} className="h-11 w-11 text-sm" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-bold">{request.customer}</p>{request.status === "new" && <span className="rounded-full bg-[#fff2c1] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#806817]">New</span>}{request.repeatBookings > 0 && <span className="rounded-full bg-[#e7f1e3] px-2 py-0.5 text-[10px] font-bold text-[#35704a]">Repeat · #{request.repeatBookings + 1}</span>}</div><p className="mt-1 truncate text-sm text-[#6f7e76]">{request.service} · {request.location}</p></div></div>
-                <div className="flex flex-wrap items-center justify-between gap-4 xl:w-[58%]"><div><p className="text-sm font-bold">{formatBookingDate(request.startsAt, timeZone)}</p><p className="mt-1 text-xs text-[#74827b]">{formatBookingTime(request.startsAt, timeZone)}{!isWorker && ` · $${request.price}`}</p><p className="mt-1 text-xs font-semibold text-[#55705e]">Assigned: {request.assigneeName}</p></div><div className="flex flex-wrap items-center justify-end gap-2"><Link href={`/provider/dashboard/bookings/${request.id}`} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View details</Link>{!isWorker && (request.status === "new" ? <button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{bookingActionId === request.id ? "Saving…" : "Accept"}</button> : request.status === "accepted" ? <><span className="rounded-full bg-[#e4f1e5] px-3 py-1.5 text-xs font-bold text-[#35704a]">Accepted ✓</span><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "completed")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#eee25a] disabled:opacity-50">Mark complete</button></> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "completed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "completed" ? "Completed ✓" : "Cancelled"}</span>)}{!isWorker && request.status === "cancelled" && <button disabled={bookingActionId === request.id} onClick={() => deleteCancelledRequest(request.id)} className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Delete</button>}</div></div>
+                <div className="flex flex-wrap items-center justify-between gap-4 xl:w-[58%]"><div><p className="text-sm font-bold">{formatBookingDate(request.startsAt, timeZone)}</p><p className="mt-1 text-xs text-[#74827b]">{formatBookingTime(request.startsAt, timeZone)}{!isWorker && ` · ${formatBookedPrice(request)}`}</p><p className="mt-1 text-xs font-semibold text-[#55705e]">Assigned: {request.assigneeName}</p></div><div className="flex flex-wrap items-center justify-end gap-2"><Link href={`/provider/dashboard/bookings/${request.id}`} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View details</Link>{!isWorker && (request.status === "new" ? <button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "accepted")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{bookingActionId === request.id ? "Saving…" : "Accept"}</button> : request.status === "accepted" ? <><span className="rounded-full bg-[#e4f1e5] px-3 py-1.5 text-xs font-bold text-[#35704a]">Accepted ✓</span><button disabled={bookingActionId === request.id} onClick={() => updateRequest(request.id, "completed")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold transition hover:bg-[#eee25a] disabled:opacity-50">Mark complete</button></> : <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${request.status === "completed" ? "bg-[#e4f1e5] text-[#35704a]" : "bg-[#f2ebe7] text-[#805747]"}`}>{request.status === "completed" ? "Completed ✓" : "Cancelled"}</span>)}{!isWorker && request.status === "cancelled" && <button disabled={bookingActionId === request.id} onClick={() => deleteCancelledRequest(request.id)} className="rounded-full px-3 py-2 text-xs font-bold text-[#8a4c3a] transition hover:bg-[#f4d8cc] disabled:opacity-50">Delete</button>}</div></div>
               </div>)}
             </div>
           </section>}

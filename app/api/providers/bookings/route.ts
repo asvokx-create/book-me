@@ -8,7 +8,7 @@ export async function GET() {
 
   const result = await database.query<{
     id: string; customer: string; customer_image: string | null; service: string; starts_at: Date; location: string;
-    price_cents: number; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string; previous_booking_count: number; plan: "starter" | "pro" | "business" | "owner";
+    price_cents: number; pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string; previous_booking_count: number; plan: "starter" | "pro" | "business" | "owner";
   }>(
     `SELECT b.id::text, u.name AS customer, u.image AS customer_image, s.title AS service, b.starts_at,
             CASE WHEN b.delivery_method = 'REMOTE' THEN 'Remote service' WHEN b.status IN ('confirmed', 'completed') OR EXISTS (
@@ -17,7 +17,7 @@ export async function GET() {
             ) THEN b.service_address ELSE
               COALESCE(NULLIF(trim(concat_ws(' ', concat_ws(', ', b.service_city, b.service_state), b.service_postal_code)), ''), 'Address available after acceptance')
             END AS location,
-            b.price_cents, b.status, p.plan,
+            b.price_cents, b.pricing_type_snapshot, b.hourly_rate_cents_snapshot, b.status, p.plan,
             COALESCE((SELECT string_agg(CASE WHEN assigned.is_owner THEN owner_user.name ELSE assigned_member.name END, ', ' ORDER BY assigned.is_owner DESC, assigned_member.name)
               FROM booking_assignees assigned LEFT JOIN provider_team_members assigned_member ON assigned_member.id = assigned.team_member_id
               WHERE assigned.booking_id = b.id), COALESCE(member.name, owner_user.name)) AS assignee_name,
@@ -46,6 +46,8 @@ export async function GET() {
     startsAt: row.starts_at,
     location: row.location,
     price: row.price_cents / 100,
+    pricingType: row.pricing_type_snapshot,
+    hourlyRateCents: row.hourly_rate_cents_snapshot,
     status: row.status === "requested" ? "new" : row.status === "confirmed" ? "accepted" : row.status === "completed" ? "completed" : "cancelled",
     assigneeName: row.assignee_name,
     repeatBookings: row.plan === "starter" ? 0 : row.previous_booking_count,

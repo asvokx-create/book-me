@@ -4,7 +4,7 @@ import { KeyboardEvent, useEffect, useId, useLayoutEffect, useMemo, useRef, useS
 import { createPortal } from "react-dom";
 import CustomSelect from "@/components/custom-select";
 import UiIcon from "@/components/ui-icon";
-import { addDateOnlyDays, calendarGrid, formatDateOnly, monthForDate, parseDateOnly, shiftCalendarMonth, todayDateOnly, toDateOnly, type CalendarMonth } from "@/lib/calendar-date";
+import { addDateOnlyDays, calendarGrid, formatDateOnly, monthForDate, parseDateOnly, shiftCalendarMonth, todayDateOnly, type CalendarMonth } from "@/lib/calendar-date";
 
 type DatePickerProps = {
   value?: string;
@@ -224,7 +224,7 @@ export default function DatePicker({
 
   return <div className={`date-picker min-w-0 ${className}`}>
     {name && <input type="hidden" name={name} value={selectedValue} />}
-    <button ref={triggerRef} id={fieldId} type="button" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} aria-required={required || undefined} aria-invalid={Boolean(error || invalid) || undefined} aria-describedby={description || error || invalid ? helpId : undefined} onClick={() => { setDisplayedMonth(monthForDate(selectedValue || min || todayDateOnly())); setOpen((current) => !current); }} className={`date-picker-trigger flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 text-left text-sm outline-none transition hover:border-[#4d725d] hover:bg-white focus-visible:border-[#4d725d] disabled:cursor-not-allowed disabled:opacity-55 ${error || invalid ? "border-[#a85543] ring-2 ring-[#a85543]/15" : ""} ${buttonClassName}`}><span className={selectedValue ? "min-w-0 truncate font-semibold" : "min-w-0 truncate text-[#718078]"}>{selectedValue ? formatDateOnly(selectedValue) : placeholder}</span><span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#e5eddf]"><UiIcon name="calendar" className="h-4 w-4" /></span></button>
+    <button ref={triggerRef} id={fieldId} type="button" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} aria-describedby={description || error || invalid ? helpId : undefined} onClick={() => { setDisplayedMonth(monthForDate(selectedValue || min || todayDateOnly())); setOpen((current) => !current); }} className={`date-picker-trigger flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 text-left text-sm outline-none transition hover:border-[#4d725d] hover:bg-white focus-visible:border-[#4d725d] disabled:cursor-not-allowed disabled:opacity-55 ${error || invalid ? "border-[#a85543] ring-2 ring-[#a85543]/15" : ""} ${buttonClassName}`}><span className={selectedValue ? "min-w-0 truncate font-semibold" : "min-w-0 truncate text-[#718078]"}>{selectedValue ? formatDateOnly(selectedValue) : placeholder}</span><span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#e5eddf]"><UiIcon name="calendar" className="h-4 w-4" /></span></button>
     {(description || error || invalid) && <p id={helpId} className={`mt-1.5 text-xs ${error || invalid ? "font-semibold text-[#9a4e3c]" : "text-[#718078]"}`}>{error || (invalid ? `${ariaLabel} is required.` : description)}</p>}
     {typeof document !== "undefined" && calendar ? createPortal(calendar, document.body) : null}
   </div>;

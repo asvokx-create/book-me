@@ -22,7 +22,7 @@ test("guides and homepage explain current marketplace, partner, and payout behav
   assert.match(indexPage, /For partners/);
   assert.match(articlePage, /href="\/partner-agreement"/);
   assert.match(articlePage, /current legal policies control/);
-  assert.match(homePage, /For creators &amp; affiliates/);
+  assert.match(homePage, /Partner Program/);
   assert.match(homePage, /Share BubsBookings\. Earn when providers succeed\./);
   assert.match(homePage, /href="\/partners"/);
 });
