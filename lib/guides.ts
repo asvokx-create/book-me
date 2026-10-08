@@ -16,7 +16,7 @@ export type Guide = {
 export const GUIDES: Guide[] = [
   {
     slug: "creator-partner-earnings-tracking-and-payouts",
-    title: "Creator partner earnings, tracking, and payouts explained",
+    title: "Partner Program earnings, tracking, and payouts explained",
     description: "See when a provider referral qualifies, how commissions are calculated, why earnings are held, and what Stripe setup is required.",
     category: "Partner program",
     readMinutes: 8,

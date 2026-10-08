@@ -1012,11 +1012,13 @@ html[data-theme="dark"] .location-apply-button:disabled {
   justify-self: end;
 }
 
-/* The desktop dock measures this unchanged grid column and keeps the booking
-   card aligned to it once it reaches the viewport offset. */
+/* Keep the booking card in its grid column while the listing scrolls. The
+   parent grid stretches to the listing content height, so sticky stops before
+   later page sections without creating an independently scrolling sidebar. */
 @media (min-width: 1024px) {
   .service-detail-layout { align-items: stretch; }
   .service-booking-column { align-self: stretch; }
+  .service-booking-panel { position: sticky; top: 1.5rem; }
 }
 
 .service-detail-meta,
@@ -1096,7 +1098,7 @@ html[data-theme="dark"] .location-apply-button:disabled {
 }
 
 main > section,
-main > div:not([class*="fixed"]):not(.dashboard-shell) {
+main > div:not([class*="fixed"]):not(.dashboard-shell):not(.service-detail-container) {
   animation: page-enter 420ms cubic-bezier(.2,.8,.2,1) both;
 }
 
