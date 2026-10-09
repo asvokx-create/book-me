@@ -66,13 +66,21 @@ type Payout = {
   payout_freeze_reason: string | null; payout_failure_reason: string | null; booking_status: string;
   created_at: string; customer_name: string; provider_name: string; service_title: string;
 };
+type BookingTip = {
+  id: string; booking_id: string; amount_cents: number; tip_type: "percentage" | "custom"; percentage: number | null;
+  payment_status: string; transfer_status: string; refunded_amount_cents: number; risk_status: "clear" | "review";
+  stripe_payment_intent_id: string | null; stripe_charge_id: string | null; stripe_transfer_id: string | null;
+  stripe_refund_id: string | null; stripe_dispute_id: string | null; stripe_dispute_status: string | null;
+  failure_reason: string | null; transfer_failure_reason: string | null; created_at: string; paid_at: string | null;
+  transferred_at: string | null; refunded_at: string | null; customer_name: string; provider_name: string; service_title: string;
+};
 type DashboardData = {
   stats: Stats; reports: SafetyReport[]; events: ModerationEvent[];
   messageModeration: MessageModerationEvent[];
-  accounts: Account[]; listings: Listing[]; reviews: Review[]; payouts: Payout[]; audit: AuditEntry[];
+  accounts: Account[]; listings: Listing[]; reviews: Review[]; payouts: Payout[]; tips: BookingTip[]; audit: AuditEntry[];
 };
 type AdminActionOptions = {
-  action: string; targetId: string; status?: string; needsReason?: boolean;
+  action: string; targetId: string; status?: string; needsReason?: boolean; needsAmount?: boolean; maximumAmountCents?: number;
   confirmText?: string; successText: string;
 };
 type AccountDetails = {
@@ -200,16 +208,27 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
 
   async function executeAction(options: AdminActionOptions) {
     let reason = "";
+    let amountCents: number | undefined;
     if (options.needsReason) {
       reason = window.prompt("Add a clear reason. This is saved in the audit history.")?.trim() ?? "";
       if (!reason) return;
+    }
+    if (options.needsAmount) {
+      const entered = window.prompt(`Refund amount (up to $${((options.maximumAmountCents ?? 0) / 100).toFixed(2)}):`);
+      if (entered === null) return;
+      const normalized = Number(entered.trim());
+      amountCents = Number.isFinite(normalized) ? Math.round(normalized * 100) : NaN;
+      if (!Number.isSafeInteger(amountCents) || amountCents < 1 || amountCents > (options.maximumAmountCents ?? 0)) {
+        setError(`Enter an amount from $0.01 to $${((options.maximumAmountCents ?? 0) / 100).toFixed(2)}.`);
+        return;
+      }
     }
     setBusyId(options.targetId);
     setError("");
     const response = await fetch("/api/admin", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: options.action, targetId: options.targetId, status: options.status, reason }),
+      body: JSON.stringify({ action: options.action, targetId: options.targetId, status: options.status, reason, amountCents }),
     }).catch(() => null);
     const result = response ? await response.json() as { error?: string; message?: string } : null;
     if (!response?.ok) setError(result?.error ?? "That change could not be saved.");
@@ -511,6 +530,18 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                 const frozen = payout.payment_release_status === "frozen";
                 return <article key={payout.id} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6"><div className="flex flex-col gap-4 xl:flex-row xl:items-center"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><StatusPill value={payout.payment_release_status} /><span className="text-xs font-bold uppercase tracking-wider text-[#718078]">${(payout.provider_payout_cents / 100).toFixed(2)} provider share</span></div><h2 className="mt-3 text-xl font-bold">{payout.service_title}</h2><p className="mt-1 text-sm text-[#718078]">{payout.customer_name} → {payout.provider_name}</p>{payout.completion_confirmation_due_at && payout.payment_release_status === "awaiting_customer" && <p className="mt-2 text-xs font-semibold text-[#78681f]">Automatic release after {formatDate(payout.completion_confirmation_due_at)}</p>}{payout.payout_freeze_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Hold reason: {payout.payout_freeze_reason}</p>}{payout.payout_failure_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Stripe error: {payout.payout_failure_reason}</p>}</div><div className="admin-action-row flex flex-wrap gap-2"><Link href={`/provider/dashboard/bookings/${payout.id}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View booking</Link>{payout.payment_release_status === "failed" && <button disabled={busyId === payout.id} onClick={() => void runAction({ action: "payout_retry", targetId: payout.id, confirmText: "Retry this failed Stripe payout now?", successText: "Payout released." })} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#315846]">Retry payout</button>}{canFreeze && <button disabled={busyId === payout.id} onClick={() => void runAction({ action: "payout_freeze", targetId: payout.id, status: "frozen", needsReason: true, confirmText: "Freeze this payout while the booking is reviewed?", successText: "Payout frozen." })} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#7b3c1b]">Freeze payout</button>}{frozen && <button disabled={busyId === payout.id} onClick={() => void runAction({ action: "payout_freeze", targetId: payout.id, status: "active", confirmText: "Remove this payout hold? The payout can release automatically if its confirmation window has ended.", successText: "Payout hold removed." })} className="rounded-full bg-[#34704a] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#285b3b]">Remove hold</button>}</div></div></article>;
               })}
+              <details open={data.tips.some((tip) => tip.risk_status === "review" || tip.payment_status === "disputed")} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6">
+                <summary className="cursor-pointer font-bold">Customer tips <span className="text-sm font-normal text-[#718078]">({data.tips.length}) · separate from service payouts and marketplace fees</span></summary>
+                <div className="mt-5 space-y-3">
+                  {data.tips.map((tip) => {
+                    const remainingRefundCents = Math.max(0, tip.amount_cents - tip.refunded_amount_cents);
+                    const mayRefund = ["paid", "partially_refunded"].includes(tip.payment_status) && remainingRefundCents > 0;
+                    const needsRelease = tip.risk_status === "review" && tip.payment_status === "paid" && ["not_ready", "failed"].includes(tip.transfer_status);
+                    return <article key={tip.id} className="rounded-2xl bg-[#f5f6f1] p-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><StatusPill value={tip.payment_status} /><StatusPill value={tip.transfer_status} />{tip.risk_status === "review" && <StatusPill value="review" />}<span className="text-xs font-bold uppercase tracking-wider text-[#718078]">${(tip.amount_cents / 100).toFixed(2)} {tip.tip_type === "percentage" ? `(${tip.percentage}%)` : "custom"} tip</span></div><h3 className="mt-3 font-bold">{tip.service_title}</h3><p className="mt-1 text-sm text-[#718078]">{tip.customer_name} → {tip.provider_name}</p>{tip.refunded_amount_cents > 0 && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Refunded: ${(tip.refunded_amount_cents / 100).toFixed(2)}</p>}{tip.failure_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Payment: {tip.failure_reason}</p>}{tip.transfer_failure_reason && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Transfer: {tip.transfer_failure_reason}</p>}{tip.stripe_dispute_id && <p className="mt-2 text-xs font-semibold text-[#9a4e25]">Stripe dispute: {tip.stripe_dispute_status || "open"}</p>}</div><div className="admin-action-row flex shrink-0 flex-wrap gap-2"><Link href={`/provider/dashboard/bookings/${tip.booking_id}`} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold transition hover:bg-[#e5eddf]">View booking</Link>{needsRelease && <button disabled={busyId === tip.id} onClick={() => void runAction({ action: "tip_release", targetId: tip.id, confirmText: "Release this reviewed tip to the provider's Stripe balance?", successText: "Tip released." })} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white">Release tip</button>}{mayRefund && <button disabled={busyId === tip.id} onClick={() => void runAction({ action: "tip_refund", targetId: tip.id, needsAmount: true, maximumAmountCents: remainingRefundCents, confirmText: "Refund part or all of this tip to the customer's original payment method?", successText: "Tip refund completed." })} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white">Refund tip</button>}</div></div><div className="mt-3 break-all font-mono text-[10px] text-[#718078]"><p>PaymentIntent: {tip.stripe_payment_intent_id || "—"} · Charge: {tip.stripe_charge_id || "—"}</p><p>Transfer: {tip.stripe_transfer_id || "—"} · Refund: {tip.stripe_refund_id || "—"} · Tip {tip.id}</p></div></article>;
+                  })}
+                  {data.tips.length === 0 && <p className="text-sm text-[#718078]">Customer tips will appear here after a completed booking.</p>}
+                </div>
+              </details>
               {data.payouts.length > 0 && <details className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6"><summary className="cursor-pointer font-bold">Financial reconciliation details</summary><div className="mt-5 space-y-4">{data.payouts.map((payout) => <div key={`financial-${payout.id}`} className="rounded-2xl bg-[#f5f6f1] p-4"><div className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4"><span>Service <strong>${(payout.price_cents / 100).toFixed(2)}</strong></span><span>Customer fee <strong>${(payout.customer_service_fee_cents / 100).toFixed(2)}</strong></span><span>Platform fee <strong>${(payout.platform_fee_cents / 100).toFixed(2)}</strong></span><span>Provider share <strong>${(payout.provider_payout_cents / 100).toFixed(2)}</strong></span></div><p className="mt-3 text-xs font-bold">{payout.service_title} · Booking {payout.id}</p><div className="mt-2 space-y-1 break-all font-mono text-[10px] text-[#718078]"><p>PaymentIntent: {payout.stripe_payment_intent_id || "—"}</p><p>Charge: {payout.stripe_charge_id || "—"}</p><p>Transfer: {payout.stripe_transfer_id || "—"}</p><p>Refund: {payout.stripe_refund_id || "—"}</p></div></div>)}</div></details>}
               {data.payouts.length === 0 && <EmptyState title="No held payments" body="Paid bookings and payout controls will appear here." />}
             </div>

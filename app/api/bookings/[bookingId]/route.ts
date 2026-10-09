@@ -29,7 +29,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     quoted_price_cents: number | null; quote_message: string; quote_sent_at: Date | null; quote_responded_at: Date | null;
     quoted_pricing_type: "FIXED" | "HOURLY" | null; quoted_hourly_rate_cents: number | null; quoted_duration_minutes: number | null;
     payment_status: "unpaid" | "pending" | "paid" | "refunded" | "failed"; paid_at: Date | null;
-    stripe_mode: "test" | "live" | null;
+    stripe_mode: "test" | "live" | null; payment_flow: string | null;
     refund_status: "none" | "requested" | "processing" | "refunded" | "rejected" | "failed";
     refund_reason: string | null; refund_amount_cents: number | null; refunded_amount_cents: number;
     refund_failure_reason: string | null; payment_release_status: string; platform_fee_cents: number;
@@ -49,7 +49,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.reschedule_requested_at,
             b.quote_status, b.quoted_price_cents, b.quote_message, b.quote_sent_at, b.quote_responded_at,
             b.quoted_pricing_type,b.quoted_hourly_rate_cents,b.quoted_duration_minutes,
-            b.payment_status, b.paid_at, b.stripe_mode, b.refund_status, b.refund_reason,
+            b.payment_status, b.paid_at, b.stripe_mode, b.payment_flow, b.refund_status, b.refund_reason,
             b.refund_amount_cents, b.refunded_amount_cents, b.refund_failure_reason,
             b.payment_release_status, b.platform_fee_cents, b.provider_payout_cents,
             b.customer_service_fee_cents, b.customer_service_fee_refunded_cents,
@@ -98,6 +98,16 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
      WHERE booking_id::text=$1 AND status='pending' ORDER BY created_at DESC LIMIT 1`, [bookingId],
   );
   const viewerRole = row.customer_id === session.user.id ? "customer" : row.provider_user_id === session.user.id ? "provider" : "worker";
+  const tipResult = await database.query<{
+    id: string; amount_cents: number; tip_type: "percentage" | "custom"; percentage: number | null;
+    payment_status: "pending" | "paid" | "failed" | "cancelled" | "refunded" | "partially_refunded" | "disputed";
+    transfer_status: "not_ready" | "pending" | "paid_out" | "partially_reversed" | "reversed" | "failed";
+    refunded_amount_cents: number; risk_status: "clear" | "review"; failure_reason: string | null;
+  }>("SELECT id::text,amount_cents,tip_type,percentage,payment_status,transfer_status,refunded_amount_cents,risk_status,failure_reason FROM booking_tips WHERE booking_id::text=$1", [bookingId]);
+  const tip = tipResult.rows[0] ?? null;
+  // Tips are a customer-to-provider financial record. Assigned workers retain
+  // their normal booking access but do not receive tip amount or status data.
+  const visibleTip = viewerRole === "worker" ? null : tip;
   const approximateLocation = [row.service_city, row.service_state].filter(Boolean).join(", ") + (row.service_postal_code ? ` ${row.service_postal_code}` : "");
   const canSeeExactAddress = viewerRole === "customer" || ["confirmed", "completed"].includes(row.status) || row.was_confirmed;
   const team = viewerRole !== "provider" ? [] : (await database.query<{ id: string; name: string }>(
@@ -119,6 +129,13 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
       ? row.customer_service_fee_cents / 100
       : CUSTOMER_SERVICE_FEE_CENTS / 100,
     customerServiceFeeRefunded: row.customer_service_fee_refunded_cents / 100,
+    tip: visibleTip ? { id: visibleTip.id, amount: visibleTip.amount_cents / 100, type: visibleTip.tip_type, percentage: visibleTip.percentage,
+      status: visibleTip.payment_status, transferStatus: visibleTip.transfer_status, refundedAmount: visibleTip.refunded_amount_cents / 100,
+      riskStatus: visibleTip.risk_status, failureReason: visibleTip.failure_reason }
+      : { id: null, amount: 0, type: null, percentage: null, status: "none", transferStatus: "not_ready", refundedAmount: 0, riskStatus: "clear", failureReason: null },
+    tipEligible: viewerRole === "customer" && row.status === "completed" && row.payment_status === "paid"
+      && row.payment_flow === "held_transfer_v1" && row.stripe_mode === getStripeMode()
+      && (!visibleTip || ["failed", "cancelled"].includes(visibleTip.payment_status)),
     status: row.status,
     cancelledBy: row.cancelled_by, cancellationReason: row.cancellation_reason, completedAt: row.completed_at,
     lateCancellation: row.late_cancellation, cancellationWindowHours: row.cancellation_window_hours,

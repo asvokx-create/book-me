@@ -17,7 +17,7 @@ export async function GET() {
   if (!providerId) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
   const stripeMode = getStripeMode();
 
-  const [totalsResult, monthlyResult, recentResult, repeatResult, hourlyResult] = await Promise.all([
+  const [totalsResult, monthlyResult, recentResult, repeatResult, hourlyResult, tipsResult] = await Promise.all([
     database.query<{
       total_cents: string;
       this_month_cents: string;
@@ -125,6 +125,12 @@ export async function GET() {
               round(avg(billable_duration_minutes))::integer AS average_minutes,
               COALESCE(sum(price_cents-refunded_amount_cents),0)::bigint AS hourly_revenue_cents
        FROM bookings WHERE provider_id::text=$1 AND pricing_type_snapshot='HOURLY' AND status IN ('confirmed','completed')`, [providerId]),
+    database.query<{ total_cents: string; this_month_cents: string; tip_count: string; average_cents: string }>(
+      `SELECT COALESCE(sum(GREATEST(amount_cents-refunded_amount_cents,0)) FILTER (WHERE transfer_status IN ('paid_out','partially_reversed')),0)::bigint AS total_cents,
+        COALESCE(sum(GREATEST(amount_cents-refunded_amount_cents,0)) FILTER (WHERE transfer_status IN ('paid_out','partially_reversed') AND transferred_at>=date_trunc('month',CURRENT_TIMESTAMP)),0)::bigint AS this_month_cents,
+        count(*) FILTER (WHERE transfer_status IN ('paid_out','partially_reversed'))::bigint AS tip_count,
+        COALESCE(round(avg(GREATEST(amount_cents-refunded_amount_cents,0)) FILTER (WHERE transfer_status IN ('paid_out','partially_reversed'))),0)::bigint AS average_cents
+       FROM booking_tips WHERE provider_id::text=$1 AND stripe_mode=$2`, [providerId, stripeMode]),
   ]);
 
   const totals = totalsResult.rows[0];
@@ -165,6 +171,12 @@ export async function GET() {
       bookedHours: Number(hourlyResult.rows[0]?.booked_minutes ?? 0) / 60,
       averageDurationMinutes: hourlyResult.rows[0]?.average_minutes ?? null,
       serviceRevenue: Number(hourlyResult.rows[0]?.hourly_revenue_cents ?? 0) / 100,
+    },
+    tipMetrics: {
+      total: Number(tipsResult.rows[0]?.total_cents ?? 0) / 100,
+      thisMonth: Number(tipsResult.rows[0]?.this_month_cents ?? 0) / 100,
+      count: Number(tipsResult.rows[0]?.tip_count ?? 0),
+      average: Number(tipsResult.rows[0]?.average_cents ?? 0) / 100,
     },
   });
 }

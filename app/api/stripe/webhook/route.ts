@@ -10,6 +10,7 @@ import { subscriptionProvidesProAccess } from "@/lib/team-seat-rules";
 import { sendTransactionalEmail } from "@/lib/email";
 import { syncAffiliateCommissionForBooking } from "@/lib/affiliates";
 import { finalizeAffiliatePayoutTransfer, reverseAffiliatePayoutTransfer } from "@/lib/affiliate-payouts";
+import { releaseTipTransfer } from "@/lib/tip-payments";
 
 export const runtime = "nodejs";
 
@@ -184,10 +185,50 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
   await recordAnalytics({ eventName: "payment_completed", targetType: "booking", targetId: checkout.metadata.bookingId, metadata: { amountTotal: checkout.amount_total } });
 }
 
+async function markBookingTipPaid(checkout: Stripe.Checkout.Session) {
+  if (checkout.metadata?.kind !== "booking_tip" || !checkout.metadata.tipId || !checkout.metadata.bookingId) return;
+  const paymentIntentId = idOf(checkout.payment_intent);
+  if (!paymentIntentId) return;
+  const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId, { expand: ["latest_charge"] });
+  const chargeId = idOf(paymentIntent.latest_charge);
+  const updated = await database.query<{ id: string; booking_id: string; amount_cents: number; customer_id: string; customer_email: string; service_title: string; risk_status: "clear" | "review" }>(`UPDATE booking_tips tip SET payment_status='paid',stripe_payment_intent_id=$2,stripe_charge_id=$3,paid_at=now(),failure_reason=NULL
+      FROM bookings booking JOIN services service ON service.id=booking.service_id JOIN "user" customer ON customer.id=tip.customer_id
+      WHERE tip.id::text=$1 AND tip.booking_id=booking.id AND tip.booking_id::text=$4
+        AND tip.stripe_checkout_session_id=$5 AND tip.stripe_mode=$6 AND tip.payment_status='pending'
+      RETURNING tip.id::text,tip.booking_id::text,tip.amount_cents,tip.customer_id,customer.email AS customer_email,service.title AS service_title,tip.risk_status`,
+    [checkout.metadata.tipId, paymentIntentId, chargeId, checkout.metadata.bookingId, checkout.id, getStripeMode()]);
+  const tip = updated.rows[0];
+  if (!tip) return;
+  await database.query(`INSERT INTO booking_events (booking_id,event_type,message,metadata)
+    VALUES ($1::uuid,'tip_paid','Customer tip payment received through Stripe.',jsonb_build_object('tipId',$2,'amountCents',$3,'checkoutSessionId',$4))`,
+    [tip.booking_id, tip.id, tip.amount_cents, checkout.id]);
+  await database.query(`INSERT INTO notifications (user_id,booking_id,type,title,message,href,dedupe_key)
+    VALUES ($1,$2::uuid,'tip_paid','Tip payment successful',$3,'/account/bookings/' || $2::uuid::text,'tip-paid-' || $4)
+    ON CONFLICT (dedupe_key) DO NOTHING`, [tip.customer_id, tip.booking_id, `Your $${(tip.amount_cents / 100).toFixed(2)} tip for ${tip.service_title} was processed through Stripe.`, tip.id]);
+  void sendTransactionalEmail({ to: tip.customer_email, userId: tip.customer_id, bookingId: tip.booking_id, emailType: "tip_receipt", idempotencyKey: `tip-receipt-${tip.id}`, subject: "Your BubsBookings tip receipt", heading: "Thank you for your tip", message: `Your $${(tip.amount_cents / 100).toFixed(2)} tip for ${tip.service_title} was processed through Stripe. BubsBookings does not take a marketplace fee from tips.`, actionLabel: "View receipt", actionUrl: `/account/bookings/${tip.booking_id}` });
+  if (tip.risk_status === "review") {
+    await database.query(`INSERT INTO booking_events (booking_id,event_type,message,metadata)
+      VALUES ($1::uuid,'tip_review_required','A high-value customer tip needs an administrator review before provider transfer.',jsonb_build_object('tipId',$2,'amountCents',$3))`, [tip.booking_id, tip.id, tip.amount_cents]);
+    return;
+  }
+  await releaseTipTransfer(tip.id);
+}
+
+async function markBookingTipFailed(options: { tipId?: string; checkoutSessionId?: string; paymentIntentId?: string; reason: string }) {
+  await database.query(`UPDATE booking_tips SET payment_status='failed',failure_reason=$4
+    WHERE stripe_mode=$5 AND payment_status='pending' AND (($1::text<>'' AND id::text=$1)
+      OR ($2::text<>'' AND stripe_checkout_session_id=$2) OR ($3::text<>'' AND stripe_payment_intent_id=$3))`,
+    [options.tipId ?? "", options.checkoutSessionId ?? "", options.paymentIntentId ?? "", options.reason, getStripeMode()]);
+}
+
 async function recordTransferCreated(transfer: Stripe.Transfer) {
   const affiliatePayoutId = transfer.metadata?.affiliatePayoutId;
   if (transfer.metadata?.kind === "affiliate_payout" && affiliatePayoutId) {
     await finalizeAffiliatePayoutTransfer(affiliatePayoutId, transfer.id, getStripeMode());
+    return;
+  }
+  if (transfer.metadata?.kind === "booking_tip_payout" && transfer.metadata.tipId) {
+    await database.query("UPDATE booking_tips SET stripe_transfer_id=COALESCE(stripe_transfer_id,$2),transfer_status='paid_out',transferred_at=COALESCE(transferred_at,now()) WHERE id::text=$1 AND stripe_mode=$3", [transfer.metadata.tipId, transfer.id, getStripeMode()]);
     return;
   }
   const bookingId = transfer.metadata?.bookingId;
@@ -202,6 +243,13 @@ async function recordTransferReversed(transfer: Stripe.Transfer) {
   const affiliatePayoutId = transfer.metadata?.affiliatePayoutId;
   if (transfer.metadata?.kind === "affiliate_payout" && affiliatePayoutId) {
     await reverseAffiliatePayoutTransfer(affiliatePayoutId, transfer.id, transfer.amount_reversed);
+    return;
+  }
+  if (transfer.metadata?.kind === "booking_tip_payout" && transfer.metadata.tipId) {
+    const fullyReversed = transfer.amount_reversed >= transfer.amount;
+    await database.query(`UPDATE booking_tips SET transfer_status=CASE WHEN $3 THEN 'reversed' ELSE 'partially_reversed' END,
+        transfer_failure_reason=CASE WHEN $3 THEN 'The provider tip transfer was reversed through Stripe.' ELSE 'Part of the provider tip transfer was reversed through Stripe.' END
+      WHERE id::text=$1 AND stripe_transfer_id=$2 AND stripe_mode=$4`, [transfer.metadata.tipId, transfer.id, fullyReversed, getStripeMode()]);
     return;
   }
   const bookingId = transfer.metadata?.bookingId;
@@ -238,6 +286,56 @@ async function recordPayoutFailed(event: Stripe.Event, payout: Stripe.Payout) {
   await database.query(`INSERT INTO operations_checks (check_type, status, details)
     VALUES ('stripe_connected_payout', 'warning', $1::jsonb)`,
     [JSON.stringify({ payoutId: payout.id, accountId: connectedAccountId, failureCode: payout.failure_code, failureMessage: payout.failure_message })]);
+}
+
+async function recordTipRefund(charge: Stripe.Charge) {
+  const paymentIntentId = idOf(charge.payment_intent);
+  if (!paymentIntentId) return;
+  const refunded = await database.query<{ id: string; booking_id: string; customer_id: string; provider_id: string; amount_cents: number; refunded_amount_cents: number }>(`UPDATE booking_tips SET
+      payment_status=CASE WHEN $3 THEN 'refunded' ELSE 'partially_refunded' END,
+      refunded_amount_cents=LEAST(amount_cents,$4),refunded_at=now()
+    WHERE stripe_payment_intent_id=$1 AND stripe_mode=$2
+    RETURNING id::text,booking_id::text,customer_id,provider_id::text,amount_cents,refunded_amount_cents`, [paymentIntentId, getStripeMode(), charge.refunded, charge.amount_refunded]);
+  for (const tip of refunded.rows) {
+    await database.query(`INSERT INTO notifications (user_id,booking_id,type,title,message,href,dedupe_key)
+      VALUES ($1,$2::uuid,'tip_refunded','Tip refunded',$3,'/account/bookings/' || $2::uuid::text,'tip-refunded-customer-' || $4),
+             ((SELECT user_id FROM provider_profiles WHERE id::text=$5),$2::uuid,'tip_refunded','Customer tip refunded',$6,'/provider/dashboard/bookings/' || $2::uuid::text,'tip-refunded-provider-' || $4)
+      ON CONFLICT (dedupe_key) DO NOTHING`, [tip.customer_id, tip.booking_id,
+      `$${(tip.refunded_amount_cents / 100).toFixed(2)} of your tip was returned to your original payment method.`, tip.id, tip.provider_id,
+      `$${(tip.refunded_amount_cents / 100).toFixed(2)} of a customer tip was refunded.`]);
+  }
+}
+
+async function recordTipDispute(dispute: Stripe.Dispute, closed = false) {
+  const chargeId = idOf(dispute.charge);
+  if (!chargeId) return;
+  const affected = await database.query<{ id: string; booking_id: string; amount_cents: number; stripe_transfer_id: string | null; customer_id: string; provider_user_id: string }>(`UPDATE booking_tips tip SET payment_status=CASE WHEN $3 THEN payment_status ELSE 'disputed' END,
+      stripe_dispute_id=$2,stripe_dispute_status=$4,
+      transfer_failure_reason=CASE WHEN $3 THEN transfer_failure_reason ELSE 'Stripe chargeback under review.' END
+    FROM provider_profiles provider
+    WHERE tip.stripe_charge_id=$1 AND tip.stripe_mode=$5 AND provider.id=tip.provider_id
+    RETURNING tip.id::text,tip.booking_id::text,tip.amount_cents,tip.stripe_transfer_id,tip.customer_id,provider.user_id AS provider_user_id`, [chargeId, dispute.id, closed, dispute.status, getStripeMode()]);
+  if (closed) return;
+  for (const tip of affected.rows) {
+    await database.query(`INSERT INTO notifications (user_id,booking_id,type,title,message,href,dedupe_key)
+      VALUES ($1,$2::uuid,'tip_dispute','Tip payment under review','Stripe opened a review for this tip payment.','/account/bookings/' || $2::uuid::text,'tip-dispute-customer-' || $3),
+             ($4,$2::uuid,'tip_dispute','Tip payment under review','Stripe opened a review for a customer tip.','/provider/dashboard/bookings/' || $2::uuid::text,'tip-dispute-provider-' || $3)
+      ON CONFLICT (dedupe_key) DO NOTHING`, [tip.customer_id, tip.booking_id, dispute.id, tip.provider_user_id]);
+    if (!tip.stripe_transfer_id) continue;
+    try {
+      const transfer = await getStripe().transfers.retrieve(tip.stripe_transfer_id);
+      const reversalAmount = Math.max(0, transfer.amount - transfer.amount_reversed);
+      if (!reversalAmount) continue;
+      await getStripe().transfers.createReversal(tip.stripe_transfer_id, {
+        amount: reversalAmount,
+        metadata: { kind: "booking_tip_dispute_reversal", tipId: tip.id, bookingId: tip.booking_id, stripeDisputeId: dispute.id },
+      }, { idempotencyKey: `tip-dispute-reversal-${getStripeMode()}-${tip.id}-${dispute.id}` });
+      await database.query("UPDATE booking_tips SET transfer_status='reversed',transfer_failure_reason='The provider tip transfer was reversed while Stripe reviews a chargeback.' WHERE id::text=$1", [tip.id]);
+    } catch (error) {
+      console.error("Tip dispute transfer reversal failed", tip.id, error);
+      await database.query("UPDATE booking_tips SET transfer_failure_reason='Stripe opened a dispute; provider-transfer recovery needs administrator review.' WHERE id::text=$1", [tip.id]);
+    }
+  }
 }
 
 async function recordStripeDisputeOpened(dispute: Stripe.Dispute) {
@@ -425,6 +523,7 @@ async function processEvent(event: Stripe.Event) {
     case "checkout.session.completed": {
       const checkout = event.data.object;
       if (checkout.payment_status === "paid") await markBookingPaid(checkout);
+      if (checkout.payment_status === "paid") await markBookingTipPaid(checkout);
       if (checkout.metadata?.kind === "provider_subscription") {
         await database.query(`UPDATE provider_profiles SET
           stripe_subscription_checkout_session_id = NULL,
@@ -437,6 +536,7 @@ async function processEvent(event: Stripe.Event) {
     }
     case "checkout.session.async_payment_succeeded": {
       await markBookingPaid(event.data.object);
+      await markBookingTipPaid(event.data.object);
       break;
     }
     case "checkout.session.async_payment_failed": {
@@ -444,6 +544,7 @@ async function processEvent(event: Stripe.Event) {
       if (checkout.metadata?.bookingId) {
         await markBookingPaymentFailed({ bookingId: checkout.metadata.bookingId, checkoutSessionId: checkout.id });
       }
+      if (checkout.metadata?.kind === "booking_tip") await markBookingTipFailed({ tipId: checkout.metadata.tipId, checkoutSessionId: checkout.id, reason: "Stripe could not collect this tip." });
       break;
     }
     case "checkout.session.expired": {
@@ -451,6 +552,7 @@ async function processEvent(event: Stripe.Event) {
       if (checkout.metadata?.kind === "booking_payment" && checkout.metadata.bookingId) {
         await database.query("UPDATE bookings SET payment_status = 'unpaid' WHERE id::text = $1 AND stripe_checkout_session_id = $2 AND stripe_mode = $3 AND payment_status = 'pending'", [checkout.metadata.bookingId, checkout.id, getStripeMode()]);
       }
+      if (checkout.metadata?.kind === "booking_tip") await database.query("UPDATE booking_tips SET payment_status='cancelled',failure_reason='Tip checkout expired.' WHERE id::text=$1 AND stripe_checkout_session_id=$2 AND stripe_mode=$3 AND payment_status='pending'", [checkout.metadata.tipId ?? "", checkout.id, getStripeMode()]);
       if (checkout.metadata?.kind === "provider_subscription") {
         await database.query(`UPDATE provider_profiles SET stripe_subscription_checkout_session_id = NULL
           WHERE id::text = $1 AND stripe_subscription_checkout_session_id = $2`, [checkout.metadata.providerId ?? "", checkout.id]);
@@ -512,14 +614,17 @@ async function processEvent(event: Stripe.Event) {
         refunded_at = now()
         WHERE stripe_payment_intent_id = $1 AND stripe_mode = $2 RETURNING id::text`, [idOf(charge.payment_intent), getStripeMode(), charge.refunded, charge.amount_refunded]);
       for (const booking of refunded.rows) await syncAffiliateCommissionForBooking(booking.id);
+      await recordTipRefund(charge);
       break;
     }
     case "charge.dispute.created": {
       await recordStripeDisputeOpened(event.data.object);
+      await recordTipDispute(event.data.object);
       break;
     }
     case "charge.dispute.closed": {
       await recordStripeDisputeClosed(event.data.object);
+      await recordTipDispute(event.data.object, true);
       break;
     }
     case "transfer.created": {
@@ -540,6 +645,7 @@ async function processEvent(event: Stripe.Event) {
         bookingId: paymentIntent.metadata.bookingId,
         paymentIntentId: paymentIntent.id,
       });
+      if (paymentIntent.metadata.kind === "booking_tip") await markBookingTipFailed({ tipId: paymentIntent.metadata.tipId, paymentIntentId: paymentIntent.id, reason: "Stripe could not collect this tip." });
       break;
     }
   }

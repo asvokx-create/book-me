@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { releaseBookingPayout } from "@/lib/payment-release";
+import { refundBookingTip, releaseTipTransfer } from "@/lib/tip-payments";
 import { scanContent } from "@/lib/content-safety";
 import { assessListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
@@ -12,7 +13,7 @@ const accountStatuses = new Set(["active", "under_review", "suspended", "banned"
 const messageModerationStatuses = new Set(["confirmed", "false_positive", "warning_only", "under_review", "suspended", "banned", "resolved"]);
 
 async function loadDashboard() {
-  const [stats, reports, events, messageModeration, accounts, listings, reviews, payouts, audit] = await Promise.all([
+  const [stats, reports, events, messageModeration, accounts, listings, reviews, payouts, tips, audit] = await Promise.all([
     database.query<{
       users: number; active_providers: number; active_services: number; bookings_30d: number;
       open_reports: number; blocked_30d: number; unique_site_views: number;
@@ -136,6 +137,24 @@ async function loadDashboard() {
        LIMIT 100`,
     ),
     database.query(
+      `SELECT tip.id::text, tip.booking_id::text, tip.amount_cents, tip.tip_type, tip.percentage,
+              tip.payment_status, tip.transfer_status, tip.refunded_amount_cents, tip.risk_status,
+              tip.stripe_payment_intent_id, tip.stripe_charge_id, tip.stripe_transfer_id,
+              tip.stripe_refund_id, tip.stripe_dispute_id, tip.stripe_dispute_status,
+              tip.failure_reason, tip.transfer_failure_reason, tip.created_at, tip.paid_at,
+              tip.transferred_at, tip.refunded_at, customer.name AS customer_name,
+              service.business_name AS provider_name, service.title AS service_title
+       FROM booking_tips tip
+       JOIN bookings booking ON booking.id = tip.booking_id
+       JOIN "user" customer ON customer.id = tip.customer_id
+       JOIN services service ON service.id = booking.service_id
+       ORDER BY CASE WHEN tip.risk_status = 'review' THEN 0
+                     WHEN tip.payment_status = 'disputed' THEN 1
+                     WHEN tip.payment_status = 'failed' THEN 2 ELSE 3 END,
+                tip.created_at DESC
+       LIMIT 100`,
+    ),
+    database.query(
       `SELECT aal.id::text, aal.action, aal.target_type, aal.target_id, aal.details,
               aal.created_at, u.name AS actor_name
        FROM admin_audit_log aal
@@ -154,6 +173,7 @@ async function loadDashboard() {
     listings: listings.rows,
     reviews: reviews.rows,
     payouts: payouts.rows,
+    tips: tips.rows,
     audit: audit.rows,
   };
 }
@@ -170,12 +190,13 @@ export async function PATCH(request: Request) {
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-action", limit: 30 })) return NextResponse.json({ error: "Too many admin actions. Please wait a minute." }, { status: 429 });
 
   const body = (await request.json()) as {
-    action?: unknown; targetId?: unknown; status?: unknown; reason?: unknown;
+    action?: unknown; targetId?: unknown; status?: unknown; reason?: unknown; amountCents?: unknown;
   };
   const action = typeof body.action === "string" ? body.action : "";
   const targetId = typeof body.targetId === "string" ? body.targetId : "";
   const status = typeof body.status === "string" ? body.status : "";
   const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+  const amountCents = Number(body.amountCents);
   if (!targetId) return NextResponse.json({ error: "Choose an item to update." }, { status: 400 });
 
   if (action === "payout_retry") {
@@ -184,6 +205,24 @@ export async function PATCH(request: Request) {
     await database.query(`INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
       VALUES ($1, 'payout_retried', 'booking_payout', $2, $3::jsonb)`, [session.user.id, targetId, JSON.stringify({ transferId: release.transferId })]);
     return NextResponse.json({ ok: true });
+  }
+
+  if (action === "tip_release") {
+    const release = await releaseTipTransfer(targetId, { administratorApproved: true });
+    if (!release.ok) return NextResponse.json({ error: release.error }, { status: 409 });
+    if (!release.released) return NextResponse.json({ error: "This tip is not awaiting an administrator release." }, { status: 409 });
+    await database.query(`INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
+      VALUES ($1, 'tip_released', 'booking_tip', $2, $3::jsonb)`, [session.user.id, targetId, JSON.stringify({ transferId: release.transferId })]);
+    return NextResponse.json({ ok: true, message: "Tip released to the provider." });
+  }
+
+  if (action === "tip_refund") {
+    if (!Number.isSafeInteger(amountCents) || amountCents < 1) return NextResponse.json({ error: "Enter a valid whole-cent tip refund." }, { status: 400 });
+    const refund = await refundBookingTip({ tipId: targetId, approvedBy: session.user.id, amountCents });
+    if (!refund.ok) return NextResponse.json({ error: refund.error }, { status: 409 });
+    await database.query(`INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
+      VALUES ($1, 'tip_refunded', 'booking_tip', $2, $3::jsonb)`, [session.user.id, targetId, JSON.stringify({ amountCents, stripeRefundId: refund.refundId, reversalNeedsReview: refund.reversalNeedsReview })]);
+    return NextResponse.json({ ok: true, message: refund.reversalNeedsReview ? "Tip refunded. The provider-transfer recovery needs review." : "Tip refund completed." });
   }
 
   if (action === "listing_safety_scan") {
