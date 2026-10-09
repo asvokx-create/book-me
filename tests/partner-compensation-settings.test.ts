@@ -56,6 +56,8 @@ test("Preston-style terms are representable without activation or milestone inhe
   assert.match(admin,/revenue_share_basis_points\?\?2000/);
   assert.match(admin,/revenue_share_duration_months\?\?6/);
   assert.match(admin,/Program type/);
+  assert.match(admin,/Campaign dates do not end it\./);
+  assert.match(admin,/it does not end revenue share\./);
   assert.equal(partnerCompensationHeading("custom"),"Custom Partnership");
   assert.equal(campaignDurationLabel("2026-09-01","2026-09-30"),"1 month");
 });

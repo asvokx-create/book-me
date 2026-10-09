@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { addCalendarMonthsClamped, affiliateRevenueShareWindow, calculateAffiliateCommission, isAffiliateRevenueShareActive } from "../lib/affiliate-rules.ts";
 import { runAffiliateSandbox } from "../scripts/run-affiliate-sandbox.ts";
@@ -37,6 +38,37 @@ test("standard share is exactly 20% and cannot earn after expiration", async () 
   assert.equal(isAffiliateRevenueShareActive({ startedAt, durationMonths: 6, at: atEnd }), false);
   const expired = await runAffiliateSandbox({ startedAt, bookingAt: atEnd });
   assert.equal(expired.affiliate.revenueShareCents, 0);
+});
+
+test("a fixed campaign end is independent from a referred provider's six-month revenue-share window", () => {
+  // The default program starts a referral's revenue-share clock when the provider
+  // qualifies. Here the November 5 booking is the qualifying booking for a
+  // provider referred on October 15; the campaign itself ends November 12.
+  const qualifyingBookingAt = new Date("2026-11-05T18:00:00.000Z");
+  const campaignEndsAt = new Date("2026-11-12T23:59:59.999Z");
+  const { end } = affiliateRevenueShareWindow(qualifyingBookingAt, 6);
+
+  // A: qualifying revenue during the campaign is eligible.
+  assert.equal(isAffiliateRevenueShareActive({ startedAt: qualifyingBookingAt, durationMonths: 6, at: qualifyingBookingAt }), true);
+  // B/E: the campaign end does not remove attribution or stop an active share.
+  assert.equal(campaignEndsAt < new Date("2026-11-20T18:00:00.000Z"), true);
+  assert.equal(isAffiliateRevenueShareActive({ startedAt: qualifyingBookingAt, durationMonths: 6, at: new Date("2026-11-20T18:00:00.000Z") }), true);
+  // C: later eligible revenue remains in scope for the full calendar duration.
+  assert.equal(isAffiliateRevenueShareActive({ startedAt: qualifyingBookingAt, durationMonths: 6, at: new Date("2027-04-30T18:00:00.000Z") }), true);
+  // D: it ends at the exact six-month boundary, not at the campaign end.
+  assert.equal(end.toISOString(), "2027-05-05T18:00:00.000Z");
+  assert.equal(isAffiliateRevenueShareActive({ startedAt: qualifyingBookingAt, durationMonths: 6, at: end }), false);
+});
+
+test("campaign fields are never consulted by the revenue-share eligibility engine", async () => {
+  const engine = await readFile(new URL("../lib/affiliates.ts", import.meta.url), "utf8");
+  const campaignPersistence = await readFile(new URL("../app/api/admin/affiliates/route.ts", import.meta.url), "utf8");
+
+  // F: campaign records support the fixed obligation and administrative status;
+  // the booking commission engine relies only on immutable referral terms.
+  assert.doesNotMatch(engine, /custom_campaign|campaign_ends_on|campaignEndsOn/i);
+  assert.match(campaignPersistence, /campaign_ends_on=EXCLUDED\.campaign_ends_on/);
+  assert.match(campaignPersistence, /revenue_share_duration_months=EXCLUDED\.revenue_share_duration_months/);
 });
 
 test("sandbox bot refuses live Stripe credentials", async () => {
