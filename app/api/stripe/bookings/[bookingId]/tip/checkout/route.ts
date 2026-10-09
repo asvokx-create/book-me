@@ -111,10 +111,14 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
       const checkout = await stripe.checkout.sessions.create({
         mode: "payment",
         customer: customerId,
+        // Tips are transferred from their own source charge as soon as Stripe
+        // confirms payment. Restricting this to card payments avoids delayed
+        // payment-method failures after the provider transfer is scheduled.
+        payment_method_types: ["card"],
         saved_payment_method_options: { payment_method_save: "enabled" },
         line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: tip.amountCents, product_data: {
           name: `Tip for ${booking.service_title}`,
-          description: "BubsBookings does not take a marketplace fee from tips.",
+          description: "100% goes to the provider. BubsBookings covers payment processing costs.",
         } } }],
         payment_intent_data: {
           transfer_group: `booking_${booking.id}_tip`,

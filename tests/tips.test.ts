@@ -48,10 +48,12 @@ test("tip payment code keeps the ledger, Checkout payment, and Connect transfer 
   assert.match(migration, /booking_id uuid NOT NULL UNIQUE/);
   assert.match(checkout, /booking\.payment_flow !== "held_transfer_v1"/);
   assert.match(checkout, /tip-checkout-\$\{mode\}-\$\{tip\.id\}-\$\{tip\.attemptNumber\}/);
+  assert.match(checkout, /payment_method_types: \["card"\]/);
   assert.match(checkout, /kind: "booking_tip"/);
   assert.match(payments, /source_transaction: tip\.stripe_charge_id/);
   assert.match(payments, /booking_tip_payout/);
   assert.match(webhooks, /charge\.refunded/);
   assert.match(webhooks, /charge\.dispute\.created/);
   assert.match(webhooks, /booking_tip_dispute_reversal/);
+  assert.match(webhooks, /tip\.amount_cents=\$7/);
 });

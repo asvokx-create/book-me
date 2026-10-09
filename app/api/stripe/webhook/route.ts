@@ -195,8 +195,9 @@ async function markBookingTipPaid(checkout: Stripe.Checkout.Session) {
       FROM bookings booking JOIN services service ON service.id=booking.service_id JOIN "user" customer ON customer.id=tip.customer_id
       WHERE tip.id::text=$1 AND tip.booking_id=booking.id AND tip.booking_id::text=$4
         AND tip.stripe_checkout_session_id=$5 AND tip.stripe_mode=$6 AND tip.payment_status='pending'
+        AND tip.amount_cents=$7
       RETURNING tip.id::text,tip.booking_id::text,tip.amount_cents,tip.customer_id,customer.email AS customer_email,service.title AS service_title,tip.risk_status`,
-    [checkout.metadata.tipId, paymentIntentId, chargeId, checkout.metadata.bookingId, checkout.id, getStripeMode()]);
+    [checkout.metadata.tipId, paymentIntentId, chargeId, checkout.metadata.bookingId, checkout.id, getStripeMode(), checkout.amount_total ?? 0]);
   const tip = updated.rows[0];
   if (!tip) return;
   await database.query(`INSERT INTO booking_events (booking_id,event_type,message,metadata)
