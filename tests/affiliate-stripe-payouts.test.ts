@@ -37,7 +37,7 @@ test("affiliate payouts create real idempotent Stripe transfers and remain retry
   assert.match(payout, /status IN \('pending','processing','failed','paid'\)/);
 });
 
-test("affiliate transfers require both Stripe and tax readiness", async () => {
+test("affiliate transfers require both Stripe and internal payout readiness", async () => {
   const payout = await readFile(new URL("../lib/affiliate-payouts.ts", import.meta.url), "utf8");
   const status = await readFile(new URL("../app/api/affiliates/stripe/status/route.ts", import.meta.url), "utf8");
   const agreement = await readFile(new URL("../app/partner-agreement/page.tsx", import.meta.url), "utf8");
@@ -47,6 +47,15 @@ test("affiliate transfers require both Stripe and tax readiness", async () => {
   assert.match(payout, /affiliate\.tax_onboarding_status = 'complete'/);
   assert.match(status, /account\.capabilities\?\.transfers === "active"/);
   assert.match(agreement, /connected Stripe balance/);
+});
+
+test("partner payout setup language does not imply independent tax-document verification", async () => {
+  const dashboard = await readFile(new URL("../components/affiliate-stripe-setup.tsx", import.meta.url), "utf8");
+
+  assert.match(dashboard,/Complete Stripe setup before payouts can be sent\./);
+  assert.match(dashboard,/Your payout setup is under review\./);
+  assert.match(dashboard,/payout compliance review are complete/);
+  assert.doesNotMatch(dashboard,/tax review|tax information|tax documentation/i);
 });
 
 test("affiliate obligations are reserved in operations and eligible payouts run automatically", async () => {

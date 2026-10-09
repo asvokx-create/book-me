@@ -6,6 +6,7 @@ import { createAffiliatePayout, getAffiliateReserveHealth, sendAffiliatePayout }
 import { enforceRateLimit } from "@/lib/request-security";
 import { evaluateAffiliateMilestonesForAffiliate } from "@/lib/affiliate-milestones";
 import { sendTransactionalEmail } from "@/lib/email";
+import { getStripe, getStripeMode } from "@/lib/stripe";
 
 const affiliateStatuses = new Set(["under_review","approved","active","paused","rejected","suspended","terminated"]);
 const commissionStatuses = new Set(["hold","approved","payable","rejected","disputed"]);
@@ -98,6 +99,7 @@ async function dashboard() {
       affiliate.custom_campaign_starts_on, affiliate.custom_campaign_ends_on, affiliate.custom_campaign_notes,
       affiliate.stripe_account_id,affiliate.stripe_connect_mode,affiliate.stripe_details_submitted,
       affiliate.stripe_payouts_enabled,cardinality(affiliate.stripe_requirements_due)::int AS stripe_requirements_count,
+      (affiliate.stripe_account_id IS NOT NULL AND affiliate.stripe_connect_mode=$1) AS stripe_mode_matches,
       program.id::text AS program_id, program.name AS program_name,
       COALESCE(affiliate.activation_bonus_enabled_override,program.activation_bonus_enabled,false) AS activation_bonus_enabled,
       COALESCE(affiliate.revenue_share_enabled_override,program.revenue_share_enabled,false) AS revenue_share_enabled,
@@ -132,7 +134,7 @@ async function dashboard() {
       (SELECT COALESCE(sum(commission.amount_cents),0)::int FROM affiliate_commissions commission WHERE commission.affiliate_id=affiliate.id AND commission.status='paid') AS paid_cents
       FROM affiliate_profiles affiliate LEFT JOIN affiliate_programs program ON program.id = affiliate.program_id
       LEFT JOIN "user" linked_account ON linked_account.id=affiliate.user_id
-      GROUP BY affiliate.id, program.id, linked_account.id ORDER BY affiliate.applied_at DESC`),
+      GROUP BY affiliate.id, program.id, linked_account.id ORDER BY affiliate.applied_at DESC`, [getStripeMode()]),
     database.query(`SELECT commission.id::text, commission.commission_type, commission.eligible_revenue_cents,
       commission.commission_rate_basis_points, commission.amount_cents, commission.status, commission.created_at,
       commission.payable_at, commission.booking_id::text, affiliate.display_name AS affiliate_name,
@@ -256,7 +258,7 @@ export async function PATCH(request: Request) {
     const result = await createAffiliatePayout(targetId, session.user.id);
     if (result.ok) return NextResponse.json({ ok: true, payoutId: result.payoutId });
     if (result.error === "MINIMUM") return NextResponse.json({ error: "The payable balance has not reached this partner's minimum payout." }, { status: 409 });
-    if (result.error === "NOT_READY") return NextResponse.json({ error: "Complete and verify this partner's payment and tax readiness before creating a payout." }, { status: 409 });
+    if (result.error === "NOT_READY") return NextResponse.json({ error: "Complete Stripe setup and payout compliance review before creating a payout." }, { status: 409 });
     return NextResponse.json({ error: "The affiliate payout could not be created." }, { status: 409 });
   }
   const client = await database.connect();
@@ -377,7 +379,28 @@ export async function PATCH(request: Request) {
       await evaluateAffiliateMilestonesForAffiliate(targetId,client);
     } else if (action === "affiliate_payment_readiness") {
       const ready = body.ready === true;
-      if (ready && !reason) throw new Error("INVALID");
+      if (!reason) throw new Error("INVALID");
+      if (ready) {
+        const affiliate = await client.query<{ stripe_account_id: string | null; stripe_connect_mode: "test" | "live" | null }>(
+          `SELECT stripe_account_id,stripe_connect_mode FROM affiliate_profiles WHERE id::text=$1 FOR UPDATE`, [targetId],
+        );
+        const accountId = affiliate.rows[0]?.stripe_account_id;
+        if (!affiliate.rows[0]) throw new Error("NOT_FOUND");
+        if (!accountId || affiliate.rows[0].stripe_connect_mode !== getStripeMode()) throw new Error("STRIPE_NOT_READY");
+        let account;
+        try {
+          account = await getStripe().accounts.retrieve(accountId);
+        } catch {
+          throw new Error("STRIPE_NOT_READY");
+        }
+        const requirements = account.requirements?.currently_due ?? [];
+        const stripeReady = Boolean(account.details_submitted && account.payouts_enabled
+          && account.capabilities?.transfers === "active" && requirements.length === 0);
+        await client.query(`UPDATE affiliate_profiles SET stripe_details_submitted=$2,stripe_payouts_enabled=$3,
+          stripe_requirements_due=$4,payment_status=$5 WHERE id::text=$1`,
+        [targetId,account.details_submitted,account.payouts_enabled,requirements,stripeReady?"ready":"not_ready"]);
+        if (!stripeReady) throw new Error("STRIPE_NOT_READY");
+      }
       const result = await client.query(`UPDATE affiliate_profiles SET tax_onboarding_status=$2,
         admin_notes=CASE WHEN $3='' THEN admin_notes ELSE $3 END WHERE id::text=$1`,
       [targetId,ready?"complete":"requires_attention",reason]);
@@ -447,7 +470,8 @@ export async function PATCH(request: Request) {
     if (message === "ACCOUNT_REQUIRED") return NextResponse.json({ error: "Link a verified BubsBookings account before approving this Partner application." }, { status: 409 });
     if (message === "LINK_UNSAFE") return NextResponse.json({ error: "A single safe verified account match was not found. Review this application manually." }, { status: 409 });
     if (message === "MINIMUM") return NextResponse.json({ error: "The payable balance has not reached this partner's minimum payout." }, { status: 409 });
-    if (message === "NOT_READY") return NextResponse.json({ error: "Complete and verify this partner's payment and tax readiness before creating a payout." }, { status: 409 });
+    if (message === "NOT_READY") return NextResponse.json({ error: "Complete Stripe setup and payout compliance review before creating a payout." }, { status: 409 });
+    if (message === "STRIPE_NOT_READY") return NextResponse.json({ error: "Stripe must be payout-ready before payout readiness can be approved." }, { status: 409 });
     if (message === "NOT_FOUND") return NextResponse.json({ error: "That record is not available for this action." }, { status: 404 });
     if ((error as { code?: string }).code === "23505") return NextResponse.json({ error: action === "program_update" ? "A program with that name already exists." : "That affiliate code is already in use." }, { status: 409 });
     return NextResponse.json({ error: message === "INVALID" ? "Check the requested action and required reason." : "The affiliate action could not be completed." }, { status: 400 });
