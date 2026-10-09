@@ -1,6 +1,7 @@
 import "server-only";
 
 import { scanContent } from "./content-safety";
+import { hasOffPlatformPaymentInstruction, placeholderPattern } from "./provider-screening-rules";
 
 export type ProviderScreeningInput = {
   emailVerified: boolean;
@@ -18,9 +19,6 @@ export type ProviderScreeningResult = {
   checks: Array<{ label: string; passed: boolean }>;
 };
 
-const placeholderPattern = /\b(?:asdf|fake listing|sample business|test business|test listing|do not book)\b/i;
-const scamPattern = /\b(?:gift cards?|wire transfer|cashapp only|crypto only|guaranteed income|guaranteed returns?)\b/i;
-
 export function screenProviderProfile(input: ProviderScreeningInput): ProviderScreeningResult {
   const phoneDigits = input.phone.replace(/\D/g, "");
   const combined = [input.business, input.service, input.description, input.serviceArea].join(" ");
@@ -31,7 +29,7 @@ export function screenProviderProfile(input: ProviderScreeningInput): ProviderSc
     { label: "Complete business details", passed: input.business.length >= 2 && input.business.length <= 80 },
     { label: "Clear service description", passed: input.description.length >= 30 && input.description.length <= 2000 },
     { label: "Professional, family-friendly content", passed: contentResult.allowed },
-    { label: "No placeholder or suspicious payment language", passed: !placeholderPattern.test(combined) && !scamPattern.test(combined) },
+    { label: "No placeholder or off-platform payment instructions", passed: !placeholderPattern.test(combined) && !hasOffPlatformPaymentInstruction(combined) },
   ];
   const passedCount = checks.filter((check) => check.passed).length;
   const score = Math.round((passedCount / checks.length) * 100);
