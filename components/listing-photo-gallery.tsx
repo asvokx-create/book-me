@@ -66,7 +66,7 @@ export default function ListingPhotoGallery({ images, title, fallbackGradient, f
       <div className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-gradient-to-br sm:h-[420px] ${fallbackGradient}`}>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,.4),transparent_28%)]" />
         <div className="absolute bottom-[-40%] left-[18%] h-[90%] w-[80%] rounded-[50%] border-[36px] border-white/20" />
-        <ServiceCategoryIcon category={fallbackCategory} className="absolute bottom-8 right-10 h-28 min-h-28 w-28 min-w-28 opacity-90 sm:h-32 sm:min-h-32 sm:w-32 sm:min-w-32 [&_svg]:h-20 [&_svg]:w-20" />
+        <ServiceCategoryIcon category={fallbackCategory} className="!absolute bottom-8 right-10 h-28 min-h-28 w-28 min-w-28 opacity-90 sm:h-32 sm:min-h-32 sm:w-32 sm:min-w-32 [&_svg]:h-20 [&_svg]:w-20" />
         {children}
       </div>
     );
