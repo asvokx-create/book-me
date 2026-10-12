@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/app/terms/page";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "AI & Safety Transparency", alternates: { canonical: "/ai-transparency" } };
+export const metadata: Metadata = publicPageMetadata({
+  title: "AI & Safety Transparency",
+  description: "Understand BubsBookings automated safety screening, its limits, the information it uses, and available review options.",
+  pathname: "/ai-transparency",
+});
 
 const sections = [
   ["1. What is automated", <><p>BubsBookings currently uses in-house, rules-based systems that the product may call the Safety Bot. Content screening checks newly submitted customer service requests, provider quotes, messages, listing text, booking details, cancellation and refund reasons, reviews, disputes, reports, support requests, provider locations and policies, and team time-off reasons for selected patterns associated with profanity, harassment, hate, explicit sexual or exploitative content, credible threats, serious illegal transactions, and attempts to move marketplace-originated bookings or payments off platform.</p><p className="mt-3">Message screening combines multiple signals—including outside-payment language, contact details, external links, redirect phrases, and reasonable obfuscation—with quote, booking, and payment context. Contact information alone is not proof of circumvention. A phone number shared for arrival logistics after a paid booking is treated differently from a request to cancel and pay directly.</p><p className="mt-3">Listing screening also checks for selected financial-crime risk signals, including language suggesting payment without a genuine service, fake invoices, overpayment-and-refund arrangements, pass-through payments, cash-equivalent transfers, or concealment of funds. It can block a new or edited listing and flag an existing listing for administrator review.</p><p className="mt-3">Provider verification separately checks verified-email and agreement status, matching phone-number format, required business details, location, pricing, every active listing, and selected placeholder or suspicious language. When payout onboarding is connected, Stripe—not the Safety Bot—supplies the identity and payout-readiness status.</p></>],

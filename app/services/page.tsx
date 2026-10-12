@@ -18,14 +18,15 @@ import UiIcon from "@/components/ui-icon";
 import { deliveryLabel, type ServiceDeliveryType } from "@/lib/service-delivery";
 import ServiceCategoryIcon from "@/components/service-category-icon";
 import { formatServicePrice } from "@/lib/service-pricing";
+import { publicPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: "Explore local and remote services",
   description: "Search in-person and remote service providers, compare details, and request bookings across the United States.",
-  alternates: { canonical: "/services" },
-};
+  pathname: "/services",
+});
 
 const quickCategories = ["All services", ...FEATURED_SERVICE_CATEGORIES];
 const resultsAnchor = "#service-listings";

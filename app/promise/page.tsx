@@ -2,12 +2,13 @@ import BrandLockup from "@/components/brand-lockup";
 import type { Metadata } from "next";
 import Link from "next/link";
 import AccountNav from "@/components/account-nav";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: "BubsBookings Promise",
   description: "Learn how BubsBookings helps protect your booking, payment, communication, and support experience.",
-  alternates: { canonical: "/promise" },
-};
+  pathname: "/promise",
+});
 
 const protections = [
   ["Clear provider signals", "Provider profiles show the limited account, profile, and Stripe onboarding checks BubsBookings has completed—and explain what those checks do not verify."],

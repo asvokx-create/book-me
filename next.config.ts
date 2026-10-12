@@ -19,6 +19,18 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Dynamic public pages obtain metadata from the marketplace at request time.
+  // Disable metadata streaming so every crawler receives title, canonical, and
+  // description elements in the document head rather than after the body starts.
+  htmlLimitedBots: /.*/,
+  async redirects() {
+    return [{
+      source: "/:path*",
+      has: [{ type: "host", value: "www.bubsbookings.com" }],
+      destination: "https://bubsbookings.com/:path*",
+      permanent: true,
+    }];
+  },
   async headers() {
     return [
       {

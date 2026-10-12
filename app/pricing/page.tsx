@@ -10,12 +10,13 @@ import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getStripeMode } from "@/lib/stripe";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import UiIcon from "@/components/ui-icon";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: "Provider pricing",
   description: "Choose the BubsBookings plan that fits your service business.",
-  alternates: { canonical: "/pricing" },
-};
+  pathname: "/pricing",
+});
 
 const plans = [
   {

@@ -5,8 +5,13 @@ import BrandLockup from "@/components/brand-lockup";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import PostJobForm from "@/components/post-job-form";
 import BackButton from "@/components/back-button";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Request a service", description: "Tell eligible local or remote providers what you need and receive free quotes without lead fees." };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Request a service",
+  description: "Tell eligible local or remote providers what you need and receive free quotes without lead fees.",
+  pathname: "/requests",
+});
 
 function value(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] ?? "" : value ?? ""; }
 

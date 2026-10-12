@@ -3,12 +3,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SERVICE_AREAS, serviceAreaSlug } from "@/lib/service-areas";
 import { getServices } from "@/lib/marketplace";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: "Local service areas",
   description: "Explore local professionals and services across the communities served by BubsBookings.",
-  alternates: { canonical: "/locations" },
-};
+  pathname: "/locations",
+});
 
 // Availability changes whenever a provider publishes or removes a listing.
 // Rendering this directory at request time prevents a failed build-time

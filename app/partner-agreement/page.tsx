@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/app/terms/page";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Partner Agreement", alternates: { canonical: "/partner-agreement" } };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Partner Agreement",
+  description: "Review BubsBookings Partner Program terms for referrals, eligibility, compensation, promotion, and payout requirements.",
+  pathname: "/partner-agreement",
+});
 const sections = [
   ["1. Application, approval, and activation", "Applicants must be at least 18 and legally able to enter a binding agreement. Submitting an application does not approve or activate a partner and does not guarantee compensation. Approval allows BubsBookings to assign a personal affiliate code, but only activation authorizes new referral attribution. Participation begins when BubsBookings activates the partner after review. The code and dashboard access may not be sold, transferred, shared, or used to impersonate another person. BubsBookings may approve, reject, activate, pause, suspend, or terminate participation based on program fit, compliance, safety, fraud, legal, or payment risk."],
   ["2. Promotion and disclosures", <>Partners must describe BubsBookings accurately and clearly and conspicuously disclose the compensated relationship wherever a referral link, code, recommendation, review, or endorsement appears. A disclosure should be close to the promotion and use language an ordinary viewer will understand, such as “I may earn a commission if a provider joins through this link.” “Affiliate link” by itself may not adequately explain the relationship. Partners must follow the platform-specific disclosure rules and applicable endorsement law, including the FTC&apos;s <a href="https://www.ftc.gov/business-guidance/resources/ftcs-endorsement-guides-what-people-are-asking" target="_blank" rel="noreferrer" className="font-bold underline">Endorsement Guides guidance</a>. Partners may not make earnings guarantees, false endorsements, deceptive comparisons, unsupported safety claims, send spam, use unlawful content, bid on protected BubsBookings brand terms, impersonate BubsBookings, create confusing domains or accounts, or use cookies, redirects, toolbars, adware, or technical methods that create attribution without an informed user action.</>],

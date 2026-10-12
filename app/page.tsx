@@ -14,9 +14,14 @@ import HomeHeroPreview from "@/components/home-hero-preview";
 import HomeServiceSearch from "@/components/home-service-search";
 import UiIcon from "@/components/ui-icon";
 import { formatServicePrice } from "@/lib/service-pricing";
+import { publicPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Find and book local or remote services", description: "Compare in-person and remote service listings, message providers, and request bookings across the United States.", alternates: { canonical: "/" } };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Find and book local or remote services",
+  description: "Compare in-person and remote service listings, message providers, and request bookings across the United States.",
+  pathname: "/",
+});
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";

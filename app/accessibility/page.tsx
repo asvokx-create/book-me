@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/app/terms/page";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Accessibility", alternates: { canonical: "/accessibility" } };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Accessibility Statement",
+  description: "Learn about BubsBookings accessibility efforts and how to report a barrier or request help using the marketplace.",
+  pathname: "/accessibility",
+});
 
 const sections = [
   ["1. Our commitment", "BubsBookings wants customers and providers, including people with disabilities, to be able to use the marketplace. Accessibility is ongoing work, not a one-time certification. We use the Web Content Accessibility Guidelines (WCAG) 2.2 Level AA as a design and testing target while improving keyboard access, visible focus, readable contrast, clear labels and errors, responsive layouts, reduced-motion support, and compatibility with common assistive technologies."],

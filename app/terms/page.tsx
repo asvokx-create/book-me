@@ -2,8 +2,13 @@ import BrandLockup from "@/components/brand-lockup";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { POLICY_EFFECTIVE_DATE } from "@/lib/policy-consent";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Terms of Service", alternates: { canonical: "/terms" } };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Terms of Service",
+  description: "Read the BubsBookings Terms of Service for accounts, listings, bookings, payments, disputes, and marketplace use.",
+  pathname: "/terms",
+});
 
 const sections = [
   ["1. Agreement, eligibility, and authority", <><p>By creating an account, clicking an acceptance box, or using BubsBookings, you agree to these Terms and acknowledge the Privacy Policy and AI &amp; Safety disclosure. You must be at least 18, legally able to enter a binding agreement, and—if acting for a business—authorized to bind it.</p><p className="mt-3">Providers also agree to the Provider Agreement when they create a provider profile or list a service. If you do not agree, do not use the service.</p></>],

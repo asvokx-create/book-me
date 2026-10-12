@@ -5,12 +5,13 @@ import { headers } from "next/headers";
 import { auth, isAuthConfigured } from "@/lib/auth";
 import OnboardingForm from "./onboarding-form";
 import UiIcon from "@/components/ui-icon";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: "Become a provider",
   description: "List your services, message customers, and send quotes without paying for leads. Compare transparent BubsBookings provider plans.",
-  alternates: { canonical: "/providers/join" },
-};
+  pathname: "/providers/join",
+});
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";

@@ -4,12 +4,13 @@ import { auth, isAuthConfigured } from "@/lib/auth";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: "Contact Support",
   description: "Contact BubsBookings for account, booking, payment, safety, privacy, or partner-program support.",
-  alternates: { canonical: "/support" },
-};
+  pathname: "/support",
+});
 
 export const dynamic = "force-dynamic";
 

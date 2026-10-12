@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/app/terms/page";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Privacy Policy", alternates: { canonical: "/privacy" } };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Privacy Policy",
+  description: "Learn what information BubsBookings collects, how it is used for marketplace services, and the choices available to you.",
+  pathname: "/privacy",
+});
 
 const sections = [
   ["1. Scope and information collected", <><p>This policy applies to the BubsBookings website, accounts, marketplace, and support tools. We collect information you provide: name, email, phone, authentication data such as password hashes, profile photo, your general account location (city, state, ZIP code, and country), service and business details, photos, availability, provider business locations and service radiuses, service-demand requests, customer service requests, requested scope, private service address, schedule and time zone, optional budget, provider matches and quotes, booking notes, messages, reviews, team information, reports, disputes, support requests, preferences, and agreement records.</p><p className="mt-3">We also collect transaction and status information from Stripe; Google profile information when you choose Google sign-in; and technical data such as IP address, browser, device, pages and features used, timestamps, session identifiers, security events, analytics identifiers, and approximate location based on the area you select. If you choose “Use my location,” your browser asks permission and temporarily provides coordinates so the page can derive a nearby U.S. city. You can confirm or correct the resulting general area before it is saved. BubsBookings does not store those precise device coordinates on your account. Your browser or operating system controls the permission.</p></>],

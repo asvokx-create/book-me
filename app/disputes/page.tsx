@@ -4,8 +4,14 @@ import Link from "next/link";
 import DisputeCenter from "@/components/dispute-center";
 import BrandLockup from "@/components/brand-lockup";
 import { auth } from "@/lib/auth";
+import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Booking disputes and resolution", description: "Understand the BubsBookings completion review period, how to raise a booking dispute, what information to provide, and how resolutions are reviewed.", alternates: { canonical: "/disputes" } };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Booking disputes and resolution",
+  description: "Understand the BubsBookings completion review period, how to raise a booking dispute, what information to provide, and how resolutions are reviewed.",
+  pathname: "/disputes",
+});
 export const dynamic = "force-dynamic";
 
 export default async function DisputesPage() {
