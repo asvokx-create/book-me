@@ -35,9 +35,13 @@ test("program cards list assigned Partners and allow safe reassignment or deleti
   assert.match(adminComponent, /affiliate_program_move/);
   assert.match(adminComponent, /Move every Partner off this program before deleting it\./);
   assert.match(adminComponent, /Delete program/);
+  assert.match(adminComponent, /Remove Partner/);
+  assert.match(adminComponent, /affiliate_program_remove/);
   assert.match(adminRoute, /action === "affiliate_program_move"/);
   assert.match(adminRoute, /activation_bonus_enabled_override=CASE WHEN \$3 THEN NULL/);
   assert.match(adminRoute, /action === "program_delete"/);
   assert.match(adminRoute, /FROM affiliate_referrals WHERE program_id::text=\$1/);
   assert.match(adminRoute, /program_deleted/);
+  assert.match(adminRoute, /status='terminated'/);
+  assert.match(adminRoute, /affiliate_program_removed/);
 });

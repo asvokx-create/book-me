@@ -410,6 +410,13 @@ export async function PATCH(request: Request) {
       [targetId,ready?"complete":"requires_attention",reason]);
       if(!result.rowCount)throw new Error("NOT_FOUND");
       await audit(session.user.id,"affiliate_payment_readiness_changed","affiliate",targetId,{ready,reason},client);
+    } else if (action === "affiliate_program_remove") {
+      if (!reason) throw new Error("INVALID");
+      const result = await client.query(`UPDATE affiliate_profiles SET status='terminated',
+        admin_notes=concat_ws(E'\n',NULLIF(admin_notes,''),$2)
+        WHERE id::text=$1 AND status IN ('approved','active','paused','suspended')`, [targetId,reason]);
+      if (!result.rowCount) throw new Error("NOT_FOUND");
+      await audit(session.user.id,"affiliate_program_removed","affiliate",targetId,{reason},client);
     } else if (action === "affiliate_program_move") {
       const programId = typeof body.programId === "string" ? body.programId : "";
       const affiliate = await client.query<{ program_id: string; compensation_type: "standard" | "custom" }>(
