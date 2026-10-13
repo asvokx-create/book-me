@@ -74,6 +74,9 @@ export default function SiteFooter() {
           <div>
             <Link href="/" aria-label="BubsBookings" className="flex w-fit items-center gap-3 text-xl font-bold tracking-[-.03em]"><BrandLockup /></Link>
             <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local and remote services, clearer conversations, and one place to manage a booking.</p>
+            <a href="https://saasbrowser.com/en/saas/1712492/bubsbookings" target="_blank" rel="nofollow noopener" className="mt-5 block w-fit rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/70">
+              <img src="https://files.saasbrowser.com/n1c0ah9pbh67l9byez35xb5vhoy1" alt="BubsBookings - SaaS Browser Verified Badge" width="200" height="133" className="h-auto w-[200px]" />
+            </a>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <BugReportButton />
               <Link href="/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-[#c8d7cf] hover:bg-white/10 hover:text-white">Contact support</Link>
