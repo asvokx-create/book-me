@@ -29,3 +29,15 @@ test("program editing explains that existing referral snapshots are preserved", 
   assert.match(adminComponent, /Terms already snapshotted onto existing referrals are not rewritten\./);
   assert.doesNotMatch(adminRoute, /UPDATE affiliate_referrals SET/);
 });
+
+test("program cards list assigned Partners and allow safe reassignment or deletion", () => {
+  assert.match(adminComponent, /Partners on this program/);
+  assert.match(adminComponent, /affiliate_program_move/);
+  assert.match(adminComponent, /Move every Partner off this program before deleting it\./);
+  assert.match(adminComponent, /Delete program/);
+  assert.match(adminRoute, /action === "affiliate_program_move"/);
+  assert.match(adminRoute, /activation_bonus_enabled_override=CASE WHEN \$3 THEN NULL/);
+  assert.match(adminRoute, /action === "program_delete"/);
+  assert.match(adminRoute, /FROM affiliate_referrals WHERE program_id::text=\$1/);
+  assert.match(adminRoute, /program_deleted/);
+});

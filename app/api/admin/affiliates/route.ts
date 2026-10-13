@@ -73,7 +73,11 @@ async function dashboard() {
       revenue_share_duration_months, revenue_share_starts_at, attribution_window_days, hold_period_days,
       minimum_payout_cents, payout_schedule, eligible_provider_plans, eligible_revenue_types, status, starts_at, ends_at,
       program_type, activation_bonus_enabled, revenue_share_enabled, custom_campaign_enabled,
-      milestone_bonuses_enabled, active_provider_required_bookings, milestone_thresholds, milestone_bonus_cents
+      milestone_bonuses_enabled, active_provider_required_bookings, milestone_thresholds, milestone_bonus_cents,
+      (SELECT count(*)::int FROM affiliate_profiles affiliate WHERE affiliate.program_id=affiliate_programs.id) AS partner_count,
+      (SELECT count(*)::int FROM affiliate_referrals referral WHERE referral.program_id=affiliate_programs.id) AS referral_count,
+      (SELECT count(*)::int FROM affiliate_clicks click WHERE click.program_id=affiliate_programs.id) AS click_count,
+      (SELECT count(*)::int FROM creator_campaign_payments campaign WHERE campaign.program_id=affiliate_programs.id) AS campaign_count
       FROM affiliate_programs ORDER BY created_at DESC`),
     database.query(`SELECT affiliate.id::text, affiliate.display_name, affiliate.email, affiliate.affiliate_code,
       affiliate.user_id,affiliate.account_link_status,affiliate.account_link_review_note,
@@ -406,6 +410,41 @@ export async function PATCH(request: Request) {
       [targetId,ready?"complete":"requires_attention",reason]);
       if(!result.rowCount)throw new Error("NOT_FOUND");
       await audit(session.user.id,"affiliate_payment_readiness_changed","affiliate",targetId,{ready,reason},client);
+    } else if (action === "affiliate_program_move") {
+      const programId = typeof body.programId === "string" ? body.programId : "";
+      const affiliate = await client.query<{ program_id: string; compensation_type: "standard" | "custom" }>(
+        `SELECT program_id::text,compensation_type FROM affiliate_profiles
+         WHERE id::text=$1 AND status IN ('approved','active','paused','suspended') FOR UPDATE`, [targetId],
+      );
+      if (!affiliate.rows[0]) throw new Error("NOT_FOUND");
+      if (!programId || affiliate.rows[0].program_id === programId) throw new Error("INVALID");
+      const program = await client.query<{ name: string }>(
+        `SELECT name FROM affiliate_programs WHERE id::text=$1 AND status='enabled' FOR UPDATE`, [programId],
+      );
+      if (!program.rows[0]) throw new Error("PROGRAM");
+      const resetStandardOverrides = affiliate.rows[0].compensation_type === "standard";
+      await client.query(`UPDATE affiliate_profiles SET program_id=$2::uuid,
+        activation_bonus_enabled_override=CASE WHEN $3 THEN NULL ELSE activation_bonus_enabled_override END,
+        milestone_bonuses_override=CASE WHEN $3 THEN NULL ELSE milestone_bonuses_override END,
+        revenue_share_enabled_override=CASE WHEN $3 THEN NULL ELSE revenue_share_enabled_override END,
+        activation_bonus_override_cents=CASE WHEN $3 THEN NULL ELSE activation_bonus_override_cents END,
+        revenue_share_override_basis_points=CASE WHEN $3 THEN NULL ELSE revenue_share_override_basis_points END,
+        revenue_share_duration_override_months=CASE WHEN $3 THEN NULL ELSE revenue_share_duration_override_months END,
+        minimum_payout_override_cents=CASE WHEN $3 THEN NULL ELSE minimum_payout_override_cents END
+        WHERE id::text=$1`, [targetId,programId,resetStandardOverrides]);
+      await audit(session.user.id,"affiliate_program_moved","affiliate",targetId,{fromProgramId:affiliate.rows[0].program_id,toProgramId:programId,toProgramName:program.rows[0].name,resetStandardOverrides},client);
+    } else if (action === "program_delete") {
+      const program = await client.query<{ name: string }>(`SELECT name FROM affiliate_programs WHERE id::text=$1 FOR UPDATE`, [targetId]);
+      if (!program.rows[0]) throw new Error("NOT_FOUND");
+      const usage = await client.query<{ partners: number; referrals: number; clicks: number; campaigns: number }>(`SELECT
+        (SELECT count(*)::int FROM affiliate_profiles WHERE program_id::text=$1) AS partners,
+        (SELECT count(*)::int FROM affiliate_referrals WHERE program_id::text=$1) AS referrals,
+        (SELECT count(*)::int FROM affiliate_clicks WHERE program_id::text=$1) AS clicks,
+        (SELECT count(*)::int FROM creator_campaign_payments WHERE program_id::text=$1) AS campaigns`, [targetId]);
+      const dependencies = usage.rows[0];
+      if (!dependencies || Object.values(dependencies).some(Boolean)) throw new Error("PROGRAM_IN_USE");
+      await client.query("DELETE FROM affiliate_programs WHERE id::text=$1", [targetId]);
+      await audit(session.user.id,"program_deleted","affiliate_program",targetId,{name:program.rows[0].name},client);
     } else if (action === "program_status") {
       const status = typeof body.status === "string" ? body.status : "";
       if (!new Set(["draft","enabled","disabled"]).has(status)) throw new Error("INVALID");
@@ -470,6 +509,7 @@ export async function PATCH(request: Request) {
     if (message === "ACCOUNT_REQUIRED") return NextResponse.json({ error: "Link a verified BubsBookings account before approving this Partner application." }, { status: 409 });
     if (message === "LINK_UNSAFE") return NextResponse.json({ error: "A single safe verified account match was not found. Review this application manually." }, { status: 409 });
     if (message === "MINIMUM") return NextResponse.json({ error: "The payable balance has not reached this partner's minimum payout." }, { status: 409 });
+    if (message === "PROGRAM_IN_USE") return NextResponse.json({ error: "This program has partner or historical records. Move its partners first; programs with referral, click, or campaign history are retained for reporting." }, { status: 409 });
     if (message === "NOT_READY") return NextResponse.json({ error: "Complete Stripe setup and payout compliance review before creating a payout." }, { status: 409 });
     if (message === "STRIPE_NOT_READY") return NextResponse.json({ error: "Stripe must be payout-ready before payout readiness can be approved." }, { status: 409 });
     if (message === "NOT_FOUND") return NextResponse.json({ error: "That record is not available for this action." }, { status: 404 });
