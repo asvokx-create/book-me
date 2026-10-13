@@ -60,3 +60,11 @@ test("the affiliate code control copies the actual code and reports success or f
   assert.match(component,/Copied ✓/);
   assert.match(component,/could not be copied/);
 });
+
+test("administrators can remove a Partner from the expanded Partner record", () => {
+  assert.match(component,/kind:"removal",item/);
+  assert.match(component,/Remove Partner/);
+  assert.match(component,/The Partner&apos;s referral code will no longer attribute new providers\./);
+  assert.match(route,/action === "affiliate_program_remove"/);
+  assert.match(route,/affiliate_program_removed/);
+});
