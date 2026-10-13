@@ -47,7 +47,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   const organizationJsonLd = { "@context": "https://schema.org", "@graph": [
-    { "@type": "Organization", "@id": "https://bubsbookings.com/#organization", name: "BubsBookings", url: "https://bubsbookings.com", logo: { "@type": "ImageObject", url: "https://bubsbookings.com/brand-logo.png" }, description: "A marketplace for finding and booking local and remote service providers." },
+    { "@type": "Organization", "@id": "https://bubsbookings.com/#organization", name: "BubsBookings", url: "https://bubsbookings.com", logo: { "@type": "ImageObject", url: "https://bubsbookings.com/brand-logo.png" }, description: "A marketplace for finding and booking local and remote service providers.", founder: { "@type": "Person", name: "Christian Talluto", jobTitle: "Founder of BubsBookings" } },
     { "@type": "WebSite", "@id": "https://bubsbookings.com/#website", name: "BubsBookings", url: "https://bubsbookings.com", publisher: { "@id": "https://bubsbookings.com/#organization" }, potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: "https://bubsbookings.com/services?q={search_term_string}" }, "query-input": "required name=search_term_string" } },
   ] };
   return (

@@ -13,6 +13,7 @@ const marketplaceLinks = [
 ] as const;
 
 const trustLinks = [
+  ["About Us", "/about"],
   ["Our promise", "/promise"],
   ["AI & safety", "/ai-transparency"],
   ["Disputes", "/disputes"],

@@ -67,7 +67,7 @@ test("sitemap and robots rules cover public discovery while protecting private a
   const sitemap = read("app", "sitemap.ts");
   const robots = read("app", "robots.ts");
 
-  assert.match(sitemap, /"\/services", "\/requests", "\/pricing", "\/providers\/join", "\/partners", "\/locations", "\/guides"/);
+  assert.match(sitemap, /"\/services", "\/requests", "\/pricing", "\/providers\/join", "\/partners", "\/about", "\/locations", "\/guides"/);
   assert.match(sitemap, /GUIDES\.map/);
   assert.match(sitemap, /services\.map/);
   assert.match(sitemap, /providerSlugs\.map/);
