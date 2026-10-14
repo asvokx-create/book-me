@@ -69,7 +69,7 @@ export default function ListingEditor({ serviceId }: { serviceId: string }) {
           setDurationAmount(String(result.durationMinutes / (unit === "days" ? 1440 : 60)));
         }
       })
-      .catch((reason: Error) => { if (active) setError(reason.message); })
+      .catch(() => { if (active) setError("We couldn't load this listing. Refresh the page and try again."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [serviceId]);

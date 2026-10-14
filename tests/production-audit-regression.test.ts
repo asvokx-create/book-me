@@ -46,6 +46,6 @@ test("zero-result discovery prioritizes the existing service-request workflow", 
 
 test("the Guides index keeps a complete social preview", () => {
   const guides = read("app", "guides", "page.tsx");
-  assert.match(guides, /openGraph:[\s\S]*images: \[\{ url: "\/brand-logo\.png"/);
+  assert.match(guides, /openGraph:[\s\S]*images: \[\{ url: "\/brand-logo\.jpg"/);
   assert.match(guides, /twitter: \{ card: "summary"/);
 });

@@ -75,7 +75,7 @@ export default function AccountSettings() {
           applyTimeZonePreference(data.timeZone);
         }
       })
-      .catch((reason: Error) => { if (active) setError(reason.message); })
+      .catch(() => { if (active) setError("We couldn't load your account settings. Refresh the page and try again."); })
       .finally(() => { if (active) setLoaded(true); });
     return () => { active = false; };
   }, [session]);

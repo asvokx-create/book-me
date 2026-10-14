@@ -107,9 +107,9 @@ export default function BookingDatePicker({ serviceId, value, onChange, disabled
         if (!response.ok) throw new Error(data.error ?? "Availability could not be loaded.");
         setAvailability({ requestKey, dates: new Set(data.dates ?? []), error: "" });
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (controller.signal.aborted) return;
-        setAvailability({ requestKey, dates: noDates, error: error instanceof Error ? error.message : "Availability could not be loaded." });
+        setAvailability({ requestKey, dates: noDates, error: "We couldn't load availability. Please try again." });
       })
     return () => controller.abort();
   }, [additionalMinutes, durationMinutes, monthKey, open, requestKey, serviceId]);

@@ -75,6 +75,10 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     email: session.user.email,
     name: session.user.name,
   });
+  // The session ID is persisted immediately after this call. Until then,
+  // concurrent requests see the same prior state, so Stripe can safely return
+  // the same Checkout Session instead of creating a second payment attempt.
+  const checkoutAttemptKey = booking.stripe_checkout_session_id ?? "initial";
   const checkout = await stripe.checkout.sessions.create({
     mode: "payment",
     customer: customerId,
@@ -90,7 +94,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     success_url: `${origin}/account/bookings/${booking.id}?payment=success`,
     cancel_url: `${origin}/account/bookings/${booking.id}?payment=cancelled`,
     metadata: { kind: "booking_payment", bookingId: booking.id, paymentFlow: "held_transfer_v1", checkoutVersion: BOOKING_CHECKOUT_VERSION, customerServiceFeeCents: String(snapshot.customerServiceFeeCents), providerPlan: snapshot.providerPlan, providerFeeBasisPoints: String(snapshot.providerFeeBasisPoints), pricingType: booking.pricing_type_snapshot, billableDurationMinutes: String(booking.billable_duration_minutes) },
-  });
+  }, { idempotencyKey: `booking-checkout-${mode}-${booking.id}-${checkoutAttemptKey}` });
   await database.query(`UPDATE bookings SET stripe_checkout_session_id = $2, stripe_payment_intent_id = NULL,
     stripe_charge_id = NULL, stripe_transfer_id = NULL, stripe_mode = $3, payment_status = 'pending',
     payment_flow = 'held_transfer_v1', payment_release_status = 'awaiting_payment',

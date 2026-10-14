@@ -89,6 +89,12 @@ test("duplicate webhook and payout attempts use stable keys", () => {
   assert.equal(stripeOperationKey("payout", "live", "booking-1"), stripeOperationKey("payout", "live", "booking-1"));
 });
 
+test("concurrent booking checkout attempts share one Stripe idempotency key", () => {
+  const checkout = readFileSync(new URL("../app/api/stripe/bookings/[bookingId]/checkout/route.ts", import.meta.url), "utf8");
+  assert.match(checkout, /const checkoutAttemptKey = booking\.stripe_checkout_session_id \?\? "initial"/);
+  assert.match(checkout, /idempotencyKey: `booking-checkout-\$\{mode\}-\$\{booking\.id\}-\$\{checkoutAttemptKey\}`/);
+});
+
 test("existing transfer blocks duplicate payout", () => {
   assert.equal(isProviderPayoutEligible({ paymentStatus: "paid", bookingStatus: "completed", paymentReleaseStatus: "awaiting_customer", hasOpenDispute: false, hasBlockingRefund: false, payoutFrozen: false, transferId: "tr_123" }), false);
 });
