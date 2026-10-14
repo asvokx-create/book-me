@@ -64,8 +64,19 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyPage | null
             service.delivery_type, location.name AS location_name, location.city, location.state,
             (SELECT image.public_url FROM service_images image WHERE image.service_id = service.id ORDER BY image.sort_order, image.created_at LIMIT 1) AS image_url
      FROM services service
+     JOIN provider_profiles provider ON provider.id = service.provider_id AND provider.is_active = true
+     JOIN "user" owner ON owner.id = provider.user_id
      LEFT JOIN provider_locations location ON location.id = service.location_id AND location.is_active = true
-     WHERE service.company_id::text = $1 AND service.is_active = true
+     WHERE service.company_id::text = $1
+       AND (
+         (service.is_active = true AND provider.age_verification_status = 'verified')
+         OR (
+           service.is_active = false
+           AND service.age_verification_blocked = true
+           AND provider.age_verification_status = 'not_started'
+           AND owner.age_verified_at IS NOT NULL
+         )
+       )
      ORDER BY service.created_at DESC`,
     [company.id],
   );
