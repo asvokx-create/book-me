@@ -28,15 +28,17 @@ export default function ProviderSettingsSearch() {
 
   return <>
     <style jsx global>{`
-      /* Keep the hub cards neutral; Account settings signals interactivity on hover. */
-      .dashboard-content a[href="/account/settings"]:has(> span:first-child) {
+      /* Keep every settings tile neutral; green is the shared hover state. */
+      .dashboard-content [data-provider-settings-hub] > .mt-6 > a {
         background: #f5f5ef !important;
         color: #183126 !important;
       }
-      .dashboard-content a[href="/account/settings"]:has(> span:first-child):hover {
+      .dashboard-content [data-provider-settings-hub] > .mt-6 > a:hover {
         background: #183126 !important;
         color: #fff !important;
       }
+      .dashboard-content [data-provider-settings-hub] > .mt-6 > a > p:last-child { color: #738179 !important; }
+      .dashboard-content [data-provider-settings-hub] > .mt-6 > a:hover > p:last-child { color: #d7e3db !important; }
     `}</style>
     <section className="provider-settings-search relative mb-6 rounded-[1.5rem] border border-[#183126]/10 bg-white p-4 sm:p-5" aria-labelledby="provider-settings-search-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center"><div className="min-w-0 sm:w-52"><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Quick find</p><h1 id="provider-settings-search-title" className="mt-1 text-lg font-bold">Search settings</h1></div><div className="relative min-w-0 flex-1"><label className="sr-only" htmlFor="provider-settings-search">Search provider settings</label><UiIcon name="search" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#718078]" /><input id="provider-settings-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Try “payouts,” “services,” or “password”" autoComplete="off" className="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] py-3 pl-11 pr-4 text-base outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10" /></div></div>

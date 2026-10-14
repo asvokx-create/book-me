@@ -6,7 +6,7 @@ import test from "node:test";
 const root = process.cwd();
 const read = (...parts: string[]) => fs.readFileSync(path.join(root, ...parts), "utf8");
 
-test("provider settings hub offers a shared setting search and neutral account tile", () => {
+test("provider settings hub offers a shared setting search and neutral tiles", () => {
   const dashboard = read("components", "provider-dashboard.tsx");
   const search = read("components", "provider-settings-search.tsx");
 
@@ -20,5 +20,6 @@ test("provider settings hub offers a shared setting search and neutral account t
   assert.match(search, /Company team/);
   assert.match(search, /Plan and billing/);
   assert.match(search, /aria-label="Provider setting recommendations"/);
-  assert.match(search, /a\[href="\/account\/settings"\].*:hover/);
+  assert.match(dashboard, /data-provider-settings-hub/);
+  assert.match(search, /\[data-provider-settings-hub\] > \.mt-6 > a:hover/);
 });
