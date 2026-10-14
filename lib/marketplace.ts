@@ -49,8 +49,6 @@ export type ServiceListing = {
   serviceAreaCities: string[];
   bookingQuestions: string[];
   priorityPlacement: boolean;
-  /** Publicly visible legacy listing; requests and payments remain unavailable until Stripe Identity verifies the provider. */
-  bookingAvailable: boolean;
   distanceMiles?: number;
 };
 
@@ -104,25 +102,7 @@ type ServiceRow = {
   booking_questions: unknown;
   service_area_cities?: string[] | null;
   provider_plan: string;
-  age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
-  age_verification_blocked: boolean;
 };
-
-// The age-verification rollout set existing services inactive so that no new
-// bookings could be made before the provider completes Stripe Identity. Keep
-// those legacy listings discoverable only after the account has completed the
-// separate 18+ account check. They are deliberately not treated as verified:
-// booking, checkout, payout, and availability endpoints still require
-// `age_verification_status = 'verified'`.
-const PUBLIC_LISTING_VISIBILITY_CONDITION = `(
-  (s.is_active = true AND p.age_verification_status = 'verified')
-  OR (
-    s.is_active = false
-    AND s.age_verification_blocked = true
-    AND p.age_verification_status = 'not_started'
-    AND owner.age_verified_at IS NOT NULL
-  )
-)`;
 
 function mapService(row: ServiceRow): ServiceListing {
   const screeningCurrent = isProviderScreeningCurrent(row.screening_checked_at);
@@ -162,7 +142,6 @@ function mapService(row: ServiceRow): ServiceListing {
     bookingQuestions: Array.isArray(row.booking_questions) ? row.booking_questions.filter((question): question is string => typeof question === "string") : [],
     serviceAreaCities: row.service_area_cities ?? [],
     priorityPlacement: ["pro", "business", "owner"].includes(row.provider_plan),
-    bookingAvailable: row.age_verification_status === "verified",
   };
 }
 
@@ -170,7 +149,7 @@ export async function getServices(options: { query?: string; category?: string; 
   if (!isDatabaseConfigured()) return [];
 
   const values: Array<string | number | string[]> = [];
-  const conditions = ["p.is_active = true", PUBLIC_LISTING_VISIBILITY_CONDITION];
+  const conditions = ["s.is_active = true", "p.is_active = true", "p.age_verification_status = 'verified'"];
   const requestedLimit = options.limit ?? 50;
   const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), 250) : undefined;
   const searchOrigin = options.location && radiusMiles ? findUsCity(options.location) : undefined;
@@ -220,7 +199,7 @@ export async function getServices(options: { query?: string; category?: string; 
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.age_verification_status, s.age_verification_blocked, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((SELECT array_agg(lower(area.city || ', ' || area.state)) FROM provider_location_service_areas area WHERE area.location_id = s.location_id), ARRAY[]::text[]) AS service_area_cities,
             COALESCE((
@@ -266,7 +245,7 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.age_verification_status, s.age_verification_blocked, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -276,7 +255,7 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
      JOIN provider_companies company ON company.id = s.company_id AND company.is_active = true
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE s.slug = $1 AND p.is_active = true AND ${PUBLIC_LISTING_VISIBILITY_CONDITION}
+     WHERE s.slug = $1 AND s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified'
      LIMIT 1`,
     [slug],
   );
@@ -339,7 +318,7 @@ export async function getServiceById(id: string) {
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.age_verification_status, s.age_verification_blocked, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -348,7 +327,7 @@ export async function getServiceById(id: string) {
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE s.id::text = $1 AND p.is_active = true AND ${PUBLIC_LISTING_VISIBILITY_CONDITION}
+     WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified'
      LIMIT 1`,
     [id],
   );
@@ -397,32 +376,13 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
      LEFT JOIN user_settings settings ON settings.user_id = owner.id
      WHERE (lower(p.public_profile_slug) = lower($1) OR p.id::text = $1)
        AND p.is_active = true
-       AND (
-         p.age_verification_status = 'verified'
-         OR (
-           p.age_verification_status = 'not_started'
-           AND owner.age_verified_at IS NOT NULL
-           AND EXISTS (
-             SELECT 1 FROM services legacy_service
-             WHERE legacy_service.provider_id = p.id
-               AND legacy_service.is_active = false
-               AND legacy_service.age_verification_blocked = true
-           )
-         )
-       )
+       AND p.age_verification_status = 'verified'
        AND (
          ($2::text IS NOT NULL AND p.id::text = $2)
          OR
          ($2::text IS NULL
            AND ($3::boolean = true OR p.public_profile_visible = true)
-           AND EXISTS (
-             SELECT 1 FROM services active_service
-             WHERE active_service.provider_id = p.id
-               AND (
-                 active_service.is_active = true
-                 OR (active_service.is_active = false AND active_service.age_verification_blocked = true AND p.age_verification_status = 'not_started' AND owner.age_verified_at IS NOT NULL)
-               )
-           ))
+           AND EXISTS (SELECT 1 FROM services active_service WHERE active_service.provider_id = p.id AND active_service.is_active = true))
        )
      LIMIT 1`,
     [slug, options.ownerProviderId ?? null, options.includeHidden === true],
@@ -518,7 +478,7 @@ async function getServicesForProvider(providerId: string) {
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.age_verification_status, s.age_verification_blocked, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -527,7 +487,7 @@ async function getServicesForProvider(providerId: string) {
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE p.id = $1 AND p.is_active = true AND ${PUBLIC_LISTING_VISIBILITY_CONDITION}
+     WHERE p.id = $1 AND p.is_active = true AND p.age_verification_status = 'verified' AND s.is_active = true
      ORDER BY s.created_at DESC`,
     [providerId],
   );
@@ -543,7 +503,7 @@ export async function getFavoriteServices(customerId: string) {
             s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
-            p.plan AS provider_plan, p.age_verification_status, s.age_verification_blocked, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
+            p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
             p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy, p.service_radius_miles,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
@@ -553,7 +513,7 @@ export async function getFavoriteServices(customerId: string) {
      JOIN services s ON s.id = f.service_id
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE f.customer_id = $1 AND p.is_active = true AND ${PUBLIC_LISTING_VISIBILITY_CONDITION}
+     WHERE f.customer_id = $1 AND s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified'
      ORDER BY f.created_at DESC`,
     [customerId],
   );

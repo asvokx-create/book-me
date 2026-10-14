@@ -34,7 +34,7 @@ test("Stripe Connect readiness is separate from provider age verification and St
   assert.match(providerRoute, /provider-age-verification/);
 });
 
-test("verified providers can book while narrowly scoped legacy listing visibility keeps all operations blocked", () => {
+test("unverified providers are blocked from public listings, booking acceptance, checkout, and transfers", () => {
   const marketplace = read("lib/marketplace.ts");
   const booking = read("app/api/bookings/route.ts");
   const providerBooking = read("app/api/providers/bookings/[bookingId]/route.ts");
@@ -42,11 +42,7 @@ test("verified providers can book while narrowly scoped legacy listing visibilit
   const payout = read("lib/payment-release.ts");
   const tip = read("lib/tip-payments.ts");
 
-  assert.match(marketplace, /PUBLIC_LISTING_VISIBILITY_CONDITION/);
-  assert.match(marketplace, /s\.age_verification_blocked = true/);
-  assert.match(marketplace, /p\.age_verification_status = 'not_started'/);
-  assert.match(marketplace, /owner\.age_verified_at IS NOT NULL/);
-  assert.match(marketplace, /bookingAvailable: row\.age_verification_status === "verified"/);
+  assert.match(marketplace, /p\.age_verification_status = 'verified'/);
   assert.match(booking, /p\.age_verification_status = 'verified'/);
   assert.match(providerBooking, /Complete provider age verification before accepting/);
   assert.match(checkout, /booking\.age_verification_status !== "verified"/);

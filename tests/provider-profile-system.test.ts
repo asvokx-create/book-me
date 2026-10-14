@@ -31,8 +31,7 @@ test("public profiles expose only eligible providers and truthful marketplace ev
   const marketplace = read("lib", "marketplace.ts");
   const page = read("app", "providers", "[slug]", "page.tsx");
   assert.match(marketplace, /\$2::text IS NULL[\s\S]*p\.public_profile_visible = true/);
-  assert.match(marketplace, /EXISTS \([\s\S]*FROM services active_service[\s\S]*active_service\.is_active = true/);
-  assert.match(marketplace, /active_service\.age_verification_blocked = true[\s\S]*p\.age_verification_status = 'not_started'/);
+  assert.match(marketplace, /EXISTS \(SELECT 1 FROM services active_service[\s\S]*active_service\.is_active = true\)/);
   assert.match(marketplace, /JOIN bookings b ON b\.id = r\.booking_id AND b\.status = 'completed'/);
   assert.match(marketplace, /r\.is_hidden = false/);
   assert.match(page, /provider\.completedBookingCount > 0/);
