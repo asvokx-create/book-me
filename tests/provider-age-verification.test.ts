@@ -73,3 +73,21 @@ test("admin listing status reflects public eligibility and cannot restore an unv
   assert.match(dashboard, /verification required/);
   assert.match(preview, /remains off the public marketplace until the provider completes required age verification/);
 });
+
+test("only profiles that existed before the policy can receive a documented admin exception", () => {
+  const migration = read("database/migrations/084_legacy_provider_age_exceptions.sql");
+  const admin = read("app/api/admin/route.ts");
+  const dashboard = read("components/admin-dashboard.tsx");
+  const verification = read("lib/provider-age-verification.ts");
+
+  assert.match(migration, /age_verification_exception_eligible boolean NOT NULL DEFAULT false/);
+  assert.match(migration, /UPDATE provider_profiles[\s\S]*age_verification_status <> 'verified'/);
+  assert.match(admin, /Only provider profiles that existed before this exception policy may receive an admin exception/);
+  assert.match(admin, /provider_age_exception_approved/);
+  assert.match(admin, /provider_age_exception_revoked/);
+  assert.match(admin, /read_at=NULL/);
+  assert.doesNotMatch(admin, /is_read=false/);
+  assert.match(dashboard, /Approve legacy exception/);
+  assert.match(dashboard, /Revoke exception/);
+  assert.match(verification, /age_verification_source === "admin_exception"/);
+});

@@ -101,6 +101,10 @@ type AccountDetails = {
     phone_verified: boolean; identity_verified: boolean; business_verified: boolean;
     screening_status: string; screening_score: number | null; screening_summary: string; screening_checked_at: string | null;
     stripe_subscription_status: string; stripe_charges_enabled: boolean; stripe_payouts_enabled: boolean;
+    age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
+    age_verification_source: "stripe_identity" | "admin_exception" | null;
+    age_verification_exception_eligible: boolean; age_verification_exception_note: string | null;
+    age_verification_exception_granted_at: string | null;
     extra_team_seats: number; reserved_worker_count: number;
     stripe_current_period_end: string | null; stripe_connected: boolean;
     provider_agreement_accepted_at: string | null; provider_agreement_version: string | null;
@@ -566,7 +570,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
           )}
         </section>
       </div>
-      {selectedAccount && <AccountDetailDialog account={selectedAccount} details={accountDetails} loading={accountDetailsLoading} error={accountDetailsError} onClose={closeAccount} onRetry={() => void openAccount(selectedAccount)} />}
+      {selectedAccount && <AccountDetailDialog account={selectedAccount} details={accountDetails} loading={accountDetailsLoading} error={accountDetailsError} onClose={closeAccount} onRetry={() => openAccount(selectedAccount)} onDashboardRefresh={load} />}
       {pendingAction && <div className="fixed inset-0 z-[100] grid place-items-center bg-[#10251c]/55 p-3 sm:p-5" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title"><div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-white p-6 shadow-2xl sm:max-h-[calc(100dvh-2.5rem)] sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Confirm admin action</p><h2 id="admin-confirm-title" className="mt-2 text-2xl font-bold">Are you sure?</h2><p className="mt-3 text-sm leading-6 text-[#687970]">{pendingAction.confirmText}</p><p className="mt-4 rounded-2xl bg-[#f5f5ef] p-4 text-xs leading-5 text-[#718078]">This change is recorded in the permanent admin audit history.</p><div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={Boolean(busyId)} onClick={() => setPendingAction(null)} className="min-h-11 rounded-full px-5 py-3 text-sm font-bold transition hover:bg-[#edf1ec]">Cancel</button><button type="button" disabled={Boolean(busyId)} onClick={() => void executeAction({ ...pendingAction, confirmText: undefined })} className="min-h-11 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{busyId ? "Saving…" : pendingAction.status === "active" || pendingAction.status === "visible" ? "Restore" : "Confirm"}</button></div></div></div>}
     </main>
   );
@@ -621,11 +625,13 @@ function StripeConnectionSummary({ consumerStripe, provider }: {
   </section>;
 }
 
-function AccountDetailDialog({ account, details, loading, error, onClose, onRetry }: {
-  account: Account; details: AccountDetails | null; loading: boolean; error: string; onClose: () => void; onRetry: () => void;
+function AccountDetailDialog({ account, details, loading, error, onClose, onRetry, onDashboardRefresh }: {
+  account: Account; details: AccountDetails | null; loading: boolean; error: string; onClose: () => void; onRetry: () => Promise<void>; onDashboardRefresh: () => Promise<void>;
 }) {
   const [welcomeBusy, setWelcomeBusy] = useState(false);
   const [welcomeResult, setWelcomeResult] = useState("");
+  const [ageExceptionBusy, setAgeExceptionBusy] = useState(false);
+  const [ageExceptionResult, setAgeExceptionResult] = useState("");
   const welcomeSent = details?.welcomeEmail?.status === "sent" || welcomeResult === "Welcome email sent.";
 
   useEffect(() => {
@@ -653,6 +659,30 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
     const response = await fetch("/api/admin", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "portfolio_status", targetId: id, status }) });
     if (response.ok) onRetry();
   }
+  async function changeAgeException(status: "approve" | "revoke") {
+    if (!details?.provider) return;
+    const note = window.prompt(status === "approve"
+      ? "Add the review note for this legacy-provider exception. This is saved in the permanent admin audit history."
+      : "Add the reason for revoking this legacy-provider exception. This is saved in the permanent admin audit history.")?.trim();
+    if (!note) return;
+    const confirmation = status === "approve"
+      ? "Approve this documented exception for an existing provider? New providers cannot use this exception."
+      : "Revoke this exception? The provider's listings will be held until Stripe age verification is complete.";
+    if (!window.confirm(confirmation)) return;
+    setAgeExceptionBusy(true);
+    setAgeExceptionResult("");
+    const response = await fetch("/api/admin", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "provider_age_exception", targetId: details.provider.id, status, reason: note }),
+    }).catch(() => null);
+    const result = response ? await response.json() as { error?: string } : null;
+    if (!response?.ok) setAgeExceptionResult(result?.error ?? "The provider exception could not be saved.");
+    else {
+      setAgeExceptionResult(status === "approve" ? "Legacy provider exception approved." : "Legacy provider exception revoked.");
+      await Promise.all([onDashboardRefresh(), onRetry()]);
+    }
+    setAgeExceptionBusy(false);
+  }
 
   return <div className="fixed inset-0 z-[200] flex min-w-0 justify-end overflow-hidden bg-[#10251c]/55" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
     <section className="admin-account-dialog h-[100dvh] min-w-0 w-full max-w-4xl overflow-x-hidden overflow-y-auto overscroll-contain bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="account-detail-title">
@@ -662,7 +692,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
       </header>
       <div className="admin-safe-content space-y-6 p-5 sm:p-8">
         {loading && <div className="grid min-h-80 place-items-center"><div className="text-center"><div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-[#dfe8df] border-t-[#34704a]" /><p className="mt-4 text-sm font-semibold text-[#718078]">Loading permitted account information…</p></div></div>}
-        {error && <div className="rounded-3xl border border-[#9a4e25]/20 bg-[#fff0e7] p-6"><h3 className="font-bold text-[#7b3c1b]">Account details unavailable</h3><p className="mt-2 text-sm text-[#9a4e25]">{error}</p><button type="button" onClick={onRetry} className="mt-4 rounded-full bg-[#183126] px-5 py-2.5 text-sm font-bold text-white">Try again</button></div>}
+        {error && <div className="rounded-3xl border border-[#9a4e25]/20 bg-[#fff0e7] p-6"><h3 className="font-bold text-[#7b3c1b]">Account details unavailable</h3><p className="mt-2 text-sm text-[#9a4e25]">{error}</p><button type="button" onClick={() => void onRetry()} className="mt-4 rounded-full bg-[#183126] px-5 py-2.5 text-sm font-bold text-white">Try again</button></div>}
         {details && <>
           <div className="rounded-3xl border border-[#183126]/10 bg-[#f4f4ef] p-5"><p className="text-sm leading-6 text-[#52665b]">{details.privacyNote} Opening this view is recorded in the admin audit history.</p></div>
           <section className="flex flex-col justify-between gap-4 rounded-3xl border border-[#183126]/15 bg-[#f8f8f4] p-5 sm:flex-row sm:items-center"><div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Account welcome</p><h3 className="mt-1 text-lg font-bold">Welcome email</h3><p className="mt-1 text-sm text-[#52665b]">{welcomeSent ? `Sent${details.welcomeEmail?.created_at ? ` ${formatDate(details.welcomeEmail.created_at)}` : ""}.` : "Send the branded new-account introduction and add it to the notification inbox."}</p>{welcomeResult && <p role="status" className={`mt-2 text-sm font-bold ${welcomeResult.includes("could not") ? "text-[#9a4e25]" : "text-[#34704a]"}`}>{welcomeResult}</p>}</div><button type="button" disabled={welcomeBusy || welcomeSent} onClick={() => void sendWelcomeEmail()} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:cursor-not-allowed disabled:opacity-50">{welcomeBusy ? "Sending…" : welcomeSent ? "Welcome email sent" : "Send welcome email"}</button></section>
@@ -696,12 +726,14 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             { label: "Phone details checked", value: details.provider.phone_verified }, { label: "Stripe identity", value: details.provider.identity_verified }, { label: "Business profile checked", value: details.provider.business_verified },
             { label: "Safety screening", value: label(details.provider.screening_status) }, { label: "Screening score", value: details.provider.screening_score }, { label: "Screening checked", value: details.provider.screening_checked_at ? formatDate(details.provider.screening_checked_at) : null },
             { label: "Stripe connected", value: details.provider.stripe_connected }, { label: "Charges enabled", value: details.provider.stripe_charges_enabled }, { label: "Payouts enabled", value: details.provider.stripe_payouts_enabled },
+            { label: "Age eligibility", value: details.provider.age_verification_status === "verified" ? details.provider.age_verification_source === "admin_exception" ? "Legacy admin exception" : "Stripe document verified" : label(details.provider.age_verification_status) },
+            { label: "Exception eligible", value: details.provider.age_verification_exception_eligible }, { label: "Exception approved", value: details.provider.age_verification_exception_granted_at ? formatDate(details.provider.age_verification_exception_granted_at) : null },
             { label: "Subscription", value: label(details.provider.stripe_subscription_status) }, { label: "Current period ends", value: details.provider.stripe_current_period_end ? formatDate(details.provider.stripe_current_period_end) : null }, { label: "Live Pro trial used", value: details.provider.pro_trial_used_at_live ? formatDate(details.provider.pro_trial_used_at_live) : "No" },
             { label: "Included team seats", value: details.provider.plan === "pro" ? 3 : PLAN_ENTITLEMENTS[details.provider.plan].teamSeatLimit ?? "Unlimited" }, { label: "Purchased extra seats", value: details.provider.extra_team_seats }, { label: "Seats used", value: details.provider.reserved_worker_count + 1 },
             { label: "Extra seat cost", value: `$${(details.provider.extra_team_seats * 0.5).toFixed(2)}/month` },
             { label: "Provider agreement", value: details.provider.provider_agreement_accepted_at ? formatDate(details.provider.provider_agreement_accepted_at) : null }, { label: "Agreement version", value: details.provider.provider_agreement_version },
             { label: "Public profile", value: details.provider.public_profile_visible ? "Visible" : "Hidden" }, { label: "Public slug", value: details.provider.public_profile_slug }, { label: "Years experience", value: details.provider.years_experience },
-          ]} />{details.provider.bio && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Business description</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{details.provider.bio}</p></div>}{details.provider.screening_summary && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Screening summary</p><p className="mt-2 text-sm leading-6">{details.provider.screening_summary}</p></div>}</div></details>}
+          ]} /><section className={`rounded-2xl border p-4 ${details.provider.age_verification_source === "admin_exception" ? "border-[#d9ca55] bg-[#fff8cf]" : "border-[#183126]/10 bg-[#f8f8f4]"}`}><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Legacy provider eligibility</p><h4 className="mt-1 font-bold">{details.provider.age_verification_source === "admin_exception" ? "Documented admin exception is active" : details.provider.age_verification_exception_eligible ? "Manual exception available" : "Stripe verification required"}</h4><p className="mt-2 text-sm leading-6 text-[#52665b]">{details.provider.age_verification_source === "admin_exception" ? "This existing provider has an auditable exception instead of a Stripe Identity age-verification result. Revoking it holds listings until Stripe verification is completed." : details.provider.age_verification_exception_eligible ? "This profile existed before the new provider age-verification policy. An administrator may grant a documented exception after review; providers created after the policy cannot use it." : "This provider was created after the policy began and must complete Stripe document age verification."}</p>{details.provider.age_verification_exception_note && <p className="mt-3 rounded-xl bg-white/70 p-3 text-xs leading-5"><strong>Latest audit note:</strong> {details.provider.age_verification_exception_note}</p>}<div className="mt-4">{details.provider.age_verification_source === "admin_exception" ? <button type="button" disabled={ageExceptionBusy} onClick={() => void changeAgeException("revoke")} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{ageExceptionBusy ? "Saving…" : "Revoke exception"}</button> : details.provider.age_verification_exception_eligible && details.provider.age_verification_status !== "verified" ? <button type="button" disabled={ageExceptionBusy} onClick={() => void changeAgeException("approve")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{ageExceptionBusy ? "Saving…" : "Approve legacy exception"}</button> : null}</div>{ageExceptionResult && <p role="status" className={`mt-3 text-sm font-bold ${ageExceptionResult.includes("could not") || ageExceptionResult.includes("must") || ageExceptionResult.includes("Only") ? "text-[#9a4e25]" : "text-[#34704a]"}`}>{ageExceptionResult}</p>}</section>{details.provider.bio && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Business description</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{details.provider.bio}</p></div>}{details.provider.screening_summary && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Screening summary</p><p className="mt-2 text-sm leading-6">{details.provider.screening_summary}</p></div>}</div></details>}
           {details.portfolio.length > 0 && <section><h3 className="mb-3 text-lg font-bold">Provider portfolio moderation</h3><div className="grid gap-3 sm:grid-cols-2">{details.portfolio.map((item) => <article key={item.id} className="overflow-hidden rounded-2xl border border-[#183126]/10"><Image src={item.url} alt={item.alt_text || item.caption || "Provider portfolio"} width={600} height={450} unoptimized className="aspect-[4/3] w-full object-cover" /><div className="p-4"><div className="flex items-center justify-between gap-2"><p className="text-sm font-bold">{item.caption || "Untitled work"}</p><StatusPill value={item.moderation_status} /></div><button type="button" onClick={() => void moderatePortfolio(item.id, item.moderation_status === "hidden" ? "active" : "hidden")} className="mt-3 rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold">{item.moderation_status === "hidden" ? "Restore image" : "Hide image"}</button></div></article>)}</div></section>}
           {details.affiliateAttribution && <section className="rounded-3xl border border-[#183126]/10 bg-[#edf5e9] p-5"><h3 className="text-lg font-bold">Affiliate attribution</h3><p className="mt-1 text-sm text-[#52665b]">Private attribution and snapshotted program status for this provider.</p><div className="mt-4"><DetailGrid items={[
             { label: "Referred by", value: details.affiliateAttribution.affiliate_name }, { label: "Affiliate code", value: details.affiliateAttribution.affiliate_code },

@@ -43,6 +43,8 @@ export async function GET(
               business_verified, screening_status, screening_score, screening_summary,
               screening_checked_at, stripe_subscription_status, stripe_charges_enabled,
               stripe_payouts_enabled, stripe_current_period_end,
+              age_verification_status, age_verification_source, age_verification_exception_eligible,
+              age_verification_exception_note, age_verification_exception_granted_at,
               extra_team_seats,
               (SELECT count(DISTINCT lower(member.email))::int FROM provider_team_members member
                WHERE member.provider_id = provider_profiles.id AND member.status IN ('pending', 'active')) AS reserved_worker_count,

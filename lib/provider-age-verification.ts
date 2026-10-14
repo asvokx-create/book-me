@@ -12,6 +12,7 @@ type StoredProvider = {
   stripe_identity_verification_session_id: string | null;
   stripe_identity_verification_mode: "test" | "live" | null;
   age_verification_status: ProviderAgeVerificationStatus;
+  age_verification_source: "stripe_identity" | "admin_exception" | null;
 };
 
 export function ageVerificationStatusForStripeSession(session: Stripe.Identity.VerificationSession): ProviderAgeVerificationStatus {
@@ -30,7 +31,8 @@ function dobFromVerifiedSession(session: Stripe.Identity.VerificationSession) {
 async function setProviderAgeVerification(providerId: string, status: ProviderAgeVerificationStatus, failureCode: string | null = null) {
   if (status === "verified") {
     await database.query(`UPDATE provider_profiles
-      SET age_verification_status='verified', age_identity_verified_at=now(), age_verification_failure_code=NULL
+      SET age_verification_status='verified', age_identity_verified_at=now(), age_verification_failure_code=NULL,
+        age_verification_source='stripe_identity'
       WHERE id::text=$1`, [providerId]);
     // Only activate listings that this gate previously held back. Manually
     // deactivated listings remain inactive.
@@ -39,7 +41,8 @@ async function setProviderAgeVerification(providerId: string, status: ProviderAg
     return;
   }
   await database.query(`UPDATE provider_profiles
-    SET age_verification_status=$2, age_identity_verified_at=NULL, age_verification_failure_code=$3
+    SET age_verification_status=$2, age_identity_verified_at=NULL, age_verification_failure_code=$3,
+      age_verification_source=NULL
     WHERE id::text=$1`, [providerId, status, failureCode]);
   await database.query(`UPDATE services SET is_active=false, age_verification_blocked=true
     WHERE provider_id::text=$1`, [providerId]);
@@ -52,11 +55,12 @@ async function setProviderAgeVerification(providerId: string, status: ProviderAg
 export async function syncProviderAgeVerificationFromStripe(sessionId: string) {
   const mode = getStripeMode();
   const providerResult = await database.query<StoredProvider>(`SELECT id::text, stripe_identity_verification_session_id,
-      stripe_identity_verification_mode, age_verification_status
+      stripe_identity_verification_mode, age_verification_status, age_verification_source
     FROM provider_profiles
     WHERE stripe_identity_verification_session_id=$1 AND stripe_identity_verification_mode=$2`, [sessionId, mode]);
   const provider = providerResult.rows[0];
   if (!provider) return null;
+  if (provider.age_verification_source === "admin_exception") return "verified" as const;
 
   const session = await getStripe().identity.verificationSessions.retrieve(sessionId, { expand: ["verified_outputs"] });
   if (session.client_reference_id !== provider.id) return null;
@@ -80,7 +84,7 @@ export async function syncProviderAgeVerificationFromStripe(sessionId: string) {
 export async function startProviderAgeVerification(input: { providerId: string; origin: string }) {
   const mode = getStripeMode();
   const providerResult = await database.query<StoredProvider>(`SELECT id::text, stripe_identity_verification_session_id,
-      stripe_identity_verification_mode, age_verification_status
+      stripe_identity_verification_mode, age_verification_status, age_verification_source
     FROM provider_profiles WHERE id::text=$1`, [input.providerId]);
   const provider = providerResult.rows[0];
   if (!provider) throw new Error("PROVIDER_NOT_FOUND");
@@ -108,7 +112,8 @@ export async function startProviderAgeVerification(input: { providerId: string; 
   }, { idempotencyKey: `provider-age-verification-${mode}-${provider.id}-${provider.stripe_identity_verification_session_id ?? "initial"}` });
   await database.query(`UPDATE provider_profiles
     SET stripe_identity_verification_session_id=$2, stripe_identity_verification_mode=$3,
-        age_verification_status='requires_input', age_identity_verified_at=NULL, age_verification_failure_code=NULL
+        age_verification_status='requires_input', age_identity_verified_at=NULL, age_verification_failure_code=NULL,
+        age_verification_source=NULL
     WHERE id::text=$1`, [provider.id, session.id, mode]);
   await database.query(`UPDATE services SET is_active=false, age_verification_blocked=true WHERE provider_id::text=$1`, [provider.id]);
   return { status: "requires_input" as const, url: session.url };
