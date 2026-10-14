@@ -20,6 +20,26 @@ export async function enforceRateLimit(input: { request: Request; userId: string
   return (result.rows[0]?.request_count ?? 1) <= limit;
 }
 
+/**
+ * Returns a stable, privacy-preserving key for public routes that do not have
+ * an authenticated account yet. The key is hashed by enforceRateLimit before
+ * it is stored. On DigitalOcean App Platform, do-connecting-ip is supplied by
+ * the trusted platform proxy. Do not trust a user-supplied forwarding header
+ * in production as a fallback, because callers can forge it.
+ */
+export function publicRequestRateLimitKey(request: Request) {
+  const platformIp = request.headers.get("do-connecting-ip")?.trim();
+  if (platformIp) return `ip:${platformIp.slice(0, 128)}`;
+
+  // This is only a local-development convenience. Production requests without
+  // the platform header deliberately share a small fail-closed bucket.
+  if (process.env.NODE_ENV !== "production") {
+    const developmentIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    if (developmentIp) return `ip:${developmentIp.slice(0, 128)}`;
+  }
+  return "ip:unavailable";
+}
+
 export async function recordActivity(input: { userId: string; action: string; targetType: string; targetId?: string; metadata?: Record<string, unknown> }) {
   try {
     await database.query(

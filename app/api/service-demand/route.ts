@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { recordAnalytics } from "@/lib/analytics";
-import { enforceRateLimit } from "@/lib/request-security";
+import { enforceRateLimit, publicRequestRateLimitKey } from "@/lib/request-security";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,6 +21,9 @@ export async function POST(request: Request) {
   }
   if (!await enforceRateLimit({ request, userId: email, bucket: "service-demand", limit: 5, windowSeconds: 3600 })) {
     return NextResponse.json({ error: "You have already sent several requests. Please try again later." }, { status: 429 });
+  }
+  if (!await enforceRateLimit({ request, userId: publicRequestRateLimitKey(request), bucket: "service-demand-ip", limit: 10, windowSeconds: 3600 })) {
+    return NextResponse.json({ error: "Too many requests from this connection. Please try again later." }, { status: 429 });
   }
 
   const session = await auth.api.getSession({ headers: await headers() }).catch(() => null);

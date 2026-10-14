@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { database } from "@/lib/database";
 import { AFFILIATE_COOKIE, newAttributionToken, normalizeAffiliateCode, safeInternalDestination } from "@/lib/affiliates";
-import { enforceRateLimit } from "@/lib/request-security";
+import { enforceRateLimit, publicRequestRateLimitKey } from "@/lib/request-security";
 
 export async function POST(request: Request) {
-  const anonymousKey = request.headers.get("do-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0] ?? request.headers.get("user-agent") ?? "anonymous";
-  if (!await enforceRateLimit({ request, userId: anonymousKey, bucket: "affiliate-click", limit: 30 })) {
+  if (!await enforceRateLimit({ request, userId: publicRequestRateLimitKey(request), bucket: "affiliate-click", limit: 30 })) {
     return NextResponse.json({ error: "Too many referral requests." }, { status: 429 });
   }
   const body = (await request.json()) as Record<string, unknown>;
