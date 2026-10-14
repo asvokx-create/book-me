@@ -25,6 +25,12 @@ export const metadata: Metadata = {
   title: { default: "BubsBookings | Find and book local or remote services", template: "%s | BubsBookings" },
   description: "Search local and remote service providers, compare listings, message businesses, and request bookings with clear payment and support tools.",
   applicationName: "BubsBookings",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "BubsBookings",
+    statusBarStyle: "default",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
