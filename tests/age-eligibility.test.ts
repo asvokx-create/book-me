@@ -40,6 +40,8 @@ test("the eligibility endpoint and authentication hooks enforce a server-side si
   const auth = read("lib/auth.ts");
   const form = read("app/auth-form.tsx");
   const settingsForm = read("app/account/settings/settings-form.tsx");
+  const accountPage = read("app/account/page.tsx");
+  const billingPanel = read("components/billing-panel.tsx");
   const settingsRoute = read("app/api/account/settings/route.ts");
   const bookingRoute = read("app/api/bookings/route.ts");
   const messagesRoute = read("app/api/messages/route.ts");
@@ -64,6 +66,9 @@ test("the eligibility endpoint and authentication hooks enforce a server-side si
   assert.doesNotMatch(form, /isLogin && !await confirmAgeEligibility/);
   assert.match(settingsForm, /Confirm your age/);
   assert.match(settingsForm, /ariaLabel="Birth day"/);
+  assert.match(accountPage, /Confirm your age to unlock your account/);
+  assert.match(accountPage, /\/account\/settings#age-confirmation/);
+  assert.match(billingPanel, /id="provider-eligibility"/);
   assert.match(settingsRoute, /ageVerified: Boolean\(row.age_verified_at\)/);
   assert.match(bookingRoute, /hasConfirmedAge\(session.user.id\)/);
   assert.match(messagesRoute, /hasConfirmedAge\(session.user.id\)/);

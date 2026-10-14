@@ -48,6 +48,7 @@ export default function AccountPage() {
   const [toast, setToast] = useState("");
   const [hasProviderProfile, setHasProviderProfile] = useState(false);
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
+  const [accountAgeVerified, setAccountAgeVerified] = useState<boolean | null>(null);
   const [workerCompany, setWorkerCompany] = useState<{ businessName: string; teamRole: string } | null>(null);
   const [savedServices, setSavedServices] = useState<SavedService[]>([]);
 
@@ -71,6 +72,10 @@ export default function AccountPage() {
       .then(async (response) => response.ok ? response.json() as Promise<{ bookings: Booking[] }> : null)
       .catch(() => null)
       .then((data) => { if (active && data) setBookings(data.bookings); });
+    fetch("/api/account/settings", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() as Promise<{ ageVerified: boolean }> : null)
+      .then((data) => { if (active) setAccountAgeVerified(data?.ageVerified ?? null); })
+      .catch(() => { if (active) setAccountAgeVerified(null); });
     fetch("/api/account/navigation", { cache: "no-store" })
       .then(async (response) => response.ok ? response.json() as Promise<{ authenticated: boolean; isAdmin: boolean }> : null)
       .then((data) => { if (active) setHasAdminAccess(Boolean(data?.authenticated && data.isAdmin)); })
@@ -100,6 +105,12 @@ export default function AccountPage() {
 
       <div className="dashboard-container px-4 py-8 sm:px-8 sm:py-14">
         <AccountLocationReminder />
+        {accountAgeVerified === false && <section aria-labelledby="account-age-confirmation-heading" className="mb-8 rounded-3xl border border-[#d6ca65] bg-[#fff8cd] p-6 sm:p-8">
+          <p className="text-xs font-bold uppercase tracking-[.14em] text-[#756d3f]">Action needed</p>
+          <h2 id="account-age-confirmation-heading" className="mt-2 text-2xl font-bold">Confirm your age to unlock your account</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6f6840]">Confirm that you are at least 18 in Account Settings. You will enter your complete date of birth there, and BubsBookings does not store the full date.</p>
+          <div className="mt-5 flex flex-wrap gap-3"><Link href="/account/settings#age-confirmation" className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Confirm my age</Link>{isProvider && <Link href="/provider/dashboard/billing#provider-eligibility" className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#183126]/20 bg-white px-5 py-3 text-sm font-bold">Provider verification after this</Link>}</div>
+        </section>}
         {workerCompany && <section aria-label="Your company membership" className="mb-8 flex flex-col gap-5 rounded-3xl bg-[#183126] p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-widest text-[#eee25a]">You’re part of a company</p><h2 className="mt-2 break-words text-2xl font-bold">{workerCompany.businessName}</h2><p className="mt-2 text-sm text-[#c3d0c9]">Your role: {workerCompany.teamRole || "Team member"}</p><p className="mt-2 text-sm leading-6 text-[#c3d0c9]">View your assigned jobs and submit your working hours for your owner to approve.</p></div>
           <div className="flex shrink-0 flex-wrap gap-3"><Link href="/provider/dashboard" className="rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126]">Open my work dashboard</Link><Link href="/provider/dashboard/team" className="rounded-full border border-white/30 px-5 py-3 text-sm font-bold">My team & hours</Link></div>
