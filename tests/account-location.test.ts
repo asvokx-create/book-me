@@ -32,10 +32,10 @@ test("signup collects a general location for local discovery but lets remote-onl
 test("signup separates account details from location and agreements", () => {
   const form = read("app/auth-form.tsx");
   assert.match(form, /signupStep/);
-  assert.match(form, /Step \{signupStep\} of 2/);
-  assert.match(form, /signupStep === 1 \? "Next" : "Create account"/);
-  assert.match(form, /signupStep === 2 && <fieldset/);
-  assert.match(form, /signupStep === 2 && <div className="space-y-2/);
+  assert.match(form, /Step \{signupStep\} of 3/);
+  assert.match(form, /signupStep === 1 \? "Continue" : signupStep === 2 \? "Next" : "Create account"/);
+  assert.match(form, /signupStep === 3 && <fieldset/);
+  assert.match(form, /signupStep === 3 && <div className="space-y-2/);
   assert.match(form, /showSignupStepOne/);
 });
 

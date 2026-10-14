@@ -5,6 +5,7 @@ import { isEmailConfigured, sendAuthEmail } from "./email";
 import { createPolicyConsentFields, POLICY_VERSION } from "./policy-consent";
 import { sendAccountWelcome } from "./welcome-message";
 import { normalizeAccountLocation } from "./account-location";
+import { hasValidAgeEligibilityAttestation } from "./age-eligibility";
 
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -97,6 +98,7 @@ export const auth = betterAuth({
     user: {
       create: {
         async before(user, context) {
+          if (!hasValidAgeEligibilityAttestation(context?.headers?.get("cookie"))) return false;
           const termsAcceptedAt = typeof user.termsAcceptedAt === "string" ? Date.parse(user.termsAcceptedAt) : Number.NaN;
           const privacyAcknowledgedAt = typeof user.privacyAcknowledgedAt === "string" ? Date.parse(user.privacyAcknowledgedAt) : Number.NaN;
           const aiSafetyAcknowledgedAt = typeof user.aiSafetyAcknowledgedAt === "string" ? Date.parse(user.aiSafetyAcknowledgedAt) : Number.NaN;
@@ -106,9 +108,10 @@ export const auth = betterAuth({
             !Number.isFinite(privacyAcknowledgedAt) ||
             !Number.isFinite(aiSafetyAcknowledgedAt)
           ) return false;
+          const ageVerification = { ageVerifiedAt: new Date() };
           if (context?.path === "/sign-up/email") {
             const hasNoLocation = !String(user.city ?? "").trim() && !String(user.state ?? "").trim() && !String(user.postalCode ?? "").trim();
-            if (hasNoLocation) return { data: { country: "United States" } };
+            if (hasNoLocation) return { data: { ...ageVerification, country: "United States" } };
             const normalized = normalizeAccountLocation({
               city: user.city,
               state: user.state,
@@ -117,11 +120,13 @@ export const auth = betterAuth({
             });
             if (!normalized.location) return false;
             return { data: {
+              ...ageVerification,
               ...normalized.location,
               locationSource: "USER_ENTERED",
               locationUpdatedAt: new Date(),
             } };
           }
+          return { data: ageVerification };
         },
         async after(user) {
           await sendAccountWelcome({ id: user.id, email: user.email, name: user.name });
@@ -130,7 +135,7 @@ export const auth = betterAuth({
     },
     session: {
       create: {
-        async before(session) {
+        async before(session, context) {
           const restriction = await database.query<{ blocked: boolean }>(
             `SELECT true AS blocked
              FROM account_restrictions
@@ -141,6 +146,18 @@ export const auth = betterAuth({
             [session.userId],
           );
           if (restriction.rows[0]?.blocked) return false;
+          const user = await database.query<{ age_verified_at: Date | null }>(
+            `SELECT age_verified_at FROM "user" WHERE id = $1 LIMIT 1`,
+            [session.userId],
+          );
+          if (!user.rows[0]) return false;
+          if (!user.rows[0].age_verified_at) {
+            if (!hasValidAgeEligibilityAttestation(context?.headers?.get("cookie"))) return false;
+            await database.query(
+              `UPDATE "user" SET age_verified_at = now() WHERE id = $1 AND age_verified_at IS NULL`,
+              [session.userId],
+            );
+          }
         },
       },
     },
@@ -192,6 +209,13 @@ export const auth = betterAuth({
         input: false,
         returned: false,
         fieldName: "location_updated_at",
+      },
+      ageVerifiedAt: {
+        type: "date",
+        required: false,
+        input: false,
+        returned: false,
+        fieldName: "age_verified_at",
       },
       role: {
         type: ["customer", "provider"],

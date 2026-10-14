@@ -57,12 +57,13 @@ test("narrow upcoming-category cards give labels a full-width layout without tru
   assert.match(css, /@media \(min-width: 360px\) and \(max-width: 399px\)[\s\S]*?\.home-upcoming-grid \{ grid-template-columns: 1fr; \}/);
 });
 
-test("normal application forms do not invoke native select or date pickers", () => {
+test("normal application forms do not invoke native select or date pickers except the required age screen", () => {
   const files = [...sourceFiles(join(root, "app")), ...sourceFiles(join(root, "components"))];
   const nativeControls = files.filter((file) => {
     const source = readFileSync(file, "utf8");
     return /<select\b/.test(source) || /<input\b[^>]*\btype=["'](?:date|datetime-local|month|week)["']/.test(source);
   });
 
-  assert.deepEqual(nativeControls, []);
+  assert.deepEqual(nativeControls, [join(root, "app", "auth-form.tsx")]);
+  assert.match(read("app", "auth-form.tsx"), /type="date" autoComplete="bday"/);
 });
