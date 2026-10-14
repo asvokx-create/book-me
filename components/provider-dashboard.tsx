@@ -16,6 +16,7 @@ import MessagingCenter from "@/components/messaging-center";
 import TeamManager from "@/components/team-manager";
 import BillingPanel from "@/components/billing-panel";
 import ProviderTrustSettings from "@/components/provider-trust-settings";
+import ProviderSettingsSearch from "@/components/provider-settings-search";
 import BookingCalendar from "@/components/booking-calendar";
 import ProfileAvatar from "@/components/profile-avatar";
 import LocationManager from "@/components/location-manager";
@@ -421,6 +422,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
         <div className="dashboard-content min-w-0 lg:col-start-2">
           <nav aria-label="Provider dashboard sections" className="mb-6 lg:hidden"><CustomSelect ariaLabel="Provider dashboard section" value={visibleNav.some((item) => item.section === section) ? section : "overview"} options={visibleNav.map((item) => ({ value: item.section, label: item.label, icon: <ProviderDashboardIcon name={item.section} /> }))} onChange={(nextSection) => { const next = visibleNav.find((item) => item.section === nextSection); if (next) router.push(next.href); }} buttonClassName="min-h-12 rounded-2xl border-[#183126]/15 bg-white px-4 text-sm font-bold shadow-sm" /></nav>
+          {section === "settings" && <ProviderSettingsSearch />}
           {!ownerOnlySection && sectionsNeedingPageHeading[section] && <h1 className="sr-only">{sectionsNeedingPageHeading[section]}</h1>}
           {ownerOnlySection && <section className="rounded-[2rem] border border-[#d6ca65] bg-[#fff8cd] p-7"><h1 className="text-2xl font-bold">Owner-only company area</h1><p className="mt-2 text-sm leading-6 text-[#6f6840]">Workers can view assigned bookings and manage their own requested hours. Revenue, billing, listings, company messages, and business settings stay private to the company owner.</p><Link href="/provider/dashboard/team" className="mt-5 inline-flex rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white">Open my worker area</Link></section>}
           {notice && provider && <div role="status" aria-live="polite" className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">{notice.kind === "welcome" ? `Welcome to BubsBookings, ${firstName}!` : "Changes saved"}</p><p className="mt-1 text-[#567060]">{notice.kind === "welcome" ? (isWorker ? `You have worker access to ${provider.businessName}.` : "Your provider profile and services are saved.") : notice.message}</p></div><button onClick={dismissNotice} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#64786a] transition hover:bg-[#cbdcc8]"><UiIcon name="close" className="h-4 w-4" /></button></div>}
