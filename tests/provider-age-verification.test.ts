@@ -36,11 +36,15 @@ test("Stripe Connect readiness is separate from provider age verification and St
 
 test("provider verification can never leave the Stripe handoff button stuck", () => {
   const billing = read("components/billing-panel.tsx");
+  const providerRoute = read("app/api/stripe/provider-age-verification/route.ts");
 
   assert.match(billing, /const result = await response\.json\(\)\.catch\(\(\) => null\)/);
   assert.match(billing, /We could not open Stripe right now/);
   assert.match(billing, /finally \{\s*window\.clearTimeout\(timeout\);\s*setWorking\(""\);/);
   assert.match(billing, /window\.location\.assign\(result\.url\)/);
+  assert.match(billing, /<form action="\/api\/stripe\/provider-age-verification" method="post"/);
+  assert.match(providerRoute, /NextResponse\.redirect\(result\.url, 303\)/);
+  assert.match(providerRoute, /age-verification-error/);
 });
 
 test("unverified providers are blocked from public listings, booking acceptance, checkout, and transfers", () => {
