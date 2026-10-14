@@ -38,6 +38,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/quotes
               service.billing_increment_minutes, service.minimum_duration_minutes, service.maximum_duration_minutes,
               quote.pricing_type,quote.hourly_rate_cents,quote.duration_minutes AS quote_duration_minutes,quote.line_items,
               (provider.is_active = true AND provider.is_verified = true AND provider.screening_status = 'passed'
+                AND provider.age_verification_status = 'verified'
                 AND provider.screening_checked_at BETWEEN now() - interval '30 days' AND now()
                 AND provider.stripe_charges_enabled = true AND provider.stripe_payouts_enabled = true
                 AND NOT EXISTS (SELECT 1 FROM account_restrictions restriction WHERE restriction.user_id = provider.user_id

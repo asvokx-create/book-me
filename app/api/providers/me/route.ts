@@ -103,7 +103,7 @@ export async function GET() {
      FROM services s
      JOIN provider_companies company ON company.id = s.company_id AND company.is_active = true
      LEFT JOIN provider_locations location ON location.id = s.location_id AND location.is_active = true
-     WHERE s.provider_id::text = $1 AND s.is_active = true
+     WHERE s.provider_id::text = $1 AND (s.is_active = true OR s.age_verification_blocked = true)
        AND ($2::text IS NULL OR company.name = $2)
      ORDER BY s.created_at DESC`,
     [provider.id, access.memberCompanyName, provider.user_id],

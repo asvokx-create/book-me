@@ -20,6 +20,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
   const result = await database.query<{
     id: string; title: string; provider_name: string; price_cents: number; status: string;
     payment_status: string; quote_status: string; plan: ProviderPlan; stripe_account_id: string | null;
+    age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
     stripe_connect_mode: "test" | "live" | null; stripe_mode: "test" | "live" | null;
     stripe_checkout_session_id: string | null; payment_flow: string | null;
     provider_plan_snapshot: BookingFinancialPlan | null; provider_fee_basis_points: number | null;
@@ -28,7 +29,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     base_price_cents: number; add_on_total_cents: number; discount_cents: number; package_snapshot: { name?: string } | null; coupon_code_snapshot: string | null;
     pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number;
   }>(`SELECT b.id::text, s.title, s.business_name AS provider_name, b.price_cents, b.status,
-      b.payment_status, b.quote_status, p.plan, p.stripe_account_id, p.stripe_connect_mode, b.stripe_mode,
+      b.payment_status, b.quote_status, p.plan, p.stripe_account_id, p.age_verification_status, p.stripe_connect_mode, b.stripe_mode,
       b.stripe_checkout_session_id, b.payment_flow, b.provider_plan_snapshot, b.provider_fee_basis_points,
       b.platform_fee_cents, b.provider_payout_cents, b.customer_service_fee_cents, b.customer_total_cents,
       b.base_price_cents,b.add_on_total_cents,b.discount_cents,b.package_snapshot,b.coupon_code_snapshot,
@@ -41,6 +42,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
   if (booking.quote_status === "pending" || booking.quote_status === "declined") return NextResponse.json({ error: "Resolve the custom quote before payment." }, { status: 409 });
   const mode = getStripeMode();
   if (booking.stripe_mode === mode && booking.payment_status === "paid") return NextResponse.json({ error: "This booking is already paid." }, { status: 409 });
+  if (booking.age_verification_status !== "verified") return NextResponse.json({ error: "This provider is still completing required eligibility verification." }, { status: 409 });
   if (!booking.stripe_account_id || booking.stripe_connect_mode !== mode) return NextResponse.json({ error: "This provider has not finished payout setup yet." }, { status: 409 });
   if (booking.price_cents < 50) return NextResponse.json({ error: "This booking total is too low for online payment." }, { status: 409 });
   const freshSnapshot = calculateBookingFinancialSnapshot(booking.price_cents, booking.provider_plan_snapshot ?? booking.plan);

@@ -11,6 +11,7 @@ import { sendTransactionalEmail } from "@/lib/email";
 import { syncAffiliateCommissionForBooking } from "@/lib/affiliates";
 import { finalizeAffiliatePayoutTransfer, reverseAffiliatePayoutTransfer } from "@/lib/affiliate-payouts";
 import { releaseTipTransfer } from "@/lib/tip-payments";
+import { syncProviderAgeVerificationFromStripe } from "@/lib/provider-age-verification";
 
 export const runtime = "nodejs";
 
@@ -603,6 +604,14 @@ async function processEvent(event: Stripe.Event) {
       await database.query(`UPDATE affiliate_profiles SET stripe_details_submitted=$2,stripe_payouts_enabled=$3,
         stripe_requirements_due=$4,payment_status=$5 WHERE stripe_account_id=$1 AND stripe_connect_mode=$6`,
       [account.id,account.details_submitted,account.payouts_enabled,requirements,affiliateReady?"ready":"not_ready",getStripeMode()]);
+      break;
+    }
+    case "identity.verification_session.processing":
+    case "identity.verification_session.requires_input":
+    case "identity.verification_session.verified":
+    case "identity.verification_session.canceled":
+    case "identity.verification_session.redacted": {
+      await syncProviderAgeVerificationFromStripe(event.data.object.id);
       break;
     }
     case "charge.refunded": {

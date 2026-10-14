@@ -65,7 +65,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      LEFT JOIN provider_locations location ON location.id = s.location_id
-     WHERE s.id::text = $1 AND p.user_id = $2 AND s.is_active = true
+     WHERE s.id::text = $1 AND p.user_id = $2 AND (s.is_active = true OR s.age_verification_blocked = true)
      LIMIT 1`,
     [serviceId, userId],
   );
@@ -173,7 +173,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
       `SELECT s.provider_id::text, p.plan, company.name AS business_name, company.id::text AS company_id, s.location_id::text AS current_location_id
        FROM services s JOIN provider_profiles p ON p.id = s.provider_id
        JOIN provider_companies company ON company.id = s.company_id
-       WHERE s.id::text = $1 AND p.user_id = $2 AND s.is_active = true
+       WHERE s.id::text = $1 AND p.user_id = $2 AND (s.is_active = true OR s.age_verification_blocked = true)
        FOR UPDATE`,
       [serviceId, userId],
     );
@@ -255,7 +255,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
     const result = await client.query<{ provider_id: string; company_id: string; business_name: string }>(
       `SELECT s.provider_id::text, s.company_id::text, s.business_name
        FROM services s JOIN provider_profiles p ON p.id = s.provider_id
-       WHERE s.id::text = $1 AND p.user_id = $2 AND s.is_active = true
+       WHERE s.id::text = $1 AND p.user_id = $2 AND (s.is_active = true OR s.age_verification_blocked = true)
        FOR UPDATE OF s, p`,
       [serviceId, userId],
     );

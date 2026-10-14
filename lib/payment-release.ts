@@ -30,6 +30,8 @@ export async function releaseBookingPayout(bookingId: string, trigger: "customer
         WHERE b.id::text = $1 AND p.id = b.provider_id AND s.id = b.service_id
           AND b.payment_status = 'paid' AND b.stripe_mode = $2
           AND b.payment_release_status IN ('secured', 'awaiting_customer', 'failed')
+          AND p.age_verification_status = 'verified'
+          AND p.stripe_connect_mode = $2 AND p.stripe_payouts_enabled = true
           AND b.status = 'completed' AND b.payout_frozen_at IS NULL
           AND b.refund_status NOT IN ('requested', 'processing')
           AND NOT EXISTS (

@@ -27,6 +27,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/job-re
        FROM job_requests request, provider_profiles eligible
        WHERE match.request_id = request.id AND request.id::text = $1 AND match.provider_id::text = $2
          AND eligible.id = match.provider_id AND eligible.is_active = true AND eligible.is_verified = true
+         AND eligible.age_verification_status = 'verified'
          AND eligible.screening_status = 'passed'
          AND eligible.screening_checked_at BETWEEN now() - interval '30 days' AND now()
          AND eligible.stripe_charges_enabled = true AND eligible.stripe_payouts_enabled = true

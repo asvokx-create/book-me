@@ -149,7 +149,7 @@ export async function getServices(options: { query?: string; category?: string; 
   if (!isDatabaseConfigured()) return [];
 
   const values: Array<string | number | string[]> = [];
-  const conditions = ["s.is_active = true", "p.is_active = true"];
+  const conditions = ["s.is_active = true", "p.is_active = true", "p.age_verification_status = 'verified'"];
   const requestedLimit = options.limit ?? 50;
   const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), 250) : undefined;
   const searchOrigin = options.location && radiusMiles ? findUsCity(options.location) : undefined;
@@ -255,7 +255,7 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
      JOIN provider_companies company ON company.id = s.company_id AND company.is_active = true
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE s.slug = $1 AND s.is_active = true AND p.is_active = true
+     WHERE s.slug = $1 AND s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified'
      LIMIT 1`,
     [slug],
   );
@@ -327,7 +327,7 @@ export async function getServiceById(id: string) {
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true
+     WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified'
      LIMIT 1`,
     [id],
   );
@@ -376,6 +376,7 @@ export async function getProviderBySlug(slug: string, options: { includeHidden?:
      LEFT JOIN user_settings settings ON settings.user_id = owner.id
      WHERE (lower(p.public_profile_slug) = lower($1) OR p.id::text = $1)
        AND p.is_active = true
+       AND p.age_verification_status = 'verified'
        AND (
          ($2::text IS NOT NULL AND p.id::text = $2)
          OR
@@ -486,7 +487,7 @@ async function getServicesForProvider(providerId: string) {
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE p.id = $1 AND p.is_active = true AND s.is_active = true
+     WHERE p.id = $1 AND p.is_active = true AND p.age_verification_status = 'verified' AND s.is_active = true
      ORDER BY s.created_at DESC`,
     [providerId],
   );
@@ -512,7 +513,7 @@ export async function getFavoriteServices(customerId: string) {
      JOIN services s ON s.id = f.service_id
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN "user" owner ON owner.id = p.user_id
-     WHERE f.customer_id = $1 AND s.is_active = true AND p.is_active = true
+     WHERE f.customer_id = $1 AND s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified'
      ORDER BY f.created_at DESC`,
     [customerId],
   );

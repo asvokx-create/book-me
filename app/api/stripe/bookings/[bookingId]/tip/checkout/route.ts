@@ -38,9 +38,10 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
       status: string; payment_status: string; payment_flow: string | null; stripe_mode: "test" | "live" | null;
       stripe_payment_intent_id: string | null; stripe_charge_id: string | null; stripe_account_id: string | null;
       stripe_connect_mode: "test" | "live" | null; stripe_payouts_enabled: boolean;
+      age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
     }>(`SELECT b.id::text,b.customer_id,b.provider_id::text,s.title AS service_title,s.business_name,b.price_cents,
         b.status,b.payment_status,b.payment_flow,b.stripe_mode,b.stripe_payment_intent_id,b.stripe_charge_id,
-        p.stripe_account_id,p.stripe_connect_mode,p.stripe_payouts_enabled
+        p.stripe_account_id,p.stripe_connect_mode,p.stripe_payouts_enabled,p.age_verification_status
       FROM bookings b JOIN services s ON s.id=b.service_id JOIN provider_profiles p ON p.id=b.provider_id
       WHERE b.id::text=$1 AND b.customer_id=$2 FOR UPDATE OF b`, [bookingId, session.user.id]);
     const booking = bookingResult.rows[0];
@@ -50,7 +51,7 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
     }
     if (booking.status !== "completed" || booking.payment_status !== "paid" || booking.payment_flow !== "held_transfer_v1"
       || booking.stripe_mode !== mode || !booking.stripe_payment_intent_id || !booking.stripe_charge_id
-      || !booking.stripe_account_id || booking.stripe_connect_mode !== mode || !booking.stripe_payouts_enabled) {
+      || !booking.stripe_account_id || booking.stripe_connect_mode !== mode || !booking.stripe_payouts_enabled || booking.age_verification_status !== "verified") {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "This completed booking is not eligible for a tip." }, { status: 409 });
     }

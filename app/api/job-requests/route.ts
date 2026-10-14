@@ -101,6 +101,7 @@ async function getJobRequests(request: Request) {
        WHERE match.provider_id::text = $1 AND match.status <> 'dismissed'
          AND request.status IN ('open', 'receiving_responses') AND request.expires_at > now()
          AND eligible.is_active = true AND eligible.is_verified = true AND eligible.screening_status = 'passed'
+         AND eligible.age_verification_status = 'verified'
          AND eligible.screening_checked_at BETWEEN now() - interval '30 days' AND now()
          AND eligible.stripe_charges_enabled = true AND eligible.stripe_payouts_enabled = true
          AND NOT EXISTS (SELECT 1 FROM account_restrictions restriction WHERE restriction.user_id = eligible.user_id
@@ -182,6 +183,7 @@ export async function POST(request: Request) {
        AND provider.is_verified = true AND provider.screening_status = 'passed'
        AND provider.screening_checked_at BETWEEN now() - interval '30 days' AND now()
        AND provider.stripe_charges_enabled = true AND provider.stripe_payouts_enabled = true
+       AND provider.age_verification_status = 'verified'
        AND NOT EXISTS (
          SELECT 1 FROM account_restrictions restriction
          WHERE restriction.user_id = provider.user_id

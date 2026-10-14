@@ -35,6 +35,7 @@ export async function releaseTipTransfer(tipId: string, options: { administrator
          AND (tip.risk_status='clear' OR $3)
          AND tip.stripe_mode=$2 AND tip.stripe_charge_id IS NOT NULL
          AND provider.stripe_connect_mode=$2 AND provider.stripe_payouts_enabled=true
+         AND provider.age_verification_status='verified'
        RETURNING tip.id::text,tip.booking_id::text,tip.amount_cents,tip.stripe_charge_id,provider.stripe_account_id,
          provider.user_id AS provider_user_id,provider_user.email AS provider_email,service.title AS service_title`,
       [tipId, mode, Boolean(options.administratorApproved)],

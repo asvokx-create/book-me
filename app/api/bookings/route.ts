@@ -96,7 +96,7 @@ export async function POST(request: Request) {
                      'America/Los_Angeles') AS timezone,
             p.user_id AS provider_user_id, p.plan
      FROM services s
-     JOIN provider_profiles p ON p.id = s.provider_id AND p.is_active = true
+     JOIN provider_profiles p ON p.id = s.provider_id AND p.is_active = true AND p.age_verification_status = 'verified'
      WHERE s.id::text = $1 AND s.is_active = true
      LIMIT 1`,
     [serviceId],

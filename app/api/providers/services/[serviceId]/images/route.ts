@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ser
     `SELECT COUNT(si.id)::text AS image_count, p.plan,
             (SELECT COUNT(*)::text FROM service_images all_images
              JOIN services provider_service ON provider_service.id = all_images.service_id
-             WHERE provider_service.provider_id = p.id AND provider_service.is_active = true) AS total_image_count
+             WHERE provider_service.provider_id = p.id AND (provider_service.is_active = true OR provider_service.age_verification_blocked = true)) AS total_image_count
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      LEFT JOIN service_images si ON si.service_id = s.id

@@ -13,7 +13,6 @@ import { PROVIDER_AGREEMENT_VERSION } from "@/lib/policy-consent";
 import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { checkAndRecordListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
-import { sendFirstListingSuccessEmail } from "@/lib/provider-success-email";
 import { recordAnalytics } from "@/lib/analytics";
 import { AFFILIATE_COOKIE, lockAffiliateAttribution, normalizeAffiliateCode } from "@/lib/affiliates";
 import { slugifyProviderName } from "@/lib/provider-profile-options";
@@ -53,9 +52,10 @@ export async function POST(request: Request) {
   const submittedServiceArea = typeof body.city === "string" ? body.city.trim() : "";
   const deliveryType = isServiceDeliveryType(body.deliveryType) ? body.deliveryType : "IN_PERSON";
   const remoteDeliveryDetails = typeof body.remoteDeliveryDetails === "string" ? body.remoteDeliveryDetails.trim().slice(0, 1000) : "";
-  const accountLocation = await database.query<{ city: string | null; state: string | null }>(
-    `SELECT location_city AS city, location_state AS state FROM "user" WHERE id=$1`, [session.user.id],
+  const accountLocation = await database.query<{ city: string | null; state: string | null; age_verified_at: Date | null }>(
+    `SELECT location_city AS city, location_state AS state, age_verified_at FROM "user" WHERE id=$1`, [session.user.id],
   );
+  if (!accountLocation.rows[0]?.age_verified_at) return NextResponse.json({ error: "You must be at least 18 years old to use BubsBookings." }, { status: 403 });
   const accountArea = [accountLocation.rows[0]?.city, accountLocation.rows[0]?.state].filter(Boolean).join(", ");
   const serviceArea = submittedServiceArea || accountArea;
   const coordinates = findUsCity(serviceArea);
@@ -230,8 +230,8 @@ export async function POST(request: Request) {
 
     const serviceResult = await client.query<{ id: string }>(
       `INSERT INTO services (provider_id, company_id, location_id, business_name, slug, category, delivery_type, remote_delivery_details, title, description, price_cents, duration_minutes, city, state, latitude, longitude,
-          pricing_type,hourly_rate_cents,minimum_duration_minutes,maximum_duration_minutes,billing_increment_minutes,default_duration_minutes)
-       VALUES ($1, $2, CASE WHEN $7='REMOTE' THEN NULL ELSE $3::uuid END, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,$17,$18,$19,$20,$21,$22)
+          pricing_type,hourly_rate_cents,minimum_duration_minutes,maximum_duration_minutes,billing_increment_minutes,default_duration_minutes,is_active,age_verification_blocked)
+       VALUES ($1, $2, CASE WHEN $7='REMOTE' THEN NULL ELSE $3::uuid END, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,$17,$18,$19,$20,$21,$22,false,true)
        RETURNING id::text`,
       [providerId, companyId, serviceLocation.id, business, slugify(service), category, deliveryType, remoteDeliveryDetails, service, description,
         pricingType === "HOURLY" ? hourlyRateCents : Math.round(price * 100), pricingType === "HOURLY" ? defaultDurationMinutes : durationMinutes,
@@ -264,15 +264,6 @@ export async function POST(request: Request) {
     await runAutomatedProviderVerification(providerId).catch((error) => {
       console.error("Initial automated provider verification failed", providerId, error);
     });
-    if (isFirstListing) {
-      await sendFirstListingSuccessEmail({
-        userId: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
-        businessName: business,
-        serviceTitle: service,
-      });
-    }
     if (!existing) await recordAnalytics({ eventName: "provider_profile_completed", userId: session.user.id, targetType: "provider", targetId: providerId });
     if (isFirstListing) await recordAnalytics({ eventName: "first_listing_created", userId: session.user.id, targetType: "service", targetId: serviceResult.rows[0].id, metadata: { category, deliveryType, ...(deliveryType === "REMOTE" ? {} : { city, state }) } });
     await recordAnalytics({ eventName: `${deliveryType.toLowerCase()}_listing_created`, userId: session.user.id, targetType: "service", targetId: serviceResult.rows[0].id, metadata: { category } });

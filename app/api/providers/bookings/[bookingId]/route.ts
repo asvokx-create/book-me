@@ -61,13 +61,15 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number;
       billing_increment_minutes_snapshot: 15 | 30 | 60 | null; minimum_duration_minutes_snapshot: number | null; maximum_duration_minutes_snapshot: number | null;
       add_on_total_cents: number; discount_cents: number;
+      age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
     }>(
       `SELECT b.id::text, b.provider_id::text, b.service_id::text, b.starts_at, b.ends_at, b.status,
               b.customer_id, u.name AS customer_name, s.title AS service_title, s.business_name AS service_business_name,
               b.reschedule_starts_at, b.reschedule_ends_at, b.reschedule_reason, b.assigned_team_member_id::text,
               b.quote_status, b.payment_status, b.payment_flow, s.location_id::text AS service_location_id, b.recurring_series_id::text,
               b.pricing_type_snapshot,b.hourly_rate_cents_snapshot,b.billable_duration_minutes,b.billing_increment_minutes_snapshot,
-              b.minimum_duration_minutes_snapshot,b.maximum_duration_minutes_snapshot,b.add_on_total_cents,b.discount_cents
+              b.minimum_duration_minutes_snapshot,b.maximum_duration_minutes_snapshot,b.add_on_total_cents,b.discount_cents,
+              p.age_verification_status
        FROM bookings b
        JOIN provider_profiles p ON p.id = b.provider_id
        JOIN services s ON s.id = b.service_id
@@ -80,6 +82,10 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
     if (!booking) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "Booking not found." }, { status: 404 });
+    }
+    if (booking.age_verification_status !== "verified" && !["declined", "cancel", "decline_reschedule"].includes(action)) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "Complete provider age verification before accepting, assigning, quoting, or completing bookings." }, { status: 403 });
     }
 
     if (action === "send_quote") {

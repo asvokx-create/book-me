@@ -5,6 +5,7 @@ import { database } from "@/lib/database";
 import { getStripe, getStripeMode, stripeConfiguration } from "@/lib/stripe";
 import { extraSeatQuantity } from "@/lib/stripe-team-seats";
 import { subscriptionProvidesProAccess } from "@/lib/team-seat-rules";
+import { syncProviderAgeVerificationFromStripe } from "@/lib/provider-age-verification";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -14,11 +15,14 @@ export async function GET() {
     stripe_subscription_status: string; stripe_charges_enabled: boolean;
     stripe_payouts_enabled: boolean; stripe_current_period_end: Date | null;
     stripe_connect_mode: "test" | "live" | null; stripe_billing_mode: "test" | "live" | null;
+    stripe_identity_verification_session_id: string | null; stripe_identity_verification_mode: "test" | "live" | null;
+    age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
     extra_team_seats: number; reserved_worker_count: number;
     pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null;
   }>(`SELECT stripe_customer_id, stripe_account_id, stripe_subscription_id, stripe_subscription_status,
       stripe_charges_enabled, stripe_payouts_enabled, stripe_current_period_end,
-      stripe_connect_mode, stripe_billing_mode, extra_team_seats,
+      stripe_connect_mode, stripe_billing_mode, stripe_identity_verification_session_id, stripe_identity_verification_mode,
+      age_verification_status, extra_team_seats,
       (SELECT count(DISTINCT lower(member.email))::int FROM provider_team_members member
        WHERE member.provider_id = provider_profiles.id AND member.status IN ('pending', 'active')) AS reserved_worker_count,
       pro_trial_used_at_test, pro_trial_used_at_live
@@ -69,6 +73,14 @@ export async function GET() {
       console.error("Stripe Connect status refresh failed", error);
     }
   }
+  if (configuration.secretKey && provider.stripe_identity_verification_session_id && provider.stripe_identity_verification_mode === mode) {
+    try {
+      const status = await syncProviderAgeVerificationFromStripe(provider.stripe_identity_verification_session_id);
+      if (status) provider.age_verification_status = status;
+    } catch (error) {
+      console.error("Provider age verification status refresh failed", error);
+    }
+  }
   return NextResponse.json({
     configured: Object.values(configuration).every(Boolean),
     missingConfiguration: Object.entries(configuration).filter(([, present]) => !present).map(([name]) => name),
@@ -89,5 +101,6 @@ export async function GET() {
       disabledReason,
       taxReportingStatus,
     },
+    ageVerification: { status: provider.age_verification_status },
   });
 }
