@@ -11,6 +11,11 @@ const publicPolicyPages = [
   "ai-transparency",
   "accessibility",
   "content-removal",
+  "cancellations-refunds",
+  "payment-billing",
+  "provider-safety",
+  "marketing-communications",
+  "dmca",
   "disputes",
   "promise",
 ];
@@ -51,6 +56,32 @@ test("legal pages disclose current affiliate funding, privacy, and analytics beh
   assert.match(contentRemoval, /copyright\.gov\/512/);
 });
 
+test("new policy pages describe the actual marketplace process and are linked from shared legal navigation", async () => {
+  const [footer, cancellations, payments, providerSafety, marketing, dmca, bookingDetails] = await Promise.all([
+    readFile(new URL("../components/site-footer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/cancellations-refunds/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/payment-billing/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/provider-safety/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/marketing-communications/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/dmca/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/booking-details.tsx", import.meta.url), "utf8"),
+  ]);
+
+  for (const pathname of ["/cancellations-refunds", "/payment-billing", "/provider-safety", "/marketing-communications", "/dmca"]) {
+    assert.match(footer, new RegExp(`"${pathname}"`));
+  }
+  assert.match(cancellations, /48 hours after a provider marks service complete/);
+  assert.match(cancellations, /original payment method/);
+  assert.match(payments, /\$2\.99/);
+  assert.match(payments, /10% booking fee for Starter, 6% for Pro, 2% for Business, and 0% for the Owner Plan/);
+  assert.match(providerSafety, /not a criminal background check, professional-license verification, insurance verification/);
+  assert.match(marketing, /does not currently provide an SMS marketing campaign feature/);
+  assert.match(dmca, /DMCA Designated Agent Directory/);
+  assert.match(dmca, /does not by itself state that BubsBookings qualifies for any DMCA safe harbor/);
+  assert.match(bookingDetails, /Cancellation &amp; Refund Policy/);
+  assert.match(bookingDetails, /Payment &amp; Billing Policy/);
+});
+
 test("published legal versions and guide compensation language stay current", async () => {
   const [policyConsent, providerAgreement, guides] = await Promise.all([
     readFile(new URL("../lib/policy-consent.ts", import.meta.url), "utf8"),
@@ -58,9 +89,9 @@ test("published legal versions and guide compensation language stay current", as
     readFile(new URL("../lib/guides.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(policyConsent, /POLICY_VERSION = "2026-10-07"/);
-  assert.match(policyConsent, /PROVIDER_AGREEMENT_VERSION = "2026-10-07"/);
-  assert.match(policyConsent, /POLICY_EFFECTIVE_DATE = "October 7, 2026"/);
+  assert.match(policyConsent, /POLICY_VERSION = "2026-10-13"/);
+  assert.match(policyConsent, /PROVIDER_AGREEMENT_VERSION = "2026-10-13"/);
+  assert.match(policyConsent, /POLICY_EFFECTIVE_DATE = "October 13, 2026"/);
   assert.match(providerAgreement, /effectiveDate=\{POLICY_EFFECTIVE_DATE\}/);
   assert.doesNotMatch(guides, /\$10 activation bonus|20% share|60-day attribution window/);
   assert.equal((guides.match(/updatedAt: "2026-10-07"/g) ?? []).length, 21);
@@ -91,15 +122,19 @@ test("optional analytics is consent-gated without disabling necessary storage or
   assert.match(footer, /<AnalyticsChoicesButton/);
 });
 
-test("partner applications require and retain explicit agreement acceptance", async () => {
-  const [form, route, migration] = await Promise.all([
+test("provider and partner onboarding expose and retain the relevant agreements", async () => {
+  const [form, route, migration, providerOnboarding] = await Promise.all([
     readFile(new URL("../components/partner-application-form.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/affiliates/apply/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../database/migrations/069_partner_application_consent.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/providers/join/onboarding-form.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(form, /name="partnerAgreementAccepted" type="checkbox" value="true" required/);
   assert.match(form, /I have reviewed and agree to the/);
   assert.match(route, /partnerAgreementAccepted/);
   assert.match(route, /partner_agreement_accepted_at, partner_agreement_version/);
+  assert.match(route, /PARTNER_AGREEMENT_VERSION/);
   assert.match(migration, /partner_agreement_accepted_at timestamptz/);
+  assert.match(providerOnboarding, /href="\/provider-agreement"/);
+  assert.match(providerOnboarding, /href="\/payment-billing"/);
 });

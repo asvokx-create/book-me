@@ -6,6 +6,7 @@ import { scanContent } from "@/lib/content-safety";
 import { sendTransactionalEmail } from "@/lib/email";
 import { auth, isEmailVerificationRequired } from "@/lib/auth";
 import { safelyLinkHistoricalAffiliate } from "@/lib/affiliate-account";
+import { PARTNER_AGREEMENT_VERSION } from "@/lib/policy-consent";
 
 const partnershipTypes = new Set(["Fixed campaign payment", "Revenue share", "Hybrid partnership", "Sponsored placement", "Newsletter promotion", "Website / blog promotion", "Social media promotion", "Other"]);
 const platforms = new Set(["YouTube", "TikTok", "Instagram", "Facebook", "X", "Newsletter / Email", "Website / Blog", "Podcast", "Community", "Other"]);
@@ -91,11 +92,11 @@ export async function POST(request: Request) {
       partner_agreement_accepted_at, partner_agreement_version, custom_partnership_requested, custom_partnership_types,
       active_platforms, promotion_types, follower_count, subscriber_count, email_list_size, monthly_website_traffic,
       average_content_views, other_audience_size, media_kit_url, custom_partnership_notes, portfolio_url)
-    SELECT $1,'linked',now(),program.id, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), '2026-10-03', $13, $14, $15, $16,
-      $17, $18, $19, $20, $21, $22, $23, $24, $25
+    SELECT $1,'linked',now(),program.id, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), $13, $14, $15, $16, $17,
+      $18, $19, $20, $21, $22, $23, $24, $25, $26
     FROM affiliate_programs program WHERE program.status = 'enabled' ORDER BY program.created_at ASC LIMIT 1
     ON CONFLICT DO NOTHING RETURNING id::text`, [account.id, name, email, links.website, links.youtube, links.instagram,
-    links.tiktok, links.other, field(body, "audienceSize", 80), audience, plan, notes, customRequested, requestedTypes,
+    links.tiktok, links.other, field(body, "audienceSize", 80), audience, plan, notes, PARTNER_AGREEMENT_VERSION, customRequested, requestedTypes,
     activePlatforms, requestedPromotions, ...counts, otherAudienceSize, links.mediaKit, customNotes, links.portfolio]);
   if (!inserted.rows[0]) return NextResponse.json({ error: "This account already has a Partner application, or its verified email is already connected to one." }, { status: 409 });
   const applicationId = inserted.rows[0].id;

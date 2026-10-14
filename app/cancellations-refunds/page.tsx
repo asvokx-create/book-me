@@ -1,0 +1,25 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { LegalPage } from "@/app/terms/page";
+import { publicPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = publicPageMetadata({
+  title: "Cancellation and Refund Policy",
+  description: "Understand BubsBookings booking cancellations, provider cancellation terms, refunds, disputes, and chargebacks.",
+  pathname: "/cancellations-refunds",
+});
+
+const sections = [
+  ["1. What this policy covers", "This policy explains the marketplace process for paid BubsBookings bookings. It supplements the Terms of Service and the cancellation and no-show terms shown on the applicable service listing. It does not replace rights that cannot be limited under applicable law."],
+  ["2. Provider-specific cancellation terms", "Each provider supplies a cancellation policy, a notice window, and a no-show policy. BubsBookings shows those terms with the listing and booking flow before payment. Customers should review them before requesting a time or paying. A provider may not use a policy to charge a customer for an amount that was not disclosed through the booking flow or otherwise allowed by law."],
+  ["3. Customer cancellations and booking changes", "Use the booking record to request a cancellation, change, refund, or support review. Whether a cancellation is timely depends on the booking’s stated notice window and the booking facts. A cancellation request, message, or proposed change does not itself guarantee a refund or change the paid amount. For hourly services, an approved duration remains the billable duration unless the parties use the supported quote, change, or refund process."],
+  ["4. Provider cancellations, no-shows, and service problems", "Providers must communicate promptly about an inability to perform a confirmed booking. Customers may report a provider cancellation, missed appointment, service-quality issue, property-damage concern, or billing concern from an eligible paid booking. Keep relevant messages, photos, the agreed scope, and timing in the booking record where practical. Immediate danger or an emergency should be directed to emergency services."],
+  ["5. Refund review and timing", "When an eligible paid booking is canceled before the provider transfer, BubsBookings may issue an automatic refund under the product rules. Late cancellations, partial performance, completed work, reduced duration, suspected fraud, and other non-routine requests may require review. Approved refunds are sent to the original payment method. Stripe and the customer’s bank control when a refund is reflected; BubsBookings does not promise a bank-posting time."],
+  ["6. Disputes and chargebacks", <><p>A customer has 48 hours after a provider marks service complete to confirm completion or open a dispute. If neither occurs, BubsBookings may treat the service as complete and initiate the ordinary provider-transfer process. Opening a dispute pauses the ordinary release flow while the available booking record and submitted information are reviewed.</p><p className="mt-3">A card chargeback is handled through the card network and Stripe. It may affect access, refunds, provider transfers, or account status while reviewed. Do not file a chargeback for a charge you recognize before first using the BubsBookings booking or dispute process unless law or your card issuer requires otherwise.</p></>],
+  ["7. Provider transfers and reversals", "A provider transfer may be delayed, reduced, offset, or reversed for cancellations, refunds, chargebacks, fraud, duplicate or mistaken payments, negative balances, or legal obligations. A transfer is separate from a refund to the customer and is not an escrow, trust, or bank account."],
+  ["8. Getting help", <><p>Open the booking in your account to manage a request or review a dispute. You can also use the <Link href="/disputes" className="font-bold underline">Resolution Center</Link> or <Link href="/support" className="font-bold underline">Contact Support</Link>. Include the booking, what happened, and the resolution you are seeking. This process is not insurance or a workmanship guarantee.</p></>],
+] as const;
+
+export default function CancellationsRefundsPage() {
+  return <LegalPage eyebrow="Booking policies" title="Cancellation & Refund Policy" intro="How cancellation terms, refunds, disputes, and provider transfers work for a BubsBookings booking." sections={sections} />;
+}

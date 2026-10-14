@@ -41,8 +41,13 @@ test("public static routes use the shared canonical and social metadata helper",
     ["app", "providers", "join", "page.tsx"],
     ["app", "terms", "page.tsx"],
     ["app", "privacy", "page.tsx"],
+    ["app", "cancellations-refunds", "page.tsx"],
+    ["app", "payment-billing", "page.tsx"],
     ["app", "provider-agreement", "page.tsx"],
+    ["app", "provider-safety", "page.tsx"],
     ["app", "partner-agreement", "page.tsx"],
+    ["app", "marketing-communications", "page.tsx"],
+    ["app", "dmca", "page.tsx"],
   ];
 
   for (const page of publicPages) {
@@ -68,6 +73,9 @@ test("sitemap and robots rules cover public discovery while protecting private a
   const robots = read("app", "robots.ts");
 
   assert.match(sitemap, /"\/services", "\/requests", "\/pricing", "\/providers\/join", "\/partners", "\/about", "\/locations", "\/guides"/);
+  assert.match(sitemap, /"\/cancellations-refunds", "\/payment-billing"/);
+  assert.match(sitemap, /"\/provider-safety", "\/partner-agreement", "\/marketing-communications"/);
+  assert.match(sitemap, /"\/content-removal", "\/dmca", "\/accessibility"/);
   assert.match(sitemap, /GUIDES\.map/);
   assert.match(sitemap, /services\.map/);
   assert.match(sitemap, /providerSlugs\.map/);

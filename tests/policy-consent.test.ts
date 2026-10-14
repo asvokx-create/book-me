@@ -4,14 +4,16 @@ import test from "node:test";
 import {
   POLICY_EFFECTIVE_DATE,
   POLICY_VERSION,
+  PARTNER_AGREEMENT_VERSION,
   PROVIDER_AGREEMENT_VERSION,
   createPolicyConsentFields,
 } from "../lib/policy-consent.ts";
 
 test("legal policy versions match their displayed effective dates", () => {
-  assert.equal(POLICY_VERSION, "2026-10-07");
-  assert.equal(PROVIDER_AGREEMENT_VERSION, "2026-10-07");
-  assert.equal(POLICY_EFFECTIVE_DATE, "October 7, 2026");
+  assert.equal(POLICY_VERSION, "2026-10-13");
+  assert.equal(PROVIDER_AGREEMENT_VERSION, "2026-10-13");
+  assert.equal(PARTNER_AGREEMENT_VERSION, "2026-10-13");
+  assert.equal(POLICY_EFFECTIVE_DATE, "October 13, 2026");
 });
 
 test("new account consent records use the current policy version", () => {

@@ -24,10 +24,15 @@ const trustLinks = [
 const legalLinks = [
   ["Terms", "/terms"],
   ["Privacy", "/privacy"],
+  ["Cancellation & refunds", "/cancellations-refunds"],
+  ["Payment & billing", "/payment-billing"],
   ["Provider agreement", "/provider-agreement"],
+  ["Provider safety", "/provider-safety"],
   ["Partner agreement", "/partner-agreement"],
+  ["Marketing communications", "/marketing-communications"],
   ["Cookies", "/cookies"],
   ["Content removal", "/content-removal"],
+  ["DMCA copyright", "/dmca"],
 ] as const;
 
 function FooterLinks({ title, links }: { title: string; links: ReadonlyArray<readonly [string, string]> }) {
