@@ -21,7 +21,14 @@ async function loadDashboard() {
       `SELECT
         (SELECT count(*)::int FROM "user") AS users,
         (SELECT count(*)::int FROM provider_profiles WHERE is_active = true) AS active_providers,
-        (SELECT count(*)::int FROM services s JOIN provider_profiles p ON p.id = s.provider_id WHERE s.is_active = true AND p.is_active = true) AS active_services,
+        (SELECT count(*)::int
+         FROM services s
+         JOIN provider_profiles p ON p.id = s.provider_id
+         JOIN provider_companies company ON company.id = s.company_id
+         WHERE s.is_active = true
+           AND p.is_active = true
+           AND p.age_verification_status = 'verified'
+           AND company.is_active = true) AS active_services,
         (SELECT count(*)::int FROM bookings WHERE created_at >= now() - interval '30 days') AS bookings_30d,
         (SELECT count(*)::int FROM safety_reports WHERE status IN ('open', 'reviewing')) AS open_reports,
         ((SELECT count(*)::int FROM moderation_events WHERE created_at >= now() - interval '30 days') +
@@ -100,9 +107,13 @@ async function loadDashboard() {
     database.query(
       `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.delivery_type, s.is_active, s.price_cents,
               s.pricing_type,s.hourly_rate_cents,s.minimum_duration_minutes,
-              s.created_at, s.business_name, p.city, p.state, p.id::text AS provider_id
+              s.created_at, s.business_name, p.city, p.state, p.id::text AS provider_id,
+              p.is_active AS provider_is_active, p.age_verification_status,
+              company.is_active AS company_is_active,
+              (s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified' AND company.is_active = true) AS publicly_available
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
+       JOIN provider_companies company ON company.id = s.company_id
        ORDER BY s.created_at DESC
        LIMIT 75`,
     ),
@@ -421,6 +432,27 @@ export async function PATCH(request: Request) {
       auditAction = "account_warned";
       details = { reason };
     } else if (action === "listing_status" && (status === "active" || status === "inactive")) {
+      if (status === "active") {
+        const eligibility = await client.query<{ id: string }>(
+          `SELECT s.id::text
+           FROM services s
+           JOIN provider_profiles p ON p.id = s.provider_id
+           JOIN provider_companies company ON company.id = s.company_id
+           WHERE s.id = $1::uuid
+             AND p.is_active = true
+             AND p.age_verification_status = 'verified'
+             AND company.is_active = true
+           LIMIT 1`,
+          [targetId],
+        );
+        if (!eligibility.rowCount) {
+          await client.query("ROLLBACK");
+          return NextResponse.json(
+            { error: "This listing cannot be made public until its provider completes required age verification and the provider and business are active." },
+            { status: 409 },
+          );
+        }
+      }
       const result = await client.query<{ id: string; is_active: boolean; provider_id: string; company_id: string }>(
         "UPDATE services SET is_active = $2, updated_at = now() WHERE id = $1::uuid RETURNING id::text, is_active, provider_id::text, company_id::text",
         [targetId, status === "active"],

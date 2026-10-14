@@ -18,6 +18,7 @@ type ListingPreview = {
   pricing_type: "FIXED" | "HOURLY"; hourly_rate_cents: number | null;
   minimum_duration_minutes: number | null; maximum_duration_minutes: number | null;
   billing_increment_minutes: number | null; default_duration_minutes: number | null;
+  age_verification_status: string; publicly_available: boolean;
 };
 
 export default async function AdminListingPreviewPage({ params }: PageProps<"/admin/listings/[serviceId]">) {
@@ -29,10 +30,13 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
             s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes,
             s.billing_increment_minutes, s.default_duration_minutes,
             s.is_active, s.business_name, p.city, p.state, p.service_radius_miles, s.delivery_type, s.remote_delivery_details,
+            p.age_verification_status,
+            (s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified' AND company.is_active = true) AS publicly_available,
             COALESCE((SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
+     JOIN provider_companies company ON company.id = s.company_id
      WHERE s.id::text = $1
      LIMIT 1`,
     [serviceId],
@@ -49,12 +53,12 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
     <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6"><Link href="/admin" className="flex items-center gap-2 text-xl font-bold"><BrandLockup /></Link><span className="rounded-full bg-[#eee25a] px-3 py-1 text-xs font-extrabold uppercase tracking-wider">Admin preview</span></div></header>
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <BackButton label="Back to listings" fallbackHref="/admin" />
-      <div className="mt-6 rounded-2xl border border-[#d9ca55] bg-[#fff8cf] p-4 text-sm"><strong>This is an admin-only preview.</strong> {listing.is_active ? "The listing is currently visible in the marketplace." : "The listing is currently removed from the marketplace."}</div>
+      <div className="mt-6 rounded-2xl border border-[#d9ca55] bg-[#fff8cf] p-4 text-sm"><strong>This is an admin-only preview.</strong> {listing.publicly_available ? "The listing is currently visible in the marketplace." : listing.is_active && listing.age_verification_status !== "verified" ? "The service record is active, but it remains off the public marketplace until the provider completes required age verification." : listing.is_active ? "The service record is active, but the provider or business is not currently public." : "The listing is currently removed from the marketplace."}</div>
       <div className="mt-7 grid gap-7 lg:grid-cols-[1.25fr_.75fr]">
         <section>
           <div role="img" aria-label={`${listing.title} cover`} style={images[0] ? { backgroundImage: `url("${images[0]}")` } : undefined} className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-cover bg-center sm:h-[420px] ${images[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
             {!images[0] && <ServiceCategoryIcon category={listing.category} className="absolute bottom-8 right-10 h-28 min-h-28 w-28 min-w-28 opacity-90 sm:h-32 sm:min-h-32 sm:w-32 sm:min-w-32 [&_svg]:h-20 [&_svg]:w-20" />}
-            <span className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-xs font-bold">{listing.is_active ? "Active listing" : "Removed listing"}</span>
+            <span className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-xs font-bold">{listing.publicly_available ? "Public listing" : listing.is_active ? "Verification required" : "Removed listing"}</span>
           </div>
           {images.length > 1 && <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{images.slice(1).map((url, index) => <div key={url} role="img" aria-label={`${listing.title} photo ${index + 2}`} style={{ backgroundImage: `url("${url}")` }} className="aspect-[4/3] rounded-2xl bg-cover bg-center" />)}</div>}
           <p className="mt-8 text-sm font-bold uppercase tracking-[.15em] text-[#6c7d74]">{listing.category}</p>

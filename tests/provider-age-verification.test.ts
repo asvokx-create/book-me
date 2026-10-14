@@ -49,3 +49,14 @@ test("unverified providers are blocked from public listings, booking acceptance,
   assert.match(payout, /p\.age_verification_status = 'verified'/);
   assert.match(tip, /provider\.age_verification_status='verified'/);
 });
+
+test("admin listing status reflects public eligibility and cannot restore an unverified provider", () => {
+  const admin = read("app/api/admin/route.ts");
+  const dashboard = read("components/admin-dashboard.tsx");
+  const preview = read("app/admin/listings/[serviceId]/page.tsx");
+
+  assert.match(admin, /p\.age_verification_status = 'verified'/);
+  assert.match(admin, /This listing cannot be made public until its provider completes required age verification/);
+  assert.match(dashboard, /verification required/);
+  assert.match(preview, /remains off the public marketplace until the provider completes required age verification/);
+});
