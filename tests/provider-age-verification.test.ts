@@ -89,5 +89,9 @@ test("only profiles that existed before the policy can receive a documented admi
   assert.doesNotMatch(admin, /is_read=false/);
   assert.match(dashboard, /Approve legacy exception/);
   assert.match(dashboard, /Revoke exception/);
+  assert.match(dashboard, /legacy-provider-exception-note/);
+  assert.match(dashboard, /Confirm approval/);
+  const ageExceptionFlow = dashboard.slice(dashboard.indexOf("function beginAgeException"), dashboard.indexOf("return <div", dashboard.indexOf("function beginAgeException")));
+  assert.doesNotMatch(ageExceptionFlow, /window\.prompt\(/);
   assert.match(verification, /age_verification_source === "admin_exception"/);
 });

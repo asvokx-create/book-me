@@ -632,6 +632,9 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
   const [welcomeResult, setWelcomeResult] = useState("");
   const [ageExceptionBusy, setAgeExceptionBusy] = useState(false);
   const [ageExceptionResult, setAgeExceptionResult] = useState("");
+  const [ageExceptionAction, setAgeExceptionAction] = useState<"approve" | "revoke" | null>(null);
+  const [ageExceptionNote, setAgeExceptionNote] = useState("");
+  const [ageExceptionError, setAgeExceptionError] = useState(false);
   const welcomeSent = details?.welcomeEmail?.status === "sent" || welcomeResult === "Welcome email sent.";
 
   useEffect(() => {
@@ -659,26 +662,37 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
     const response = await fetch("/api/admin", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "portfolio_status", targetId: id, status }) });
     if (response.ok) onRetry();
   }
-  async function changeAgeException(status: "approve" | "revoke") {
+  function beginAgeException(status: "approve" | "revoke") {
+    setAgeExceptionAction(status);
+    setAgeExceptionNote("");
+    setAgeExceptionResult("");
+    setAgeExceptionError(false);
+  }
+  async function changeAgeException() {
     if (!details?.provider) return;
-    const note = window.prompt(status === "approve"
-      ? "Add the review note for this legacy-provider exception. This is saved in the permanent admin audit history."
-      : "Add the reason for revoking this legacy-provider exception. This is saved in the permanent admin audit history.")?.trim();
-    if (!note) return;
-    const confirmation = status === "approve"
-      ? "Approve this documented exception for an existing provider? New providers cannot use this exception."
-      : "Revoke this exception? The provider's listings will be held until Stripe age verification is complete.";
-    if (!window.confirm(confirmation)) return;
+    if (!ageExceptionAction) return;
+    const note = ageExceptionNote.trim();
+    if (!note) {
+      setAgeExceptionError(true);
+      setAgeExceptionResult("Add an audit note before continuing.");
+      return;
+    }
     setAgeExceptionBusy(true);
     setAgeExceptionResult("");
+    setAgeExceptionError(false);
     const response = await fetch("/api/admin", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "provider_age_exception", targetId: details.provider.id, status, reason: note }),
+      body: JSON.stringify({ action: "provider_age_exception", targetId: details.provider.id, status: ageExceptionAction, reason: note }),
     }).catch(() => null);
     const result = response ? await response.json() as { error?: string } : null;
-    if (!response?.ok) setAgeExceptionResult(result?.error ?? "The provider exception could not be saved.");
+    if (!response?.ok) {
+      setAgeExceptionError(true);
+      setAgeExceptionResult(result?.error ?? "The provider exception could not be saved.");
+    }
     else {
-      setAgeExceptionResult(status === "approve" ? "Legacy provider exception approved." : "Legacy provider exception revoked.");
+      setAgeExceptionResult(ageExceptionAction === "approve" ? "Legacy provider exception approved." : "Legacy provider exception revoked.");
+      setAgeExceptionAction(null);
+      setAgeExceptionNote("");
       await Promise.all([onDashboardRefresh(), onRetry()]);
     }
     setAgeExceptionBusy(false);
@@ -733,7 +747,24 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             { label: "Extra seat cost", value: `$${(details.provider.extra_team_seats * 0.5).toFixed(2)}/month` },
             { label: "Provider agreement", value: details.provider.provider_agreement_accepted_at ? formatDate(details.provider.provider_agreement_accepted_at) : null }, { label: "Agreement version", value: details.provider.provider_agreement_version },
             { label: "Public profile", value: details.provider.public_profile_visible ? "Visible" : "Hidden" }, { label: "Public slug", value: details.provider.public_profile_slug }, { label: "Years experience", value: details.provider.years_experience },
-          ]} /><section className={`rounded-2xl border p-4 ${details.provider.age_verification_source === "admin_exception" ? "border-[#d9ca55] bg-[#fff8cf]" : "border-[#183126]/10 bg-[#f8f8f4]"}`}><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Legacy provider eligibility</p><h4 className="mt-1 font-bold">{details.provider.age_verification_source === "admin_exception" ? "Documented admin exception is active" : details.provider.age_verification_exception_eligible ? "Manual exception available" : "Stripe verification required"}</h4><p className="mt-2 text-sm leading-6 text-[#52665b]">{details.provider.age_verification_source === "admin_exception" ? "This existing provider has an auditable exception instead of a Stripe Identity age-verification result. Revoking it holds listings until Stripe verification is completed." : details.provider.age_verification_exception_eligible ? "This profile existed before the new provider age-verification policy. An administrator may grant a documented exception after review; providers created after the policy cannot use it." : "This provider was created after the policy began and must complete Stripe document age verification."}</p>{details.provider.age_verification_exception_note && <p className="mt-3 rounded-xl bg-white/70 p-3 text-xs leading-5"><strong>Latest audit note:</strong> {details.provider.age_verification_exception_note}</p>}<div className="mt-4">{details.provider.age_verification_source === "admin_exception" ? <button type="button" disabled={ageExceptionBusy} onClick={() => void changeAgeException("revoke")} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{ageExceptionBusy ? "Saving…" : "Revoke exception"}</button> : details.provider.age_verification_exception_eligible && details.provider.age_verification_status !== "verified" ? <button type="button" disabled={ageExceptionBusy} onClick={() => void changeAgeException("approve")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{ageExceptionBusy ? "Saving…" : "Approve legacy exception"}</button> : null}</div>{ageExceptionResult && <p role="status" className={`mt-3 text-sm font-bold ${ageExceptionResult.includes("could not") || ageExceptionResult.includes("must") || ageExceptionResult.includes("Only") ? "text-[#9a4e25]" : "text-[#34704a]"}`}>{ageExceptionResult}</p>}</section>{details.provider.bio && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Business description</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{details.provider.bio}</p></div>}{details.provider.screening_summary && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Screening summary</p><p className="mt-2 text-sm leading-6">{details.provider.screening_summary}</p></div>}</div></details>}
+          ]} />
+            <section className={`rounded-2xl border p-4 ${details.provider.age_verification_source === "admin_exception" ? "border-[#d9ca55] bg-[#fff8cf]" : "border-[#183126]/10 bg-[#f8f8f4]"}`}>
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Legacy provider eligibility</p>
+              <h4 className="mt-1 font-bold">{details.provider.age_verification_source === "admin_exception" ? "Documented admin exception is active" : details.provider.age_verification_exception_eligible ? "Manual exception available" : "Stripe verification required"}</h4>
+              <p className="mt-2 text-sm leading-6 text-[#52665b]">{details.provider.age_verification_source === "admin_exception" ? "This existing provider has an auditable exception instead of a Stripe Identity age-verification result. Revoking it holds listings until Stripe verification is completed." : details.provider.age_verification_exception_eligible ? "This profile existed before the new provider age-verification policy. An administrator may grant a documented exception after review; providers created after the policy cannot use it." : "This provider was created after the policy began and must complete Stripe document age verification."}</p>
+              {details.provider.age_verification_exception_note && <p className="mt-3 rounded-xl bg-white/70 p-3 text-xs leading-5"><strong>Latest audit note:</strong> {details.provider.age_verification_exception_note}</p>}
+              {!ageExceptionAction && <div className="mt-4">{details.provider.age_verification_source === "admin_exception" ? <button type="button" disabled={ageExceptionBusy} onClick={() => beginAgeException("revoke")} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">Revoke exception</button> : details.provider.age_verification_exception_eligible && details.provider.age_verification_status !== "verified" ? <button type="button" disabled={ageExceptionBusy} onClick={() => beginAgeException("approve")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">Approve legacy exception</button> : null}</div>}
+              {ageExceptionAction && <form onSubmit={(event) => { event.preventDefault(); void changeAgeException(); }} className="mt-4 rounded-xl border border-[#183126]/10 bg-white/70 p-4">
+                <label htmlFor="legacy-provider-exception-note" className="text-sm font-bold">{ageExceptionAction === "approve" ? "Approval note" : "Revocation reason"}</label>
+                <p className="mt-1 text-xs leading-5 text-[#718078]">This required note is saved in the permanent admin audit history.</p>
+                <textarea id="legacy-provider-exception-note" required autoFocus value={ageExceptionNote} onChange={(event) => setAgeExceptionNote(event.target.value)} maxLength={500} rows={3} placeholder={ageExceptionAction === "approve" ? "Describe the review supporting this exception" : "Explain why this exception is being revoked"} className="mt-3 w-full resize-y rounded-xl border border-[#183126]/15 bg-white px-3 py-2 text-sm outline-none focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/20" />
+                <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={ageExceptionBusy} onClick={() => { setAgeExceptionAction(null); setAgeExceptionNote(""); setAgeExceptionResult(""); setAgeExceptionError(false); }} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold">Cancel</button><button type="submit" disabled={ageExceptionBusy || !ageExceptionNote.trim()} className={"rounded-full px-4 py-2 text-xs font-bold text-white disabled:opacity-50 " + (ageExceptionAction === "approve" ? "bg-[#183126]" : "bg-[#9a4e25]")}>{ageExceptionBusy ? "Saving…" : ageExceptionAction === "approve" ? "Confirm approval" : "Confirm revocation"}</button></div>
+              </form>}
+              {ageExceptionResult && <p role="status" className={`mt-3 text-sm font-bold ${ageExceptionError ? "text-[#9a4e25]" : "text-[#34704a]"}`}>{ageExceptionResult}</p>}
+            </section>
+            {details.provider.bio && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Business description</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{details.provider.bio}</p></div>}
+            {details.provider.screening_summary && <div className="rounded-2xl bg-[#f8f8f4] p-4"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Screening summary</p><p className="mt-2 text-sm leading-6">{details.provider.screening_summary}</p></div>}
+          </div></details>}
           {details.portfolio.length > 0 && <section><h3 className="mb-3 text-lg font-bold">Provider portfolio moderation</h3><div className="grid gap-3 sm:grid-cols-2">{details.portfolio.map((item) => <article key={item.id} className="overflow-hidden rounded-2xl border border-[#183126]/10"><Image src={item.url} alt={item.alt_text || item.caption || "Provider portfolio"} width={600} height={450} unoptimized className="aspect-[4/3] w-full object-cover" /><div className="p-4"><div className="flex items-center justify-between gap-2"><p className="text-sm font-bold">{item.caption || "Untitled work"}</p><StatusPill value={item.moderation_status} /></div><button type="button" onClick={() => void moderatePortfolio(item.id, item.moderation_status === "hidden" ? "active" : "hidden")} className="mt-3 rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold">{item.moderation_status === "hidden" ? "Restore image" : "Hide image"}</button></div></article>)}</div></section>}
           {details.affiliateAttribution && <section className="rounded-3xl border border-[#183126]/10 bg-[#edf5e9] p-5"><h3 className="text-lg font-bold">Affiliate attribution</h3><p className="mt-1 text-sm text-[#52665b]">Private attribution and snapshotted program status for this provider.</p><div className="mt-4"><DetailGrid items={[
             { label: "Referred by", value: details.affiliateAttribution.affiliate_name }, { label: "Affiliate code", value: details.affiliateAttribution.affiliate_code },
