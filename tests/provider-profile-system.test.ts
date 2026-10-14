@@ -40,6 +40,11 @@ test("public profiles expose only eligible providers and truthful marketplace ev
   assert.doesNotMatch(page, /background checked|licensed|insured/i);
 });
 
+test("fallback category artwork stays fully positioned inside provider profile headers", () => {
+  const page = read("app", "providers", "[slug]", "page.tsx");
+  assert.match(page, /className="!absolute bottom-5 right-7 h-24/);
+});
+
 test("business owners can preview only their own hidden or pre-launch profile", () => {
   const marketplace = read("lib", "marketplace.ts");
   const page = read("app", "providers", "[slug]", "page.tsx");
