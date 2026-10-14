@@ -135,7 +135,7 @@ export const auth = betterAuth({
     },
     session: {
       create: {
-        async before(session, context) {
+        async before(session) {
           const restriction = await database.query<{ blocked: boolean }>(
             `SELECT true AS blocked
              FROM account_restrictions
@@ -146,18 +146,20 @@ export const auth = betterAuth({
             [session.userId],
           );
           if (restriction.rows[0]?.blocked) return false;
-          const user = await database.query<{ age_verified_at: Date | null }>(
-            `SELECT age_verified_at FROM "user" WHERE id = $1 LIMIT 1`,
+          const user = await database.query<{ id: string }>(`SELECT id FROM "user" WHERE id = $1 LIMIT 1`, [session.userId]);
+          if (!user.rows[0]) return false;
+        },
+        async after(session) {
+          await database.query(
+            `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+             SELECT id, 'age_confirmation', 'Confirm your age',
+                    'Please confirm that you are at least 18 in Account settings before using restricted marketplace features.',
+                    '/account/settings#age-confirmation', 'age-confirmation-' || id
+             FROM "user"
+             WHERE id = $1 AND age_verified_at IS NULL
+             ON CONFLICT (dedupe_key) DO NOTHING`,
             [session.userId],
           );
-          if (!user.rows[0]) return false;
-          if (!user.rows[0].age_verified_at) {
-            if (!hasValidAgeEligibilityAttestation(context?.headers?.get("cookie"))) return false;
-            await database.query(
-              `UPDATE "user" SET age_verified_at = now() WHERE id = $1 AND age_verified_at IS NULL`,
-              [session.userId],
-            );
-          }
         },
       },
     },

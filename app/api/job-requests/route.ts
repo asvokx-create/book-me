@@ -12,6 +12,7 @@ import { findUsCity } from "@/lib/us-cities";
 import { normalizeUsZipCode, resolveUsZipCode } from "@/lib/us-zip-codes";
 import { zonedDateTimeToUtc } from "@/lib/zoned-date-time";
 import { isRequestDeliveryType, type RequestDeliveryType, type ServiceDeliveryType } from "@/lib/service-delivery";
+import { AGE_CONFIRMATION_REQUIRED_MESSAGE, hasConfirmedAge } from "@/lib/account-age";
 
 type RequestRow = {
   id: string; customer_id: string; category: string; title: string; description: string;
@@ -80,6 +81,7 @@ export async function GET(request: Request) {
 async function getJobRequests(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to view service requests." }, { status: 401 });
+  if (!await hasConfirmedAge(session.user.id)) return NextResponse.json({ error: AGE_CONFIRMATION_REQUIRED_MESSAGE }, { status: 403 });
   const providerView = new URL(request.url).searchParams.get("view") === "provider";
 
   if (providerView) {
@@ -141,6 +143,7 @@ async function getJobRequests(request: Request) {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to request a service." }, { status: 401 });
+  if (!await hasConfirmedAge(session.user.id)) return NextResponse.json({ error: AGE_CONFIRMATION_REQUIRED_MESSAGE }, { status: 403 });
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "job-request-create", limit: 8, windowSeconds: 3600 })) return NextResponse.json({ error: "Too many service requests. Please try again later." }, { status: 429 });
   const body = await request.json() as Record<string, unknown>;
   const category = typeof body.category === "string" && SERVICE_CATEGORIES.includes(body.category as typeof SERVICE_CATEGORIES[number]) ? body.category : "";

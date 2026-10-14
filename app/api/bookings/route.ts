@@ -12,6 +12,7 @@ import { calculateCommerceSelection, isRecurrenceOption, nextOccurrence, type Co
 import { PLAN_ENTITLEMENTS } from "@/lib/plans";
 import { readMarketingToken } from "@/lib/provider-marketing";
 import { calculateHourlyBasePriceCents, formatDurationMinutes, validateHourlyDuration, type HourlyPricingConfig, type PricingType } from "@/lib/service-pricing";
+import { AGE_CONFIRMATION_REQUIRED_MESSAGE, hasConfirmedAge } from "@/lib/account-age";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -20,6 +21,7 @@ const usStateCodes = new Set("AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await hasConfirmedAge(session.user.id)) return NextResponse.json({ error: AGE_CONFIRMATION_REQUIRED_MESSAGE }, { status: 403 });
 
   const result = await database.query<{
     id: string; service_id: string; provider_id: string; service: string; service_slug: string; category: string; provider: string;
@@ -53,6 +55,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in before requesting a booking." }, { status: 401 });
+  if (!await hasConfirmedAge(session.user.id)) return NextResponse.json({ error: AGE_CONFIRMATION_REQUIRED_MESSAGE }, { status: 403 });
   const campaignCookie = request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith("bb_campaign="))?.slice("bb_campaign=".length) ?? "";
   const campaignAttribution = readMarketingToken(decodeURIComponent(campaignCookie));
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "booking-create", limit: 8 })) {

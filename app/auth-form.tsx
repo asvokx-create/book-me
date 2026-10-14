@@ -99,7 +99,6 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
 
   async function continueWith(provider: SocialProvider) {
     if (!socialProviders[provider]) return;
-    if (isLogin && !await confirmAgeEligibility()) return;
     if (!isLogin && signupStep === 1) {
       await showSignupStepTwo();
       return;
@@ -164,11 +163,6 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       return;
     }
 
-    if (isLogin && (birthMonth || birthDay || birthYear) && !dateOfBirth) {
-      setError("Enter your complete date of birth.");
-      return;
-    }
-    if (isLogin && dateOfBirth && !await confirmAgeEligibility()) return;
     setError("");
     setLoading(true);
 
@@ -177,7 +171,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       const { data, error: authError } = await authClient.signIn.email({ email, password, rememberMe });
       setLoading(false);
       if (authError) {
-        setError(dateOfBirth ? (authError.message ?? "We could not log you in. Check your details and try again.") : "We could not log you in. Check your details and, if you have not already completed age confirmation, enter your date of birth.");
+        setError(authError.message ?? "We could not log you in. Check your details and try again.");
         return;
       }
       if (data && "twoFactorRedirect" in data && data.twoFactorRedirect) return;
@@ -238,7 +232,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       {!isLogin && signupStep === 2 && <div className="my-6 flex items-center gap-3"><span className="h-px flex-1 bg-[#183126]/10" /><span className="text-xs text-[#89958f]">or continue with email</span><span className="h-px flex-1 bg-[#183126]/10" /></div>}
 
       <form onSubmit={submit} className="space-y-4">
-        {((!isLogin && signupStep === 1) || isLogin) && <DateOfBirthFields required={!isLogin} month={birthMonth} day={birthDay} year={birthYear} days={birthDays} onMonthChange={(value) => { setBirthMonth(value); if (birthDay && Number(birthDay) > new Date(Date.UTC(Number(birthYear) || 2000, Number(value), 0)).getUTCDate()) setBirthDay(""); }} onDayChange={setBirthDay} onYearChange={(value) => { setBirthYear(value); if (birthDay && birthMonth && Number(birthDay) > new Date(Date.UTC(Number(value), Number(birthMonth), 0)).getUTCDate()) setBirthDay(""); }} helpText={isLogin ? "Enter this to complete a one-time age confirmation, or when continuing with Google. We do not store your full date of birth." : "You must be at least 18 years old to use BubsBookings. We use this only to confirm eligibility and do not store your full date of birth."} inputClass={inputClass} />}
+        {!isLogin && signupStep === 1 && <DateOfBirthFields required month={birthMonth} day={birthDay} year={birthYear} days={birthDays} onMonthChange={(value) => { setBirthMonth(value); if (birthDay && Number(birthDay) > new Date(Date.UTC(Number(birthYear) || 2000, Number(value), 0)).getUTCDate()) setBirthDay(""); }} onDayChange={setBirthDay} onYearChange={(value) => { setBirthYear(value); if (birthDay && birthMonth && Number(birthDay) > new Date(Date.UTC(Number(value), Number(birthMonth), 0)).getUTCDate()) setBirthDay(""); }} helpText="You must be at least 18 years old to use BubsBookings. We use this only to confirm eligibility and do not store your full date of birth." inputClass={inputClass} />}
         {isLogin && <><SocialButton enabled={socialProviders.google} loading={socialLoading === "google"} disabled={Boolean(socialLoading)} onClick={() => void continueWith("google")} /><div className="flex items-center gap-3"><span className="h-px flex-1 bg-[#183126]/10" /><span className="text-xs text-[#89958f]">or continue with email</span><span className="h-px flex-1 bg-[#183126]/10" /></div></>}
         {!isLogin && signupStep === 2 && <label className="block"><span className="mb-2 block text-sm font-bold">Full name</span><input required autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your full name" className={inputClass} /></label>}
         {(isLogin || signupStep === 2) && <label className="block"><span className="mb-2 block text-sm font-bold">Email address</span><input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={inputClass} /></label>}

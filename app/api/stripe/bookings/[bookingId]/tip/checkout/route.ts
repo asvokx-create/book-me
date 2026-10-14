@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { AGE_CONFIRMATION_REQUIRED_MESSAGE, hasConfirmedAge } from "@/lib/account-age";
 import { getOrCreateConsumerStripeCustomer } from "@/lib/customer-stripe";
 import { database } from "@/lib/database";
 import { recordAnalytics } from "@/lib/analytics";
@@ -18,6 +19,7 @@ type TipRow = {
 export async function POST(request: Request, context: { params: Promise<{ bookingId: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to leave a tip." }, { status: 401 });
+  if (!await hasConfirmedAge(session.user.id)) return NextResponse.json({ error: AGE_CONFIRMATION_REQUIRED_MESSAGE }, { status: 403 });
   if (!isStripeReady()) return NextResponse.json({ error: "Stripe payments are not available yet." }, { status: 503 });
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "stripe-booking-tip", limit: 6 }))
     return NextResponse.json({ error: "Too many tip attempts. Please wait a minute and try again." }, { status: 429 });

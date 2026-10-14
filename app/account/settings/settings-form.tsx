@@ -6,7 +6,7 @@ import UiIcon from "@/components/ui-icon";
 import CustomSelect from "@/components/custom-select";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import ProfilePhotoManager from "@/components/profile-photo-manager";
@@ -18,10 +18,11 @@ type Settings = {
   name: string; email: string; imageUrl: string; phone: string; city: string; state: string; postalCode: string; country: string; locationSource: string | null; locationUpdatedAt: string | null; locationComplete: boolean; radius: number;
   bookingNotifications: boolean; messageNotifications: boolean; requestNotifications: boolean; opportunityNotifications: boolean; isProvider: boolean;
   isProviderOwner: boolean; publicPersonalNameVisible: boolean;
+  ageVerified: boolean;
   theme: ThemePreference; timeZone: string;
 };
 
-const emptySettings: Settings = { name: "", email: "", imageUrl: "", phone: "", city: "", state: "", postalCode: "", country: "United States", locationSource: null, locationUpdatedAt: null, locationComplete: false, radius: 25, bookingNotifications: true, messageNotifications: true, requestNotifications: true, opportunityNotifications: true, isProvider: false, isProviderOwner: false, publicPersonalNameVisible: false, theme: "light", timeZone: "auto" };
+const emptySettings: Settings = { name: "", email: "", imageUrl: "", phone: "", city: "", state: "", postalCode: "", country: "United States", locationSource: null, locationUpdatedAt: null, locationComplete: false, radius: 25, bookingNotifications: true, messageNotifications: true, requestNotifications: true, opportunityNotifications: true, isProvider: false, isProviderOwner: false, publicPersonalNameVisible: false, ageVerified: false, theme: "light", timeZone: "auto" };
 const inputClass = "mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3.5 text-base outline-none transition focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/10";
 const timeZones = [
   "America/Los_Angeles", "America/Denver", "America/Chicago", "America/New_York",
@@ -46,6 +47,18 @@ export default function AccountSettings() {
   const [deletionBusy, setDeletionBusy] = useState(false);
   const [locating, setLocating] = useState(false);
   const [pendingSignupLocation, setPendingSignupLocation] = useState(false);
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const [ageConfirmationBusy, setAgeConfirmationBusy] = useState(false);
+  const ageConfirmationDate = birthYear && birthMonth && birthDay ? `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}` : "";
+  const birthDays = useMemo(() => {
+    const month = Number(birthMonth);
+    const year = Number(birthYear);
+    const daysInMonth = month ? new Date(Date.UTC(year || 2000, month, 0)).getUTCDate() : 31;
+    return Array.from({ length: daysInMonth }, (_, index) => String(index + 1));
+  }, [birthMonth, birthYear]);
+  const birthYears = useMemo(() => Array.from({ length: new Date().getFullYear() - 1899 }, (_, index) => String(new Date().getFullYear() - index)), []);
 
   useEffect(() => {
     if (!isPending && !session) router.replace("/login?redirect=/account/settings");
@@ -94,6 +107,20 @@ export default function AccountSettings() {
     setPendingSignupLocation(false);
     setMessage("Your account settings have been saved.");
     await refetch();
+    router.refresh();
+  }
+
+  async function completeAgeConfirmation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(""); setMessage("");
+    if (!ageConfirmationDate) { setError("Enter your complete date of birth."); return; }
+    setAgeConfirmationBusy(true);
+    const response = await fetch("/api/age-eligibility", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dateOfBirth: ageConfirmationDate }) }).catch(() => null);
+    const data = response ? await response.json() as { error?: string } : null;
+    setAgeConfirmationBusy(false);
+    if (!response?.ok) { setError(data?.error ?? "We could not confirm your age. Please try again."); return; }
+    setSettings((current) => ({ ...current, ageVerified: true }));
+    setMessage("Your age confirmation is complete.");
     router.refresh();
   }
 
@@ -193,7 +220,9 @@ export default function AccountSettings() {
       {error && <p role="alert" className="mt-6 rounded-2xl bg-[#fff1e8] px-5 py-4 text-sm font-bold text-[#9a4e25]">{error}</p>}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
-        <form onSubmit={saveProfile} className="space-y-6">
+        <div className="space-y-6">
+          {!settings.ageVerified && <form id="age-confirmation" onSubmit={completeAgeConfirmation} className="scroll-mt-6 rounded-[2rem] border border-[#d9ca55] bg-[#fff8cf] p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#78681f]">Action needed</p><h2 className="mt-2 text-xl font-bold">Confirm your age</h2><p className="mt-2 text-sm leading-6 text-[#52685c]">BubsBookings is for people age 18 and older. Confirm your date of birth to use restricted marketplace features. We do not store your full date of birth.</p><fieldset className="mt-5"><legend className="mb-2 text-sm font-bold">Date of birth</legend><div className="grid w-full grid-cols-[minmax(0,1.25fr)_minmax(0,.8fr)_minmax(0,1fr)] gap-2 sm:gap-3"><CustomSelect required ariaLabel="Birth month" value={birthMonth} onChange={(value) => { setBirthMonth(value); if (birthDay && Number(birthDay) > new Date(Date.UTC(Number(birthYear) || 2000, Number(value), 0)).getUTCDate()) setBirthDay(""); }} options={[{ value: "01", label: "January" }, { value: "02", label: "February" }, { value: "03", label: "March" }, { value: "04", label: "April" }, { value: "05", label: "May" }, { value: "06", label: "June" }, { value: "07", label: "July" }, { value: "08", label: "August" }, { value: "09", label: "September" }, { value: "10", label: "October" }, { value: "11", label: "November" }, { value: "12", label: "December" }]} placeholder="Month" buttonClassName={inputClass} /><CustomSelect required ariaLabel="Birth day" value={birthDay} onChange={setBirthDay} options={birthDays.map((value) => ({ value, label: value }))} placeholder="Day" buttonClassName={inputClass} /><CustomSelect required ariaLabel="Birth year" value={birthYear} onChange={(value) => { setBirthYear(value); if (birthDay && birthMonth && Number(birthDay) > new Date(Date.UTC(Number(value), Number(birthMonth), 0)).getUTCDate()) setBirthDay(""); }} options={birthYears.map((value) => ({ value, label: value }))} placeholder="Year" buttonClassName={inputClass} /></div></fieldset><button disabled={ageConfirmationBusy} className="mt-5 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-60">{ageConfirmationBusy ? "Confirming…" : "Confirm age"}</button></form>}
+          <form onSubmit={saveProfile} className="space-y-6">
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Personal information</h2><p className="mt-1 text-sm text-[#738179]">This information stays connected to your bookings and messages.</p><ProfilePhotoManager name={settings.name} initialUrl={settings.imageUrl} onChange={(imageUrl) => { setSettings((current) => ({ ...current, imageUrl })); void refetch(); router.refresh(); }} /><div className="mt-6 grid gap-5 sm:grid-cols-2"><label className="text-sm font-bold">Full name<input required value={settings.name} onChange={(event) => setSettings({ ...settings, name: event.target.value })} autoComplete="name" className={inputClass} /></label><label className="text-sm font-bold">Phone number <span className="font-normal text-[#718078]">(optional)</span><input value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: formatUsPhone(event.target.value) })} inputMode="tel" autoComplete="tel" placeholder="(425) 555-0123" className={inputClass} /></label><label className="text-sm font-bold sm:col-span-2">Current email address<input readOnly value={settings.email} className={`${inputClass} cursor-not-allowed text-[#718078]`} /></label></div><div className="mt-5 rounded-2xl bg-[#f5f5ef] p-4"><label className="text-sm font-bold">Change email address <span className="font-normal text-[#718078]">(only if needed)</span><input required form="email-change-form" type="email" autoComplete="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="you@yourbusiness.com" className={inputClass} /></label><p className="mt-2 text-xs leading-5 text-[#718078]">We will send a verification link to the new address. Your current email remains active until the link is confirmed.</p><button type="submit" form="email-change-form" disabled={emailBusy || !newEmail.trim()} className="mt-3 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{emailBusy ? "Sending…" : "Send verification link"}</button></div></section>
           {settings.isProviderOwner && <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8" aria-labelledby="public-name-privacy-heading"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Privacy</p><h2 id="public-name-privacy-heading" className="mt-2 text-xl font-bold">Public identity</h2><div className="mt-5 border-t border-[#183126]/10 pt-5"><SettingToggle title="Show my personal name publicly" description="When enabled, your personal name may appear on public provider pages. When disabled, BubsBookings uses your business name instead." checked={settings.publicPersonalNameVisible} onChange={(checked) => setSettings({ ...settings, publicPersonalNameVisible: checked })} /></div><p className="mt-4 rounded-2xl bg-[#f5f5ef] px-4 py-3 text-xs leading-5 text-[#65766d]">Your account name stays available privately for account management, billing, support, and identity checks.</p></section>}
           <section id="account-location" className="scroll-mt-6 rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8">
@@ -211,6 +240,7 @@ export default function AccountSettings() {
           <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-6 sm:p-8"><h2 className="text-xl font-bold">Notification preferences</h2><p className="mt-1 text-sm text-[#738179]">Choose what appears in your BubsBookings notification center and email.</p><div className="mt-5 divide-y divide-[#183126]/10"><SettingToggle title="Booking updates" description="Confirmations, changes, reminders, payments, and cancellations." checked={settings.bookingNotifications} onChange={(checked) => setSettings({ ...settings, bookingNotifications: checked })} /><SettingToggle title="Service-request responses" description="New quotes and important updates for requests you post." checked={settings.requestNotifications} onChange={(checked) => setSettings({ ...settings, requestNotifications: checked })} />{settings.isProvider && <SettingToggle title="Matched opportunities" description="New customer requests that match your category, service area, and availability." checked={settings.opportunityNotifications} onChange={(checked) => setSettings({ ...settings, opportunityNotifications: checked })} />}<SettingToggle title="New messages" description="Messages sent between you and a customer or provider." checked={settings.messageNotifications} onChange={(checked) => setSettings({ ...settings, messageNotifications: checked })} /></div></section>
           <button type="submit" disabled={saving} onClick={() => { setError(""); setMessage(""); }} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold transition hover:bg-[#f5ea6b] disabled:opacity-60">{saving ? "Saving…" : "Save account settings"}</button>
         </form>
+        </div>
 
         <div className="space-y-6">
           <form id="email-change-form" className="hidden" onSubmit={(event) => { event.preventDefault(); void requestEmailChange(); }} />

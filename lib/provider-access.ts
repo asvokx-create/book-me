@@ -3,10 +3,12 @@ import "server-only";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
+import { hasConfirmedAge } from "@/lib/account-age";
 
 export async function getProviderAccess() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
+  if (!await hasConfirmedAge(session.user.id)) return null;
 
   const membership = await database.query<{ provider_id: string; member_id: string; role: string; company_name: string }>(
     `SELECT member.provider_id::text, member.id::text AS member_id, member.role, member.company_name

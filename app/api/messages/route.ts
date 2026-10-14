@@ -9,6 +9,7 @@ import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { recordAnalytics } from "@/lib/analytics";
 import { assessOffPlatformMessage, type MessageBookingContext } from "@/lib/off-platform-moderation";
 import { adminNotificationEmails } from "@/lib/admin";
+import { AGE_CONFIRMATION_REQUIRED_MESSAGE, hasConfirmedAge } from "@/lib/account-age";
 
 type ConversationRow = {
   id: string; customer_id: string; provider_id: string; provider_user_id: string;
@@ -66,6 +67,7 @@ async function getConversation(userId: string, conversationId: string) {
 export async function GET(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!await hasConfirmedAge(session.user.id)) return NextResponse.json({ error: AGE_CONFIRMATION_REQUIRED_MESSAGE }, { status: 403 });
   const conversationId = new URL(request.url).searchParams.get("conversationId") ?? "";
 
   const conversationsResult = await database.query<ConversationRow>(
@@ -136,6 +138,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to send a message." }, { status: 401 });
+  if (!await hasConfirmedAge(session.user.id)) return NextResponse.json({ error: AGE_CONFIRMATION_REQUIRED_MESSAGE }, { status: 403 });
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "message-send", limit: 30 })) {
     return NextResponse.json({ error: "You are sending messages too quickly. Please wait a minute." }, { status: 429 });
   }

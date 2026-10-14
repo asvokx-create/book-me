@@ -28,6 +28,7 @@ type SettingsRow = {
   is_provider: boolean;
   is_provider_owner: boolean;
   public_personal_name_visible: boolean;
+  age_verified_at: string | null;
 };
 
 export async function GET() {
@@ -35,7 +36,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const result = await database.query<SettingsRow>(
-    `SELECT u.name, u.email, u.image, u.phone,
+    `SELECT u.name, u.email, u.image, u.phone, u.age_verified_at,
             COALESCE(NULLIF(u.location_city, ''), NULLIF(us.city, ''), NULLIF(p.city, ''), '') AS city,
             COALESCE(NULLIF(u.location_state, ''), NULLIF(us.state, ''), NULLIF(p.state, ''), '') AS state,
             COALESCE(u.location_postal_code, '') AS postal_code,
@@ -88,6 +89,7 @@ export async function GET() {
     isProvider: row.is_provider,
     isProviderOwner: row.is_provider_owner,
     publicPersonalNameVisible: row.is_provider_owner && row.public_personal_name_visible,
+    ageVerified: Boolean(row.age_verified_at),
   });
 }
 

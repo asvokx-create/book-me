@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { AGE_CONFIRMATION_REQUIRED_MESSAGE, hasConfirmedAge } from "@/lib/account-age";
 import { getOrCreateConsumerStripeCustomer } from "@/lib/customer-stripe";
 import { database } from "@/lib/database";
 import type { ProviderPlan } from "@/lib/plans";
@@ -13,6 +14,7 @@ import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "@/
 export async function POST(request: Request, context: RouteContext<"/api/stripe/bookings/[bookingId]/checkout">) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to pay for this booking." }, { status: 401 });
+  if (!await hasConfirmedAge(session.user.id)) return NextResponse.json({ error: AGE_CONFIRMATION_REQUIRED_MESSAGE }, { status: 403 });
   if (!isStripeReady()) return NextResponse.json({ error: "Stripe payments are not available yet." }, { status: 503 });
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "stripe-booking-checkout", limit: 8 }))
     return NextResponse.json({ error: "Too many payment attempts. Please wait and try again." }, { status: 429 });
