@@ -39,6 +39,7 @@ test("legal pages disclose current affiliate funding, privacy, and analytics beh
   ]);
 
   assert.match(terms, /POLICY_EFFECTIVE_DATE/);
+  assert.match(terms, /existing account that still needs confirmation may sign in to reach Account Settings/);
   assert.match(terms, /unpaid affiliate earnings as platform obligations/);
   assert.match(terms, /href="\/partner-agreement"/);
   assert.match(partner, /operational reserve calculation/);
@@ -46,6 +47,7 @@ test("legal pages disclose current affiliate funding, privacy, and analytics beh
   assert.match(partner, /ftc\.gov\/business-guidance/);
   assert.match(partner, /Applicants must be at least 18/);
   assert.match(privacy, /detach the sign-in account while retaining the partner application/);
+  assert.match(privacy, /existing account has not yet completed age confirmation/);
   assert.match(privacy, /does not include[\s\S]*every Stripe, affiliate, administrative/);
   assert.match(cookies, /<code>_ga<\/code>/);
   assert.match(cookies, /Optional browser analytics stays off unless you allow it/);
@@ -89,9 +91,9 @@ test("published legal versions and guide compensation language stay current", as
     readFile(new URL("../lib/guides.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(policyConsent, /POLICY_VERSION = "2026-10-13"/);
-  assert.match(policyConsent, /PROVIDER_AGREEMENT_VERSION = "2026-10-13"/);
-  assert.match(policyConsent, /POLICY_EFFECTIVE_DATE = "October 13, 2026"/);
+  assert.match(policyConsent, /POLICY_VERSION = "2026-10-14"/);
+  assert.match(policyConsent, /PROVIDER_AGREEMENT_VERSION = "2026-10-14"/);
+  assert.match(policyConsent, /POLICY_EFFECTIVE_DATE = "October 14, 2026"/);
   assert.match(providerAgreement, /effectiveDate=\{POLICY_EFFECTIVE_DATE\}/);
   assert.doesNotMatch(guides, /\$10 activation bonus|20% share|60-day attribution window/);
   assert.equal((guides.match(/updatedAt: "2026-10-07"/g) ?? []).length, 21);
