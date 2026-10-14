@@ -47,15 +47,20 @@ export default function BillingPanel({ plan }: { plan: ProviderPlan }) {
     setError("");
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 20_000);
-    const response = await fetch(path, { method: "POST", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined, signal: controller.signal }).catch(() => null);
-    window.clearTimeout(timeout);
-    const result = response ? await response.json() as { url?: string; error?: string } : null;
-    if (!response?.ok || !result?.url) {
-      setError(result?.error ?? "Stripe took too long to respond. Please try again.");
+    try {
+      const response = await fetch(path, { method: "POST", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined, signal: controller.signal });
+      const result = await response.json().catch(() => null) as { url?: string; error?: string } | null;
+      if (!response.ok || !result?.url) {
+        setError(result?.error ?? "We could not open Stripe right now. Please try again.");
+        return;
+      }
+      window.location.assign(result.url);
+    } catch {
+      setError("We could not open Stripe right now. Please check your connection and try again.");
+    } finally {
+      window.clearTimeout(timeout);
       setWorking("");
-      return;
     }
-    window.location.assign(result.url);
   }
 
   async function updateTeamSeats() {
