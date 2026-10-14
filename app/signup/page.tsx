@@ -11,7 +11,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   const redirectTo = query.redirect?.startsWith("/") && !query.redirect.startsWith("//") ? query.redirect : "/account";
   const socialProviders = getSocialProviderAvailability();
   return (
-    <main className="auth-page relative min-h-screen overflow-hidden bg-[#f8f7f3] px-5 py-8 text-[#183126]">
+    <main className="auth-page relative min-h-screen overflow-hidden bg-[#f8f7f3] px-5 pb-8 pt-[max(2rem,env(safe-area-inset-top))] text-[#183126]">
       <div className="auth-page-glow auth-page-glow--mint pointer-events-none absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full bg-[#d8e7d3] blur-3xl" />
       <div className="auth-page-glow auth-page-glow--yellow pointer-events-none absolute -bottom-52 -left-40 h-[500px] w-[500px] rounded-full bg-[#f3eca0]/60 blur-3xl" />
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col">

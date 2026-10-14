@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
 import { createPolicyConsentFields } from "../lib/policy-consent";
@@ -9,6 +9,7 @@ import { formatUsPhone } from "../lib/phone";
 import { getGoogleSignInErrorMessage } from "../lib/oauth-error";
 import { normalizeAccountLocation } from "../lib/account-location";
 import UiIcon from "@/components/ui-icon";
+import CustomSelect from "@/components/custom-select";
 
 type SocialProvider = "google";
 
@@ -20,7 +21,9 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [postalCode, setPostalCode] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -35,6 +38,13 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
   const isLogin = mode === "login";
   const isProviderIntent = redirectTo === "/providers/join" || redirectTo.startsWith("/providers/join?") || redirectTo.startsWith("/provider/");
   const hasRequiredConsents = acceptedTerms && acknowledgedPrivacy;
+  const dateOfBirth = birthYear && birthMonth && birthDay ? `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}` : "";
+  const birthDays = useMemo(() => {
+    const month = Number(birthMonth);
+    const year = Number(birthYear);
+    const daysInMonth = month ? new Date(Date.UTC(year || 2000, month, 0)).getUTCDate() : 31;
+    return Array.from({ length: daysInMonth }, (_, index) => String(index + 1));
+  }, [birthMonth, birthYear]);
 
   async function confirmAgeEligibility() {
     if (!dateOfBirth) {
@@ -154,6 +164,10 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       return;
     }
 
+    if (isLogin && (birthMonth || birthDay || birthYear) && !dateOfBirth) {
+      setError("Enter your complete date of birth.");
+      return;
+    }
     if (isLogin && dateOfBirth && !await confirmAgeEligibility()) return;
     setError("");
     setLoading(true);
@@ -224,7 +238,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       {!isLogin && signupStep === 2 && <div className="my-6 flex items-center gap-3"><span className="h-px flex-1 bg-[#183126]/10" /><span className="text-xs text-[#89958f]">or continue with email</span><span className="h-px flex-1 bg-[#183126]/10" /></div>}
 
       <form onSubmit={submit} className="space-y-4">
-        {((!isLogin && signupStep === 1) || isLogin) && <label className="block"><span className="mb-2 block text-sm font-bold">Date of birth</span><input required={!isLogin} type="date" autoComplete="bday" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} className={inputClass} /><span className="mt-2 block text-xs leading-5 text-[#718078]">{isLogin ? "Enter this to complete a one-time age confirmation, or when continuing with Google. We do not store your full date of birth." : "You must be at least 18 years old to use BubsBookings. We use this only to confirm eligibility and do not store your full date of birth."}</span></label>}
+        {((!isLogin && signupStep === 1) || isLogin) && <DateOfBirthFields required={!isLogin} month={birthMonth} day={birthDay} year={birthYear} days={birthDays} onMonthChange={(value) => { setBirthMonth(value); if (birthDay && Number(birthDay) > new Date(Date.UTC(Number(birthYear) || 2000, Number(value), 0)).getUTCDate()) setBirthDay(""); }} onDayChange={setBirthDay} onYearChange={(value) => { setBirthYear(value); if (birthDay && birthMonth && Number(birthDay) > new Date(Date.UTC(Number(value), Number(birthMonth), 0)).getUTCDate()) setBirthDay(""); }} helpText={isLogin ? "Enter this to complete a one-time age confirmation, or when continuing with Google. We do not store your full date of birth." : "You must be at least 18 years old to use BubsBookings. We use this only to confirm eligibility and do not store your full date of birth."} inputClass={inputClass} />}
         {isLogin && <><SocialButton enabled={socialProviders.google} loading={socialLoading === "google"} disabled={Boolean(socialLoading)} onClick={() => void continueWith("google")} /><div className="flex items-center gap-3"><span className="h-px flex-1 bg-[#183126]/10" /><span className="text-xs text-[#89958f]">or continue with email</span><span className="h-px flex-1 bg-[#183126]/10" /></div></>}
         {!isLogin && signupStep === 2 && <label className="block"><span className="mb-2 block text-sm font-bold">Full name</span><input required autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your full name" className={inputClass} /></label>}
         {(isLogin || signupStep === 2) && <label className="block"><span className="mb-2 block text-sm font-bold">Email address</span><input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={inputClass} /></label>}
@@ -244,6 +258,14 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       {!isLogin && <p className="mt-5 text-center text-[11px] leading-5 text-[#89958f]">BubsBookings accounts are for adults age 18 or older.</p>}
     </div>
   );
+}
+
+function DateOfBirthFields({ required, month, day, year, days, onMonthChange, onDayChange, onYearChange, helpText, inputClass }: { required: boolean; month: string; day: string; year: string; days: string[]; onMonthChange: (value: string) => void; onDayChange: (value: string) => void; onYearChange: (value: string) => void; helpText: string; inputClass: string }) {
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 1899 }, (_, index) => String(currentYear - index));
+  const buttonClass = `${inputClass} min-w-0`;
+  const monthOptions = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((label, index) => ({ value: String(index + 1), label }));
+  return <fieldset className="block"><legend className="mb-2 text-sm font-bold">Date of birth</legend><div className="mx-auto grid w-full grid-cols-[minmax(0,1.25fr)_minmax(0,.8fr)_minmax(0,1fr)] gap-2 sm:gap-3"><CustomSelect required={required} ariaLabel="Birth month" value={month} onChange={onMonthChange} options={monthOptions} placeholder="Month" buttonClassName={buttonClass} /><CustomSelect required={required} ariaLabel="Birth day" value={day} onChange={onDayChange} options={days.map((value) => ({ value, label: value }))} placeholder="Day" buttonClassName={buttonClass} /><CustomSelect required={required} ariaLabel="Birth year" value={year} onChange={onYearChange} options={years.map((value) => ({ value, label: value }))} placeholder="Year" buttonClassName={buttonClass} /></div><span className="mt-2 block text-xs leading-5 text-[#718078]">{helpText}</span></fieldset>;
 }
 
 function SocialButton({ enabled, loading, disabled, onClick }: { enabled: boolean; loading: boolean; disabled: boolean; onClick: () => void }) {

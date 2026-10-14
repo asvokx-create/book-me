@@ -46,7 +46,12 @@ test("the eligibility endpoint and authentication hooks enforce a server-side si
   assert.match(auth, /ageVerifiedAt: new Date\(\)/);
   assert.match(auth, /UPDATE "user" SET age_verified_at = now\(\)/);
   assert.match(auth, /disableImplicitSignUp: true/);
-  assert.match(form, /type="date" autoComplete="bday"/);
+  assert.match(form, /function DateOfBirthFields/);
+  assert.match(form, /ariaLabel="Birth month"/);
+  assert.match(form, /ariaLabel="Birth day"/);
+  assert.match(form, /ariaLabel="Birth year"/);
+  assert.match(form, /placeholder="Day"/);
+  assert.match(form, /Enter your complete date of birth\./);
   assert.match(form, /Confirm your age before entering account details/);
   assert.match(migration, /DELETE FROM "session" AS active_session/);
   assert.match(migration, /account\.age_verified_at IS NULL/);
