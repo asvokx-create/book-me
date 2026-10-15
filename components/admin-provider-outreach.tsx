@@ -56,7 +56,8 @@ export default function AdminProviderOutreach() {
     setBusy("discover"); setError(""); setNotice(""); setDiscoveryResults([]);
     const response = await fetch("/api/admin/growth/outreach", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "discover", ...discovery }) }).catch(() => null);
     const data = await response?.json().catch(() => null);
-    if (!response?.ok) setError(data?.error || "Provider discovery could not be completed.");
+    if (!response) setError("Provider discovery could not reach BubsBookings. Check your connection and try again.");
+    else if (!response.ok) setError(typeof data?.error === "string" ? data.error : "Provider discovery is temporarily unavailable. Please try again later.");
     else { setDiscoveryResults(data.results || []); setNotice(`${data.results?.length || 0} public business results found. Review each one before saving.`); }
     if (data?.placesDiscoveryBudget) setPlacesDiscoveryBudget(data.placesDiscoveryBudget);
     setBusy("");

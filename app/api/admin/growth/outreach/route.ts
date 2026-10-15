@@ -37,36 +37,41 @@ export async function POST(request: Request) {
   const action = text(body?.action, 40);
 
   if (action === "discover") {
-    const city = text(body?.city, 100), state = text(body?.state, 2).toUpperCase(), category = text(body?.category, 100);
-    if (!city || !/^[A-Z]{2}$/.test(state) || !category) return NextResponse.json({ error: "Enter a city, state, and service category to search." }, { status: 400 });
-    const apiKey = process.env.GOOGLE_MAPS_PLACES_API_KEY;
-    if (!apiKey) return NextResponse.json({ error: "Provider discovery is not configured yet." }, { status: 503 });
-    const reservation = await reserveGooglePlacesTextSearchRequest();
-    if (!reservation.allowed) return NextResponse.json({ error: "The monthly provider-discovery limit has been reached. Searches will be available again next month.", placesDiscoveryBudget: reservation.usage }, { status: 429 });
-
-    let googleResponse: Response;
     try {
-      googleResponse = await fetch("https://places.googleapis.com/v1/places:searchText", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": apiKey,
-          "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryType,places.googleMapsUri",
-        },
-        body: JSON.stringify({ textQuery: `${category} in ${city}, ${state}`, pageSize: 20, languageCode: "en" }),
-        cache: "no-store",
+      const city = text(body?.city, 100), state = text(body?.state, 2).toUpperCase(), category = text(body?.category, 100);
+      if (!city || !/^[A-Z]{2}$/.test(state) || !category) return NextResponse.json({ error: "Enter a city, state, and service category to search." }, { status: 400 });
+      const apiKey = process.env.GOOGLE_MAPS_PLACES_API_KEY;
+      if (!apiKey) return NextResponse.json({ error: "Provider discovery needs its restricted Google Places API key added to the app's server environment before it can search." }, { status: 503 });
+      const reservation = await reserveGooglePlacesTextSearchRequest();
+      if (!reservation.allowed) return NextResponse.json({ error: "The monthly provider-discovery limit has been reached. Searches will be available again next month.", placesDiscoveryBudget: reservation.usage }, { status: 429 });
+
+      let googleResponse: Response;
+      try {
+        googleResponse = await fetch("https://places.googleapis.com/v1/places:searchText", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": apiKey,
+            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryType,places.googleMapsUri",
+          },
+          body: JSON.stringify({ textQuery: `${category} in ${city}, ${state}`, pageSize: 20, languageCode: "en" }),
+          cache: "no-store",
+        });
+      } catch {
+        return NextResponse.json({ error: "Provider discovery could not reach Google right now. Please try again later.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
+      }
+      if (!googleResponse.ok) return NextResponse.json({ error: "Google Places did not accept this search. Confirm that the server key is restricted to Places API (New), then try again.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
+      const payload = await googleResponse.json().catch(() => null) as { places?: Array<{ id?: string; displayName?: { text?: string }; formattedAddress?: string; primaryType?: string; googleMapsUri?: string }> } | null;
+      const results = (payload?.places ?? []).flatMap((place) => {
+        const businessName = text(place.displayName?.text, 160);
+        return businessName ? [{ id: text(place.id, 200), businessName, address: text(place.formattedAddress, 300), category: text(place.primaryType, 100), mapsUrl: website(place.googleMapsUri) }] : [];
       });
-    } catch {
-      return NextResponse.json({ error: "Provider discovery could not reach Google right now. Please try again later.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
+      await audit(session.user.id, "provider_outreach_places_search", `${city}-${state}-${category}`.slice(0, 80), { resultCount: results.length, month: reservation.usage.month, used: reservation.usage.used });
+      return NextResponse.json({ results, placesDiscoveryBudget: reservation.usage });
+    } catch (error) {
+      console.error("Provider discovery failed", error);
+      return NextResponse.json({ error: "Provider discovery is temporarily unavailable. Please try again later." }, { status: 500 });
     }
-    if (!googleResponse.ok) return NextResponse.json({ error: "Provider discovery is temporarily unavailable. Please try again later.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
-    const payload = await googleResponse.json().catch(() => null) as { places?: Array<{ id?: string; displayName?: { text?: string }; formattedAddress?: string; primaryType?: string; googleMapsUri?: string }> } | null;
-    const results = (payload?.places ?? []).flatMap((place) => {
-      const businessName = text(place.displayName?.text, 160);
-      return businessName ? [{ id: text(place.id, 200), businessName, address: text(place.formattedAddress, 300), category: text(place.primaryType, 100), mapsUrl: website(place.googleMapsUri) }] : [];
-    });
-    await audit(session.user.id, "provider_outreach_places_search", `${city}-${state}-${category}`.slice(0, 80), { resultCount: results.length, month: reservation.usage.month, used: reservation.usage.used });
-    return NextResponse.json({ results, placesDiscoveryBudget: reservation.usage });
   }
 
   if (action === "create") {
