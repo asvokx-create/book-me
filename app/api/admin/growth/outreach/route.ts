@@ -28,7 +28,7 @@ export async function GET() {
   return NextResponse.json({ prospects: prospects.rows, suppressions: suppressions.rows, drafts: drafts.rows, placesDiscoveryBudget });
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
@@ -143,4 +143,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
   return NextResponse.json({ error: "Unsupported outreach action." }, { status: 400 });
+}
+
+export async function POST(request: Request) {
+  try {
+    return await handlePost(request);
+  } catch (error) {
+    // Keep implementation details out of the browser while retaining the
+    // complete error in the protected application log for diagnosis.
+    console.error("Provider outreach request failed", error);
+    return NextResponse.json({ error: "Provider discovery could not be completed right now. Please try again shortly." }, { status: 500 });
+  }
 }
