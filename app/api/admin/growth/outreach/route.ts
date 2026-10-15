@@ -64,9 +64,10 @@ async function handlePost(request: Request) {
         },
         body: JSON.stringify({ textQuery: `${category} in ${city}, ${state}`, pageSize: 20, languageCode: "en" }),
         cache: "no-store",
-        // Return a controlled response before an upstream gateway can time out
-        // and turn a slow Google request into an unreadable browser error.
-        signal: AbortSignal.timeout(4_000),
+        // A cold external connection can take longer than four seconds from
+        // App Platform. Keep a firm bound while allowing Google enough time
+        // to establish the connection and return a normal Text Search result.
+        signal: AbortSignal.timeout(12_000),
       });
     } catch (error) {
       console.error("Provider discovery Google request failed", error);
