@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { resolve4 } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
@@ -9,18 +10,33 @@ export const runtime = "nodejs";
 
 type GooglePlacesResponse = { status: number; body: string };
 
-function searchGooglePlaces(apiKey: string, query: string) {
+function deadline<T>(promise: Promise<T>, milliseconds: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(message)), milliseconds);
+    void promise.then((result) => { clearTimeout(timeout); resolve(result); }, (error) => { clearTimeout(timeout); reject(error); });
+  });
+}
+
+async function searchGooglePlaces(apiKey: string, query: string) {
+  // Resolve an IPv4 address explicitly. This bypasses the platform's slower
+  // generic DNS path and retains the Google host name for TLS and HTTP.
+  const address = (await deadline(resolve4("places.googleapis.com"), 1_500, "Google Places address lookup timed out"))[0];
+  if (!address) throw new Error("Google Places has no IPv4 address available");
+
   return new Promise<GooglePlacesResponse>((resolve, reject) => {
     // App Platform ends a slow incoming request before a long outbound fetch
     // completes. A direct IPv4 request avoids an unavailable IPv6 route and
     // has its own timeout well inside the platform's request window.
     const request = httpsRequest({
-      hostname: "places.googleapis.com",
+      hostname: address,
+      servername: "places.googleapis.com",
       path: "/v1/places:searchText",
       method: "POST",
       family: 4,
       headers: {
+        Host: "places.googleapis.com",
         "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(query),
         "X-Goog-Api-Key": apiKey,
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryType,places.googleMapsUri",
       },
@@ -28,10 +44,11 @@ function searchGooglePlaces(apiKey: string, query: string) {
       let body = "";
       response.setEncoding("utf8");
       response.on("data", (chunk: string) => { body += chunk; });
-      response.on("end", () => resolve({ status: response.statusCode ?? 502, body }));
+      response.on("end", () => { clearTimeout(timeout); resolve({ status: response.statusCode ?? 502, body }); });
     });
-    request.setTimeout(6_500, () => request.destroy(new Error("Google Places request timed out")));
-    request.on("error", reject);
+    const timeout = setTimeout(() => request.destroy(new Error("Google Places request timed out")), 6_500);
+    request.on("error", (error) => { clearTimeout(timeout); reject(error); });
+    request.on("close", () => clearTimeout(timeout));
     request.end(query);
   });
 }
