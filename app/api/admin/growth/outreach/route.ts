@@ -37,6 +37,9 @@ async function searchGooglePlaces(apiKey: string, query: string) {
         Host: "places.googleapis.com",
         "Content-Type": "application/json",
         "Content-Length": Buffer.byteLength(query),
+        // The existing restricted Maps key authorizes BubsBookings' domain.
+        // This server-side call never exposes the key to the browser.
+        Referer: "https://bubsbookings.com/",
         "X-Goog-Api-Key": apiKey,
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryType,places.googleMapsUri",
       },
