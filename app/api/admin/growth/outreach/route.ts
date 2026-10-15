@@ -5,6 +5,8 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { getGooglePlacesTextSearchUsage, reserveGooglePlacesTextSearchRequest } from "@/lib/google-places-usage";
+import { findPublicBusinessEmail } from "@/lib/public-contact-discovery";
+import { enforceRateLimit } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 
@@ -59,6 +61,9 @@ async function searchGooglePlaces(apiKey: string, query: string) {
 
 const statuses = new Set(["researching", "contact_ready", "contacted", "replied", "interested", "registered", "not_interested", "suppressed"]);
 const suppressionReasons = new Set(["opt_out", "complaint", "hard_bounce", "invalid", "manual"]);
+// This records the approved future sender for reviewed outreach. It is not a
+// delivery configuration: this CRM intentionally has no email-sending action.
+const OUTREACH_SENDER_EMAIL = "christian@bubsbookings.com";
 
 function text(value: unknown, max: number) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function email(value: unknown) { const result = text(value, 254).toLowerCase(); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result) ? result : ""; }
@@ -78,7 +83,7 @@ export async function GET() {
     database.query(`SELECT id::text, prospect_id::text, subject, body, status, approval_note, approved_at, created_at FROM provider_outreach_drafts ORDER BY created_at DESC LIMIT 300`),
     getGooglePlacesTextSearchUsage(),
   ]);
-  return NextResponse.json({ prospects: prospects.rows, suppressions: suppressions.rows, drafts: drafts.rows, placesDiscoveryBudget });
+  return NextResponse.json({ prospects: prospects.rows, suppressions: suppressions.rows, drafts: drafts.rows, placesDiscoveryBudget, outreachSender: OUTREACH_SENDER_EMAIL });
 }
 
 async function handlePost(request: Request) {
@@ -127,6 +132,31 @@ async function handlePost(request: Request) {
       console.error("Provider discovery audit logging failed", error);
     }
     return NextResponse.json({ results, placesDiscoveryBudget: reservation.usage });
+  }
+
+  if (action === "find_public_email") {
+    // This is intentionally separate from Google Places discovery. It only
+    // reads the business website supplied by the reviewed result, and is
+    // limited so an administrator cannot turn it into a website crawler.
+    if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-outreach-public-email", limit: 12, windowSeconds: 3_600 })) {
+      return NextResponse.json({ error: "Too many public-contact lookups. Please wait an hour and try again." }, { status: 429 });
+    }
+    const businessName = text(body?.businessName, 160);
+    const businessWebsite = website(body?.website);
+    if (!businessWebsite) return NextResponse.json({ error: "This business does not have a public website to review for contact details." }, { status: 400 });
+    try {
+      const match = await findPublicBusinessEmail(businessWebsite);
+      await audit(session.user.id, "provider_outreach_public_email_checked", text(body?.resultId, 200) || businessName || businessWebsite, {
+        businessName: businessName || undefined,
+        found: Boolean(match),
+        checkedPageCount: match?.checkedUrls.length ?? 0,
+      });
+      if (!match) return NextResponse.json({ publicEmail: "", emailSource: "", message: "No public business email was found on the contact pages checked. Use the business contact form or phone number instead." });
+      return NextResponse.json({ publicEmail: match.email, emailSource: match.sourceUrl, message: "A public email was found. Review its source before saving this prospect." });
+    } catch (error) {
+      console.error("Public business email lookup failed", error);
+      return NextResponse.json({ error: "The public business website could not be reviewed right now. You can still use its contact page or phone number." }, { status: 502 });
+    }
   }
 
   if (action === "create") {
