@@ -72,7 +72,7 @@ type ProviderSummary = {
   publicProfileVisible: boolean;
 };
 
-type ProviderService = { id: string; companyId: string; companySlug: string; businessName: string; locationId: string | null; locationName: string | null; location: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; slug: string; title: string; category: string; price: number; durationMinutes: number; pricingType: "FIXED" | "HOURLY"; hourlyRateCents: number | null; minimumDurationMinutes: number | null; imageUrls: string[]; createdAt: string; viewCount: number };
+type ProviderService = { id: string; companyId: string; companySlug: string; businessName: string; locationId: string | null; locationName: string | null; location: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; slug: string; title: string; category: string; price: number; durationMinutes: number; pricingType: "FIXED" | "HOURLY"; hourlyRateCents: number | null; minimumDurationMinutes: number | null; imageUrls: string[]; createdAt: string; viewCount: number; completedBookingCount: number };
 
 type RevenueSummary = {
   totalRevenue: number;

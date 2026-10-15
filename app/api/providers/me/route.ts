@@ -79,6 +79,7 @@ export async function GET() {
     state: string | null;
     created_at: Date;
     view_count: number;
+    completed_booking_count: number;
     delivery_type: "IN_PERSON" | "REMOTE" | "BOTH";
   }>(
     `SELECT s.id::text, s.company_id::text, company.slug AS company_slug, company.name AS business_name,
@@ -96,6 +97,7 @@ export async function GET() {
                   OR (event.target_id IS NULL AND event.metadata->>'slug' = s.slug)
                 )
             ), 0) AS view_count,
+            COALESCE((SELECT count(*)::int FROM bookings booking WHERE booking.service_id=s.id AND booking.status='completed'), 0) AS completed_booking_count,
             COALESCE((
               SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id
@@ -123,6 +125,7 @@ export async function GET() {
     minimumDurationMinutes: service.minimum_duration_minutes,
     createdAt: service.created_at,
     viewCount: service.view_count,
+    completedBookingCount: service.completed_booking_count,
     imageUrls: service.image_urls ?? [],
     locationId: service.location_id,
     locationName: service.location_name,

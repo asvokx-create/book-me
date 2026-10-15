@@ -17,6 +17,8 @@ type MarketingService = {
   businessName: string;
   category: string;
   location: string;
+  viewCount: number;
+  completedBookingCount: number;
 };
 
 const publicSiteUrl = "https://bubsbookings.com";
@@ -99,6 +101,7 @@ export default function ProviderMarketingTools({ services, providerProfile, plan
             <ListingShareButton serviceId={selected.id} slug={selected.slug} title={selected.title} description={`Check out ${selected.title} by ${selected.businessName} on BubsBookings.`} className="!border-white/20 !bg-transparent !text-white hover:!border-white/40 hover:!bg-white/10" />
           </div>
           <Link href={`/services/${selected.slug}`} target="_blank" className="mt-4 inline-flex text-sm font-bold text-[#eee25a] underline decoration-[#eee25a]/60 underline-offset-4">Preview public listing ↗</Link>
+          <div className="mt-5 grid grid-cols-2 gap-2 text-center text-xs"><div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-lg font-bold text-white">{selected.viewCount.toLocaleString()}</p><p className="mt-1 text-[#c2d0c8]">public views</p></div><div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-lg font-bold text-white">{selected.completedBookingCount.toLocaleString()}</p><p className="mt-1 text-[#c2d0c8]">completed bookings</p></div></div>
         </div>
       </section>
 

@@ -8,6 +8,7 @@ import Script from "next/script";
 import { PreferencesProvider } from "@/components/preferences-provider";
 import InternalNavigationHistory from "@/components/internal-navigation-history";
 import AffiliateAttributionTracker from "@/components/affiliate-attribution-tracker";
+import GrowthAttributionTracker from "@/components/growth-attribution-tracker";
 import { AnalyticsConsentManager } from "@/components/analytics-consent";
 import "./globals.css";
 
@@ -68,7 +69,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Script id="privatus-analytics" src="https://privatusanalytics.com/js/pa.js" data-site="pa_QBY99J7UCK" data-modules="engage,auto,vitals,clicks,ask" strategy="beforeInteractive" defer />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
         <PreferencesProvider>
-          <Suspense fallback={null}><AnalyticsTracker /><InternalNavigationHistory /><AffiliateAttributionTracker /></Suspense>
+          <Suspense fallback={null}><AnalyticsTracker /><InternalNavigationHistory /><AffiliateAttributionTracker /><GrowthAttributionTracker /></Suspense>
           <div id="site-content" tabIndex={-1} className="contents">{children}</div>
           <SiteFooter />
           <AnalyticsConsentManager />
