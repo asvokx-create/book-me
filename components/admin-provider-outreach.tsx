@@ -9,6 +9,13 @@ type DiscoveryResult = { id: string; businessName: string; address: string; cate
 type DiscoveryBudget = { month: string; limit: number; used: number; remaining: number };
 const statuses = ["researching", "contact_ready", "contacted", "replied", "interested", "registered", "not_interested", "suppressed"];
 
+async function readApiJson(response: Response | null) {
+  const body = await response?.text().catch(() => "");
+  if (!body) return null;
+  try { return JSON.parse(body) as { error?: unknown; results?: DiscoveryResult[]; placesDiscoveryBudget?: DiscoveryBudget }; }
+  catch { return null; }
+}
+
 export default function AdminProviderOutreach() {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -55,10 +62,15 @@ export default function AdminProviderOutreach() {
   async function discover() {
     setBusy("discover"); setError(""); setNotice(""); setDiscoveryResults([]);
     const response = await fetch("/api/admin/growth/outreach", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "discover", ...discovery }) }).catch(() => null);
-    const data = await response?.json().catch(() => null);
+    const data = await readApiJson(response);
     if (!response) setError("Provider discovery could not reach BubsBookings. Check your connection and try again.");
-    else if (!response.ok) setError(typeof data?.error === "string" ? data.error : "Provider discovery is temporarily unavailable. Please try again later.");
-    else { setDiscoveryResults(data.results || []); setNotice(`${data.results?.length || 0} public business results found. Review each one before saving.`); }
+    else if (!response.ok) {
+      const safeError = typeof data?.error === "string" ? data.error : "";
+      if (safeError) setError(safeError);
+      else if (response.status === 504) setError("Provider discovery timed out before Google responded. Please try again shortly.");
+      else setError(`Provider discovery is temporarily unavailable (request ${response.status}). Please try again later.`);
+    }
+    else { setDiscoveryResults(data?.results || []); setNotice(`${data?.results?.length || 0} public business results found. Review each one before saving.`); }
     if (data?.placesDiscoveryBudget) setPlacesDiscoveryBudget(data.placesDiscoveryBudget);
     setBusy("");
   }
