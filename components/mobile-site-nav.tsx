@@ -15,7 +15,6 @@ const links = [
   ["Provider pricing", "/pricing"],
   ["Service areas", "/locations"],
   ["Our promise", "/promise"],
-  ["Partner program", "/partners"],
 ] as const;
 
 export default function MobileSiteNav() {
