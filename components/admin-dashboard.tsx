@@ -331,13 +331,13 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
         </div>
       </header>
 
-      <div className="dashboard-container grid min-w-0 gap-6 px-4 py-5 sm:px-5 sm:py-7 lg:grid-cols-[240px_minmax(0,1fr)] lg:px-8">
-        <aside className="admin-nav-shell min-w-0 overflow-hidden rounded-[1.35rem] bg-[#183126] p-3 text-white lg:min-h-[calc(100vh-8rem)] lg:rounded-[1.5rem]">
-          <div className="hidden px-4 pb-5 pt-3 lg:block">
+      <div className="dashboard-container grid min-w-0 gap-6 px-4 py-5 sm:px-5 sm:py-7 xl:grid-cols-[240px_minmax(0,1fr)] xl:px-8">
+        <aside className="admin-nav-shell min-w-0 overflow-x-hidden rounded-[1.35rem] bg-[#183126] p-3 text-white xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto xl:overscroll-contain xl:rounded-[1.5rem]">
+          <div className="hidden px-4 pb-5 pt-3 xl:block">
             <p className="text-xs font-bold uppercase tracking-[.16em] text-[#aabdb3]">Admin console</p>
             <p className="mt-2 text-lg font-bold">Hi, {firstName}</p>
           </div>
-          <div className="flex min-w-0 items-center justify-between gap-3 lg:hidden">
+          <div className="flex min-w-0 items-center justify-between gap-3 xl:hidden">
             <div className="flex min-w-0 items-center gap-3 px-2">
               <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#eee25a] text-[#183126]">{activeNavItem.icon}</span>
               <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#aabdb3]">Admin section</p><p className="truncate text-sm font-bold">{activeNavItem.label}</p></div>
@@ -346,20 +346,20 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
               {mobileNavOpen ? "Close" : "All sections"} <span aria-hidden="true">{mobileNavOpen ? "−" : "+"}</span>
             </button>
           </div>
-          <nav id="admin-mobile-menu" className={(mobileNavOpen ? "mt-3 grid " : "hidden ") + "min-w-0 gap-1 border-t border-white/10 pt-3 sm:grid-cols-2 lg:mt-0 lg:grid lg:grid-cols-1 lg:border-0 lg:pt-0"} aria-label="Admin sections">
+          <nav id="admin-mobile-menu" className={(mobileNavOpen ? "mt-3 grid " : "hidden ") + "min-w-0 gap-1 border-t border-white/10 pt-3 sm:grid-cols-2 xl:mt-0 xl:grid xl:grid-cols-1 xl:border-0 xl:pt-0"} aria-label="Admin sections">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => selectSection(item.id)}
                 aria-current={section === item.id ? "page" : undefined}
-                className={"flex min-h-11 min-w-0 items-center gap-2 rounded-xl px-4 py-2.5 text-left text-sm font-bold transition lg:rounded-2xl lg:py-3 " + (section === item.id ? "bg-[#eee25a] text-[#183126]" : "text-white/80 hover:bg-white/10 hover:text-white")}
+                className={"flex min-h-11 min-w-0 items-center gap-2 rounded-xl px-4 py-2.5 text-left text-sm font-bold transition xl:rounded-2xl xl:py-3 " + (section === item.id ? "bg-[#eee25a] text-[#183126]" : "text-white/80 hover:bg-white/10 hover:text-white")}
               >
                 <span className="w-5 shrink-0 text-center">{item.icon}</span><span className="min-w-0 flex-1">{item.label}</span>
                 {item.id === "reports" && openReports.length > 0 && <span className="ml-auto rounded-full bg-[#fff0e7] px-2 py-0.5 text-[10px] text-[#9a4e25]">{openReports.length}</span>}
               </button>
             ))}
-            <Link href="/admin/recommendations" className="hidden min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white lg:flex">Client recommendations</Link>
-            <div className="mt-2 grid gap-1 border-t border-white/10 pt-3 sm:col-span-2 sm:grid-cols-2 lg:hidden">
+            <Link href="/admin/recommendations" className="hidden min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white xl:flex">Client recommendations</Link>
+            <div className="mt-2 grid gap-1 border-t border-white/10 pt-3 sm:col-span-2 sm:grid-cols-2 xl:hidden">
               <Link href="/admin/reported-bugs" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Bug reports</Link>
               <Link href="/admin/disputes" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Booking disputes</Link>
               <Link href="/admin/support" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Support &amp; verification</Link>

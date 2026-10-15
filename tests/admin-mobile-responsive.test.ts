@@ -13,8 +13,10 @@ test("admin mobile navigation exposes every dashboard and route section without 
   assert.match(dashboard, /aria-controls="admin-mobile-menu"/);
   assert.match(dashboard, /All sections/);
   assert.match(dashboard, /aria-current=\{section === item\.id \? "page" : undefined\}/);
-  assert.match(dashboard, /lg:grid-cols-\[240px_minmax\(0,1fr\)\]/);
-  assert.match(dashboard, /admin-nav-shell min-w-0 overflow-hidden/);
+  assert.match(dashboard, /xl:grid-cols-\[240px_minmax\(0,1fr\)\]/);
+  assert.match(dashboard, /admin-nav-shell min-w-0 overflow-x-hidden/);
+  assert.match(dashboard, /xl:max-h-\[calc\(100dvh-2rem\)\] xl:overflow-y-auto/);
+  assert.match(dashboard, /xl:hidden/);
   assert.doesNotMatch(dashboard, /mobile-scroll-row/);
 
   for (const href of ["/admin/reported-bugs", "/admin/disputes", "/admin/support", "/admin/operations", "/admin/expenses", "/account"]) {
