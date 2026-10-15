@@ -20,7 +20,7 @@ test("provider outreach is admin-protected, reviewed, and safely deliverable", (
   assert.match(migration, /provider_outreach_prospects_identity_key/);
   assert.match(route, /getAdminSession\(\)/);
   assert.match(route, /provider_outreach_suppressions/);
-  assert.match(route, /approval note is required/i);
+  assert.doesNotMatch(route, /approval note is required/i);
   assert.doesNotMatch(route, /sendMarketingEmail/);
   assert.match(deliveryMigration, /UNIQUE \(draft_id\)/);
   assert.match(deliveryMigration, /provider_outreach_deliveries/);
@@ -40,6 +40,7 @@ test("provider outreach is admin-protected, reviewed, and safely deliverable", (
   assert.match(ui, /Create and review a draft first/);
   assert.match(ui, /You can create a draft now/);
   assert.match(ui, /Use friendlier wording/);
+  assert.match(ui, /Optional approval note/);
   assert.match(ui, /recipient-facing message/);
   assert.match(ui, /permanently suppressed/i);
 });

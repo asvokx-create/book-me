@@ -221,7 +221,7 @@ async function handlePost(request: Request) {
 
   if (action === "approve_draft") {
     const draftId = text(body?.draftId, 80), note = text(body?.approvalNote, 1000);
-    if (!draftId || !note) return NextResponse.json({ error: "An approval note is required." }, { status: 400 });
+    if (!draftId) return NextResponse.json({ error: "Choose a draft to approve." }, { status: 400 });
     const approved = await database.query(`UPDATE provider_outreach_drafts SET status='approved',approval_note=$2,approved_by=$3,approved_at=now() WHERE id::text=$1 AND prospect_id::text=$4 AND status='draft' RETURNING id`, [draftId, note, session.user.id, prospectId]);
     if (!approved.rows[0]) return NextResponse.json({ error: "That draft is not available for approval." }, { status: 409 });
     await audit(session.user.id, "provider_outreach_draft_approved", draftId, { prospectId });
