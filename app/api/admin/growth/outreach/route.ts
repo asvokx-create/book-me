@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { getGooglePlacesTextSearchUsage, reserveGooglePlacesTextSearchRequest } from "@/lib/google-places-usage";
-import { enforceRateLimit } from "@/lib/request-security";
 
 const statuses = new Set(["researching", "contact_ready", "contacted", "replied", "interested", "registered", "not_interested", "suppressed"]);
 const suppressionReasons = new Set(["opt_out", "complaint", "hard_bounce", "invalid", "manual"]);
@@ -32,7 +31,6 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
-  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-provider-outreach", limit: 40 })) return NextResponse.json({ error: "Too many outreach actions. Please try again shortly." }, { status: 429 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const action = text(body?.action, 40);
 
@@ -41,6 +39,11 @@ export async function POST(request: Request) {
     if (!city || !/^[A-Z]{2}$/.test(state) || !category) return NextResponse.json({ error: "Enter a city, state, and service category to search." }, { status: 400 });
     const apiKey = process.env.GOOGLE_MAPS_PLACES_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "Provider discovery needs its restricted Google Places API key added to the app's server environment before it can search." }, { status: 503 });
+    // This route is limited to administrators and every search atomically
+    // reserves one request in the shared 4,999-per-month Google budget below.
+    // Do not put the generic short-window limiter ahead of that reservation:
+    // an outage in the generic limiter must not turn this controlled workflow
+    // into an opaque 500 response.
     let reservation: Awaited<ReturnType<typeof reserveGooglePlacesTextSearchRequest>>;
     try {
       reservation = await reserveGooglePlacesTextSearchRequest();

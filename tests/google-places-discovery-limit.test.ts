@@ -24,6 +24,7 @@ test("provider discovery has a database-backed monthly Google Places request cap
   assert.match(route, /monthly provider-discovery limit has been reached/i);
   assert.match(route, /Provider discovery audit logging failed/);
   assert.match(route, /Provider discovery budget check failed/);
+  assert.doesNotMatch(route, /enforceRateLimit/);
   assert.match(ui, /Provider discovery could not reach BubsBookings/);
   assert.match(requestSecurity, /to_timestamp\(\(floor\(extract\(epoch FROM now\(\)\) \/ \$3::double precision\) \* \$3::double precision\)\)/);
 });
