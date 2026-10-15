@@ -1,0 +1,14 @@
+"use client";
+
+import { useState } from "react";
+
+export default function OutreachUnsubscribeButton({ token }: { token: string }) {
+  const [state, setState] = useState<"ready" | "working" | "done" | "error">("ready");
+  async function submit() {
+    setState("working");
+    const response = await fetch("/api/outreach/unsubscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) }).catch(() => null);
+    setState(response?.ok ? "done" : "error");
+  }
+  if (state === "done") return <p role="status" className="mt-6 rounded-2xl bg-[#e6f1e5] p-4 text-sm font-bold text-[#34704a]">You are unsubscribed from BubsBookings provider outreach emails.</p>;
+  return <><button type="button" disabled={state === "working"} onClick={() => void submit()} className="mt-6 min-h-12 rounded-full bg-[#183126] px-6 text-sm font-bold text-white disabled:opacity-60">{state === "working" ? "Updating…" : "Unsubscribe"}</button>{state === "error" && <p role="alert" className="mt-3 text-sm font-bold text-[#9a4e25]">We could not update this preference. Please try again.</p>}</>;
+}

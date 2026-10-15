@@ -6,10 +6,13 @@ import test from "node:test";
 const root = process.cwd();
 const read = (...parts: string[]) => readFileSync(join(root, ...parts), "utf8");
 
-test("provider outreach is a separate, admin-protected draft workflow", () => {
+test("provider outreach is admin-protected, reviewed, and safely deliverable", () => {
   const migration = read("database", "migrations", "085_admin_provider_outreach.sql");
+  const deliveryMigration = read("database", "migrations", "089_provider_outreach_email_delivery.sql");
   const route = read("app", "api", "admin", "growth", "outreach", "route.ts");
   const ui = read("components", "admin-provider-outreach.tsx");
+  const sender = read("lib", "provider-outreach-email.ts");
+  const unsubscribe = read("app", "api", "outreach", "unsubscribe", "route.ts");
 
   assert.match(migration, /provider_outreach_prospects/);
   assert.match(migration, /provider_outreach_suppressions/);
@@ -19,6 +22,16 @@ test("provider outreach is a separate, admin-protected draft workflow", () => {
   assert.match(route, /provider_outreach_suppressions/);
   assert.match(route, /approval note is required/i);
   assert.doesNotMatch(route, /sendMarketingEmail/);
-  assert.match(ui, /It does not send email/);
+  assert.match(deliveryMigration, /UNIQUE \(draft_id\)/);
+  assert.match(deliveryMigration, /provider_outreach_deliveries/);
+  assert.match(route, /action === "send_draft"/);
+  assert.match(route, /admin-provider-outreach-send/);
+  assert.match(route, /isOutreachEmailConfigured/);
+  assert.match(route, /provider-outreach-\$\{draft\.id\}/);
+  assert.match(sender, /OUTREACH_POSTAL_ADDRESS/);
+  assert.match(sender, /List-Unsubscribe/);
+  assert.match(sender, /Advertisement from BubsBookings/);
+  assert.match(unsubscribe, /provider_outreach_suppressions/);
+  assert.match(ui, /Send email/);
   assert.match(ui, /permanently suppressed/i);
 });

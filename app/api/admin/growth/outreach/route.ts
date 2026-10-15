@@ -6,6 +6,7 @@ import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { getGooglePlacesTextSearchUsage, reserveGooglePlacesTextSearchRequest } from "@/lib/google-places-usage";
 import { findPublicBusinessEmail } from "@/lib/public-contact-discovery";
+import { isOutreachEmailConfigured, outreachSender, renderOutreachEmail, sendOutreachEmail } from "@/lib/provider-outreach-email";
 import { enforceRateLimit } from "@/lib/request-security";
 
 export const runtime = "nodejs";
@@ -61,9 +62,6 @@ async function searchGooglePlaces(apiKey: string, query: string) {
 
 const statuses = new Set(["researching", "contact_ready", "contacted", "replied", "interested", "registered", "not_interested", "suppressed"]);
 const suppressionReasons = new Set(["opt_out", "complaint", "hard_bounce", "invalid", "manual"]);
-// This records the approved future sender for reviewed outreach. It is not a
-// delivery configuration: this CRM intentionally has no email-sending action.
-const OUTREACH_SENDER_EMAIL = "christian@bubsbookings.com";
 
 function text(value: unknown, max: number) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function email(value: unknown) { const result = text(value, 254).toLowerCase(); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result) ? result : ""; }
@@ -77,13 +75,14 @@ async function audit(actorUserId: string, action: string, targetId: string, deta
 export async function GET() {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
-  const [prospects, suppressions, drafts, placesDiscoveryBudget] = await Promise.all([
+  const [prospects, suppressions, drafts, deliveries, placesDiscoveryBudget] = await Promise.all([
     database.query(`SELECT prospect.id::text, prospect.business_name, prospect.website, prospect.public_email, prospect.public_phone, prospect.public_address, prospect.city, prospect.state, prospect.service_category, prospect.contact_source, prospect.research_notes, prospect.status, prospect.last_contacted_at, prospect.replied_at, prospect.created_at, prospect.updated_at, count(draft.id)::int AS draft_count, max(draft.created_at) AS latest_draft_at FROM provider_outreach_prospects prospect LEFT JOIN provider_outreach_drafts draft ON draft.prospect_id=prospect.id GROUP BY prospect.id ORDER BY CASE prospect.status WHEN 'interested' THEN 0 WHEN 'replied' THEN 1 WHEN 'contact_ready' THEN 2 WHEN 'researching' THEN 3 ELSE 4 END, prospect.updated_at DESC LIMIT 300`),
     database.query(`SELECT id::text, reason, note, created_at FROM provider_outreach_suppressions ORDER BY created_at DESC LIMIT 100`),
     database.query(`SELECT id::text, prospect_id::text, subject, body, status, approval_note, approved_at, created_at FROM provider_outreach_drafts ORDER BY created_at DESC LIMIT 300`),
+    database.query(`SELECT id::text,draft_id::text,prospect_id::text,status,sent_at,error_message FROM provider_outreach_deliveries ORDER BY created_at DESC LIMIT 300`),
     getGooglePlacesTextSearchUsage(),
   ]);
-  return NextResponse.json({ prospects: prospects.rows, suppressions: suppressions.rows, drafts: drafts.rows, placesDiscoveryBudget, outreachSender: OUTREACH_SENDER_EMAIL });
+  return NextResponse.json({ prospects: prospects.rows, suppressions: suppressions.rows, drafts: drafts.rows, deliveries: deliveries.rows, placesDiscoveryBudget, outreachSender: outreachSender(), outreachDeliveryReady: isOutreachEmailConfigured() });
 }
 
 async function handlePost(request: Request) {
@@ -208,6 +207,39 @@ async function handlePost(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  if (action === "send_draft") {
+    const draftId = text(body?.draftId, 80);
+    if (!draftId) return NextResponse.json({ error: "Choose an approved draft to send." }, { status: 400 });
+    if (!prospect.public_email || prospect.status === "suppressed" || prospect.status === "registered") return NextResponse.json({ error: "This prospect cannot receive provider outreach." }, { status: 409 });
+    if (!isOutreachEmailConfigured()) return NextResponse.json({ error: "Outreach sending needs a verified Resend sender, an approved mailing address, and a signing secret before it can send email." }, { status: 503 });
+    if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-provider-outreach-send", limit: 20, windowSeconds: 3_600 })) return NextResponse.json({ error: "Too many outreach emails were requested. Please wait and try again." }, { status: 429 });
+    const [blocked, draftResult] = await Promise.all([
+      database.query(`SELECT 1 FROM provider_outreach_suppressions WHERE email_hash=$1 LIMIT 1`, [emailHash(prospect.public_email)]),
+      database.query<{ id: string; subject: string; body: string }>(`SELECT id::text,subject,body FROM provider_outreach_drafts WHERE id::text=$1 AND prospect_id::text=$2 AND status='approved' LIMIT 1`, [draftId, prospectId]),
+    ]);
+    if (blocked.rows[0]) return NextResponse.json({ error: "This contact is on the permanent suppression list." }, { status: 409 });
+    const draft = draftResult.rows[0];
+    if (!draft) return NextResponse.json({ error: "Only an approved draft can be sent." }, { status: 409 });
+
+    // The unique draft ID is the application-level idempotency key. A retry is
+    // only permitted after a known failure; a sent or in-progress draft cannot
+    // be sent again by a second click or concurrent request.
+    const deliveryResult = await database.query<{ id: string; status: string }>(`INSERT INTO provider_outreach_deliveries(prospect_id,draft_id,recipient_email,sender_email,status,sent_by) VALUES($1::uuid,$2::uuid,$3,$4,'sending',$5) ON CONFLICT(draft_id) DO UPDATE SET status='sending',error_message='' WHERE provider_outreach_deliveries.status='failed' RETURNING id::text,status`, [prospectId, draft.id, prospect.public_email, outreachSender(), session.user.id]);
+    const delivery = deliveryResult.rows[0];
+    if (!delivery) return NextResponse.json({ error: "This approved draft has already been sent or is currently being delivered." }, { status: 409 });
+    const rendered = renderOutreachEmail({ businessName: prospect.business_name, subject: draft.subject, body: draft.body, deliveryId: delivery.id, recipientEmail: prospect.public_email });
+    const sent = await sendOutreachEmail({ to: prospect.public_email, subject: draft.subject, html: rendered.html, unsubscribeUrl: rendered.unsubscribeUrl, idempotencyKey: `provider-outreach-${draft.id}` });
+    if (!sent.sent) {
+      await database.query(`UPDATE provider_outreach_deliveries SET status='failed',error_message=$2 WHERE id::text=$1`, [delivery.id, sent.error]);
+      await audit(session.user.id, "provider_outreach_email_failed", delivery.id, { prospectId, draftId });
+      return NextResponse.json({ error: sent.error }, { status: 502 });
+    }
+    await database.query(`UPDATE provider_outreach_deliveries SET status='sent',provider_message_id=$2,sent_at=now(),error_message='' WHERE id::text=$1`, [delivery.id, sent.messageId]);
+    await database.query(`UPDATE provider_outreach_prospects SET status='contacted',last_contacted_at=now() WHERE id::text=$1 AND status NOT IN ('suppressed','registered')`, [prospectId]);
+    await audit(session.user.id, "provider_outreach_email_sent", delivery.id, { prospectId, draftId, sender: outreachSender() });
+    return NextResponse.json({ ok: true });
+  }
+
   if (action === "suppress") {
     if (!prospect.public_email) return NextResponse.json({ error: "This prospect has no email to suppress." }, { status: 400 });
     const reason = text(body?.reason, 40);
@@ -227,6 +259,6 @@ export async function POST(request: Request) {
     // Keep implementation details out of the browser while retaining the
     // complete error in the protected application log for diagnosis.
     console.error("Provider outreach request failed", error);
-    return NextResponse.json({ error: "Provider discovery could not be completed right now. Please try again shortly." }, { status: 500 });
+    return NextResponse.json({ error: "The provider outreach action could not be completed right now. Please try again shortly." }, { status: 500 });
   }
 }

@@ -12,6 +12,7 @@ test("provider discovery has a database-backed monthly Google Places request cap
   const usage = read("lib", "google-places-usage.ts");
   const route = read("app", "api", "admin", "growth", "outreach", "route.ts");
   const ui = read("components", "admin-provider-outreach.tsx");
+  const outreachEmail = read("lib", "provider-outreach-email.ts");
   const requestSecurity = read("lib", "request-security.ts");
 
   assert.match(migration, /google_places_usage_months/);
@@ -46,7 +47,7 @@ test("provider discovery has a database-backed monthly Google Places request cap
   assert.match(ui, /result\.publicPhone/);
   assert.match(ui, /result\.website/);
   assert.match(ui, /Find public email/);
-  assert.match(route, /christian@bubsbookings\.com/);
+  assert.match(outreachEmail, /christian@bubsbookings\.com/);
   assert.match(ui, /Google does not provide business email addresses/);
   assert.match(requestSecurity, /to_timestamp\(\(floor\(extract\(epoch FROM now\(\)\) \/ \$3::double precision\) \* \$3::double precision\)\)/);
 });
