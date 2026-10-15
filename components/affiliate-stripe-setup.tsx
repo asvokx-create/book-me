@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { readJsonApiResponse } from "@/lib/json-api-response";
 
 type State = "loading" | "not_started" | "action_needed" | "in_review" | "ready" | "unavailable" | "not_available";
+type StripeApiResponse = { state?: State; taxState?: string; url?: string; error?: string };
+
+async function readStripeResponse(response: Response) {
+  const parsed = await readJsonApiResponse<StripeApiResponse>(response);
+  if (parsed.error) throw new Error(`${parsed.error} Refresh the page and sign in again before retrying.`);
+  return { response, result: parsed.data ?? {} };
+}
 
 export default function AffiliateStripeSetup({ initialConnected, initialReady, initialTaxState, returning }: { initialConnected: boolean; initialReady: boolean; initialTaxState: string; returning: boolean }) {
   const [state, setState] = useState<State>(initialReady ? "ready" : initialConnected ? "in_review" : "not_started");
@@ -12,8 +20,8 @@ export default function AffiliateStripeSetup({ initialConnected, initialReady, i
   async function refresh() {
     setState("loading");
     try {
-      const response = await fetch("/api/affiliates/stripe/status", { cache: "no-store" });
-      const result = await response.json() as { state?: State; taxState?: string; error?: string };
+      const response = await fetch("/api/affiliates/stripe/status", { cache: "no-store", headers: { Accept: "application/json" } });
+      const { result } = await readStripeResponse(response);
       if (!response.ok) throw new Error(result.error ?? "Stripe status could not be refreshed.");
       setState(result.state ?? "unavailable");
       if (result.taxState) setTaxState(result.taxState);
@@ -25,8 +33,8 @@ export default function AffiliateStripeSetup({ initialConnected, initialReady, i
   useEffect(() => {
     if (!returning) return;
     let active = true;
-    fetch("/api/affiliates/stripe/status", { cache: "no-store" })
-      .then(async response => ({ response, result: await response.json() as { state?: State; taxState?: string; error?: string } }))
+    fetch("/api/affiliates/stripe/status", { cache: "no-store", headers: { Accept: "application/json" } })
+      .then(readStripeResponse)
       .then(({ response, result }) => {
         if (!active) return;
         if (!response.ok) throw new Error(result.error ?? "Stripe status could not be refreshed.");
@@ -43,8 +51,8 @@ export default function AffiliateStripeSetup({ initialConnected, initialReady, i
   async function connect() {
     setBusy(true); setError("");
     try {
-      const response = await fetch("/api/affiliates/stripe/connect", { method: "POST" });
-      const result = await response.json() as { url?: string; error?: string };
+      const response = await fetch("/api/affiliates/stripe/connect", { method: "POST", headers: { Accept: "application/json" } });
+      const { result } = await readStripeResponse(response);
       if (!response.ok || !result.url) throw new Error(result.error ?? "Stripe setup could not be started.");
       window.location.assign(result.url);
     } catch (cause) {

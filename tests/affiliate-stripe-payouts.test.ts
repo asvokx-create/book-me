@@ -9,13 +9,17 @@ test("affiliate Stripe setup uses hosted recipient onboarding and stores no bank
 
   assert.match(migration, /stripe_account_id[\s\S]*stripe_payouts_enabled[\s\S]*stripe_transfer_id/);
   assert.match(route, /type: "express"/);
-  assert.match(route, /service_agreement: "recipient"/);
+  assert.doesNotMatch(route, /service_agreement: "recipient"/);
+  assert.doesNotMatch(route, /tos_acceptance:/);
   assert.match(route, /capabilities: \{ transfers: \{ requested: true \} \}/);
   assert.match(route, /type: "account_onboarding"/);
+  assert.match(route, /affiliate-connect-\$\{mode\}-v2-\$\{affiliate\.id\}/);
   assert.doesNotMatch(migration, /routing_number|account_number|bank_login/i);
   assert.match(dashboard, /Set up Stripe payouts/);
   assert.match(dashboard, /Continue Stripe setup/);
   assert.match(dashboard, /Stripe payouts ready/);
+  assert.match(dashboard, /readJsonApiResponse/);
+  assert.match(dashboard, /Accept: "application\/json"/);
 });
 
 test("affiliate payouts create real idempotent Stripe transfers and remain retryable", async () => {

@@ -30,9 +30,11 @@ export async function POST(request: Request) {
         email: affiliate.email,
         business_profile: { name: affiliate.display_name, url: origin },
         capabilities: { transfers: { requested: true } },
-        tos_acceptance: { service_agreement: "recipient" },
         metadata: { affiliateId: affiliate.id, userId: session.user.id, kind: "affiliate_payout_recipient" },
-      }, { idempotencyKey: `affiliate-connect-${mode}-v1-${affiliate.id}` });
+        // Stripe's hosted Express onboarding collects the connected account's
+        // agreement acceptance. Do not submit tos_acceptance here: the
+        // recipient agreement value is rejected for this account setup.
+      }, { idempotencyKey: `affiliate-connect-${mode}-v2-${affiliate.id}` });
       accountId = account.id;
       await database.query(`UPDATE affiliate_profiles SET stripe_account_id=$2,stripe_connect_mode=$3,
         stripe_details_submitted=false,stripe_payouts_enabled=false,stripe_requirements_due=ARRAY[]::text[],payment_status='not_ready'
