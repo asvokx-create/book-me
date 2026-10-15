@@ -188,11 +188,16 @@ async function handlePost(request: Request) {
   }
 
   if (action === "draft") {
-    if (!prospect.public_email || prospect.status === "suppressed") return NextResponse.json({ error: "A non-suppressed public business email is required before making a draft." }, { status: 409 });
-    const blocked = await database.query(`SELECT 1 FROM provider_outreach_suppressions WHERE email_hash=$1 LIMIT 1`, [emailHash(prospect.public_email)]);
-    if (blocked.rows[0]) return NextResponse.json({ error: "This contact is on the permanent suppression list." }, { status: 409 });
+    // Drafting is an internal, reversible review step. It is useful even before
+    // a public inbox has been found; delivery remains separately blocked until
+    // a reviewed email address is present.
+    if (prospect.status === "suppressed") return NextResponse.json({ error: "This contact is on the permanent suppression list." }, { status: 409 });
+    if (prospect.public_email) {
+      const blocked = await database.query(`SELECT 1 FROM provider_outreach_suppressions WHERE email_hash=$1 LIMIT 1`, [emailHash(prospect.public_email)]);
+      if (blocked.rows[0]) return NextResponse.json({ error: "This contact is on the permanent suppression list." }, { status: 409 });
+    }
     const subject = `An invitation for ${prospect.business_name} to join BubsBookings`;
-    const bodyText = `Hello ${prospect.business_name} team,\n\nBubsBookings is inviting independent ${prospect.service_category} providers serving ${prospect.city}, ${prospect.state} to consider listing their services on our marketplace.\n\nIf you are interested, you can review the provider signup information at https://bubsbookings.com/providers/join.\n\nThis is a saved draft only. Before any commercial email is sent, an administrator must approve it and add BubsBookings' approved mailing address and a working opt-out link.\n\nThank you,\nBubsBookings`;
+    const bodyText = `Hello ${prospect.business_name} team,\n\nBubsBookings is inviting independent ${prospect.service_category} providers serving ${prospect.city}, ${prospect.state} to consider listing their services on our marketplace.\n\nIf you are interested, you can review the provider signup information at https://bubsbookings.com/providers/join.\n\nThis is a saved draft only. Before any commercial email is sent, an administrator must confirm a reviewed public business email and approve this specific draft.\n\nThank you,\nBubsBookings`;
     const draft = await database.query<{ id: string }>(`INSERT INTO provider_outreach_drafts(prospect_id,subject,body) VALUES($1::uuid,$2,$3) RETURNING id::text`, [prospectId, subject, bodyText]);
     await audit(session.user.id, "provider_outreach_draft_created", draft.rows[0].id, { prospectId });
     return NextResponse.json({ ok: true });
