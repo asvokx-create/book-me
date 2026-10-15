@@ -64,9 +64,13 @@ async function handlePost(request: Request) {
         },
         body: JSON.stringify({ textQuery: `${category} in ${city}, ${state}`, pageSize: 20, languageCode: "en" }),
         cache: "no-store",
+        // Return a controlled response before an upstream gateway can time out
+        // and turn a slow Google request into an unreadable browser error.
+        signal: AbortSignal.timeout(4_000),
       });
-    } catch {
-      return NextResponse.json({ error: "Provider discovery could not reach Google right now. Please try again later.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
+    } catch (error) {
+      console.error("Provider discovery Google request failed", error);
+      return NextResponse.json({ error: "Provider discovery could not reach Google quickly enough. Please try again shortly.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
     }
     if (!googleResponse.ok) return NextResponse.json({ error: "Google Places did not accept this search. Confirm that the server key is restricted to Places API (New), then try again.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
     const payload = await googleResponse.json().catch(() => null) as { places?: Array<{ id?: string; displayName?: { text?: string }; formattedAddress?: string; primaryType?: string; googleMapsUri?: string }> } | null;
