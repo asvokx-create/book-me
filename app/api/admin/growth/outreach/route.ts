@@ -40,7 +40,9 @@ async function searchGooglePlaces(apiKey: string, query: string) {
         // The server-only key remains in the platform environment and is never
         // exposed to the browser.
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryType,places.googleMapsUri",
+        // Google Places does not provide email. Request only the public
+        // address, phone, and website fields used by this reviewed workflow.
+        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryType,places.googleMapsUri,places.nationalPhoneNumber,places.websiteUri",
       },
     }, (response) => {
       let body = "";
@@ -71,7 +73,7 @@ export async function GET() {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
   const [prospects, suppressions, drafts, placesDiscoveryBudget] = await Promise.all([
-    database.query(`SELECT prospect.id::text, prospect.business_name, prospect.website, prospect.public_email, prospect.public_phone, prospect.city, prospect.state, prospect.service_category, prospect.contact_source, prospect.research_notes, prospect.status, prospect.last_contacted_at, prospect.replied_at, prospect.created_at, prospect.updated_at, count(draft.id)::int AS draft_count, max(draft.created_at) AS latest_draft_at FROM provider_outreach_prospects prospect LEFT JOIN provider_outreach_drafts draft ON draft.prospect_id=prospect.id GROUP BY prospect.id ORDER BY CASE prospect.status WHEN 'interested' THEN 0 WHEN 'replied' THEN 1 WHEN 'contact_ready' THEN 2 WHEN 'researching' THEN 3 ELSE 4 END, prospect.updated_at DESC LIMIT 300`),
+    database.query(`SELECT prospect.id::text, prospect.business_name, prospect.website, prospect.public_email, prospect.public_phone, prospect.public_address, prospect.city, prospect.state, prospect.service_category, prospect.contact_source, prospect.research_notes, prospect.status, prospect.last_contacted_at, prospect.replied_at, prospect.created_at, prospect.updated_at, count(draft.id)::int AS draft_count, max(draft.created_at) AS latest_draft_at FROM provider_outreach_prospects prospect LEFT JOIN provider_outreach_drafts draft ON draft.prospect_id=prospect.id GROUP BY prospect.id ORDER BY CASE prospect.status WHEN 'interested' THEN 0 WHEN 'replied' THEN 1 WHEN 'contact_ready' THEN 2 WHEN 'researching' THEN 3 ELSE 4 END, prospect.updated_at DESC LIMIT 300`),
     database.query(`SELECT id::text, reason, note, created_at FROM provider_outreach_suppressions ORDER BY created_at DESC LIMIT 100`),
     database.query(`SELECT id::text, prospect_id::text, subject, body, status, approval_note, approved_at, created_at FROM provider_outreach_drafts ORDER BY created_at DESC LIMIT 300`),
     getGooglePlacesTextSearchUsage(),
@@ -91,7 +93,7 @@ async function handlePost(request: Request) {
     const apiKey = process.env.GOOGLE_MAPS_PLACES_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "Provider discovery needs its restricted Google Places API key added to the app's server environment before it can search." }, { status: 503 });
     // This route is limited to administrators and every search atomically
-    // reserves one request in the shared 4,999-per-month Google budget below.
+    // reserves one request in the shared 999-per-month Google budget below.
     // Do not put the generic short-window limiter ahead of that reservation:
     // an outage in the generic limiter must not turn this controlled workflow
     // into an opaque 500 response.
@@ -112,10 +114,10 @@ async function handlePost(request: Request) {
       return NextResponse.json({ error: "Provider discovery could not reach Google quickly enough. Please try again shortly.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
     }
     if (googleResponse.status < 200 || googleResponse.status >= 300) return NextResponse.json({ error: "Google Places did not accept this search. Confirm that the server key is restricted to Places API (New), then try again.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
-    const payload = (() => { try { return JSON.parse(googleResponse.body) as { places?: Array<{ id?: string; displayName?: { text?: string }; formattedAddress?: string; primaryType?: string; googleMapsUri?: string }> }; } catch { return null; } })();
+    const payload = (() => { try { return JSON.parse(googleResponse.body) as { places?: Array<{ id?: string; displayName?: { text?: string }; formattedAddress?: string; primaryType?: string; googleMapsUri?: string; nationalPhoneNumber?: string; websiteUri?: string }> }; } catch { return null; } })();
     const results = (payload?.places ?? []).flatMap((place) => {
       const businessName = text(place.displayName?.text, 160);
-      return businessName ? [{ id: text(place.id, 200), businessName, address: text(place.formattedAddress, 300), category: text(place.primaryType, 100), mapsUrl: website(place.googleMapsUri) }] : [];
+      return businessName ? [{ id: text(place.id, 200), businessName, address: text(place.formattedAddress, 300), publicPhone: text(place.nationalPhoneNumber, 50), website: website(place.websiteUri), category: text(place.primaryType, 100), mapsUrl: website(place.googleMapsUri) }] : [];
     });
     try {
       await audit(session.user.id, "provider_outreach_places_search", `${city}-${state}-${category}`.slice(0, 80), { resultCount: results.length, month: reservation.usage.month, used: reservation.usage.used });
@@ -136,7 +138,7 @@ async function handlePost(request: Request) {
     if (duplicate.rows[0]) return NextResponse.json({ error: "That business is already in the outreach list." }, { status: 409 });
     const suppressed = publicEmail ? await database.query(`SELECT 1 FROM provider_outreach_suppressions WHERE email_hash=$1 LIMIT 1`, [emailHash(publicEmail)]) : { rows: [] };
     const status = suppressed.rows[0] ? "suppressed" : "researching";
-    const created = await database.query<{ id: string }>(`INSERT INTO provider_outreach_prospects(business_name,website,public_email,public_phone,city,state,service_category,contact_source,research_notes,status,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id::text`, [businessName, website(body?.website) || null, publicEmail || null, text(body?.publicPhone, 50) || null, city, state, category, text(body?.contactSource, 300), text(body?.researchNotes, 4000), status, session.user.id]);
+    const created = await database.query<{ id: string }>(`INSERT INTO provider_outreach_prospects(business_name,website,public_email,public_phone,public_address,city,state,service_category,contact_source,research_notes,status,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id::text`, [businessName, website(body?.website) || null, publicEmail || null, text(body?.publicPhone, 50) || null, text(body?.publicAddress, 300) || null, city, state, category, text(body?.contactSource, 300), text(body?.researchNotes, 4000), status, session.user.id]);
     await audit(session.user.id, "provider_outreach_prospect_created", created.rows[0].id, { status, suppressed: Boolean(suppressed.rows[0]) });
     return NextResponse.json({ ok: true });
   }

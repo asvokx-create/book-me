@@ -8,13 +8,15 @@ const read = (...parts: string[]) => readFileSync(join(root, ...parts), "utf8");
 
 test("provider discovery has a database-backed monthly Google Places request cap", () => {
   const migration = read("database", "migrations", "087_google_places_usage_limits.sql");
+  const publicAddressMigration = read("database", "migrations", "088_provider_outreach_public_address.sql");
   const usage = read("lib", "google-places-usage.ts");
   const route = read("app", "api", "admin", "growth", "outreach", "route.ts");
   const ui = read("components", "admin-provider-outreach.tsx");
   const requestSecurity = read("lib", "request-security.ts");
 
   assert.match(migration, /google_places_usage_months/);
-  assert.match(usage, /GOOGLE_PLACES_TEXT_SEARCH_PRO_MONTHLY_LIMIT = 4_999/);
+  assert.match(publicAddressMigration, /ADD COLUMN IF NOT EXISTS public_address/);
+  assert.match(usage, /GOOGLE_PLACES_TEXT_SEARCH_ENTERPRISE_MONTHLY_LIMIT = 999/);
   assert.match(usage, /WHERE google_places_usage_months\.request_count < \$2/);
   assert.match(usage, /allowed: false, usage: await getGooglePlacesTextSearchUsage\(\)/);
   assert.match(usage, /America\/Los_Angeles/);
@@ -28,6 +30,9 @@ test("provider discovery has a database-backed monthly Google Places request cap
   assert.match(route, /setTimeout\(\(\) => request\.destroy/);
   assert.match(route, /export const runtime = "nodejs"/);
   assert.match(route, /GOOGLE_MAPS_PLACES_API_KEY/);
+  assert.match(route, /places\.nationalPhoneNumber/);
+  assert.match(route, /places\.websiteUri/);
+  assert.match(route, /public_address/);
   assert.match(route, /monthly provider-discovery limit has been reached/i);
   assert.match(route, /Provider discovery audit logging failed/);
   assert.match(route, /Provider discovery budget check failed/);
@@ -35,5 +40,9 @@ test("provider discovery has a database-backed monthly Google Places request cap
   assert.match(ui, /Provider discovery could not reach BubsBookings/);
   assert.match(ui, /Provider discovery timed out before Google responded/);
   assert.match(ui, /request \$\{response\.status\}/);
+  assert.match(ui, /publicAddress/);
+  assert.match(ui, /result\.publicPhone/);
+  assert.match(ui, /result\.website/);
+  assert.match(ui, /Google Places does not provide a public business email/);
   assert.match(requestSecurity, /to_timestamp\(\(floor\(extract\(epoch FROM now\(\)\) \/ \$3::double precision\) \* \$3::double precision\)\)/);
 });

@@ -2,10 +2,14 @@ import "server-only";
 
 import { database } from "@/lib/database";
 
-// This is deliberately one request below the current 5,000-request monthly
-// Google Places Text Search Pro allowance. It is a local safety guard, not a
-// statement about the Google Cloud billing account or requests made elsewhere.
-export const GOOGLE_PLACES_TEXT_SEARCH_PRO_MONTHLY_LIMIT = 4_999;
+// Contact fields (public phone and website) use Google Places Text Search
+// Enterprise. Keep this one request below its current 1,000-request monthly
+// free allowance. This is a local safety guard, not a statement about the
+// Google Cloud billing account or requests made elsewhere.
+export const GOOGLE_PLACES_TEXT_SEARCH_ENTERPRISE_MONTHLY_LIMIT = 999;
+// Retain the existing ledger key so prior discovery searches still count
+// against the safer Enterprise cap, and the original database constraint
+// continues to protect production before this release's migration runs.
 const REQUEST_TYPE = "text_search_pro";
 
 export type GooglePlacesUsage = {
@@ -29,9 +33,9 @@ function usageFromRow(row?: UsageRow): GooglePlacesUsage {
   return {
     // The database selects the month in BubsBookings' operating time zone.
     month: row?.request_month?.slice(0, 7) ?? currentMonthLabel(),
-    limit: GOOGLE_PLACES_TEXT_SEARCH_PRO_MONTHLY_LIMIT,
+    limit: GOOGLE_PLACES_TEXT_SEARCH_ENTERPRISE_MONTHLY_LIMIT,
     used,
-    remaining: Math.max(0, GOOGLE_PLACES_TEXT_SEARCH_PRO_MONTHLY_LIMIT - used),
+    remaining: Math.max(0, GOOGLE_PLACES_TEXT_SEARCH_ENTERPRISE_MONTHLY_LIMIT - used),
   };
 }
 
@@ -48,7 +52,7 @@ export async function getGooglePlacesTextSearchUsage(): Promise<GooglePlacesUsag
 }
 
 /**
- * Atomically reserve one Google Places Text Search Pro request. Every caller
+ * Atomically reserve one Google Places Text Search Enterprise request. Every caller
  * must call this before sending a request to Google. The WHERE clause makes
  * the cap safe across concurrent server instances and browser sessions.
  */
@@ -60,7 +64,7 @@ export async function reserveGooglePlacesTextSearchRequest(): Promise<{ allowed:
        SET request_count=google_places_usage_months.request_count+1, updated_at=now()
        WHERE google_places_usage_months.request_count < $2
      RETURNING request_month::text, request_count`,
-    [REQUEST_TYPE, GOOGLE_PLACES_TEXT_SEARCH_PRO_MONTHLY_LIMIT],
+    [REQUEST_TYPE, GOOGLE_PLACES_TEXT_SEARCH_ENTERPRISE_MONTHLY_LIMIT],
   );
   if (result.rows[0]) return { allowed: true, usage: usageFromRow(result.rows[0]) };
   return { allowed: false, usage: await getGooglePlacesTextSearchUsage() };
