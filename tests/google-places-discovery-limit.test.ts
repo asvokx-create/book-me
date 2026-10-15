@@ -23,7 +23,7 @@ test("provider discovery has a database-backed monthly Google Places request cap
   assert.match(route, /httpsRequest/);
   assert.match(route, /resolve4\("places\.googleapis\.com"\)/);
   assert.match(route, /servername: "places\.googleapis\.com"/);
-  assert.match(route, /Referer: "https:\/\/bubsbookings\.com\//);
+  assert.doesNotMatch(route, /Referer:/);
   assert.match(route, /family: 4/);
   assert.match(route, /setTimeout\(\(\) => request\.destroy/);
   assert.match(route, /export const runtime = "nodejs"/);
