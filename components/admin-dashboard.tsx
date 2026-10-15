@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { authClient } from "@/lib/auth-client";
 import ProfileAvatar from "@/components/profile-avatar";
 import CustomSelect from "@/components/custom-select";
@@ -698,7 +699,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
     setAgeExceptionBusy(false);
   }
 
-  return <div className="fixed inset-0 z-[200] flex min-w-0 justify-end overflow-hidden bg-[#10251c]/55" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
+  const dialog = <div className="fixed inset-0 z-[600] flex min-w-0 justify-end overflow-hidden bg-[#10251c]/55" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
     <section className="admin-account-dialog h-[100dvh] min-w-0 w-full max-w-4xl overflow-x-hidden overflow-y-auto overscroll-contain bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="account-detail-title">
       <header className="sticky top-0 z-10 flex min-w-0 items-start justify-between gap-3 border-b border-[#183126]/10 bg-white/95 px-4 py-4 backdrop-blur sm:gap-4 sm:px-8 sm:py-5">
         <div className="flex min-w-0 items-center gap-4"><ProfileAvatar name={account.name} imageUrl={account.image} className="h-12 w-12 shrink-0 text-sm" /><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Admin account view</p><h2 id="account-detail-title" className="truncate text-2xl font-bold">{account.name}</h2><p className="truncate text-sm text-[#718078]">{account.email}</p></div></div>
@@ -784,6 +785,10 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
       </div>
     </section>
   </div>;
+
+  // Keep the account drawer outside the dashboard's animated stacking context so
+  // site content (including the footer promotion) can never render above it.
+  return typeof document === "undefined" ? null : createPortal(dialog, document.body);
 }
 
 function RecordSection({ title, empty, records }: { title: string; empty: string; records: Array<{ id: string; title: string; meta: string; status: string; body: string }> }) {

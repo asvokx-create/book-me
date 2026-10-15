@@ -38,6 +38,14 @@ test("admin actions, dialogs, and long records remain usable at phone widths", (
   assert.match(css, /env\(safe-area-inset-bottom\)/);
 });
 
+test("account details drawer renders above the dashboard and public page layers", () => {
+  const dashboard = read("components", "admin-dashboard.tsx");
+
+  assert.match(dashboard, /import \{ createPortal \} from "react-dom"/);
+  assert.match(dashboard, /fixed inset-0 z-\[600\]/);
+  assert.match(dashboard, /createPortal\(dialog, document\.body\)/);
+});
+
 test("complex admin tables scroll inside their own accessible containers", () => {
   const operations = read("app", "admin", "operations", "page.tsx");
 
