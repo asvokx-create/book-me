@@ -11,6 +11,7 @@ test("provider discovery has a database-backed monthly Google Places request cap
   const usage = read("lib", "google-places-usage.ts");
   const route = read("app", "api", "admin", "growth", "outreach", "route.ts");
   const ui = read("components", "admin-provider-outreach.tsx");
+  const requestSecurity = read("lib", "request-security.ts");
 
   assert.match(migration, /google_places_usage_months/);
   assert.match(usage, /GOOGLE_PLACES_TEXT_SEARCH_PRO_MONTHLY_LIMIT = 4_999/);
@@ -24,4 +25,5 @@ test("provider discovery has a database-backed monthly Google Places request cap
   assert.match(route, /Provider discovery audit logging failed/);
   assert.match(route, /Provider discovery budget check failed/);
   assert.match(ui, /Provider discovery could not reach BubsBookings/);
+  assert.match(requestSecurity, /to_timestamp\(\(floor\(extract\(epoch FROM now\(\)\) \/ \$3::double precision\) \* \$3::double precision\)\)/);
 });

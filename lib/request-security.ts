@@ -11,7 +11,9 @@ export async function enforceRateLimit(input: { request: Request; userId: string
   const identifier = createHash("sha256").update(input.userId).digest("hex");
   const result = await database.query<{ request_count: number }>(
     `INSERT INTO request_rate_limits (bucket, identifier_hash, window_started_at, request_count)
-     VALUES ($1, $2, to_timestamp(floor(extract(epoch FROM now()) / $3) * $3), 1)
+     -- PostgreSQL's extract/floor expression is numeric. Cast it explicitly
+     -- because to_timestamp accepts double precision, not numeric.
+     VALUES ($1, $2, to_timestamp((floor(extract(epoch FROM now()) / $3::double precision) * $3::double precision)), 1)
      ON CONFLICT (bucket, identifier_hash, window_started_at)
      DO UPDATE SET request_count = request_rate_limits.request_count + 1
      RETURNING request_count`,
