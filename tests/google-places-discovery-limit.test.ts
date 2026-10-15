@@ -20,8 +20,9 @@ test("provider discovery has a database-backed monthly Google Places request cap
   assert.match(usage, /America\/Los_Angeles/);
   assert.match(route, /reserveGooglePlacesTextSearchRequest\(\)/);
   assert.match(route, /places:searchText/);
-  assert.match(route, /AbortSignal\.timeout\(12_000\)/);
-  assert.match(route, /setDefaultResultOrder\("ipv4first"\)/);
+  assert.match(route, /httpsRequest/);
+  assert.match(route, /family: 4/);
+  assert.match(route, /request\.setTimeout\(6_500/);
   assert.match(route, /export const runtime = "nodejs"/);
   assert.match(route, /GOOGLE_MAPS_PLACES_API_KEY/);
   assert.match(route, /monthly provider-discovery limit has been reached/i);

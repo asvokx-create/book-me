@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { setDefaultResultOrder } from "node:dns";
+import { request as httpsRequest } from "node:https";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
@@ -7,11 +7,34 @@ import { getGooglePlacesTextSearchUsage, reserveGooglePlacesTextSearchRequest } 
 
 export const runtime = "nodejs";
 
-// App Platform containers can receive an IPv6 address for Google before an
-// IPv4 address even when their outbound IPv6 route is unavailable. Prefer
-// IPv4 for this server-only Google API call so a connection attempt does not
-// consume the request window before Google can respond.
-setDefaultResultOrder("ipv4first");
+type GooglePlacesResponse = { status: number; body: string };
+
+function searchGooglePlaces(apiKey: string, query: string) {
+  return new Promise<GooglePlacesResponse>((resolve, reject) => {
+    // App Platform ends a slow incoming request before a long outbound fetch
+    // completes. A direct IPv4 request avoids an unavailable IPv6 route and
+    // has its own timeout well inside the platform's request window.
+    const request = httpsRequest({
+      hostname: "places.googleapis.com",
+      path: "/v1/places:searchText",
+      method: "POST",
+      family: 4,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryType,places.googleMapsUri",
+      },
+    }, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk: string) => { body += chunk; });
+      response.on("end", () => resolve({ status: response.statusCode ?? 502, body }));
+    });
+    request.setTimeout(6_500, () => request.destroy(new Error("Google Places request timed out")));
+    request.on("error", reject);
+    request.end(query);
+  });
+}
 
 const statuses = new Set(["researching", "contact_ready", "contacted", "replied", "interested", "registered", "not_interested", "suppressed"]);
 const suppressionReasons = new Set(["opt_out", "complaint", "hard_bounce", "invalid", "manual"]);
@@ -62,28 +85,15 @@ async function handlePost(request: Request) {
     }
     if (!reservation.allowed) return NextResponse.json({ error: "The monthly provider-discovery limit has been reached. Searches will be available again next month.", placesDiscoveryBudget: reservation.usage }, { status: 429 });
 
-    let googleResponse: Response;
+    let googleResponse: GooglePlacesResponse;
     try {
-      googleResponse = await fetch("https://places.googleapis.com/v1/places:searchText", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": apiKey,
-          "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryType,places.googleMapsUri",
-        },
-        body: JSON.stringify({ textQuery: `${category} in ${city}, ${state}`, pageSize: 20, languageCode: "en" }),
-        cache: "no-store",
-        // A cold external connection can take longer than four seconds from
-        // App Platform. Keep a firm bound while allowing Google enough time
-        // to establish the connection and return a normal Text Search result.
-        signal: AbortSignal.timeout(12_000),
-      });
+      googleResponse = await searchGooglePlaces(apiKey, JSON.stringify({ textQuery: `${category} in ${city}, ${state}`, pageSize: 20, languageCode: "en" }));
     } catch (error) {
       console.error("Provider discovery Google request failed", error);
       return NextResponse.json({ error: "Provider discovery could not reach Google quickly enough. Please try again shortly.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
     }
-    if (!googleResponse.ok) return NextResponse.json({ error: "Google Places did not accept this search. Confirm that the server key is restricted to Places API (New), then try again.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
-    const payload = await googleResponse.json().catch(() => null) as { places?: Array<{ id?: string; displayName?: { text?: string }; formattedAddress?: string; primaryType?: string; googleMapsUri?: string }> } | null;
+    if (googleResponse.status < 200 || googleResponse.status >= 300) return NextResponse.json({ error: "Google Places did not accept this search. Confirm that the server key is restricted to Places API (New), then try again.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
+    const payload = (() => { try { return JSON.parse(googleResponse.body) as { places?: Array<{ id?: string; displayName?: { text?: string }; formattedAddress?: string; primaryType?: string; googleMapsUri?: string }> }; } catch { return null; } })();
     const results = (payload?.places ?? []).flatMap((place) => {
       const businessName = text(place.displayName?.text, 160);
       return businessName ? [{ id: text(place.id, 200), businessName, address: text(place.formattedAddress, 300), category: text(place.primaryType, 100), mapsUrl: website(place.googleMapsUri) }] : [];
