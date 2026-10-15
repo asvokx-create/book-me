@@ -67,6 +67,12 @@ function text(value: unknown, max: number) { return typeof value === "string" ? 
 function email(value: unknown) { const result = text(value, 254).toLowerCase(); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result) ? result : ""; }
 function emailHash(value: string) { return createHash("sha256").update(value.trim().toLowerCase()).digest("hex"); }
 function website(value: unknown) { const raw = text(value, 500); if (!raw) return ""; try { const parsed = new URL(raw); return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : ""; } catch { return ""; } }
+function friendlyDraft(prospect: { business_name: string; city: string; state: string; service_category: string }) {
+  return {
+    subject: `A quick note from Christian at BubsBookings`,
+    body: `Hi ${prospect.business_name} team,\n\nI’m Christian, the founder of BubsBookings. I came across your business while looking for great ${prospect.service_category} providers around ${prospect.city}, ${prospect.state}.\n\nWe’re building a simple way for local customers to find and book independent service businesses. I’d love for you to take a look and see whether BubsBookings could be a good fit for your business:\nhttps://bubsbookings.com/providers/join\n\nIf you have any questions, just reply to this email—I’d be happy to help.\n\nThanks,\nChristian\nFounder, BubsBookings`,
+  };
+}
 
 async function audit(actorUserId: string, action: string, targetId: string, details: Record<string, unknown>) {
   await database.query(`INSERT INTO admin_audit_log(actor_user_id,action,target_type,target_id,details) VALUES($1,$2,'provider_outreach',$3,$4::jsonb)`, [actorUserId, action, targetId, JSON.stringify(details)]);
@@ -196,10 +202,20 @@ async function handlePost(request: Request) {
       const blocked = await database.query(`SELECT 1 FROM provider_outreach_suppressions WHERE email_hash=$1 LIMIT 1`, [emailHash(prospect.public_email)]);
       if (blocked.rows[0]) return NextResponse.json({ error: "This contact is on the permanent suppression list." }, { status: 409 });
     }
-    const subject = `An invitation for ${prospect.business_name} to join BubsBookings`;
-    const bodyText = `Hello ${prospect.business_name} team,\n\nBubsBookings is inviting independent ${prospect.service_category} providers serving ${prospect.city}, ${prospect.state} to consider listing their services on our marketplace.\n\nIf you are interested, you can review the provider signup information at https://bubsbookings.com/providers/join.\n\nThis is a saved draft only. Before any commercial email is sent, an administrator must confirm a reviewed public business email and approve this specific draft.\n\nThank you,\nBubsBookings`;
-    const draft = await database.query<{ id: string }>(`INSERT INTO provider_outreach_drafts(prospect_id,subject,body) VALUES($1::uuid,$2,$3) RETURNING id::text`, [prospectId, subject, bodyText]);
+    const draftCopy = friendlyDraft(prospect);
+    const draft = await database.query<{ id: string }>(`INSERT INTO provider_outreach_drafts(prospect_id,subject,body) VALUES($1::uuid,$2,$3) RETURNING id::text`, [prospectId, draftCopy.subject, draftCopy.body]);
     await audit(session.user.id, "provider_outreach_draft_created", draft.rows[0].id, { prospectId });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "update_draft") {
+    const draftId = text(body?.draftId, 80);
+    const subject = text(body?.subject, 220);
+    const bodyText = text(body?.body, 5_000);
+    if (!draftId || !subject || !bodyText) return NextResponse.json({ error: "A subject and message are required to save this draft." }, { status: 400 });
+    const updated = await database.query(`UPDATE provider_outreach_drafts SET subject=$2,body=$3,updated_at=now() WHERE id::text=$1 AND prospect_id::text=$4 AND status='draft' RETURNING id`, [draftId, subject, bodyText, prospectId]);
+    if (!updated.rows[0]) return NextResponse.json({ error: "Only an unapproved draft can be edited." }, { status: 409 });
+    await audit(session.user.id, "provider_outreach_draft_updated", draftId, { prospectId });
     return NextResponse.json({ ok: true });
   }
 
