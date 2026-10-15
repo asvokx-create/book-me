@@ -1,8 +1,17 @@
 import { createHash } from "node:crypto";
+import { setDefaultResultOrder } from "node:dns";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { getGooglePlacesTextSearchUsage, reserveGooglePlacesTextSearchRequest } from "@/lib/google-places-usage";
+
+export const runtime = "nodejs";
+
+// App Platform containers can receive an IPv6 address for Google before an
+// IPv4 address even when their outbound IPv6 route is unavailable. Prefer
+// IPv4 for this server-only Google API call so a connection attempt does not
+// consume the request window before Google can respond.
+setDefaultResultOrder("ipv4first");
 
 const statuses = new Set(["researching", "contact_ready", "contacted", "replied", "interested", "registered", "not_interested", "suppressed"]);
 const suppressionReasons = new Set(["opt_out", "complaint", "hard_bounce", "invalid", "manual"]);
