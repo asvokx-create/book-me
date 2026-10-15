@@ -26,6 +26,7 @@ test("provider outreach is admin-protected, reviewed, and safely deliverable", (
   assert.match(deliveryMigration, /provider_outreach_deliveries/);
   assert.match(route, /action === "send_draft"/);
   assert.match(route, /action === "update_draft"/);
+  assert.match(route, /action === "update_email"/);
   assert.match(route, /A quick note from Christian at BubsBookings/);
   assert.match(route, /Drafting is an internal, reversible review step/);
   assert.doesNotMatch(route, /A non-suppressed public business email is required before making a draft/);
@@ -41,6 +42,7 @@ test("provider outreach is admin-protected, reviewed, and safely deliverable", (
   assert.match(ui, /You can create a draft now/);
   assert.match(ui, /Use friendlier wording/);
   assert.match(ui, /Optional approval note/);
+  assert.match(ui, /Reviewed public business email/);
   assert.match(ui, /recipient-facing message/);
   assert.match(ui, /permanently suppressed/i);
 });

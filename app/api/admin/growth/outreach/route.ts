@@ -193,6 +193,17 @@ async function handlePost(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  if (action === "update_email") {
+    const publicEmail = email(body?.publicEmail);
+    if (!publicEmail) return NextResponse.json({ error: "Enter a valid public business email." }, { status: 400 });
+    if (prospect.status === "suppressed") return NextResponse.json({ error: "This contact is on the permanent suppression list." }, { status: 409 });
+    const blocked = await database.query(`SELECT 1 FROM provider_outreach_suppressions WHERE email_hash=$1 LIMIT 1`, [emailHash(publicEmail)]);
+    if (blocked.rows[0]) return NextResponse.json({ error: "This contact is on the permanent suppression list." }, { status: 409 });
+    await database.query(`UPDATE provider_outreach_prospects SET public_email=$2 WHERE id::text=$1`, [prospectId, publicEmail]);
+    await audit(session.user.id, "provider_outreach_public_email_updated", prospectId, { updated: true });
+    return NextResponse.json({ ok: true });
+  }
+
   if (action === "draft") {
     // Drafting is an internal, reversible review step. It is useful even before
     // a public inbox has been found; delivery remains separately blocked until
