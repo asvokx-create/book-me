@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
+import { getGooglePlacesTextSearchUsage, reserveGooglePlacesTextSearchRequest } from "@/lib/google-places-usage";
 import { enforceRateLimit } from "@/lib/request-security";
 
 const statuses = new Set(["researching", "contact_ready", "contacted", "replied", "interested", "registered", "not_interested", "suppressed"]);
@@ -19,12 +20,13 @@ async function audit(actorUserId: string, action: string, targetId: string, deta
 export async function GET() {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
-  const [prospects, suppressions, drafts] = await Promise.all([
+  const [prospects, suppressions, drafts, placesDiscoveryBudget] = await Promise.all([
     database.query(`SELECT prospect.id::text, prospect.business_name, prospect.website, prospect.public_email, prospect.public_phone, prospect.city, prospect.state, prospect.service_category, prospect.contact_source, prospect.research_notes, prospect.status, prospect.last_contacted_at, prospect.replied_at, prospect.created_at, prospect.updated_at, count(draft.id)::int AS draft_count, max(draft.created_at) AS latest_draft_at FROM provider_outreach_prospects prospect LEFT JOIN provider_outreach_drafts draft ON draft.prospect_id=prospect.id GROUP BY prospect.id ORDER BY CASE prospect.status WHEN 'interested' THEN 0 WHEN 'replied' THEN 1 WHEN 'contact_ready' THEN 2 WHEN 'researching' THEN 3 ELSE 4 END, prospect.updated_at DESC LIMIT 300`),
     database.query(`SELECT id::text, reason, note, created_at FROM provider_outreach_suppressions ORDER BY created_at DESC LIMIT 100`),
     database.query(`SELECT id::text, prospect_id::text, subject, body, status, approval_note, approved_at, created_at FROM provider_outreach_drafts ORDER BY created_at DESC LIMIT 300`),
+    getGooglePlacesTextSearchUsage(),
   ]);
-  return NextResponse.json({ prospects: prospects.rows, suppressions: suppressions.rows, drafts: drafts.rows });
+  return NextResponse.json({ prospects: prospects.rows, suppressions: suppressions.rows, drafts: drafts.rows, placesDiscoveryBudget });
 }
 
 export async function POST(request: Request) {
@@ -33,6 +35,39 @@ export async function POST(request: Request) {
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-provider-outreach", limit: 40 })) return NextResponse.json({ error: "Too many outreach actions. Please try again shortly." }, { status: 429 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const action = text(body?.action, 40);
+
+  if (action === "discover") {
+    const city = text(body?.city, 100), state = text(body?.state, 2).toUpperCase(), category = text(body?.category, 100);
+    if (!city || !/^[A-Z]{2}$/.test(state) || !category) return NextResponse.json({ error: "Enter a city, state, and service category to search." }, { status: 400 });
+    const apiKey = process.env.GOOGLE_MAPS_PLACES_API_KEY;
+    if (!apiKey) return NextResponse.json({ error: "Provider discovery is not configured yet." }, { status: 503 });
+    const reservation = await reserveGooglePlacesTextSearchRequest();
+    if (!reservation.allowed) return NextResponse.json({ error: "The monthly provider-discovery limit has been reached. Searches will be available again next month.", placesDiscoveryBudget: reservation.usage }, { status: 429 });
+
+    let googleResponse: Response;
+    try {
+      googleResponse = await fetch("https://places.googleapis.com/v1/places:searchText", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.primaryType,places.googleMapsUri",
+        },
+        body: JSON.stringify({ textQuery: `${category} in ${city}, ${state}`, pageSize: 20, languageCode: "en" }),
+        cache: "no-store",
+      });
+    } catch {
+      return NextResponse.json({ error: "Provider discovery could not reach Google right now. Please try again later.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
+    }
+    if (!googleResponse.ok) return NextResponse.json({ error: "Provider discovery is temporarily unavailable. Please try again later.", placesDiscoveryBudget: reservation.usage }, { status: 502 });
+    const payload = await googleResponse.json().catch(() => null) as { places?: Array<{ id?: string; displayName?: { text?: string }; formattedAddress?: string; primaryType?: string; googleMapsUri?: string }> } | null;
+    const results = (payload?.places ?? []).flatMap((place) => {
+      const businessName = text(place.displayName?.text, 160);
+      return businessName ? [{ id: text(place.id, 200), businessName, address: text(place.formattedAddress, 300), category: text(place.primaryType, 100), mapsUrl: website(place.googleMapsUri) }] : [];
+    });
+    await audit(session.user.id, "provider_outreach_places_search", `${city}-${state}-${category}`.slice(0, 80), { resultCount: results.length, month: reservation.usage.month, used: reservation.usage.used });
+    return NextResponse.json({ results, placesDiscoveryBudget: reservation.usage });
+  }
 
   if (action === "create") {
     const businessName = text(body?.businessName, 160), city = text(body?.city, 100), state = text(body?.state, 2).toUpperCase(), category = text(body?.category, 100);
