@@ -19,7 +19,7 @@ function trustedOrigins(request: NextRequest) {
 }
 
 function isUploadPath(pathname: string) {
-  return pathname === "/api/account/profile-photo" || /^\/api\/providers\/services\/[^/]+\/images$/.test(pathname);
+  return pathname === "/api/account/profile-photo" || pathname === "/api/providers/customer-imports" || /^\/api\/providers\/services\/[^/]+\/images$/.test(pathname);
 }
 
 export function proxy(request: NextRequest) {
