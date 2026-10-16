@@ -32,9 +32,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     stripe_mode: "test" | "live" | null; payment_flow: string | null;
     refund_status: "none" | "requested" | "processing" | "refunded" | "rejected" | "failed";
     refund_reason: string | null; refund_amount_cents: number | null; refunded_amount_cents: number;
-    refund_failure_reason: string | null; payment_release_status: string; platform_fee_cents: number;
+    refund_failure_reason: string | null; payment_release_status: string; platform_fee_cents: number; provider_fee_basis_points: number | null; provider_fee_cap_cents: number | null;
     customer_service_fee_cents: number; customer_service_fee_refunded_cents: number;
-    provider_payout_cents: number; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
+    provider_payout_cents: number; provider_processing_fee_cents: number; stripe_processing_fee_cents: number | null; processing_fee_status: "not_applicable" | "pending" | "final" | "unavailable"; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
     payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null; delivery_method: "IN_PERSON" | "REMOTE";
     base_price_cents: number; add_on_total_cents: number; discount_cents: number; package_snapshot: Record<string, unknown> | null; add_on_snapshot: unknown[]; coupon_code_snapshot: string | null; recurring_series_id: string | null; recurrence_index: number | null; recurrence_frequency: string | null; recurrence_status: string | null; booking_kind: string;
     pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number; billing_increment_minutes_snapshot: number | null; minimum_duration_minutes_snapshot: number | null; maximum_duration_minutes_snapshot: number | null; actual_duration_minutes: number | null;
@@ -51,7 +51,8 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             b.quoted_pricing_type,b.quoted_hourly_rate_cents,b.quoted_duration_minutes,
             b.payment_status, b.paid_at, b.stripe_mode, b.payment_flow, b.refund_status, b.refund_reason,
             b.refund_amount_cents, b.refunded_amount_cents, b.refund_failure_reason,
-            b.payment_release_status, b.platform_fee_cents, b.provider_payout_cents,
+            b.payment_release_status, b.platform_fee_cents, b.provider_fee_basis_points, b.provider_fee_cap_cents, b.provider_payout_cents,
+            b.provider_processing_fee_cents, b.stripe_processing_fee_cents, b.processing_fee_status,
             b.customer_service_fee_cents, b.customer_service_fee_refunded_cents,
             b.completion_confirmation_due_at, b.customer_confirmed_at, b.payout_released_at,
             b.payout_failure_reason, b.payout_freeze_reason,
@@ -145,13 +146,17 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     paymentRelease: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? {
       status: row.payment_release_status,
       platformFee: row.platform_fee_cents / 100,
+      platformFeeBasisPoints: row.provider_fee_basis_points ?? 0,
+      platformFeeCap: row.provider_fee_cap_cents === null ? null : row.provider_fee_cap_cents / 100,
+      providerProcessingFee: row.provider_processing_fee_cents / 100,
+      processingFeeStatus: row.processing_fee_status,
       providerPayout: row.provider_payout_cents / 100,
       confirmationDueAt: row.completion_confirmation_due_at,
       customerConfirmedAt: row.customer_confirmed_at,
       releasedAt: row.payout_released_at,
       failureReason: row.payout_failure_reason,
       freezeReason: row.payout_freeze_reason,
-    } : { status: "not_applicable", platformFee: 0, providerPayout: 0, confirmationDueAt: null,
+    } : { status: "not_applicable", platformFee: 0, platformFeeBasisPoints: 0, platformFeeCap: null, providerProcessingFee: 0, processingFeeStatus: "not_applicable", providerPayout: 0, confirmationDueAt: null,
       customerConfirmedAt: null, releasedAt: null, failureReason: null, freezeReason: null },
     refund: { status: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? row.refund_status : "none",
       reason: row.refund_reason, requestedAmount: row.refund_amount_cents === null ? null : row.refund_amount_cents / 100,
@@ -233,13 +238,14 @@ export async function PATCH(request: Request, context: RouteContext<"/api/bookin
         ends_at = CASE WHEN $2 = 'accepted' AND $3::timestamptz IS NOT NULL THEN $3::timestamptz ELSE ends_at END,
         provider_plan_snapshot=CASE WHEN $2='accepted' THEN $4 ELSE provider_plan_snapshot END,
         provider_fee_basis_points=CASE WHEN $2='accepted' THEN $5 ELSE provider_fee_basis_points END,
-        platform_fee_cents=CASE WHEN $2='accepted' THEN $6 ELSE platform_fee_cents END,
-        provider_payout_cents=CASE WHEN $2='accepted' THEN $7 ELSE provider_payout_cents END,
-        customer_service_fee_cents=CASE WHEN $2='accepted' THEN $8 ELSE customer_service_fee_cents END,
-        customer_total_cents=CASE WHEN $2='accepted' THEN $9 ELSE customer_total_cents END
+        provider_fee_cap_cents=CASE WHEN $2='accepted' THEN $6 ELSE provider_fee_cap_cents END,
+        platform_fee_cents=CASE WHEN $2='accepted' THEN $7 ELSE platform_fee_cents END,
+        provider_payout_cents=CASE WHEN $2='accepted' THEN $8 ELSE provider_payout_cents END,
+        customer_service_fee_cents=CASE WHEN $2='accepted' THEN $9 ELSE customer_service_fee_cents END,
+        customer_total_cents=CASE WHEN $2='accepted' THEN $10 ELSE customer_total_cents END
         WHERE id::text = $1`, [bookingId, accepted ? "accepted" : "declined", quotedEnd,
           snapshot?.providerPlan ?? booking.provider_plan, snapshot?.providerFeeBasisPoints ?? 0,
-          snapshot?.providerFeeCents ?? 0, snapshot?.providerNetCents ?? 0,
+          snapshot?.providerFeeCapCents ?? null, snapshot?.providerFeeCents ?? 0, snapshot?.providerNetCents ?? 0,
           snapshot?.customerServiceFeeCents ?? 0, snapshot?.customerTotalCents ?? 0]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message)
         VALUES ($1::uuid, $2, $3, $4)`, [bookingId, session.user.id, accepted ? "quote_accepted" : "quote_declined", accepted ? "Customer approved the provider's quote." : "Customer declined the provider's quote."]);

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  allocateProviderProcessingFeeCents,
   calculateBookingFinancialSnapshot,
   isProviderPayoutEligible,
   paymentReleaseStatusAfterPayment,
@@ -32,6 +33,43 @@ test("Pro snapshots a 6% provider fee", () => {
   assert.equal(snapshot.providerNetCents, 9_400);
 });
 
+test("Free-plan platform fee is capped at $200 for every booking", () => {
+  for (const [subtotal, expectedFee] of [[10_000, 1_000], [50_000, 5_000], [100_000, 10_000], [200_000, 20_000], [500_000, 20_000], [1_000_000, 20_000], [6_500_000, 20_000]] as const) {
+    const snapshot = calculateBookingFinancialSnapshot(subtotal, "starter");
+    assert.equal(snapshot.providerFeeCents, expectedFee, `subtotal ${subtotal}`);
+    assert.equal(snapshot.providerFeeCapCents, 20_000);
+  }
+});
+
+test("Pro platform fee is capped at $100 for every booking", () => {
+  for (const [subtotal, expectedFee] of [[10_000, 600], [50_000, 3_000], [100_000, 6_000], [200_000, 10_000], [500_000, 10_000], [1_000_000, 10_000], [6_500_000, 10_000]] as const) {
+    const snapshot = calculateBookingFinancialSnapshot(subtotal, "pro");
+    assert.equal(snapshot.providerFeeCents, expectedFee, `subtotal ${subtotal}`);
+    assert.equal(snapshot.providerFeeCapCents, 10_000);
+  }
+});
+
+test("fee caps apply on the cent immediately below and above the threshold", () => {
+  assert.equal(calculateBookingFinancialSnapshot(199_999, "starter").providerFeeCents, 20_000);
+  assert.equal(calculateBookingFinancialSnapshot(200_001, "starter").providerFeeCents, 20_000);
+  assert.equal(calculateBookingFinancialSnapshot(166_666, "pro").providerFeeCents, 10_000);
+  assert.equal(calculateBookingFinancialSnapshot(166_667, "pro").providerFeeCents, 10_000);
+});
+
+test("actual Stripe fee allocation is proportional, capped by Stripe's reported fee, and does not surcharge the customer", () => {
+  const allocation = allocateProviderProcessingFeeCents({ stripeProcessingFeeCents: 337, serviceSubtotalCents: 10_000, customerTotalCents: 10_299 });
+  assert.equal(allocation.providerProcessingFeeCents, 327);
+  assert.equal(allocation.platformProcessingFeeCents, 10);
+  assert.equal(allocation.providerProcessingFeeCents + allocation.platformProcessingFeeCents, 337);
+  assert.equal(calculateBookingFinancialSnapshot(10_000, "starter").customerServiceFeeCents, 299);
+});
+
+test("processing allocation excludes taxes and tips by accepting only the service subtotal and customer checkout total", () => {
+  const allocation = allocateProviderProcessingFeeCents({ stripeProcessingFeeCents: 123, serviceSubtotalCents: 5_000, customerTotalCents: 5_299 });
+  assert.equal(allocation.providerProcessingFeeCents, 116);
+  assert.equal(allocation.platformProcessingFeeCents, 7);
+});
+
 test("customer total includes the $2.99 service fee without reducing provider net", () => {
   const snapshot = calculateBookingFinancialSnapshot(10_000, "starter");
   assert.equal(snapshot.customerServiceFeeCents, 299);
@@ -39,10 +77,10 @@ test("customer total includes the $2.99 service fee without reducing provider ne
   assert.equal(snapshot.providerNetCents, 9_000);
 });
 
-test("provider pricing discloses the separate customer service fee", () => {
+test("provider pricing discloses the separate customer service fee and processing-cost distinction", () => {
   const pricing = readFileSync(new URL("../app/pricing/page.tsx", import.meta.url), "utf8");
   assert.match(pricing, /Customers pay a separate \$2\.99 BubsBookings service fee at checkout/);
-  assert.match(pricing, /does not reduce the provider/);
+  assert.match(pricing, /Stripe processing costs are separate from the BubsBookings platform fee/);
 });
 
 test("provider completion after payment enters customer review", () => {

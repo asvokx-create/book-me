@@ -12,6 +12,7 @@ import { syncAffiliateCommissionForBooking } from "@/lib/affiliates";
 import { finalizeAffiliatePayoutTransfer, reverseAffiliatePayoutTransfer } from "@/lib/affiliate-payouts";
 import { releaseTipTransfer } from "@/lib/tip-payments";
 import { syncProviderAgeVerificationFromStripe } from "@/lib/provider-age-verification";
+import { reconcileBookingProcessingFee } from "@/lib/booking-processing-fees";
 
 export const runtime = "nodejs";
 
@@ -169,6 +170,7 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
       AND customer_total_cents = $7
     RETURNING id`, [checkout.metadata.bookingId, paymentIntentId, checkout.id, getStripeMode(), chargeId, heldTransfer, checkout.amount_total]);
   if (!updated.rowCount) return;
+  await reconcileBookingProcessingFee(checkout.metadata.bookingId, chargeId);
   await database.query(`INSERT INTO booking_events (booking_id, event_type, message, metadata)
     VALUES ($1::uuid, 'payment_received', 'Payment received through Stripe.', jsonb_build_object('checkoutSessionId', $2))`, [checkout.metadata.bookingId, checkout.id]);
   await database.query(`INSERT INTO notifications (user_id, booking_id, type, title, message, href, dedupe_key)

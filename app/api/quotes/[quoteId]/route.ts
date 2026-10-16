@@ -87,12 +87,12 @@ export async function PATCH(request: Request, context: RouteContext<"/api/quotes
     const created = await client.query<{ id: string }>(
       `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, status, service_address,
          service_address_line1, service_address_line2, service_city, service_state, service_postal_code, notes, price_cents,
-         source_job_request_id, source_quote_id, provider_plan_snapshot, provider_fee_basis_points, platform_fee_cents,
+         source_job_request_id, source_quote_id, provider_plan_snapshot, provider_fee_basis_points, provider_fee_cap_cents, platform_fee_cents,
          provider_payout_cents, customer_service_fee_cents, customer_total_cents, delivery_method,
          pricing_type_snapshot,hourly_rate_cents_snapshot,billable_duration_minutes,base_price_cents,add_on_total_cents,discount_cents,add_on_snapshot,
          billing_increment_minutes_snapshot,minimum_duration_minutes_snapshot,maximum_duration_minutes_snapshot)
-       VALUES ($1,$2,$3,$4,$5,'confirmed',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,0,$28::jsonb,$29,$30,$31) RETURNING id::text`,
-      [session.user.id, quote.provider_id, quote.service_id, startsAt, endsAt, formattedAddress, quote.address_line1, quote.address_line2, quote.city, quote.state, quote.postal_code, quote.description, quote.total_cents, quote.job_request_id, quoteId, snapshot.providerPlan, snapshot.providerFeeBasisPoints, snapshot.providerFeeCents, snapshot.providerNetCents, snapshot.customerServiceFeeCents, snapshot.customerTotalCents, quote.delivery_method, quote.pricing_type, quote.hourly_rate_cents, billableDurationMinutes, laborCents, addOnTotalCents, JSON.stringify(quotedAddOns), quote.pricing_type === "HOURLY" ? quote.billing_increment_minutes : null, quote.pricing_type === "HOURLY" ? quote.minimum_duration_minutes : null, quote.pricing_type === "HOURLY" ? quote.maximum_duration_minutes : null],
+       VALUES ($1,$2,$3,$4,$5,'confirmed',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,0,$28::jsonb,$29,$30,$31,$32) RETURNING id::text`,
+      [session.user.id, quote.provider_id, quote.service_id, startsAt, endsAt, formattedAddress, quote.address_line1, quote.address_line2, quote.city, quote.state, quote.postal_code, quote.description, quote.total_cents, quote.job_request_id, quoteId, snapshot.providerPlan, snapshot.providerFeeBasisPoints, snapshot.providerFeeCapCents, snapshot.providerFeeCents, snapshot.providerNetCents, snapshot.customerServiceFeeCents, snapshot.customerTotalCents, quote.delivery_method, quote.pricing_type, quote.hourly_rate_cents, billableDurationMinutes, laborCents, addOnTotalCents, JSON.stringify(quotedAddOns), quote.pricing_type === "HOURLY" ? quote.billing_increment_minutes : null, quote.pricing_type === "HOURLY" ? quote.minimum_duration_minutes : null, quote.pricing_type === "HOURLY" ? quote.maximum_duration_minutes : null],
     );
     const bookingId = created.rows[0].id;
     await client.query("INSERT INTO booking_assignees (booking_id, is_owner) VALUES ($1, true)", [bookingId]);

@@ -10,6 +10,9 @@ export async function getAdminFinancialSummary() {
         0
       )::bigint)
       + GREATEST(0, b.customer_service_fee_cents - b.customer_service_fee_refunded_cents)
+      - CASE WHEN b.processing_fee_status = 'final'
+        THEN GREATEST(0, COALESCE(b.stripe_processing_fee_cents, 0) - b.provider_processing_fee_cents)
+        ELSE 0 END
     ), 0)::bigint AS platform_revenue_cents
     FROM bookings b
     WHERE b.payment_status IN ('paid', 'refunded')

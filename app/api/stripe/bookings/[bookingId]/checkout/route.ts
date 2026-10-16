@@ -25,14 +25,14 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
     stripe_connect_mode: "test" | "live" | null; stripe_mode: "test" | "live" | null;
     stripe_checkout_session_id: string | null; payment_flow: string | null;
-    provider_plan_snapshot: BookingFinancialPlan | null; provider_fee_basis_points: number | null;
+    provider_plan_snapshot: BookingFinancialPlan | null; provider_fee_basis_points: number | null; provider_fee_cap_cents: number | null;
     platform_fee_cents: number; provider_payout_cents: number; customer_service_fee_cents: number;
     customer_total_cents: number | null;
     base_price_cents: number; add_on_total_cents: number; discount_cents: number; package_snapshot: { name?: string } | null; coupon_code_snapshot: string | null;
     pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number;
   }>(`SELECT b.id::text, s.title, s.business_name AS provider_name, b.price_cents, b.status,
       b.payment_status, b.quote_status, p.plan, p.stripe_account_id, p.age_verification_status, p.stripe_connect_mode, b.stripe_mode,
-      b.stripe_checkout_session_id, b.payment_flow, b.provider_plan_snapshot, b.provider_fee_basis_points,
+      b.stripe_checkout_session_id, b.payment_flow, b.provider_plan_snapshot, b.provider_fee_basis_points, b.provider_fee_cap_cents,
       b.platform_fee_cents, b.provider_payout_cents, b.customer_service_fee_cents, b.customer_total_cents,
       b.base_price_cents,b.add_on_total_cents,b.discount_cents,b.package_snapshot,b.coupon_code_snapshot,
       b.pricing_type_snapshot,b.hourly_rate_cents_snapshot,b.billable_duration_minutes
@@ -52,6 +52,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     ...freshSnapshot,
     providerPlan: booking.provider_plan_snapshot,
     providerFeeBasisPoints: booking.provider_fee_basis_points!,
+    providerFeeCapCents: booking.provider_fee_cap_cents,
     providerFeeCents: booking.platform_fee_cents,
     providerNetCents: booking.provider_payout_cents,
     customerServiceFeeCents: booking.customer_service_fee_cents,
@@ -103,12 +104,13 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     stripe_charge_id = NULL, stripe_transfer_id = NULL, stripe_mode = $3, payment_status = 'pending',
     payment_flow = 'held_transfer_v1', payment_release_status = 'awaiting_payment',
     platform_fee_cents = $4, provider_payout_cents = $5, customer_service_fee_cents = $6,
-    provider_plan_snapshot = $7, provider_fee_basis_points = $8, customer_total_cents = $9,
+    provider_plan_snapshot = $7, provider_fee_basis_points = $8, provider_fee_cap_cents = $9, customer_total_cents = $10,
+    stripe_processing_fee_cents = NULL, provider_processing_fee_cents = 0, processing_fee_status = 'pending',
     customer_service_fee_refunded_cents = 0, paid_at = NULL,
     completion_confirmation_due_at = NULL, customer_confirmed_at = NULL, payout_released_at = NULL,
     payout_failure_reason = NULL, payout_frozen_at = NULL, payout_frozen_by = NULL, payout_freeze_reason = NULL
     WHERE id::text = $1`, [booking.id, checkout.id, mode, snapshot.providerFeeCents, snapshot.providerNetCents,
-      snapshot.customerServiceFeeCents, snapshot.providerPlan, snapshot.providerFeeBasisPoints, snapshot.customerTotalCents]);
+      snapshot.customerServiceFeeCents, snapshot.providerPlan, snapshot.providerFeeBasisPoints, snapshot.providerFeeCapCents, snapshot.customerTotalCents]);
   await recordAnalytics({ eventName: "checkout_started", userId: session.user.id, targetType: "booking", targetId: booking.id, metadata: { serviceAmountCents: booking.price_cents, customerServiceFeeCents: snapshot.customerServiceFeeCents, amountCents: snapshot.customerTotalCents } });
   return NextResponse.json({ url: checkout.url });
 }

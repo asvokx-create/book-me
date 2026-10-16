@@ -117,7 +117,9 @@ export async function POST(request: Request, context: { params: Promise<{ bookin
     }, { idempotencyKey: `booking-refund-${bookingId}-total-${booking.refunded_amount_cents + booking.customer_service_fee_refunded_cents + stripeRefundAmount}` });
     let reversalFailure = "";
     let reversedCents = booking.stripe_transfer_reversed_cents;
-    const originalProviderShare = booking.price_cents - booking.platform_fee_cents;
+    // This is the recorded provider payout after the final platform-fee cap
+    // and Stripe processing-cost allocation, not a recomputed plan fee.
+    const originalProviderShare = booking.provider_payout_cents;
     if (!legacyDestinationCharge && booking.stripe_transfer_id) {
       const targetReversal = fullyRefunded
         ? booking.provider_payout_cents

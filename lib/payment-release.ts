@@ -4,6 +4,7 @@ import { database } from "./database";
 import { getStripe, getStripeMode, isStripeReady } from "./stripe";
 import { stripeOperationKey } from "./booking-financials";
 import { syncAffiliateCommissionForBooking } from "./affiliates";
+import { reconcileBookingProcessingFee } from "./booking-processing-fees";
 
 export const CUSTOMER_CONFIRMATION_HOURS = 48;
 
@@ -13,6 +14,18 @@ type ReleaseResult =
 
 export async function releaseBookingPayout(bookingId: string, trigger: "customer" | "automatic" | "admin"): Promise<ReleaseResult> {
   if (!isStripeReady()) return { ok: false, error: "Stripe is not configured." };
+
+  // Reconcile before taking the payout row lock. The reconciliation writes the
+  // same booking row, so doing it inside the transfer transaction would wait on
+  // our own lock. A later conditional claim still protects the transfer race.
+  const feeTarget = await database.query<{ stripe_charge_id: string | null }>(
+    "SELECT stripe_charge_id FROM bookings WHERE id::text = $1 AND stripe_mode = $2",
+    [bookingId, getStripeMode()],
+  );
+  const processingFee = await reconcileBookingProcessingFee(bookingId, feeTarget.rows[0]?.stripe_charge_id);
+  if (processingFee.status !== "final") {
+    return { ok: false, error: "Stripe is still finalizing this payment. Please try the payout again shortly." };
+  }
 
   const client = await database.connect();
   try {

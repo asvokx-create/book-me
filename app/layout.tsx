@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
 import SiteFooter from "@/components/site-footer";
 import AnalyticsTracker from "@/components/analytics-tracker";
 import GoogleAnalytics from "@/components/google-analytics";
 import { Suspense } from "react";
+import type { CSSProperties } from "react";
 import Script from "next/script";
 import { PreferencesProvider } from "@/components/preferences-provider";
 import InternalNavigationHistory from "@/components/internal-navigation-history";
@@ -12,14 +12,8 @@ import GrowthAttributionTracker from "@/components/growth-attribution-tracker";
 import { AnalyticsConsentManager } from "@/components/analytics-consent";
 import "./globals.css";
 
-const manrope = Manrope({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-manrope",
-  fallback: ["Segoe UI", "Arial", "sans-serif"],
-});
-
 const googleSiteVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
+const localFontVariable = { "--font-manrope": '"Manrope", "Segoe UI", Arial, sans-serif' } as CSSProperties;
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://bubsbookings.com"),
@@ -61,7 +55,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${manrope.variable} h-full antialiased`}
+      className="h-full antialiased"
+      style={localFontVariable}
     >
       <body className="min-h-full flex flex-col">
         <a href="#site-content" className="skip-link">Skip to main content</a>

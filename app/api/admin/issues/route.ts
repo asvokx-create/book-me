@@ -120,7 +120,9 @@ export async function PATCH(request: Request) {
         amount: partialAmountCents,
         metadata: { bookingId: dispute.booking_id, kind: "dispute_partial_refund", disputeId: id },
       }, { idempotencyKey: `dispute-partial-refund-${id}-${totalRefunded}` });
-      const originalProviderShare = booking.price_cents - booking.platform_fee_cents;
+      // Use the recorded payout after the platform-fee cap and finalized
+      // processing-cost allocation. Do not reapply the percentage on a refund.
+      const originalProviderShare = booking.provider_payout_cents;
       const adjustedProviderShare = Math.max(0, Math.round(originalProviderShare * (booking.price_cents - totalRefunded) / booking.price_cents));
       let reversedCents = booking.stripe_transfer_reversed_cents;
       if (booking.stripe_transfer_id) {

@@ -226,16 +226,16 @@ export async function POST(request: Request) {
       `INSERT INTO bookings (customer_id, provider_id, service_id, starts_at, ends_at, service_address,
           service_address_line1, service_address_line2, service_city, service_state, service_postal_code,
           access_instructions, notes, price_cents, assigned_team_member_id, booking_answers,
-          provider_plan_snapshot, provider_fee_basis_points, platform_fee_cents, provider_payout_cents,
+          provider_plan_snapshot, provider_fee_basis_points, provider_fee_cap_cents, platform_fee_cents, provider_payout_cents,
           customer_service_fee_cents, customer_total_cents, parent_booking_id, delivery_method,
           base_price_cents,add_on_total_cents,discount_cents,package_snapshot,add_on_snapshot,coupon_id,coupon_code_snapshot,recurring_series_id,recurrence_index,booking_kind,
           pricing_type_snapshot,hourly_rate_cents_snapshot,billable_duration_minutes,billing_increment_minutes_snapshot,minimum_duration_minutes_snapshot,maximum_duration_minutes_snapshot)
        VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), $13, $14, $15::uuid, $16::jsonb,
-          $17, $18, $19, $20, $21, $22, NULLIF($23, '')::uuid, $24,
-          $25,$26,$27,$28::jsonb,$29::jsonb,$30::uuid,$31,$32::uuid,$33,$34,$35,$36,$37,$38,$39,$40)
+          $17, $18, $19, $20, $21, $22, $23, NULLIF($24, '')::uuid, $25,
+          $26,$27,$28,$29::jsonb,$30::jsonb,$31::uuid,$32,$33::uuid,$34,$35,$36,$37,$38,$39,$40,$41)
        RETURNING id::text`,
       [session.user.id, service.provider_id, service.id, startsAt, endsAt, location, addressLine1, addressLine2, city, state, postalCode, accessInstructions, notes, commerce.serviceSubtotalCents, candidate.rows[0].member_id, JSON.stringify(answers),
-        financialSnapshot.providerPlan, financialSnapshot.providerFeeBasisPoints, financialSnapshot.providerFeeCents,
+        financialSnapshot.providerPlan, financialSnapshot.providerFeeBasisPoints, financialSnapshot.providerFeeCapCents, financialSnapshot.providerFeeCents,
         financialSnapshot.providerNetCents, financialSnapshot.customerServiceFeeCents, financialSnapshot.customerTotalCents, parentBookingId, requestedDeliveryMethod,
         commerce.basePriceCents,commerce.addOnTotalCents,commerce.discountCents,selectedPackage ? JSON.stringify(selectedPackage) : null,JSON.stringify(commerce.selectedAddOns),coupon?.id ?? null,coupon?.code ?? null,recurringSeriesId,recurringSeriesId ? 1 : null,service.service_kind,
         service.pricing_type,service.pricing_type === "HOURLY" ? service.hourly_rate_cents : null,billableDurationMinutes,

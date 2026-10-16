@@ -75,7 +75,9 @@ test("new policy pages describe the actual marketplace process and are linked fr
   assert.match(cancellations, /48 hours after a provider marks service complete/);
   assert.match(cancellations, /original payment method/);
   assert.match(payments, /\$2\.99/);
-  assert.match(payments, /10% booking fee for Starter, 6% for Pro, 2% for Business, and 0% for the Owner Plan/);
+  assert.match(payments, /10% BubsBookings platform fee capped at \$200 per booking/);
+  assert.match(payments, /6% BubsBookings platform fee capped at \$100 per booking/);
+  assert.match(payments, /not Stripe processing costs/);
   assert.match(providerSafety, /not a criminal background check, professional-license verification, insurance verification/);
   assert.match(marketing, /does not currently provide an SMS marketing campaign feature/);
   assert.match(dmca, /DMCA Designated Agent Directory/);

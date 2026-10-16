@@ -141,9 +141,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ booki
       const snapshot = calculateBookingFinancialSnapshot(change.requested_service_subtotal_cents, change.provider_plan_snapshot);
       const basePrice = calculateHourlyBasePriceCents(change.hourly_rate_cents_snapshot!, change.requested_duration_minutes);
       await client.query(`UPDATE bookings SET ends_at=$2,billable_duration_minutes=$3,base_price_cents=$4,price_cents=$5,
-        provider_fee_basis_points=$6,platform_fee_cents=$7,provider_payout_cents=$8,customer_service_fee_cents=$9,customer_total_cents=$10
+        provider_fee_basis_points=$6,provider_fee_cap_cents=$7,platform_fee_cents=$8,provider_payout_cents=$9,customer_service_fee_cents=$10,customer_total_cents=$11
         WHERE id::text=$1`, [bookingId, endsAt, change.requested_duration_minutes, basePrice, change.requested_service_subtotal_cents,
-        snapshot.providerFeeBasisPoints,snapshot.providerFeeCents,snapshot.providerNetCents,snapshot.customerServiceFeeCents,snapshot.customerTotalCents]);
+        snapshot.providerFeeBasisPoints,snapshot.providerFeeCapCents,snapshot.providerFeeCents,snapshot.providerNetCents,snapshot.customerServiceFeeCents,snapshot.customerTotalCents]);
     }
     await client.query(`UPDATE booking_change_requests SET status=$2,responded_by=$3,responded_at=now() WHERE id::text=$1`, [changeId, action === "approve" ? "approved" : "declined", session.user.id]);
     await client.query(`INSERT INTO booking_events (booking_id,actor_user_id,event_type,message,metadata)
