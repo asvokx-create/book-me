@@ -24,7 +24,7 @@ const plans = [
     name: "Starter",
     price: "$0",
     cadence: "forever",
-    fee: "BubsBookings booking fee: 10% (capped at $200 per booking)",
+    fee: "BubsBookings booking fee: 10%, with a maximum of $200 per booking",
     description: "Everything you need to start getting booked.",
     features: ["No lead, inquiry, message, or quote fees", "2 services with up to 5 photos", "Share links, QR codes & listing tools", "Booking calendar & customer messaging", "Customer records, booking history, private tags & notes", "Email campaigns with audience segments, branded templates & reporting", "Unsubscribe and suppression handling", "24-hour reminders & basic analytics", "Single-owner access"],
     featured: false,
@@ -34,7 +34,7 @@ const plans = [
     name: "Pro",
     price: "$9.99",
     cadence: "per month",
-    fee: "BubsBookings booking fee: 6% (capped at $100 per booking)",
+    fee: "BubsBookings booking fee: 6%, with a maximum of $100 per booking",
     description: "Every growth tool in one affordable plan.",
     features: ["Everything in Starter", "Unlimited services, photos & locations", "Custom booking questions & advanced reminders", "Advanced analytics & repeat-customer insights", "Coupon promotions & repeat-customer offers", "3 team seats included", "Extra employees for $0.50/month each", "Priority support & browse placement"],
     featured: true,
@@ -137,7 +137,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
                 : <Link href="/pricing?plan=pro#plans" className="mt-8 rounded-full bg-[#eee25a] px-5 py-3.5 text-center text-sm font-bold transition hover:bg-[#f5ea6b]">{currentPlan === "owner" ? "Pro is included in Owner Plan" : proTrialEligible ? "Start 30-day free trial" : "Choose Pro for $9.99"}</Link>}
           </article>})}
         </div>
-        <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">The Pro trial is available once per provider company and requires a card. It automatically renews at $9.99 per month after 30 days unless canceled before the trial ends. The 6% BubsBookings platform fee, capped at $100 per booking, applies during the trial. Customers pay a separate $2.99 BubsBookings service fee at checkout. Stripe processing costs are separate from the BubsBookings platform fee and are shown in the provider&apos;s booking record when Stripe finalizes them. All subscription details are shown again in Stripe Checkout.</p>
+        <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-5 text-[#74827b]">The Pro trial is available once per provider company and requires a card. It automatically renews at $9.99 per month after 30 days unless canceled before the trial ends. The 6% BubsBookings platform fee, with a maximum of $100 per booking, applies during the trial. Customers pay a separate $2.99 BubsBookings service fee at checkout. Stripe processing costs are separate from the BubsBookings platform fee and are shown in the provider&apos;s booking record when Stripe finalizes them. All subscription details are shown again in Stripe Checkout.</p>
         </div>
       </section>
     </main>

@@ -119,9 +119,9 @@ export default function BillingPanel({ plan }: { plan: ProviderPlan }) {
       ? "6% · max $100"
       : `${current.bookingFeePercent}%`;
   const payoutExplanation = plan === "starter"
-    ? "BubsBookings keeps a 10% platform fee, capped at $200 per booking. Stripe processing costs are separate."
+    ? "BubsBookings keeps a 10% platform fee, with a maximum of $200 per booking. Stripe processing costs are separate."
     : plan === "pro"
-      ? "BubsBookings keeps a 6% platform fee, capped at $100 per booking. Stripe processing costs are separate."
+      ? "BubsBookings keeps a 6% platform fee, with a maximum of $100 per booking. Stripe processing costs are separate."
       : `BubsBookings keeps the ${current.bookingFeePercent}% plan fee and Stripe sends your share to your payout account.`;
 
   return <div>
