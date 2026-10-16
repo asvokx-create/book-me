@@ -83,7 +83,7 @@ export default function ProviderMarketingTools({ services, providerProfile, plan
         {services.length > 1 ? <label className="mt-4 block">
           <span className="sr-only">Service listing</span>
           <CustomSelect ariaLabel="Service listing" searchable={services.length > 8} value={selected.id} onChange={(value) => { setSelectedId(value); setDownloadError(""); }} buttonClassName="marketing-listing-select w-full rounded-2xl border px-5 py-3.5 text-sm font-bold outline-none">
-            {services.map((service) => <option key={service.id} value={service.id}>{service.title} — {service.businessName}</option>)}
+            {services.map((service) => <option key={service.id} value={service.id}>{service.title} · {service.businessName}</option>)}
           </CustomSelect>
         </label> : null}
 

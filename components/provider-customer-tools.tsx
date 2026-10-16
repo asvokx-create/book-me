@@ -10,7 +10,7 @@ type Tag = { id: string; name: string; color: string };
 type Client = { customer_id: string; display_name: string; email: string; image: string; first_booking_at: string; last_booking_at: string; last_service_slug?: string; booking_count: number; completed_bookings: number; total_spent_cents: string; last_service: string; marketing_status: "subscribed" | "unsubscribed" };
 type Detail = { client: Client; bookings: Array<Record<string, unknown>>; quotes: Array<Record<string, unknown>>; notes: Array<{ id: string; body: string; created_at: string; author: string }>; reviews: Array<Record<string, unknown>>; events: Array<{ campaign: string; event_type: string; created_at: string }>; tags: Tag[]; allTags: Tag[] };
 const money = (cents: string | number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(cents) / 100);
-const date = (value: unknown) => value ? new Date(String(value)).toLocaleDateString() : "—";
+const date = (value: unknown) => value ? new Date(String(value)).toLocaleDateString() : "Not available";
 
 export default function ProviderCustomerTools() {
   const [clients, setClients] = useState<Client[]>([]);

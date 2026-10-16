@@ -137,7 +137,7 @@ function IssueCard({ issue, busy, update, closed = false }: {
           <div className="rounded-xl border border-[#183126]/10 bg-[#e7f1e3] p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-[#718078]">Financial outcome</p>
             <p className="mt-2 text-sm font-bold">
-              {issue.resolution_outcome === "provider" ? "Provider won — payout released or queued for release" : "Customer won — payment refunded"}
+              {issue.resolution_outcome === "provider" ? "Provider won: payout released or queued for release" : "Customer won: payment refunded"}
             </p>
           </div>
         )}

@@ -13,7 +13,7 @@ const statuses = ["researching", "contact_ready", "contacted", "replied", "inter
 function friendlyDraftCopy(prospect: Prospect) {
   return {
     subject: "A quick note from Christian at BubsBookings",
-    body: `Hi ${prospect.business_name} team,\n\nI’m Christian, the founder of BubsBookings. I came across your business while looking for great ${prospect.service_category} providers around ${prospect.city}, ${prospect.state}.\n\nWe’re building a simple way for local customers to find and book independent service businesses. I’d love for you to take a look and see whether BubsBookings could be a good fit for your business:\nhttps://bubsbookings.com/providers/join\n\nIf you have any questions, just reply to this email—I’d be happy to help.\n\nThanks,\nChristian\nFounder, BubsBookings`,
+    body: `Hi ${prospect.business_name} team,\n\nI’m Christian, the founder of BubsBookings. I came across your business while looking for great ${prospect.service_category} providers around ${prospect.city}, ${prospect.state}.\n\nWe’re building a simple way for local customers to find and book independent service businesses. I’d love for you to take a look and see whether BubsBookings could be a good fit for your business:\nhttps://bubsbookings.com/providers/join\n\nIf you have any questions, just reply to this email-I’d be happy to help.\n\nThanks,\nChristian\nFounder, BubsBookings`,
   };
 }
 

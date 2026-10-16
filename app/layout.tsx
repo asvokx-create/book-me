@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     url: "https://bubsbookings.com",
     title: "BubsBookings | Find and book local or remote services",
     description: "Search local and remote providers, compare listings, and request bookings in one place.",
-    images: [{ url: "/brand-logo.jpg", width: 1200, height: 1200, alt: "BubsBookings — Local services. Real people." }],
+    images: [{ url: "/brand-logo.jpg", width: 1200, height: 1200, alt: "BubsBookings : Local services. Real people." }],
   },
   twitter: { card: "summary", title: "BubsBookings", description: "Find and book local or remote service providers.", images: ["/brand-logo.jpg"] },
   ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
