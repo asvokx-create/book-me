@@ -66,9 +66,9 @@ async function updateSubscription(subscription: Stripe.Subscription, eventCreate
   try {
     await client.query("BEGIN");
     const complimentary = await client.query<{ active: boolean }>(`SELECT EXISTS (
-      SELECT 1 FROM complimentary_pro_grants grant WHERE grant.provider_id::text = $1
-        AND grant.revoked_at IS NULL AND grant.starts_at <= now()
-        AND (grant.expires_at IS NULL OR grant.expires_at > now())) AS active`, [providerId]);
+      SELECT 1 FROM complimentary_pro_grants complimentary WHERE complimentary.provider_id::text = $1
+        AND complimentary.revoked_at IS NULL AND complimentary.starts_at <= now()
+        AND (complimentary.expires_at IS NULL OR complimentary.expires_at > now())) AS active`, [providerId]);
     const effectivePro = active || Boolean(complimentary.rows[0]?.active);
     const updated = await client.query<{ id: string }>(`UPDATE provider_profiles SET
         plan = CASE WHEN $12 THEN 'pro' ELSE 'starter' END,

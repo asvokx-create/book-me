@@ -67,6 +67,9 @@ test("grant endpoints, Stripe safeguards, expiry job, and audit history are wire
   assert.match(adminUi, /30 days/);
   assert.match(adminUi, /Lifetime/);
   assert.match(billingUi, /Your complimentary Pro access continues through/);
+  for (const source of [checkout, webhook, booking]) assert.doesNotMatch(source, /complimentary_pro_grants\s+grant\b/);
+  const complimentarySource = await readFile(new URL("../lib/complimentary-pro.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(complimentarySource, /complimentary_pro_grants\s+grant\b/);
 });
 
 test("duration values reject manipulation", () => {

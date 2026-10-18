@@ -103,8 +103,8 @@ export async function POST(request: Request) {
      JOIN provider_profiles p ON p.id = s.provider_id AND p.is_active = true AND p.age_verification_status = 'verified'
      CROSS JOIN LATERAL (SELECT CASE
        WHEN p.plan IN ('owner', 'business') THEN p.plan
-       WHEN EXISTS (SELECT 1 FROM complimentary_pro_grants grant WHERE grant.provider_id = p.id
-         AND grant.revoked_at IS NULL AND grant.starts_at <= now() AND (grant.expires_at IS NULL OR grant.expires_at > now())) THEN 'pro'
+       WHEN EXISTS (SELECT 1 FROM complimentary_pro_grants complimentary WHERE complimentary.provider_id = p.id
+         AND complimentary.revoked_at IS NULL AND complimentary.starts_at <= now() AND (complimentary.expires_at IS NULL OR complimentary.expires_at > now())) THEN 'pro'
        WHEN p.stripe_subscription_id IS NOT NULL AND p.stripe_billing_mode = $2
          AND p.stripe_subscription_status IN ('active', 'trialing', 'past_due') THEN 'pro'
        ELSE 'starter' END AS effective_plan) entitlement

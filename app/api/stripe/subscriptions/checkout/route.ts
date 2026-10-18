@@ -21,11 +21,11 @@ export async function POST(request: Request) {
   const providerResult = await database.query<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_subscription_checkout_session_id: string | null; stripe_billing_mode: "test" | "live" | null; pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null; complimentary_pro_expires_at: Date | null; complimentary_pro_active: boolean }>(
     `SELECT id::text, stripe_customer_id, stripe_subscription_id, stripe_subscription_checkout_session_id, stripe_billing_mode,
       pro_trial_used_at_test, pro_trial_used_at_live,
-      (SELECT grant.expires_at FROM complimentary_pro_grants grant WHERE grant.provider_id = provider_profiles.id
-        AND grant.revoked_at IS NULL AND grant.starts_at <= now() AND (grant.expires_at IS NULL OR grant.expires_at > now())
-        ORDER BY grant.created_at DESC LIMIT 1) AS complimentary_pro_expires_at,
-      EXISTS (SELECT 1 FROM complimentary_pro_grants grant WHERE grant.provider_id = provider_profiles.id
-        AND grant.revoked_at IS NULL AND grant.starts_at <= now() AND (grant.expires_at IS NULL OR grant.expires_at > now())) AS complimentary_pro_active
+      (SELECT complimentary.expires_at FROM complimentary_pro_grants complimentary WHERE complimentary.provider_id = provider_profiles.id
+        AND complimentary.revoked_at IS NULL AND complimentary.starts_at <= now() AND (complimentary.expires_at IS NULL OR complimentary.expires_at > now())
+        ORDER BY complimentary.created_at DESC LIMIT 1) AS complimentary_pro_expires_at,
+      EXISTS (SELECT 1 FROM complimentary_pro_grants complimentary WHERE complimentary.provider_id = provider_profiles.id
+        AND complimentary.revoked_at IS NULL AND complimentary.starts_at <= now() AND (complimentary.expires_at IS NULL OR complimentary.expires_at > now())) AS complimentary_pro_active
      FROM provider_profiles WHERE user_id = $1 AND is_active = true`,
     [session.user.id],
   );

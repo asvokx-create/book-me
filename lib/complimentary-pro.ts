@@ -175,22 +175,22 @@ export async function reconcileExpiredComplimentaryProGrants(providerId?: string
   const mode = getStripeMode();
   await database.query(`INSERT INTO complimentary_pro_grant_events
     (grant_id, provider_id, actor_user_id, action, previous_expires_at)
-    SELECT grant.id, grant.provider_id, NULL, 'expired', grant.expires_at
-    FROM complimentary_pro_grants grant
-    WHERE grant.revoked_at IS NULL AND grant.expires_at IS NOT NULL AND grant.expires_at <= now()
-      AND ($1::uuid IS NULL OR grant.provider_id = $1::uuid)
+    SELECT complimentary.id, complimentary.provider_id, NULL, 'expired', complimentary.expires_at
+    FROM complimentary_pro_grants complimentary
+    WHERE complimentary.revoked_at IS NULL AND complimentary.expires_at IS NOT NULL AND complimentary.expires_at <= now()
+      AND ($1::uuid IS NULL OR complimentary.provider_id = $1::uuid)
       AND NOT EXISTS (SELECT 1 FROM complimentary_pro_grant_events event
-        WHERE event.grant_id = grant.id AND event.action = 'expired')
+        WHERE event.grant_id = complimentary.id AND event.action = 'expired')
     ON CONFLICT DO NOTHING`, [providerId ?? null]);
   const expired = await database.query<{ provider_id: string }>(
     `WITH expired AS (
-       SELECT DISTINCT grant.provider_id
-       FROM complimentary_pro_grants grant
-       WHERE grant.revoked_at IS NULL AND grant.expires_at IS NOT NULL AND grant.expires_at <= now()
-         AND ($1::uuid IS NULL OR grant.provider_id = $1::uuid)
+       SELECT DISTINCT complimentary.provider_id
+       FROM complimentary_pro_grants complimentary
+       WHERE complimentary.revoked_at IS NULL AND complimentary.expires_at IS NOT NULL AND complimentary.expires_at <= now()
+         AND ($1::uuid IS NULL OR complimentary.provider_id = $1::uuid)
          AND NOT EXISTS (
            SELECT 1 FROM complimentary_pro_grants active
-           WHERE active.provider_id = grant.provider_id AND active.revoked_at IS NULL
+           WHERE active.provider_id = complimentary.provider_id AND active.revoked_at IS NULL
              AND active.starts_at <= now() AND (active.expires_at IS NULL OR active.expires_at > now())
          )
      )
