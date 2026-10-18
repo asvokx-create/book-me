@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { getJarvisPhoneSettings, issueJarvisPhoneCode, jarvisPhoneConfiguration, maskPhone, updateJarvisPhoneSettings } from "@/lib/jarvis-phone";
+import { hasTrustedRequestOrigin } from "@/lib/request-origin";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
-
-function sameOrigin(request: Request) {
-  return request.headers.get("origin") === new URL(request.url).origin;
-}
 
 export async function GET() {
   const session = await getAdminSession();
@@ -23,7 +20,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
-  if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  if (!hasTrustedRequestOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-jarvis-phone-code", limit: 3, windowSeconds: 600 })) {
     return NextResponse.json({ error: "Too many phone-code requests. Please wait before creating another code." }, { status: 429 });
   }
@@ -36,7 +33,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
-  if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  if (!hasTrustedRequestOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-jarvis-phone-settings", limit: 10, windowSeconds: 600 })) {
     return NextResponse.json({ error: "Too many settings changes. Please wait." }, { status: 429 });
   }

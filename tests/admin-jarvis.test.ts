@@ -47,9 +47,12 @@ test("Jarvis rejects obvious private identifiers before an OpenAI request", () =
 
 test("Jarvis API is admin-only, same-origin, rate-limited, budgeted, audited, and non-persistent at OpenAI", async () => {
   const source = await readFile(new URL("../app/api/admin/jarvis/route.ts", import.meta.url), "utf8");
+  const originSecurity = await readFile(new URL("../lib/request-origin.ts", import.meta.url), "utf8");
   const server = await readFile(new URL("../lib/jarvis.ts", import.meta.url), "utf8");
   assert.match(source, /getAdminSession\(\)/);
-  assert.match(source, /request\.headers\.get\("origin"\)/);
+  assert.match(source, /hasTrustedRequestOrigin\(request\)/);
+  assert.match(originSecurity, /request\.headers\.get\("origin"\)/);
+  assert.match(originSecurity, /x-forwarded-host/);
   assert.match(source, /bucket: "admin-jarvis", limit: 6/);
   assert.match(source, /reserveJarvisBudget\(\)/);
   assert.match(source, /recordJarvisAudit/);

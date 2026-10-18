@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
 import { askJarvis, jarvisConfiguration, recordJarvisAudit, releaseJarvisBudget, reserveJarvisBudget, settleJarvisBudget } from "@/lib/jarvis";
 import { enforceRateLimit } from "@/lib/request-security";
+import { hasTrustedRequestOrigin } from "@/lib/request-origin";
 import { jarvisQuestionContainsSensitiveData } from "@/lib/jarvis-policy";
 
 export async function GET() {
@@ -15,7 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
-  if (request.headers.get("origin") !== new URL(request.url).origin) {
+  if (!hasTrustedRequestOrigin(request)) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   }
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-jarvis", limit: 6, windowSeconds: 60 })) {
