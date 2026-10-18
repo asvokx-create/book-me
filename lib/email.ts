@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+import type { PoolClient } from "pg";
 import { database } from "./database";
 
 type EmailInput = {
@@ -17,9 +19,15 @@ type EmailInput = {
 };
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+export const ACCOUNT_VERIFICATION_COOLDOWN_MS = 15 * 60 * 1000;
 
 export function isEmailConfigured() {
   return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+}
+
+export function verificationEmailIdempotencyKey(email: string, now = Date.now()) {
+  const recipientHash = createHash("sha256").update(email.trim().toLowerCase()).digest("hex").slice(0, 32);
+  return `account-verification-${recipientHash}-${Math.floor(now / ACCOUNT_VERIFICATION_COOLDOWN_MS)}`;
 }
 
 function escapeHtml(value: string) {
@@ -79,17 +87,75 @@ export async function sendTransactionalEmail(input: EmailInput) {
   }
 }
 
-export function sendAuthEmail(input: { to: string; name?: string; url: string; kind: "verify" | "reset" }) {
+async function sendVerificationEmailWithCooldown(input: { to: string; name?: string; url: string }) {
+  const recipient = input.to.trim().toLowerCase();
+  if (!recipient) return { sent: false, skipped: true, cooldown: false };
+
+  const lockKey = `account-verification:${recipient}`;
+  let client: PoolClient | null = null;
+  let lockHeld = false;
+  try {
+    client = await database.connect();
+    const lock = await client.query<{ locked: boolean }>(
+      "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS locked",
+      [lockKey],
+    );
+    lockHeld = Boolean(lock.rows[0]?.locked);
+    if (!lockHeld) {
+      await recordDelivery({ to: recipient, emailType: "account_verification", subject: "", heading: "", message: "" }, "skipped", "", "A verification email is already being prepared.");
+      return { sent: false, skipped: true, cooldown: true };
+    }
+
+    const recent = await client.query<{ created_at: Date }>(
+      `SELECT created_at
+       FROM email_delivery_log
+       WHERE email_type = 'account_verification'
+         AND lower(recipient) = $1
+         AND status = 'sent'
+         AND created_at > now() - interval '15 minutes'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [recipient],
+    );
+    if (recent.rows[0]) {
+      await recordDelivery({ to: recipient, emailType: "account_verification", subject: "", heading: "", message: "" }, "skipped", "", "Verification email cooldown is active.");
+      return { sent: false, skipped: true, cooldown: true };
+    }
+
+    const result = await sendTransactionalEmail({
+      to: recipient,
+      subject: "Verify your BubsBookings email",
+      heading: "Verify your email address",
+      message: `Hi ${input.name || "there"}, confirm this email address to finish securing your BubsBookings account.`,
+      actionLabel: "Verify email",
+      actionUrl: input.url,
+      emailType: "account_verification",
+      idempotencyKey: verificationEmailIdempotencyKey(recipient),
+    });
+    return { ...result, cooldown: false };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown verification email error";
+    await recordDelivery({ to: recipient, emailType: "account_verification", subject: "", heading: "", message: "" }, "failed", "", message);
+    console.error("Verification email delivery failed", { message });
+    return { sent: false, skipped: false, cooldown: false };
+  } finally {
+    if (client && lockHeld) {
+      await client.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [lockKey]).catch(() => undefined);
+    }
+    client?.release();
+  }
+}
+
+export async function sendAuthEmail(input: { to: string; name?: string; url: string; kind: "verify" | "reset" }) {
   const verification = input.kind === "verify";
+  if (verification) return sendVerificationEmailWithCooldown(input);
   return sendTransactionalEmail({
     to: input.to,
-    subject: verification ? "Verify your BubsBookings email" : "Reset your BubsBookings password",
-    heading: verification ? "Verify your email address" : "Reset your password",
-    message: verification
-      ? `Hi ${input.name || "there"}, confirm this email address to finish securing your BubsBookings account.`
-      : `Hi ${input.name || "there"}, use the secure link below to choose a new BubsBookings password. If you did not request this, you can ignore this email.`,
-    actionLabel: verification ? "Verify email" : "Reset password",
+    subject: "Reset your BubsBookings password",
+    heading: "Reset your password",
+    message: `Hi ${input.name || "there"}, use the secure link below to choose a new BubsBookings password. If you did not request this, you can ignore this email.`,
+    actionLabel: "Reset password",
     actionUrl: input.url,
-    emailType: verification ? "account_verification" : "password_reset",
+    emailType: "password_reset",
   });
 }
