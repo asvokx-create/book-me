@@ -8,6 +8,11 @@ import {
   PROVIDER_AGREEMENT_VERSION,
   createPolicyConsentFields,
 } from "../lib/policy-consent.ts";
+import {
+  createPolicyConsentAttestation,
+  hasValidPolicyConsentAttestation,
+  POLICY_CONSENT_COOKIE,
+} from "../lib/policy-consent-attestation.ts";
 
 test("legal policy versions match their displayed effective dates", () => {
   assert.equal(POLICY_VERSION, "2026-10-14");
@@ -22,4 +27,12 @@ test("new account consent records use the current policy version", () => {
   assert.ok(Number.isFinite(Date.parse(consent.termsAcceptedAt)));
   assert.equal(consent.termsAcceptedAt, consent.privacyAcknowledgedAt);
   assert.equal(consent.termsAcceptedAt, consent.aiSafetyAcknowledgedAt);
+});
+
+test("server-verifiable consent attestation expires and cannot be replaced with a client timestamp", () => {
+  const now = new Date("2026-10-17T12:00:00.000Z");
+  const token = createPolicyConsentAttestation(now);
+  assert.equal(hasValidPolicyConsentAttestation(`${POLICY_CONSENT_COOKIE}=${token}`, new Date("2026-10-17T12:10:00.000Z")), true);
+  assert.equal(hasValidPolicyConsentAttestation(`${POLICY_CONSENT_COOKIE}=not-a-valid-token`, now), false);
+  assert.equal(hasValidPolicyConsentAttestation(`${POLICY_CONSENT_COOKIE}=${token}`, new Date("2026-10-17T12:31:00.000Z")), false);
 });

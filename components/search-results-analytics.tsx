@@ -12,9 +12,11 @@ export default function SearchResultsAnalytics({ query, category, delivery = "AL
       anonymousId = window.crypto.randomUUID();
       window.localStorage.setItem("bubs-analytics-id", anonymousId);
     }
-    const metadata = { query, category, delivery, ...(delivery === "REMOTE" ? {} : { location, radiusMiles }), resultCount };
+    // Search text can include personal information. The reporting endpoint only
+    // needs aggregate context, not the text a visitor typed.
+    const metadata = { queryLength: query.trim().length, category, delivery, ...(delivery === "REMOTE" ? {} : { location, radiusMiles }), resultCount };
     const eventName = resultCount === 0 ? "zero_result_search" : delivery === "REMOTE" ? "remote_search" : delivery === "IN_PERSON" ? "local_search" : "search_results";
-    void fetch("/api/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventName, anonymousId, path: window.location.pathname + window.location.search, metadata }), keepalive: true });
+    void fetch("/api/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventName, anonymousId, path: window.location.pathname, metadata }), keepalive: true });
   }, [category, consent, delivery, location, query, radiusMiles, resultCount]);
   return null;
 }

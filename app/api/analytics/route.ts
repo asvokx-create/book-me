@@ -11,15 +11,39 @@ const shareEvents = new Map([
   ["listing_share_linkedin", "linkedin"], ["listing_share_email", "email"],
 ]);
 const providerShareEvents = new Map([...shareEvents.entries()].map(([event, method]) => [event.replace("listing_", "provider_"), method]));
-const allowedEvents = new Set(["page_view", "service_view", "provider_profile_view", "search_results", "zero_result_search", "checkout_abandoned", ...shareEvents.keys(), ...providerShareEvents.keys()]);
+const allowedEvents = new Set(["page_view", "service_view", "provider_profile_view", "search_results", "zero_result_search", "local_search", "remote_search", "checkout_abandoned", ...shareEvents.keys(), ...providerShareEvents.keys()]);
+
+function safePath(value: unknown) {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = new URL(value, "https://bubsbookings.com");
+    return parsed.pathname.startsWith("/") ? parsed.pathname.slice(0, 200) : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeSearchMetadata(value: Record<string, unknown>) {
+  const text = (field: string, max: number) => typeof value[field] === "string" ? value[field].slice(0, max) : "";
+  const number = (field: string, max: number) => typeof value[field] === "number" && Number.isFinite(value[field]) ? Math.min(Math.max(0, Math.floor(value[field])), max) : 0;
+  return {
+    queryLength: number("queryLength", 200),
+    category: text("category", 80),
+    delivery: text("delivery", 20),
+    location: text("location", 100),
+    radiusMiles: number("radiusMiles", 500),
+    resultCount: number("resultCount", 10_000),
+  };
+}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null) as { eventName?: unknown; anonymousId?: unknown; path?: unknown; metadata?: unknown } | null;
   const eventName = typeof body?.eventName === "string" ? body.eventName : "";
   if (!allowedEvents.has(eventName)) return NextResponse.json({ error: "Unknown event." }, { status: 400 });
-  const path = typeof body?.path === "string" ? body.path.slice(0, 500) : null;
+  const path = safePath(body?.path);
   const anonymousId = typeof body?.anonymousId === "string" ? body.anonymousId.slice(0, 100) : null;
   let metadata = body?.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata) ? body.metadata as Record<string, unknown> : {};
+  if (["search_results", "zero_result_search", "local_search", "remote_search"].includes(eventName)) metadata = safeSearchMetadata(metadata);
   const session = await auth.api.getSession({ headers: await headers() });
   if (!await enforceRateLimit({ request, userId: session?.user.id ?? anonymousId ?? "guest", bucket: "analytics", limit: 60 })) return NextResponse.json({ ok: true });
   let targetType: string | null = null;

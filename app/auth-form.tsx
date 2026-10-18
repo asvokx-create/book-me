@@ -65,6 +65,20 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
     return true;
   }
 
+  async function recordPolicyConsent() {
+    const response = await fetch("/api/policy-consent", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ termsAccepted: acceptedTerms, privacyAcknowledged: acknowledgedPrivacy }),
+    });
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    if (!response.ok) {
+      setError(payload?.error ?? "We could not record your agreement. Please try again.");
+      return false;
+    }
+    return true;
+  }
+
   async function showSignupStepTwo() {
     if (!await confirmAgeEligibility()) return;
     setSignupStep(2);
@@ -111,6 +125,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       setError("Complete all required agreements before creating an account.");
       return;
     }
+    if (!isLogin && !await recordPolicyConsent()) return;
     if (!isLogin) {
       const normalized = normalizeAccountLocation({ city, state, postalCode, country: "United States" });
       if ((!remoteOnly || isProviderIntent) && !normalized.location) {
@@ -178,6 +193,11 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       sessionStorage.removeItem("bookme-post-login-redirect");
       router.push(redirectTo);
       router.refresh();
+      return;
+    }
+
+    if (!await recordPolicyConsent()) {
+      setLoading(false);
       return;
     }
 

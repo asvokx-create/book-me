@@ -6,6 +6,7 @@ import { createPolicyConsentFields, POLICY_VERSION } from "./policy-consent";
 import { sendAccountWelcome } from "./welcome-message";
 import { normalizeAccountLocation } from "./account-location";
 import { hasValidAgeEligibilityAttestation } from "./age-eligibility";
+import { hasValidPolicyConsentAttestation } from "./policy-consent-attestation";
 
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -99,6 +100,7 @@ export const auth = betterAuth({
       create: {
         async before(user, context) {
           if (!hasValidAgeEligibilityAttestation(context?.headers?.get("cookie"))) return false;
+          if (!hasValidPolicyConsentAttestation(context?.headers?.get("cookie"))) return false;
           const termsAcceptedAt = typeof user.termsAcceptedAt === "string" ? Date.parse(user.termsAcceptedAt) : Number.NaN;
           const privacyAcknowledgedAt = typeof user.privacyAcknowledgedAt === "string" ? Date.parse(user.privacyAcknowledgedAt) : Number.NaN;
           const aiSafetyAcknowledgedAt = typeof user.aiSafetyAcknowledgedAt === "string" ? Date.parse(user.aiSafetyAcknowledgedAt) : Number.NaN;
