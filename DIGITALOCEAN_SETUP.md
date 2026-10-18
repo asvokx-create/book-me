@@ -57,6 +57,13 @@ Create a private DigitalOcean Space and set the `DO_SPACES_*` variables from `.e
 
 ## 6. Schedule reminders and payout releases
 
-Set a long random `CRON_SECRET`, then call `POST /api/cron/booking-reminders` every 10 minutes with the header `Authorization: Bearer YOUR_CRON_SECRET`. That single scheduled request sends due booking reminders and releases provider payments whose 48-hour customer confirmation window has ended. `POST /api/cron/payment-releases` is also available when payout processing needs a separate schedule.
+Set a long random `CRON_SECRET`. Never expose it in browser code or commit it to GitHub.
 
-Never expose `CRON_SECRET` in browser code or commit it to GitHub. Monitor the Operations page for failed or delayed payout-release runs.
+Use a scheduler for `POST /api/cron/booking-reminders` every 10 minutes with the header `Authorization: Bearer YOUR_CRON_SECRET`. That task sends booking reminders, creates due recurring bookings, and releases eligible provider payments.
+
+Use the single `scheduled-operations` job from `.do/app.yaml.example` for booking reminders and automatic provider and eligible affiliate payout processing. It runs every 15 minutes, which is the minimum App Platform schedule interval. Reuse this job instead of adding a second paid component. It makes authenticated server-to-server requests to both protected endpoints, then exits unsuccessfully if either endpoint does not return a confirmed JSON response. Configure these environment variables on the job:
+
+- `SCHEDULED_CRON_ORIGIN`: `https://bubsbookings.com`, or the staging site's HTTPS origin when testing.
+- `CRON_SECRET`: exactly the same value used by the web service.
+
+The job is not an authorization bypass. The app still checks payment status, payout holds, age and Stripe readiness, the affiliate compliance decision, and Stripe transfer eligibility before any transfer is created. Check App Platform Activity, Jobs, and the Operations page for failed or delayed payout runs. A failed job should be investigated before any manual retry.
