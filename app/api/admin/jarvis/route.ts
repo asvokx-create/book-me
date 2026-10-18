@@ -1,0 +1,66 @@
+import { randomUUID } from "node:crypto";
+import { NextResponse } from "next/server";
+import { getAdminSession } from "@/lib/admin";
+import { askJarvis, jarvisConfiguration, recordJarvisAudit, releaseJarvisBudget, reserveJarvisBudget, settleJarvisBudget } from "@/lib/jarvis";
+import { enforceRateLimit } from "@/lib/request-security";
+import { jarvisQuestionContainsSensitiveData } from "@/lib/jarvis-policy";
+
+export async function GET() {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+  const config = jarvisConfiguration();
+  return NextResponse.json({ configured: config.configured, readOnly: true });
+}
+
+export async function POST(request: Request) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
+  if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "admin-jarvis", limit: 6, windowSeconds: 60 })) {
+    return NextResponse.json({ error: "Jarvis is receiving too many requests. Please wait a minute." }, { status: 429 });
+  }
+
+  let question = "";
+  try {
+    const body = await request.json() as { question?: unknown };
+    question = typeof body.question === "string" ? body.question.trim() : "";
+  } catch {
+    return NextResponse.json({ error: "Send a valid question." }, { status: 400 });
+  }
+  if (question.length < 2 || question.length > 1_000) {
+    return NextResponse.json({ error: "Questions must be between 2 and 1,000 characters." }, { status: 400 });
+  }
+
+  const requestId = randomUUID();
+  if (jarvisQuestionContainsSensitiveData(question)) {
+    await recordJarvisAudit({ requestId, userId: session.user.id, question, status: "rejected", errorCode: "sensitive_input" });
+    return NextResponse.json({ error: "Remove email addresses, phone numbers, government identifiers, or payment-card numbers. Jarvis only needs aggregate operational questions." }, { status: 400 });
+  }
+  const config = jarvisConfiguration();
+  if (!config.configured) {
+    await recordJarvisAudit({ requestId, userId: session.user.id, question, status: "rejected", errorCode: "not_configured" });
+    return NextResponse.json({ error: "Jarvis is not configured yet. Add the server-only OpenAI settings before using it." }, { status: 503 });
+  }
+  if (!await reserveJarvisBudget()) {
+    await recordJarvisAudit({ requestId, userId: session.user.id, question, model: config.model, status: "rejected", errorCode: "daily_budget_reached" });
+    return NextResponse.json({ error: "Jarvis reached its daily usage limit. Try again after the UTC usage window resets." }, { status: 429 });
+  }
+
+  try {
+    const result = await askJarvis(question);
+    await settleJarvisBudget(result.inputTokens, result.outputTokens);
+    await recordJarvisAudit({ requestId, userId: session.user.id, question, model: result.model, status: "completed", inputTokens: result.inputTokens, outputTokens: result.outputTokens });
+    return NextResponse.json({ answer: result.answer, incidents: result.incidents, generatedAt: result.generatedAt, requestId });
+  } catch (error) {
+    await releaseJarvisBudget();
+    const code = error instanceof Error ? error.message : "UNKNOWN";
+    await recordJarvisAudit({ requestId, userId: session.user.id, question, model: config.model, status: "failed", errorCode: code.slice(0, 80) });
+    console.error("Jarvis request failed", { requestId, code });
+    const message = code === "UPSTREAM_RATE_LIMIT"
+      ? "The AI service is temporarily rate limited. Please try again shortly."
+      : "Jarvis could not answer that question right now. No operational action was taken.";
+    return NextResponse.json({ error: message, requestId }, { status: code === "UPSTREAM_RATE_LIMIT" ? 429 : 502 });
+  }
+}

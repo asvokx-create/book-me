@@ -17,6 +17,19 @@ const contentSecurityPolicy = [
   ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
 
+function securityHeaders(microphone: "()" | "(self)") {
+  return [
+    { key: "Content-Security-Policy", value: contentSecurityPolicy },
+    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    { key: "X-Content-Type-Options", value: "nosniff" },
+    { key: "X-Frame-Options", value: "DENY" },
+    { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+    { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+    { key: "Permissions-Policy", value: `camera=(), microphone=${microphone}, geolocation=${microphone === "(self)" ? "()" : "(self)"}, payment=${microphone === "(self)" ? "()" : "(self)"}, browsing-topics=()` },
+    ...(isDevelopment ? [] : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }]),
+  ];
+}
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Dynamic public pages obtain metadata from the marketplace at request time.
@@ -34,17 +47,12 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/:path*",
-        headers: [
-          { key: "Content-Security-Policy", value: contentSecurityPolicy },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), payment=(self), browsing-topics=()" },
-          ...(isDevelopment ? [] : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }]),
-        ],
+        source: "/:path((?!admin/jarvis).*)",
+        headers: securityHeaders("()"),
+      },
+      {
+        source: "/admin/jarvis",
+        headers: securityHeaders("(self)"),
       },
       {
         source: "/api/:path*",

@@ -53,6 +53,14 @@ services:
       - key: OWNER_PAYOUT_MINIMUM_CENTS
         value: "100"
         scope: RUN_TIME
+      # Jarvis phone secrets belong only on the web service. Add them through
+      # DigitalOcean's encrypted environment settings, never in this file.
+      - key: JARVIS_TWILIO_WEBHOOK_BASE_URL
+        value: https://bubsbookings.com
+        scope: RUN_TIME
+      - key: JARVIS_MAX_OUTBOUND_CALLS_PER_DAY
+        value: "10"
+        scope: RUN_TIME
 
 jobs:
   # One scheduled component handles booking reminders and the protected payout
