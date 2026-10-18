@@ -6,21 +6,24 @@ import { getStripe, getStripeMode, stripeConfiguration } from "@/lib/stripe";
 import { extraSeatQuantity } from "@/lib/stripe-team-seats";
 import { subscriptionProvidesProAccess } from "@/lib/team-seat-rules";
 import { syncProviderAgeVerificationFromStripe } from "@/lib/provider-age-verification";
+import { subscriptionPeriodEndUnix } from "@/lib/subscription-lifecycle";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const result = await database.query<{
+    id: string;
     stripe_customer_id: string | null; stripe_account_id: string | null; stripe_subscription_id: string | null;
     stripe_subscription_status: string; stripe_charges_enabled: boolean;
     stripe_payouts_enabled: boolean; stripe_current_period_end: Date | null;
+    stripe_cancel_at_period_end: boolean;
     stripe_connect_mode: "test" | "live" | null; stripe_billing_mode: "test" | "live" | null;
     stripe_identity_verification_session_id: string | null; stripe_identity_verification_mode: "test" | "live" | null;
     age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
     extra_team_seats: number; reserved_worker_count: number;
     pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null;
-  }>(`SELECT stripe_customer_id, stripe_account_id, stripe_subscription_id, stripe_subscription_status,
-      stripe_charges_enabled, stripe_payouts_enabled, stripe_current_period_end,
+  }>(`SELECT id::text, stripe_customer_id, stripe_account_id, stripe_subscription_id, stripe_subscription_status,
+      stripe_charges_enabled, stripe_payouts_enabled, stripe_current_period_end, stripe_cancel_at_period_end,
       stripe_connect_mode, stripe_billing_mode, stripe_identity_verification_session_id, stripe_identity_verification_mode,
       age_verification_status, extra_team_seats,
       (SELECT count(DISTINCT lower(member.email))::int FROM provider_team_members member
@@ -37,24 +40,36 @@ export async function GET() {
   let requirements: string[] = [];
   let disabledReason: string | null = null;
   let taxReportingStatus: string | null = null;
-  let cancelAtPeriodEnd = false;
+  let cancelAtPeriodEnd = provider.stripe_cancel_at_period_end;
+  let subscriptionStateVerified = !provider.stripe_subscription_id;
   if (configuration.secretKey && hasCurrentBilling && provider.stripe_subscription_id) {
     try {
       const subscription = await getStripe().subscriptions.retrieve(provider.stripe_subscription_id);
+      if (subscription.metadata.providerId !== provider.id || subscription.metadata.plan !== "pro") {
+        throw new Error("Stripe subscription ownership did not match the provider profile.");
+      }
+      subscriptionStateVerified = true;
       cancelAtPeriodEnd = subscription.cancel_at_period_end;
-      const periodEnd = subscription.status === "trialing"
-        ? subscription.trial_end
-        : subscription.items.data[0]?.current_period_end ?? null;
+      const periodEnd = subscriptionPeriodEndUnix(subscription);
       provider.stripe_subscription_status = subscription.status;
       provider.stripe_current_period_end = periodEnd ? new Date(periodEnd * 1000) : null;
       const stripeTeamSeats = extraSeatQuantity(subscription);
-      const teamSeats = subscriptionProvidesProAccess(subscription.status) ? stripeTeamSeats : { itemId: null, quantity: 0 };
+      const proAccess = subscriptionProvidesProAccess(subscription.status);
+      const terminal = subscription.status === "canceled" || subscription.status === "incomplete_expired";
+      const teamSeats = proAccess ? stripeTeamSeats : { itemId: null, quantity: 0 };
       provider.extra_team_seats = teamSeats.quantity;
       await database.query(`UPDATE provider_profiles SET stripe_subscription_status = $2,
         stripe_current_period_end = CASE WHEN $3::bigint IS NULL THEN NULL ELSE to_timestamp($3) END,
-        extra_team_seats = $5, stripe_team_seat_item_id = $6
-        WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $4`,
-      [subscription.id, subscription.status, periodEnd, mode, teamSeats.quantity, teamSeats.itemId]);
+        stripe_cancel_at_period_end = $5,
+        extra_team_seats = $6, stripe_team_seat_item_id = $7,
+        plan = CASE WHEN $8 THEN 'pro' ELSE 'starter' END,
+        stripe_subscription_id = CASE WHEN $9 THEN NULL ELSE stripe_subscription_id END
+        WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $4 AND plan <> 'owner'`,
+      [subscription.id, subscription.status, periodEnd, mode, subscription.cancel_at_period_end,
+        teamSeats.quantity, teamSeats.itemId, proAccess, terminal]);
+      if (!proAccess) {
+        await database.query("UPDATE provider_team_members SET status = 'inactive' WHERE provider_id::text = $1 AND status IN ('pending', 'active')", [provider.id]);
+      }
     } catch (error) {
       console.error("Stripe subscription status refresh failed", error);
     }
@@ -89,6 +104,7 @@ export async function GET() {
     subscriptionStatus: hasCurrentBilling ? provider.stripe_subscription_status : "inactive",
     currentPeriodEnd: hasCurrentBilling ? provider.stripe_current_period_end : null,
     cancelAtPeriodEnd: hasCurrentBilling && cancelAtPeriodEnd,
+    subscriptionStateVerified,
     extraTeamSeats: hasCurrentBilling ? provider.extra_team_seats : 0,
     seatsUsed: provider.reserved_worker_count + 1,
     trialEligible: mode === "live" ? !provider.pro_trial_used_at_live : !provider.pro_trial_used_at_test,
