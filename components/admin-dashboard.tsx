@@ -14,6 +14,7 @@ import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { accountLocationSourceLabel } from "@/lib/account-location";
 import UiIcon from "@/components/ui-icon";
 import { formatDurationMinutes, formatHourlyRate } from "@/lib/service-pricing";
+import AdminComplimentaryPro from "@/components/admin-complimentary-pro";
 
 type AdminSection = "overview" | "reports" | "moderation" | "accounts" | "listings" | "reviews" | "payouts" | "audit";
 type Stats = {
@@ -113,6 +114,8 @@ type AccountDetails = {
     public_profile_slug: string; public_profile_visible: boolean; years_experience: number | null; experience_summary: string;
     specialties: string[]; languages: string[]; provider_highlights: string[];
   };
+  complimentaryPro: null | { active: boolean; grantId: string | null; startsAt: string | null; expiresAt: string | null; lifetime: boolean; reason: string | null };
+  complimentaryProHistory: Array<{ id: string; grant_id: string; action: string; reason: string | null; previous_expires_at: string | null; new_expires_at: string | null; created_at: string; actor_name: string }>;
   counts: { bookings: number; listings: number; reviews: number; safety_reports: number; disputes: number; support_requests: number };
   services: Array<{ id: string; slug: string; title: string; category: string; business_name: string; price_cents: number; duration_minutes: number; pricing_type: "FIXED" | "HOURLY"; hourly_rate_cents: number | null; minimum_duration_minutes: number | null; is_active: boolean; created_at: string }>;
   bookings: Array<{ id: string; service_title: string; status: string; payment_status: string; price_cents: number; starts_at: string; created_at: string; other_party_name: string; account_role: string }>;
@@ -753,6 +756,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             { label: "Provider agreement", value: details.provider.provider_agreement_accepted_at ? formatDate(details.provider.provider_agreement_accepted_at) : null }, { label: "Agreement version", value: details.provider.provider_agreement_version },
             { label: "Public profile", value: details.provider.public_profile_visible ? "Visible" : "Hidden" }, { label: "Public slug", value: details.provider.public_profile_slug }, { label: "Years experience", value: details.provider.years_experience },
           ]} />
+            {details.complimentaryPro && <AdminComplimentaryPro providerId={details.provider.id} status={details.complimentaryPro} history={details.complimentaryProHistory} onChanged={onRetry} />}
             <section className={`rounded-2xl border p-4 ${details.provider.age_verification_source === "admin_exception" ? "border-[#d9ca55] bg-[#fff8cf]" : "border-[#183126]/10 bg-[#f8f8f4]"}`}>
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Legacy provider eligibility</p>
               <h4 className="mt-1 font-bold">{details.provider.age_verification_source === "admin_exception" ? "Documented admin exception is active" : details.provider.age_verification_exception_eligible ? "Manual exception available" : "Stripe verification required"}</h4>

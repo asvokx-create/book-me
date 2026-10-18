@@ -13,6 +13,7 @@ import { PLAN_ENTITLEMENTS } from "@/lib/plans";
 import { readMarketingToken } from "@/lib/provider-marketing";
 import { calculateHourlyBasePriceCents, formatDurationMinutes, validateHourlyDuration, type HourlyPricingConfig, type PricingType } from "@/lib/service-pricing";
 import { AGE_CONFIRMATION_REQUIRED_MESSAGE, hasConfirmedAge } from "@/lib/account-age";
+import { getStripeMode } from "@/lib/stripe";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -93,16 +94,23 @@ export async function POST(request: Request) {
     `SELECT s.id::text, s.provider_id::text, s.duration_minutes, s.price_cents, s.pricing_type, s.hourly_rate_cents,
             s.minimum_duration_minutes,s.maximum_duration_minutes,s.billing_increment_minutes,s.default_duration_minutes,
             s.title, s.delivery_type, s.recurrence_options, s.service_kind,
-            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions,
+            CASE WHEN entitlement.effective_plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions,
             COALESCE((SELECT timezone FROM availability WHERE provider_id = p.id AND (service_id = s.id OR service_id IS NULL) ORDER BY (service_id = s.id) DESC LIMIT 1),
                      (SELECT hours.timezone FROM team_member_availability hours JOIN provider_team_members member ON member.id = hours.team_member_id JOIN provider_team_member_locations assigned_location ON assigned_location.team_member_id = member.id WHERE member.provider_id = p.id AND assigned_location.location_id = s.location_id LIMIT 1),
                      'America/Los_Angeles') AS timezone,
-            p.user_id AS provider_user_id, p.plan
+            p.user_id AS provider_user_id, entitlement.effective_plan AS plan
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id AND p.is_active = true AND p.age_verification_status = 'verified'
+     CROSS JOIN LATERAL (SELECT CASE
+       WHEN p.plan IN ('owner', 'business') THEN p.plan
+       WHEN EXISTS (SELECT 1 FROM complimentary_pro_grants grant WHERE grant.provider_id = p.id
+         AND grant.revoked_at IS NULL AND grant.starts_at <= now() AND (grant.expires_at IS NULL OR grant.expires_at > now())) THEN 'pro'
+       WHEN p.stripe_subscription_id IS NOT NULL AND p.stripe_billing_mode = $2
+         AND p.stripe_subscription_status IN ('active', 'trialing', 'past_due') THEN 'pro'
+       ELSE 'starter' END AS effective_plan) entitlement
      WHERE s.id::text = $1 AND s.is_active = true
      LIMIT 1`,
-    [serviceId],
+    [serviceId, getStripeMode()],
   );
   const service = serviceResult.rows[0];
   if (!service) return NextResponse.json({ error: "This provider is not available on that day." }, { status: 409 });

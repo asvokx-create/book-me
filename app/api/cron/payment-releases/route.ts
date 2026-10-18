@@ -5,6 +5,7 @@ import { advanceAffiliateCommissions } from "@/lib/affiliates";
 import { runAutomatedAffiliatePayouts, runProtectedOwnerPayout } from "@/lib/affiliate-payouts";
 import { processAffiliateMilestoneEmails, reconcileAffiliateMilestones } from "@/lib/affiliate-milestones";
 import { expireStaleJobRequests, processJobRequestNotificationQueue } from "@/lib/job-request-operations";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 export async function POST(request: Request) {
   const configuredSecret = process.env.CRON_SECRET;
@@ -18,5 +19,6 @@ export async function POST(request: Request) {
   const ownerPayout = await runProtectedOwnerPayout();
   const expiredRequests = await expireStaleJobRequests();
   const requestNotifications = await processJobRequestNotificationQueue();
-  return NextResponse.json({ ok: true, ...releases, affiliateCommissionsAdvanced, affiliateMilestones, affiliateMilestoneEmails, affiliatePayouts, ownerPayout, ...expiredRequests, ...requestNotifications });
+  const complimentaryPro = await reconcileExpiredComplimentaryProGrants();
+  return NextResponse.json({ ok: true, ...releases, affiliateCommissionsAdvanced, affiliateMilestones, affiliateMilestoneEmails, affiliatePayouts, ownerPayout, ...expiredRequests, ...requestNotifications, ...complimentaryPro });
 }

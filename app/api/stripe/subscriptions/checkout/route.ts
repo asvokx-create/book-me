@@ -18,14 +18,25 @@ export async function POST(request: Request) {
   if (!isPurchasableProviderPlan(body.plan)) return NextResponse.json({ error: "Choose Pro." }, { status: 400 });
   if (isOwnerEmail(session.user.email)) return NextResponse.json({ error: "Your private Owner Plan already includes every feature at no charge." }, { status: 409 });
 
-  const providerResult = await database.query<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_subscription_checkout_session_id: string | null; stripe_billing_mode: "test" | "live" | null; pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null }>(
+  const providerResult = await database.query<{ id: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_subscription_checkout_session_id: string | null; stripe_billing_mode: "test" | "live" | null; pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null; complimentary_pro_expires_at: Date | null; complimentary_pro_active: boolean }>(
     `SELECT id::text, stripe_customer_id, stripe_subscription_id, stripe_subscription_checkout_session_id, stripe_billing_mode,
-      pro_trial_used_at_test, pro_trial_used_at_live
+      pro_trial_used_at_test, pro_trial_used_at_live,
+      (SELECT grant.expires_at FROM complimentary_pro_grants grant WHERE grant.provider_id = provider_profiles.id
+        AND grant.revoked_at IS NULL AND grant.starts_at <= now() AND (grant.expires_at IS NULL OR grant.expires_at > now())
+        ORDER BY grant.created_at DESC LIMIT 1) AS complimentary_pro_expires_at,
+      EXISTS (SELECT 1 FROM complimentary_pro_grants grant WHERE grant.provider_id = provider_profiles.id
+        AND grant.revoked_at IS NULL AND grant.starts_at <= now() AND (grant.expires_at IS NULL OR grant.expires_at > now())) AS complimentary_pro_active
      FROM provider_profiles WHERE user_id = $1 AND is_active = true`,
     [session.user.id],
   );
   const provider = providerResult.rows[0];
   if (!provider) return NextResponse.json({ error: "Create your provider profile before choosing a paid plan." }, { status: 404 });
+  if (provider.complimentary_pro_active) {
+    const through = provider.complimentary_pro_expires_at
+      ? ` through ${new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "America/Los_Angeles" }).format(provider.complimentary_pro_expires_at)}`
+      : " for life";
+    return NextResponse.json({ error: `Your complimentary Pro access is active${through}. No paid subscription is needed.` }, { status: 409 });
+  }
   const mode = getStripeMode();
   const hasCurrentBilling = provider.stripe_billing_mode === mode;
   const trialEligible = mode === "live" ? !provider.pro_trial_used_at_live : !provider.pro_trial_used_at_test;

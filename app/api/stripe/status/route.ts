@@ -7,6 +7,7 @@ import { extraSeatQuantity } from "@/lib/stripe-team-seats";
 import { subscriptionProvidesProAccess } from "@/lib/team-seat-rules";
 import { syncProviderAgeVerificationFromStripe } from "@/lib/provider-age-verification";
 import { subscriptionPeriodEndUnix } from "@/lib/subscription-lifecycle";
+import { getComplimentaryProStatus, reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -32,6 +33,8 @@ export async function GET() {
     FROM provider_profiles WHERE user_id = $1 AND is_active = true`, [session.user.id]);
   const provider = result.rows[0];
   if (!provider) return NextResponse.json({ error: "Provider profile not found." }, { status: 404 });
+  await reconcileExpiredComplimentaryProGrants(provider.id);
+  const complimentaryPro = await getComplimentaryProStatus(provider.id);
   const configuration = stripeConfiguration();
   const mode = getStripeMode();
   const hasCurrentConnect = provider.stripe_connect_mode === mode && Boolean(provider.stripe_account_id);
@@ -62,12 +65,12 @@ export async function GET() {
         stripe_current_period_end = CASE WHEN $3::bigint IS NULL THEN NULL ELSE to_timestamp($3) END,
         stripe_cancel_at_period_end = $5,
         extra_team_seats = $6, stripe_team_seat_item_id = $7,
-        plan = CASE WHEN $8 THEN 'pro' ELSE 'starter' END,
+        plan = CASE WHEN $8 OR $10 THEN 'pro' ELSE 'starter' END,
         stripe_subscription_id = CASE WHEN $9 THEN NULL ELSE stripe_subscription_id END
         WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $4 AND plan <> 'owner'`,
       [subscription.id, subscription.status, periodEnd, mode, subscription.cancel_at_period_end,
-        teamSeats.quantity, teamSeats.itemId, proAccess, terminal]);
-      if (!proAccess) {
+        teamSeats.quantity, teamSeats.itemId, proAccess, terminal, complimentaryPro.active]);
+      if (!proAccess && !complimentaryPro.active) {
         await database.query("UPDATE provider_team_members SET status = 'inactive' WHERE provider_id::text = $1 AND status IN ('pending', 'active')", [provider.id]);
       }
     } catch (error) {
@@ -107,7 +110,13 @@ export async function GET() {
     subscriptionStateVerified,
     extraTeamSeats: hasCurrentBilling ? provider.extra_team_seats : 0,
     seatsUsed: provider.reserved_worker_count + 1,
-    trialEligible: mode === "live" ? !provider.pro_trial_used_at_live : !provider.pro_trial_used_at_test,
+    trialEligible: !complimentaryPro.active && (mode === "live" ? !provider.pro_trial_used_at_live : !provider.pro_trial_used_at_test),
+    complimentaryPro: {
+      active: complimentaryPro.active,
+      startsAt: complimentaryPro.startsAt,
+      expiresAt: complimentaryPro.expiresAt,
+      lifetime: complimentaryPro.lifetime,
+    },
     connect: {
       started: hasCurrentConnect,
       chargesEnabled: hasCurrentConnect && provider.stripe_charges_enabled,

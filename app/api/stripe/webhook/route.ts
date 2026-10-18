@@ -65,8 +65,13 @@ async function updateSubscription(subscription: Stripe.Subscription, eventCreate
   const client = await database.connect();
   try {
     await client.query("BEGIN");
+    const complimentary = await client.query<{ active: boolean }>(`SELECT EXISTS (
+      SELECT 1 FROM complimentary_pro_grants grant WHERE grant.provider_id::text = $1
+        AND grant.revoked_at IS NULL AND grant.starts_at <= now()
+        AND (grant.expires_at IS NULL OR grant.expires_at > now())) AS active`, [providerId]);
+    const effectivePro = active || Boolean(complimentary.rows[0]?.active);
     const updated = await client.query<{ id: string }>(`UPDATE provider_profiles SET
-        plan = CASE WHEN $4 THEN $3 ELSE 'starter' END,
+        plan = CASE WHEN $12 THEN 'pro' ELSE 'starter' END,
         stripe_subscription_id = $2,
         stripe_subscription_checkout_session_id = NULL,
         stripe_subscription_status = $5,
@@ -82,8 +87,8 @@ async function updateSubscription(subscription: Stripe.Subscription, eventCreate
         AND ($11::bigint IS NULL OR stripe_subscription_event_created_at IS NULL OR $11 >= stripe_subscription_event_created_at)
         AND NOT ($11::bigint IS NOT NULL AND stripe_subscription_status = 'canceled' AND $5 <> 'canceled')
       RETURNING id::text`, [providerId, subscription.id, plan, active, subscription.status, periodEnd ?? null, mode,
-        teamSeats.quantity, teamSeats.itemId, subscription.cancel_at_period_end, eventCreated]);
-    if (updated.rows[0] && !active) {
+        teamSeats.quantity, teamSeats.itemId, subscription.cancel_at_period_end, eventCreated, effectivePro]);
+    if (updated.rows[0] && !effectivePro) {
       await client.query("UPDATE provider_team_members SET status = 'inactive' WHERE provider_id::text = $1 AND status IN ('pending', 'active')", [providerId]);
     }
     await client.query("COMMIT");

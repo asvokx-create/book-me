@@ -3,6 +3,7 @@ import { getAdminSession } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
 import { sendAccountWelcome } from "@/lib/welcome-message";
+import { getComplimentaryProHistory, getComplimentaryProStatus, reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 export const runtime = "nodejs";
 
@@ -56,6 +57,11 @@ export async function GET(
       [userId],
     );
     const providerId = providerResult.rows[0]?.id as string | undefined;
+    if (providerId) {
+      await reconcileExpiredComplimentaryProGrants(providerId);
+      const refreshedPlan = await database.query<{ plan: string }>("SELECT plan FROM provider_profiles WHERE id::text = $1", [providerId]);
+      if (providerResult.rows[0] && refreshedPlan.rows[0]) providerResult.rows[0].plan = refreshedPlan.rows[0].plan;
+    }
 
     const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity, welcomeEmail, affiliateAttribution, portfolio] = await Promise.all([
       database.query(
@@ -174,6 +180,9 @@ export async function GET(
       [session.user.id, userId],
     );
 
+    const complimentaryPro = providerId ? await getComplimentaryProStatus(providerId) : null;
+    const complimentaryProHistory = providerId ? await getComplimentaryProHistory(providerId) : [];
+
     return NextResponse.json({
       account: accountResult.rows[0],
       settings: settings.rows[0] ?? null,
@@ -182,6 +191,8 @@ export async function GET(
         mode: settings.rows[0]?.consumer_stripe_mode ?? null,
       },
       provider: providerResult.rows[0] ?? null,
+      complimentaryPro,
+      complimentaryProHistory,
       counts: counts.rows[0],
       services: services.rows,
       bookings: bookings.rows,
