@@ -1,6 +1,9 @@
 import "server-only";
 
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { detectSupportedImageFormat } from "./image-format";
+
+const publicImageKey = /^(?:profiles\/[A-Za-z0-9_-]+|services\/[A-Za-z0-9_-]+|providers\/[A-Za-z0-9_-]+\/portfolio)\/[0-9a-f-]+\.(?:jpg|png|webp)$/;
 
 function getSpacesConfig() {
   // Read each variable directly so Next.js includes encrypted App Platform
@@ -40,12 +43,18 @@ function getSpacesClient() {
 }
 
 export async function uploadPublicImage(input: { key: string; body: Buffer; contentType: string }) {
+  const detected = detectSupportedImageFormat(input.body);
+  if (!publicImageKey.test(input.key) || !detected
+    || detected.contentType !== input.contentType || !input.key.endsWith(`.${detected.extension}`)) {
+    throw new Error("Unsafe public image upload was rejected.");
+  }
   const config = getSpacesConfig();
   await getSpacesClient().send(new PutObjectCommand({
     Bucket: config.bucket,
     Key: input.key,
     Body: input.body,
     ContentType: input.contentType,
+    ContentDisposition: `inline; filename="image.${detected.extension}"`,
     ACL: "public-read",
     CacheControl: "public, max-age=31536000, immutable",
   }));

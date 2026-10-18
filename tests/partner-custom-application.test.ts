@@ -27,7 +27,7 @@ test("application API validates allowlists, counts, URLs, content, and meaningfu
   const route = source("../app/api/affiliates/apply/route.ts");
   assert.match(route, /allowed\.has\(value\)/);
   assert.match(route, /value >= 0 && value <= 2_000_000_000/);
-  assert.match(route, /\["http:", "https:"\]/);
+  assert.match(route, /safeHttpUrl\(value\)/);
   assert.match(route, /scanContent/);
   assert.match(route, /requestedTypes\.length < 1/);
   assert.match(route, /activePlatforms\.length < 1 && requestedPromotions\.length < 1/);

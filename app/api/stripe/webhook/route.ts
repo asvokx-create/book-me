@@ -13,6 +13,7 @@ import { finalizeAffiliatePayoutTransfer, reverseAffiliatePayoutTransfer } from 
 import { releaseTipTransfer } from "@/lib/tip-payments";
 import { syncProviderAgeVerificationFromStripe } from "@/lib/provider-age-verification";
 import { reconcileBookingProcessingFee } from "@/lib/booking-processing-fees";
+import { parseVerifiedStripeEvent, stripeEventMatchesMode, stripeTransferMatches } from "@/lib/stripe-webhook-security";
 
 export const runtime = "nodejs";
 
@@ -27,7 +28,7 @@ async function markBookingPaymentFailed(options: {
 }) {
   const failed = await database.query<{ id: string; recurring_series_id: string | null; customer_id: string }>(
     `UPDATE bookings SET payment_status = 'failed'
-     WHERE stripe_mode = $4
+     WHERE stripe_mode = $4 AND payment_status IN ('unpaid', 'pending', 'failed')
        AND (($1::text <> '' AND id::text = $1)
          OR ($2::text <> '' AND stripe_checkout_session_id = $2)
          OR ($3::text <> '' AND stripe_payment_intent_id = $3))
@@ -149,11 +150,19 @@ async function notifyTrialWillEnd(subscription: Stripe.Subscription) {
 async function markBookingPaid(checkout: Stripe.Checkout.Session) {
   if (checkout.metadata?.kind !== "booking_payment" || !checkout.metadata.bookingId) return;
   const paymentIntentId = idOf(checkout.payment_intent);
-  let chargeId: string | null = null;
-  if (paymentIntentId) {
-    const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId, { expand: ["latest_charge"] });
-    chargeId = idOf(paymentIntent.latest_charge);
+  if (!paymentIntentId || checkout.amount_total === null) {
+    throw new Error("Stripe booking payment was missing its payment details.");
   }
+  let chargeId: string | null = null;
+  const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId, { expand: ["latest_charge"] });
+  if (paymentIntent.status !== "succeeded" || paymentIntent.currency !== "usd"
+    || paymentIntent.amount_received !== checkout.amount_total
+    || paymentIntent.metadata.bookingId !== checkout.metadata.bookingId
+    || paymentIntent.metadata.kind !== "booking_payment") {
+    throw new Error("Stripe booking payment did not match the server-side booking record.");
+  }
+  chargeId = idOf(paymentIntent.latest_charge);
+  if (!chargeId) throw new Error("Stripe booking payment was missing its charge record.");
   const heldTransfer = checkout.metadata.paymentFlow === "held_transfer_v1";
   const updated = await database.query(`UPDATE bookings SET payment_status = 'paid', stripe_payment_intent_id = $2,
       stripe_charge_id = $5, stripe_mode = $4, paid_at = now(),
@@ -166,7 +175,8 @@ async function markBookingPaid(checkout: Stripe.Checkout.Session) {
         WHEN $6 AND status = 'completed' THEN now() + interval '48 hours'
         ELSE completion_confirmation_due_at END,
       payout_released_at = CASE WHEN $6 THEN NULL ELSE now() END
-    WHERE id::text = $1 AND stripe_checkout_session_id = $3 AND stripe_mode = $4 AND payment_status <> 'paid'
+    WHERE id::text = $1 AND stripe_checkout_session_id = $3 AND stripe_mode = $4
+      AND payment_status IN ('unpaid', 'pending', 'failed')
       AND customer_total_cents = $7
     RETURNING id`, [checkout.metadata.bookingId, paymentIntentId, checkout.id, getStripeMode(), chargeId, heldTransfer, checkout.amount_total]);
   if (!updated.rowCount) return;
@@ -228,11 +238,23 @@ async function markBookingTipFailed(options: { tipId?: string; checkoutSessionId
 async function recordTransferCreated(transfer: Stripe.Transfer) {
   const affiliatePayoutId = transfer.metadata?.affiliatePayoutId;
   if (transfer.metadata?.kind === "affiliate_payout" && affiliatePayoutId) {
+    const expected = await database.query<{ amount_cents: number; stripe_account_id: string }>(`SELECT payout.amount_cents, affiliate.stripe_account_id
+      FROM affiliate_payouts payout JOIN affiliate_profiles affiliate ON affiliate.id=payout.affiliate_id
+      WHERE payout.id::text=$1 AND affiliate.stripe_connect_mode=$2`, [affiliatePayoutId, getStripeMode()]);
+    if (!expected.rows[0] || !stripeTransferMatches(transfer, {
+      amountCents: expected.rows[0].amount_cents,
+      connectedAccountId: expected.rows[0].stripe_account_id,
+    })) return;
     await finalizeAffiliatePayoutTransfer(affiliatePayoutId, transfer.id, getStripeMode());
     return;
   }
   if (transfer.metadata?.kind === "booking_tip_payout" && transfer.metadata.tipId) {
-    await database.query("UPDATE booking_tips SET stripe_transfer_id=COALESCE(stripe_transfer_id,$2),transfer_status='paid_out',transferred_at=COALESCE(transferred_at,now()) WHERE id::text=$1 AND stripe_mode=$3", [transfer.metadata.tipId, transfer.id, getStripeMode()]);
+    await database.query(`UPDATE booking_tips tip SET stripe_transfer_id=COALESCE(stripe_transfer_id,$2),transfer_status='paid_out',transferred_at=COALESCE(transferred_at,now())
+      FROM bookings booking JOIN provider_profiles provider ON provider.id=booking.provider_id
+      WHERE tip.id::text=$1 AND tip.booking_id=booking.id AND tip.stripe_mode=$3
+        AND tip.amount_cents-tip.refunded_amount_cents=$4 AND provider.stripe_account_id=$5
+        AND provider.stripe_connect_mode=$3`, [transfer.metadata.tipId, transfer.id, getStripeMode(), transfer.amount,
+      typeof transfer.destination === "string" ? transfer.destination : transfer.destination?.id ?? ""]);
     return;
   }
   const bookingId = transfer.metadata?.bookingId;
@@ -240,7 +262,11 @@ async function recordTransferCreated(transfer: Stripe.Transfer) {
   await database.query(`UPDATE bookings SET stripe_transfer_id = COALESCE(stripe_transfer_id, $2),
       payment_release_status = CASE WHEN payment_release_status = 'processing' THEN 'paid_out' ELSE payment_release_status END,
       payout_released_at = CASE WHEN payment_release_status = 'processing' THEN COALESCE(payout_released_at, now()) ELSE payout_released_at END
-    WHERE id::text = $1 AND stripe_mode = $3`, [bookingId, transfer.id, getStripeMode()]);
+    FROM provider_profiles provider
+    WHERE bookings.id::text = $1 AND bookings.provider_id=provider.id AND bookings.stripe_mode = $3
+      AND bookings.provider_payout_cents=$4 AND provider.stripe_account_id=$5 AND provider.stripe_connect_mode=$3`,
+    [bookingId, transfer.id, getStripeMode(), transfer.amount,
+      typeof transfer.destination === "string" ? transfer.destination : transfer.destination?.id ?? ""]);
 }
 
 async function recordTransferReversed(transfer: Stripe.Transfer) {
@@ -599,6 +625,7 @@ async function processEvent(event: Stripe.Event) {
     }
     case "account.updated": {
       const account = event.data.object;
+      if (event.account && event.account !== account.id) break;
       const provider = await database.query<{ id: string }>("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1 AND stripe_connect_mode = $4 RETURNING id::text", [account.id, account.charges_enabled, account.payouts_enabled, getStripeMode()]);
       if (provider.rows[0]) await runAutomatedProviderVerification(provider.rows[0].id);
       const requirements = account.requirements?.currently_due ?? [];
@@ -618,13 +645,22 @@ async function processEvent(event: Stripe.Event) {
     }
     case "charge.refunded": {
       const charge = event.data.object;
+      const paymentIntentId = idOf(charge.payment_intent);
+      const paymentIntent = paymentIntentId
+        ? await getStripe().paymentIntents.retrieve(paymentIntentId)
+        : null;
+      const bookingId = paymentIntent?.metadata.kind === "booking_payment"
+        ? paymentIntent.metadata.bookingId ?? ""
+        : "";
       const refunded = await database.query<{ id: string }>(`UPDATE bookings SET
         payment_status = CASE WHEN $3 THEN 'refunded' ELSE payment_status END,
         refund_status = 'refunded',
         refunded_amount_cents = LEAST(price_cents, $4),
         customer_service_fee_refunded_cents = LEAST(customer_service_fee_cents, GREATEST($4 - price_cents, 0)),
         refunded_at = now()
-        WHERE stripe_payment_intent_id = $1 AND stripe_mode = $2 RETURNING id::text`, [idOf(charge.payment_intent), getStripeMode(), charge.refunded, charge.amount_refunded]);
+        WHERE stripe_mode = $2 AND customer_total_cents = $6
+          AND (stripe_payment_intent_id = $1 OR ($5 <> '' AND id::text = $5))
+        RETURNING id::text`, [paymentIntentId, getStripeMode(), charge.refunded, charge.amount_refunded, bookingId, charge.amount]);
       for (const booking of refunded.rows) await syncAffiliateCommissionForBooking(booking.id);
       await recordTipRefund(charge);
       break;
@@ -669,14 +705,20 @@ export async function POST(request: Request) {
   if (!webhookSecret || !signature) return NextResponse.json({ error: "Stripe webhook is not configured." }, { status: 400 });
   let event: Stripe.Event;
   try {
-    event = getStripe().webhooks.constructEvent(await request.text(), signature, webhookSecret);
+    event = parseVerifiedStripeEvent(getStripe(), await request.text(), signature, webhookSecret);
   } catch (error) {
     console.error("Stripe webhook signature failed", error);
     return NextResponse.json({ error: "Invalid Stripe signature." }, { status: 400 });
   }
+  if (!stripeEventMatchesMode(event, getStripeMode())) {
+    return NextResponse.json({ error: "Stripe event mode did not match this environment." }, { status: 400 });
+  }
 
   const claimed = await database.query(`INSERT INTO stripe_webhook_events (id, event_type)
-    VALUES ($1, $2) ON CONFLICT (id) DO NOTHING RETURNING id`, [event.id, event.type]);
+    VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET created_at=now()
+    WHERE stripe_webhook_events.status='processing'
+      AND stripe_webhook_events.created_at < now() - interval '5 minutes'
+    RETURNING id`, [event.id, event.type]);
   if (!claimed.rowCount) return NextResponse.json({ received: true, duplicate: true });
   try {
     await processEvent(event);

@@ -7,6 +7,7 @@ import { sendTransactionalEmail } from "@/lib/email";
 import { auth, isEmailVerificationRequired } from "@/lib/auth";
 import { safelyLinkHistoricalAffiliate } from "@/lib/affiliate-account";
 import { PARTNER_AGREEMENT_VERSION } from "@/lib/policy-consent";
+import { safeHttpUrl } from "@/lib/safe-url";
 
 const partnershipTypes = new Set(["Fixed campaign payment", "Revenue share", "Hybrid partnership", "Sponsored placement", "Newsletter promotion", "Website / blog promotion", "Social media promotion", "Other"]);
 const platforms = new Set(["YouTube", "TikTok", "Instagram", "Facebook", "X", "Newsletter / Email", "Website / Blog", "Podcast", "Community", "Other"]);
@@ -18,7 +19,7 @@ function field(body: Record<string, unknown>, key: string, max = 500) {
 function optionalUrl(body: Record<string, unknown>, key: string) {
   const value = field(body, key, 500);
   if (!value) return null;
-  try { const url = new URL(value); return ["http:", "https:"].includes(url.protocol) ? url.toString() : null; } catch { return null; }
+  return safeHttpUrl(value);
 }
 function selected(body: Record<string, unknown>, key: string, allowed: Set<string>) {
   if (!Array.isArray(body[key])) return [];

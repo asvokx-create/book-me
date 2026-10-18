@@ -62,7 +62,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <a href="#site-content" className="skip-link">Skip to main content</a>
         <Script id="bubsbookings-theme" strategy="beforeInteractive">{`try{const p=localStorage.getItem("bubsbookings-theme")||"light";const t=p==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch{}`}</Script>
         <Script id="privatus-analytics" src="https://privatusanalytics.com/js/pa.js" data-site="pa_QBY99J7UCK" data-modules="engage,auto,vitals,clicks,ask" strategy="beforeInteractive" defer />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c") }} />
         <PreferencesProvider>
           <Suspense fallback={null}><AnalyticsTracker /><InternalNavigationHistory /><AffiliateAttributionTracker /><GrowthAttributionTracker /></Suspense>
           <div id="site-content" tabIndex={-1} className="contents">{children}</div>

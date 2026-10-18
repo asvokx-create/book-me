@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { database } from "./database";
+import { safeHttpUrl } from "./safe-url";
 
 type EmailInput = {
   to: string;
@@ -35,7 +36,7 @@ function escapeHtml(value: string) {
 }
 
 function absoluteUrl(value: string) {
-  try { return new URL(value, appUrl).toString(); } catch { return appUrl; }
+  return safeHttpUrl(value, appUrl, appUrl) ?? appUrl;
 }
 
 async function recordDelivery(input: EmailInput, status: "sent" | "skipped" | "failed", providerMessageId = "", errorMessage = "") {
