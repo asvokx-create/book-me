@@ -112,7 +112,7 @@ export async function lockAffiliateAttribution(input: {
       attribution_window_days, hold_period_days, minimum_payout_cents, eligible_provider_plans, eligible_revenue_types,
       milestone_bonuses_enabled, active_provider_required_bookings,
       revenue_share_started_at, revenue_share_ends_at)
-    VALUES ($1, $2::uuid, $3::uuid, $4, $5, 'listing_published', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+    VALUES ($1, $2::uuid, $3::uuid, $4, $5, 'onboarding_completed', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
       $17, $18,
       CASE WHEN $19 AND $7 THEN now() ELSE NULL END,
       CASE WHEN $19 AND $7 THEN now() + make_interval(months => $10) ELSE NULL END)
@@ -124,6 +124,21 @@ export async function lockAffiliateAttribution(input: {
     terms.milestone_bonuses_enabled, terms.active_provider_required_bookings, startAttribution,
   ]);
   return { attributed: Boolean(inserted.rows[0]), invalidManualCode: false, affiliateCode: terms.affiliate_code };
+}
+
+export async function markAffiliateListingPublished(providerId: string, client: DbClient = database) {
+  const referral = await client.query<{ click_id: string | null }>(`UPDATE affiliate_referrals
+    SET status=CASE WHEN status IN ('signed_up','onboarding_completed') THEN 'listing_published' ELSE status END,
+        updated_at=now()
+    WHERE provider_id::text=$1
+    RETURNING click_id::text`, [providerId]);
+  const clickId = referral.rows[0]?.click_id;
+  if (clickId) {
+    await client.query(`UPDATE affiliate_clicks
+      SET first_listing_published_at=COALESCE(first_listing_published_at,now())
+      WHERE id::text=$1`, [clickId]);
+  }
+  return Boolean(referral.rows[0]);
 }
 
 export async function syncAffiliateCommissionForBooking(bookingId: string, client: DbClient = database) {

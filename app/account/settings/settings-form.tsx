@@ -7,7 +7,7 @@ import CustomSelect from "@/components/custom-select";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import ProfilePhotoManager from "@/components/profile-photo-manager";
 import RadiusSelector from "@/components/radius-selector";
@@ -44,6 +44,7 @@ const settingSearchItems = [
 
 export default function AccountSettings() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, isPending, refetch } = authClient.useSession();
   const [settings, setSettings] = useState(emptySettings);
   const [loaded, setLoaded] = useState(false);
@@ -65,6 +66,8 @@ export default function AccountSettings() {
   const [birthYear, setBirthYear] = useState("");
   const [ageConfirmationBusy, setAgeConfirmationBusy] = useState(false);
   const [settingsSearch, setSettingsSearch] = useState("");
+  const requestedRedirect = searchParams.get("redirect") ?? "";
+  const postSignupRedirect = requestedRedirect.startsWith("/providers/join") && !requestedRedirect.startsWith("//") ? requestedRedirect : "";
   const ageConfirmationDate = birthYear && birthMonth && birthDay ? `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}` : "";
   const birthDays = useMemo(() => {
     const month = Number(birthMonth);
@@ -147,6 +150,11 @@ export default function AccountSettings() {
     setPendingSignupLocation(false);
     setMessage("Your account settings have been saved.");
     await refetch();
+    if (postSignupRedirect) {
+      router.push(postSignupRedirect);
+      router.refresh();
+      return;
+    }
     router.refresh();
   }
 

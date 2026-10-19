@@ -7,6 +7,7 @@ import { refundBookingTip, releaseTipTransfer } from "@/lib/tip-payments";
 import { scanContent } from "@/lib/content-safety";
 import { assessListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
+import { markAffiliateListingPublished } from "@/lib/affiliates";
 
 const reportStatuses = new Set(["reviewing", "resolved", "dismissed"]);
 const accountStatuses = new Set(["active", "under_review", "suspended", "banned"]);
@@ -512,6 +513,7 @@ export async function PATCH(request: Request) {
           WHERE id::text=$1`, [provider.id, reason, session.user.id]);
         await client.query(`UPDATE services SET is_active=true, age_verification_blocked=false
           WHERE provider_id::text=$1 AND age_verification_blocked=true`, [provider.id]);
+        await markAffiliateListingPublished(provider.id, client);
         await client.query(`INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
           VALUES ($1, 'provider_age_exception', 'Provider eligibility exception approved',
             'An administrator approved a documented exception for your existing provider account. Your listings may be available while your provider account remains active.',

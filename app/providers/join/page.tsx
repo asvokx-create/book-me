@@ -6,16 +6,14 @@ import { auth, isAuthConfigured } from "@/lib/auth";
 import OnboardingForm from "./onboarding-form";
 import UiIcon from "@/components/ui-icon";
 import { publicPageMetadata } from "@/lib/seo";
+import { ProviderSignupButton } from "@/components/provider-signup-actions";
+import { buildProviderAuthHref, buildProviderJoinDestination } from "@/lib/provider-acquisition";
 
 export const metadata: Metadata = publicPageMetadata({
   title: "Become a provider",
   description: "List your services, message customers, and send quotes without paying for leads. Compare transparent BubsBookings provider plans.",
   pathname: "/providers/join",
 });
-
-function getParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
-}
 
 const providerWorkflow = [
   ["Create your profile", "Add your business information and choose the company that owns each listing."],
@@ -35,10 +33,12 @@ const providerFaqs = [
 ] as const;
 
 export default async function ProviderJoinPage({ searchParams }: PageProps<"/providers/join">) {
-  const requestedPlan = getParam((await searchParams).plan).toLowerCase();
+  const params = await searchParams;
+  const { plan: requestedPlan, returnPath, preserved } = buildProviderJoinDestination(params);
   const planName = requestedPlan === "pro" ? "Pro" : requestedPlan === "starter" ? "Starter" : "";
   const session = isAuthConfigured() ? await auth.api.getSession({ headers: await headers() }) : null;
-  const returnPath = `/providers/join${requestedPlan ? `?plan=${encodeURIComponent(requestedPlan)}` : ""}`;
+  const signupHref = buildProviderAuthHref("/signup", returnPath, preserved);
+  const loginHref = buildProviderAuthHref("/login", returnPath, preserved);
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
       <header className="provider-join-header border-b border-[#183126]/10 bg-[#f8f7f3]">
@@ -54,21 +54,22 @@ export default async function ProviderJoinPage({ searchParams }: PageProps<"/pro
         <div className="lg:pt-10">
           <p className="text-xs font-bold uppercase tracking-[.16em] text-[#61756a]">For service providers</p>
           {planName && <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#edf3e7] px-4 py-2 text-xs font-bold"><span className="h-2 w-2 rounded-full bg-[#5b9870]" />{planName} plan selected <Link href="/pricing" className="ml-1 underline underline-offset-2">Change</Link></div>}
-          <h1 className="type-page-title mt-3">Do great work.<br /><span className="underline decoration-[#eee25a] decoration-[9px] underline-offset-[-3px]">Get booked.</span></h1>
-          <p className="mt-6 max-w-md text-lg leading-8 text-[#617169]">Create your profile, offer services locally or remotely, connect with customers, send quotes, and manage bookings in one place.</p>
+          <h1 className="type-page-title mt-3">Run your service business.<br /><span className="underline decoration-[#eee25a] decoration-[9px] underline-offset-[-3px]">Get booked.</span></h1>
+          <p className="mt-6 max-w-md text-lg leading-8 text-[#617169]">Build a company page, offer services locally or remotely, manage customers and scheduling, share booking links and QR codes, and track payments in one place.</p>
+          {!session && isAuthConfigured() && <div className="mt-6 flex flex-wrap items-center gap-3 lg:hidden"><ProviderSignupButton href={signupHref} compact /><span className="text-xs font-semibold text-[#687970]">Starter has no monthly charge.</span></div>}
           <div className="mt-7 max-w-md rounded-xl border border-[#d7ca4d]/45 bg-[#fff9cf] p-5"><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#716a31]">Provider pricing</p><h2 className="mt-2 text-xl font-bold">No lead fees. No charge to chat.</h2><p className="mt-2 text-sm leading-6 text-[#5f6e62]">Customer inquiries, replies, and quotes are free. Your plan&apos;s booking fee applies only to paid bookings, not to conversations that do not become work.</p><Link href="/pricing#plans" className="mt-3 inline-flex text-sm font-bold underline decoration-[#b4a52d] decoration-2 underline-offset-4">See pricing <UiIcon name="arrow-right" className="ml-1 h-4 w-4" /></Link></div>
           <div className="mt-9 space-y-4">
-            {["Message customers and send quotes for free", "Keep control of your pricing", "Choose when and where you work", "Build trust with verified reviews"].map((benefit) => <div key={benefit} className="flex items-center gap-3 text-sm font-semibold"><UiIcon name="check" className="h-4 w-4 shrink-0 text-[#37724c]" />{benefit}</div>)}
+            {["Create a shareable company page with booking links and QR codes", "Import and manage existing customer records", "Schedule work, message customers, and send quotes for free", "Track bookings, payments, and customer follow-up in one place", "Keep control of your pricing, availability, and service area", "Build trust with reviews from completed bookings"].map((benefit) => <div key={benefit} className="flex items-center gap-3 text-sm font-semibold"><UiIcon name="check" className="h-4 w-4 shrink-0 text-[#37724c]" />{benefit}</div>)}
           </div>
         </div>
-        {session || !isAuthConfigured() ? <OnboardingForm plan={requestedPlan === "pro" ? "pro" : "starter"} /> : <aside className="self-start rounded-xl border border-[#183126]/10 bg-white p-7 sm:p-9">
+        {session || !isAuthConfigured() ? <OnboardingForm plan={requestedPlan === "pro" ? "pro" : "starter"} returnPath={returnPath} /> : <aside id="provider-start" className="self-start scroll-mt-6 rounded-xl border border-[#183126]/10 bg-white p-7 sm:p-9">
           <p className="text-xs font-bold uppercase tracking-[.15em] text-[#687970]">Start your provider profile</p>
           <h2 className="mt-3 text-3xl font-bold tracking-[-.04em]">Create an account, then publish your first service.</h2>
           <p className="mt-4 text-sm leading-7 text-[#617169]">Choose Starter at $0 per month with a 10% BubsBookings platform fee with a maximum of $200 per booking, or Pro at $9.99 per month after any eligible trial with a 6% BubsBookings platform fee with a maximum of $100 per booking. Inquiries, messages, and quotes are free on both plans. Stripe processing costs are separate.</p>
           <p className="mt-3 text-sm leading-6 text-[#617169]">BubsBookings is intended for individuals aged 18 and older. You must be at least 18 years old to create an account or use our booking services.</p>
           <ol className="mt-6 space-y-4 text-sm"><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">1</span><span><strong>Create your account.</strong><br /><span className="text-[#687970]">Use email or an available sign-in option.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">2</span><span><strong>Add your business and service.</strong><br /><span className="text-[#687970]">Choose in-person, remote, or both, then add pricing, photos, and availability.</span></span></li><li className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#183126] text-xs font-bold text-white">3</span><span><strong>Receive real customer requests.</strong><br /><span className="text-[#687970]">Ask questions, send quotes, and accept work that fits.</span></span></li></ol>
-          <Link href={`/signup?redirect=${encodeURIComponent(returnPath)}`} className="mt-7 flex w-full items-center justify-center rounded-full bg-[#eee25a] px-6 py-3.5 font-bold text-[#183126]">Create provider account</Link>
-          <p className="mt-4 text-center text-sm text-[#687970]">Already have an account? <Link href={`/login?redirect=${encodeURIComponent(returnPath)}`} className="font-bold text-[#183126] underline decoration-[#c9be45] decoration-2 underline-offset-4">Log in</Link></p>
+          <ProviderSignupButton href={signupHref} />
+          <p className="mt-4 text-center text-sm text-[#687970]">Already have an account? <Link href={loginHref} className="font-bold text-[#183126] underline decoration-[#c9be45] decoration-2 underline-offset-4">Log in</Link></p>
         </aside>}
       </section>
 

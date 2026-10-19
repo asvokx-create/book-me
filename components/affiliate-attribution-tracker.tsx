@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 const requestsInFlight = new Set<string>();
 
@@ -23,6 +24,8 @@ function rememberRecorded(key: string) {
 
 export default function AffiliateAttributionTracker() {
   const params = useSearchParams();
+  const pathname = usePathname();
+  const { data: session } = authClient.useSession();
   const code = params.get("ref")?.trim() ?? "";
   useEffect(() => {
     if (!code) return;
@@ -38,5 +41,12 @@ export default function AffiliateAttributionTracker() {
       if (response.ok) rememberRecorded(key);
     }).catch(() => undefined).finally(() => requestsInFlight.delete(key));
   }, [code, params]);
+  useEffect(() => {
+    if (!code || pathname !== "/providers/join" || !session?.user) return;
+    void fetch("/api/affiliates/funnel", {
+      method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true,
+      body: JSON.stringify({ eventName: "account_created" }),
+    }).catch(() => undefined);
+  }, [code, pathname, session?.user]);
   return null;
 }

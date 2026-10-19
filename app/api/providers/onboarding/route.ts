@@ -140,6 +140,9 @@ export async function POST(request: Request) {
   }
   const client = await database.connect();
   let affiliateAttributionLocked = false;
+  const affiliateCookieValue = request.headers.get("cookie")?.split(";").map((part) => part.trim())
+    .find((part) => part.startsWith(`${AFFILIATE_COOKIE}=`))?.slice(AFFILIATE_COOKIE.length + 1);
+  const affiliateAttributionToken = affiliateCookieValue ? decodeURIComponent(affiliateCookieValue) : undefined;
 
   try {
     await client.query("BEGIN");
@@ -242,13 +245,20 @@ export async function POST(request: Request) {
     );
 
     if (!existing) {
-      const cookieValue = request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${AFFILIATE_COOKIE}=`))?.slice(AFFILIATE_COOKIE.length + 1);
-      const attribution = await lockAffiliateAttribution({ client, providerId, manualCode: referralCode, attributionToken: cookieValue ? decodeURIComponent(cookieValue) : undefined });
+      const attribution = await lockAffiliateAttribution({ client, providerId, manualCode: referralCode, attributionToken: affiliateAttributionToken });
       if (attribution.invalidManualCode) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "That creator or partner referral code is not active. Remove it or enter a valid code." }, { status: 400 });
       }
       affiliateAttributionLocked = attribution.attributed;
+      if (affiliateAttributionToken && /^[0-9a-f-]{36}$/i.test(affiliateAttributionToken)) {
+        await client.query(`UPDATE affiliate_clicks SET
+            account_created_at=COALESCE(account_created_at,now()),
+            onboarding_started_at=COALESCE(onboarding_started_at,now()),
+            company_created_at=COALESCE(company_created_at,now()),
+            first_listing_created_at=COALESCE(first_listing_created_at,now())
+          WHERE attribution_token=$1::uuid`, [affiliateAttributionToken]);
+      }
     }
 
     await client.query("DELETE FROM availability WHERE provider_id = $1 AND service_id = $2", [providerId, serviceResult.rows[0].id]);

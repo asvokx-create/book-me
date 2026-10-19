@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
 import { createPolicyConsentFields } from "../lib/policy-consent";
@@ -10,6 +10,7 @@ import { getGoogleSignInErrorMessage } from "../lib/oauth-error";
 import { normalizeAccountLocation } from "../lib/account-location";
 import UiIcon from "@/components/ui-icon";
 import CustomSelect from "@/components/custom-select";
+import { recordProviderSignupStarted } from "@/components/provider-signup-actions";
 
 type SocialProvider = "google";
 
@@ -45,6 +46,10 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
     const daysInMonth = month ? new Date(Date.UTC(year || 2000, month, 0)).getUTCDate() : 31;
     return Array.from({ length: daysInMonth }, (_, index) => String(index + 1));
   }, [birthMonth, birthYear]);
+
+  useEffect(() => {
+    if (mode === "signup" && isProviderIntent) recordProviderSignupStarted();
+  }, [isProviderIntent, mode]);
 
   async function confirmAgeEligibility() {
     if (!dateOfBirth) {

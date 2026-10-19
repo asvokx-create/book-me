@@ -14,10 +14,11 @@ import CustomSelect from "@/components/custom-select";
 import { formatUsPhone } from "@/lib/phone";
 import { deliveryLabel, type ServiceDeliveryType } from "@/lib/service-delivery";
 import { calculateHourlyBasePriceCents, type PricingType } from "@/lib/service-pricing";
+import { recordProviderOnboardingStarted } from "@/components/provider-signup-actions";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" | "pro" }) {
+export default function OnboardingForm({ plan = "starter", returnPath = "/providers/join" }: { plan?: "starter" | "pro"; returnPath?: string }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
@@ -49,6 +50,7 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<Array<{ file: File; preview: string }>>([]);
   const previewUrls = useRef<string[]>([]);
+  const onboardingRecorded = useRef(false);
 
   useEffect(() => () => previewUrls.current.forEach((url) => URL.revokeObjectURL(url)), []);
   useEffect(() => {
@@ -128,6 +130,10 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
     }
     setError("");
     if (step < 3) {
+      if (step === 1 && !onboardingRecorded.current) {
+        onboardingRecorded.current = true;
+        recordProviderOnboardingStarted();
+      }
       setStep(step + 1);
       return;
     }
@@ -141,7 +147,6 @@ export default function OnboardingForm({ plan = "starter" }: { plan?: "starter" 
     const result = (await response.json()) as { error?: string; serviceId?: string };
 
     if (response.status === 401) {
-      const returnPath = `/providers/join?plan=${plan}`;
       router.push(`/login?redirect=${encodeURIComponent(returnPath)}`);
       return;
     }

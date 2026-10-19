@@ -4,6 +4,8 @@ import type Stripe from "stripe";
 import { isAtLeastEighteen } from "./age-eligibility";
 import { database } from "./database";
 import { getStripe, getStripeMode } from "./stripe";
+import { markAffiliateListingPublished } from "./affiliates";
+import { recordAnalytics } from "./analytics";
 
 export type ProviderAgeVerificationStatus = "not_started" | "pending" | "requires_input" | "verified" | "failed";
 
@@ -30,14 +32,23 @@ function dobFromVerifiedSession(session: Stripe.Identity.VerificationSession) {
 
 async function setProviderAgeVerification(providerId: string, status: ProviderAgeVerificationStatus, failureCode: string | null = null) {
   if (status === "verified") {
-    await database.query(`UPDATE provider_profiles
+    const provider = await database.query<{ user_id: string }>(`UPDATE provider_profiles
       SET age_verification_status='verified', age_identity_verified_at=now(), age_verification_failure_code=NULL,
         age_verification_source='stripe_identity'
-      WHERE id::text=$1`, [providerId]);
+      WHERE id::text=$1 RETURNING user_id`, [providerId]);
     // Only activate listings that this gate previously held back. Manually
     // deactivated listings remain inactive.
-    await database.query(`UPDATE services SET is_active=true, age_verification_blocked=false
-      WHERE provider_id::text=$1 AND age_verification_blocked=true`, [providerId]);
+    const published = await database.query<{ id: string; category: string; delivery_type: string; city: string; state: string }>(`UPDATE services SET is_active=true, age_verification_blocked=false
+      WHERE provider_id::text=$1 AND age_verification_blocked=true
+      RETURNING id::text,category,delivery_type,city,state`, [providerId]);
+    await markAffiliateListingPublished(providerId);
+    const firstListing = published.rows[0];
+    if (firstListing && provider.rows[0]?.user_id) {
+      await recordAnalytics({ eventName: "first_listing_published", userId: provider.rows[0].user_id,
+        targetType: "service", targetId: firstListing.id,
+        metadata: { category: firstListing.category, deliveryType: firstListing.delivery_type,
+          ...(firstListing.delivery_type === "REMOTE" ? {} : { city: firstListing.city, state: firstListing.state }) } });
+    }
     return;
   }
   await database.query(`UPDATE provider_profiles
