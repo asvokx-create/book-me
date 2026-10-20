@@ -29,7 +29,7 @@ export async function GET(request: Request) {
           count(*) FILTER (WHERE created_at >= now() - interval '7 days')::int AS clicks_7d,
           count(*) FILTER (WHERE created_at >= now() - interval '30 days')::int AS clicks_30d,
           count(*) FILTER (WHERE ($2::timestamptz IS NULL OR created_at >= $2) AND ($3::timestamptz IS NULL OR created_at < $3))::int AS range_clicks
-        FROM affiliate_clicks GROUP BY affiliate_id
+        FROM affiliate_click_events GROUP BY affiliate_id
       ), referral_counts AS (
         SELECT referral.affiliate_id,
           count(*)::int AS referred_registrations,
@@ -64,7 +64,12 @@ export async function GET(request: Request) {
   if (affiliateId && /^[0-9a-f-]{36}$/i.test(affiliateId)) {
     const [summaryResult, dailyResult] = await Promise.all([
       database.query(`WITH click_stats AS (
-          SELECT count(*)::int AS clicks FROM affiliate_clicks
+          SELECT count(*)::int AS clicks FROM affiliate_click_events
+          WHERE affiliate_id = $1::uuid
+            AND ($2::timestamptz IS NULL OR created_at >= $2)
+            AND ($3::timestamptz IS NULL OR created_at < $3)
+        ), first_touch_stats AS (
+          SELECT count(*)::int AS first_touch_visits FROM affiliate_clicks
           WHERE affiliate_id = $1::uuid
             AND ($2::timestamptz IS NULL OR created_at >= $2)
             AND ($3::timestamptz IS NULL OR created_at < $3)
@@ -88,13 +93,13 @@ export async function GET(request: Request) {
             AND ($3::timestamptz IS NULL OR created_at < $3)
         )
         SELECT affiliate.id::text, affiliate.display_name, affiliate.affiliate_code,
-          clicks.clicks, referrals.signups, referrals.active_referred_providers, referrals.published_providers,
+          clicks.clicks, first_touches.first_touch_visits, referrals.signups, referrals.active_referred_providers, referrals.published_providers,
           commissions.earnings_cents, commissions.pending_cents, commissions.payable_cents, commissions.paid_cents,
           CASE WHEN clicks.clicks = 0 THEN NULL ELSE round(referrals.signups::numeric / clicks.clicks * 100, 1) END AS conversion_rate
-        FROM affiliate_profiles affiliate CROSS JOIN click_stats clicks CROSS JOIN referral_stats referrals CROSS JOIN commission_stats commissions
+        FROM affiliate_profiles affiliate CROSS JOIN click_stats clicks CROSS JOIN first_touch_stats first_touches CROSS JOIN referral_stats referrals CROSS JOIN commission_stats commissions
         WHERE affiliate.id = $1::uuid`, [affiliateId, window.start, window.end]),
       database.query<{ period: string; clicks: number }>(`SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS period, count(*)::int AS clicks
-        FROM affiliate_clicks
+        FROM affiliate_click_events
         WHERE affiliate_id = $1::uuid
           AND ($2::timestamptz IS NULL OR created_at >= $2)
           AND ($3::timestamptz IS NULL OR created_at < $3)

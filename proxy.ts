@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AFFILIATE_COOKIE } from "@/lib/affiliates";
-import { cookieValue, storeAffiliateAttribution } from "@/lib/affiliate-attribution-store";
+import { cookieValue, recordAffiliateRawClick, storeAffiliateAttribution } from "@/lib/affiliate-attribution-store";
 import { shouldRecordAffiliateLanding } from "@/lib/affiliate-request";
 import { enforceRateLimit, publicRequestRateLimitKey } from "@/lib/request-security";
 
@@ -66,6 +66,20 @@ export async function proxy(request: NextRequest) {
         limit: 60,
       });
       if (!allowed) return response;
+
+      try {
+        await recordAffiliateRawClick({
+          code: request.nextUrl.searchParams.get("ref"),
+          landingPath: `${request.nextUrl.pathname}${request.nextUrl.search}`,
+          utmSource: request.nextUrl.searchParams.get("utm_source"),
+          utmMedium: request.nextUrl.searchParams.get("utm_medium"),
+          utmCampaign: request.nextUrl.searchParams.get("utm_campaign"),
+          utmContent: request.nextUrl.searchParams.get("utm_content"),
+          utmTerm: request.nextUrl.searchParams.get("utm_term"),
+        });
+      } catch (error) {
+        console.error("Affiliate raw click recording failed", error instanceof Error ? error.message : "Unknown error");
+      }
 
       const result = await storeAffiliateAttribution({
         code: request.nextUrl.searchParams.get("ref"),

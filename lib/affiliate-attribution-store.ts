@@ -21,6 +21,34 @@ type AttributionResult =
   | { status: "retained"; code: string }
   | { status: "created"; code: string; token: string; maxAge: number };
 
+export async function recordAffiliateRawClick(input: Omit<AttributionInput, "savedToken">) {
+  const code = normalizeAffiliateCode(input.code);
+  if (!code) return false;
+
+  const result = await database.query<{ inserted: boolean }>(
+    `INSERT INTO affiliate_click_events (affiliate_id, program_id, affiliate_code, landing_path,
+        utm_source, utm_medium, utm_campaign, utm_content, utm_term)
+      SELECT affiliate.id, program.id, $1, $2, $3, $4, $5, $6, $7
+      FROM affiliate_profiles affiliate
+      JOIN affiliate_programs program ON program.id = affiliate.program_id
+      WHERE lower(affiliate.affiliate_code) = lower($1)
+        AND affiliate.status = 'active' AND program.status = 'enabled'
+        AND (program.starts_at IS NULL OR program.starts_at <= now())
+        AND (program.ends_at IS NULL OR program.ends_at > now())
+      RETURNING true AS inserted`,
+    [
+      code,
+      safeInternalDestination(input.landingPath),
+      text(input.utmSource),
+      text(input.utmMedium),
+      text(input.utmCampaign),
+      text(input.utmContent),
+      text(input.utmTerm),
+    ],
+  );
+  return result.rows[0]?.inserted === true;
+}
+
 export async function storeAffiliateAttribution(input: AttributionInput): Promise<AttributionResult> {
   const code = normalizeAffiliateCode(input.code);
   if (!code) return { status: "invalid", code: "" };

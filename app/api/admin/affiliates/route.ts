@@ -76,7 +76,7 @@ async function dashboard() {
       milestone_bonuses_enabled, active_provider_required_bookings, milestone_thresholds, milestone_bonus_cents,
       (SELECT count(*)::int FROM affiliate_profiles affiliate WHERE affiliate.program_id=affiliate_programs.id) AS partner_count,
       (SELECT count(*)::int FROM affiliate_referrals referral WHERE referral.program_id=affiliate_programs.id) AS referral_count,
-      (SELECT count(*)::int FROM affiliate_clicks click WHERE click.program_id=affiliate_programs.id) AS click_count,
+      (SELECT count(*)::int FROM affiliate_click_events click WHERE click.program_id=affiliate_programs.id) AS click_count,
       (SELECT count(*)::int FROM creator_campaign_payments campaign WHERE campaign.program_id=affiliate_programs.id) AS campaign_count
       FROM affiliate_programs ORDER BY created_at DESC`),
     database.query(`SELECT affiliate.id::text, affiliate.display_name, affiliate.email, affiliate.affiliate_code,
@@ -114,7 +114,7 @@ async function dashboard() {
       COALESCE(affiliate.minimum_payout_override_cents,program.minimum_payout_cents) AS minimum_payout_cents,
       COALESCE(affiliate.milestone_bonuses_override,program.milestone_bonuses_enabled,false) AS milestone_bonuses_enabled,
       program.milestone_thresholds, program.milestone_bonus_cents,
-      (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id) AS clicks,
+      (SELECT count(*)::int FROM affiliate_click_events click WHERE click.affiliate_id=affiliate.id) AS clicks,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id AND click.signup_clicked_at IS NOT NULL) AS signup_clicks,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id AND click.signup_started_at IS NOT NULL) AS signup_starts,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id AND click.account_created_at IS NOT NULL) AS account_creations,
