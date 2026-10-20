@@ -43,12 +43,14 @@ test("affiliate earnings are synchronized only after the provider payout succeed
 test("affiliate attribution is active-only, single-use, and blocks self-referrals", async () => {
   const engine = await readFile(new URL("../lib/affiliates.ts", import.meta.url), "utf8");
   const clickRoute = await readFile(new URL("../app/api/affiliates/attribution/route.ts", import.meta.url), "utf8");
+  const attributionStore = await readFile(new URL("../lib/affiliate-attribution-store.ts", import.meta.url), "utf8");
   const onboarding = await readFile(new URL("../app/api/providers/onboarding/route.ts", import.meta.url), "utf8");
 
-  assert.match(clickRoute, /affiliate\.status = 'active'/);
-  assert.match(clickRoute, /click\.attribution_token = \$1::uuid/);
+  assert.match(clickRoute, /storeAffiliateAttribution/);
+  assert.match(attributionStore, /affiliate\.status = 'active'/);
+  assert.match(attributionStore, /click\.attribution_token = \$1::uuid/);
   assert.match(clickRoute, /retained: true/);
-  assert.ok(clickRoute.indexOf("retained: true") < clickRoute.indexOf("const token = newAttributionToken()"), "a valid saved first touch must be retained before a new click can replace it");
+  assert.ok(attributionStore.indexOf('status: "retained"') < attributionStore.indexOf("const token = newAttributionToken()"), "a valid saved first touch must be retained before a new click can replace it");
   assert.match(engine, /affiliate\.status = 'active'/);
   assert.match(engine, /used_referral\.click_id = click\.id/);
   assert.match(engine, /affiliate\.user_id = referred_owner\.id/);

@@ -46,7 +46,7 @@ test("admin affiliate analytics is server-authorized and uses existing tracking 
 
 test("admin analytics shows fixed click windows, conversions, and unavailable rates", async () => {
   const component = await source("../components/affiliate-click-analytics.tsx");
-  assert.match(component, /Total clicks/);
+  assert.match(component, /Total first-touch visits/);
   assert.match(component, /7 days/);
   assert.match(component, /30 days/);
   assert.match(component, /Published providers/);
