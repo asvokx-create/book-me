@@ -125,6 +125,7 @@ type AccountDetails = {
   supportRequests: Array<{ id: string; subject: string; message: string; status: string; admin_reply: string; created_at: string }>;
   activity: Array<{ id: string; action: string; target_type: string; target_id: string | null; created_at: string }>;
   welcomeEmail: null | { status: "sent" | "skipped" | "failed"; created_at: string };
+  providerWelcomeEmail: { status: "not_attempted" | "queued" | "sending" | "sent" | "delivered" | "failed"; attempt_count: number; queued_at?: string; attempted_at?: string; sent_at?: string; delivered_at?: string; updated_at?: string; last_error?: string | null };
   affiliateAttribution: null | { affiliate_name: string; affiliate_code: string; program_name: string; attributed_at: string; provider_signup_at: string; qualified_at: string | null; revenue_share_started_at: string | null; revenue_share_ends_at: string | null; status: string };
   portfolio: Array<{ id: string; url: string; caption: string; alt_text: string; moderation_status: "active" | "hidden"; created_at: string }>;
   privacyNote: string;
@@ -638,6 +639,8 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
 }) {
   const [welcomeBusy, setWelcomeBusy] = useState(false);
   const [welcomeResult, setWelcomeResult] = useState("");
+  const [providerWelcomeBusy, setProviderWelcomeBusy] = useState(false);
+  const [providerWelcomeResult, setProviderWelcomeResult] = useState("");
   const [ageExceptionBusy, setAgeExceptionBusy] = useState(false);
   const [ageExceptionResult, setAgeExceptionResult] = useState("");
   const [ageExceptionAction, setAgeExceptionAction] = useState<"approve" | "revoke" | null>(null);
@@ -665,6 +668,20 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
     const result = response ? await response.json() as { error?: string; message?: string } : null;
     setWelcomeResult(response?.ok ? result?.message ?? "Welcome email sent." : result?.error ?? "The welcome email could not be sent.");
     setWelcomeBusy(false);
+  }
+  async function retryProviderWelcome() {
+    if (!window.confirm("Send this provider welcome email now? This action is recorded in the admin audit history.")) return;
+    setProviderWelcomeBusy(true);
+    setProviderWelcomeResult("");
+    const response = await fetch(`/api/admin/accounts/${encodeURIComponent(account.id)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "retry_provider_welcome" }),
+    }).catch(() => null);
+    const result = response ? await response.json() as { error?: string; message?: string } : null;
+    setProviderWelcomeResult(response?.ok ? result?.message ?? "Provider welcome email sent." : result?.error ?? "The provider welcome email could not be sent.");
+    if (response?.ok) await onRetry();
+    setProviderWelcomeBusy(false);
   }
   async function moderatePortfolio(id: string, status: "active" | "hidden") {
     const response = await fetch("/api/admin", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "portfolio_status", targetId: id, status }) });
@@ -718,6 +735,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
         {details && <>
           <div className="rounded-3xl border border-[#183126]/10 bg-[#f4f4ef] p-5"><p className="text-sm leading-6 text-[#52665b]">{details.privacyNote} Opening this view is recorded in the admin audit history.</p></div>
           <section className="flex flex-col justify-between gap-4 rounded-3xl border border-[#183126]/15 bg-[#f8f8f4] p-5 sm:flex-row sm:items-center"><div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Account welcome</p><h3 className="mt-1 text-lg font-bold">Welcome email</h3><p className="mt-1 text-sm text-[#52665b]">{welcomeSent ? `Sent${details.welcomeEmail?.created_at ? ` ${formatDate(details.welcomeEmail.created_at)}` : ""}.` : "Send the branded new-account introduction and add it to the notification inbox."}</p>{welcomeResult && <p role="status" className={`mt-2 text-sm font-bold ${welcomeResult.includes("could not") ? "text-[#9a4e25]" : "text-[#34704a]"}`}>{welcomeResult}</p>}</div><button type="button" disabled={welcomeBusy || welcomeSent} onClick={() => void sendWelcomeEmail()} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:cursor-not-allowed disabled:opacity-50">{welcomeBusy ? "Sending…" : welcomeSent ? "Welcome email sent" : "Send welcome email"}</button></section>
+          {details.provider && <section className="flex flex-col justify-between gap-4 rounded-3xl border border-[#183126]/15 bg-[#f8f8f4] p-5 sm:flex-row sm:items-center"><div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Provider welcome</p><h3 className="mt-1 text-lg font-bold">Provider welcome email</h3><p className="mt-1 text-sm text-[#52665b]">Status: <strong>{label(details.providerWelcomeEmail.status)}</strong>{details.providerWelcomeEmail.delivered_at ? ` ${formatDate(details.providerWelcomeEmail.delivered_at)}` : details.providerWelcomeEmail.sent_at ? ` ${formatDate(details.providerWelcomeEmail.sent_at)}` : ""}. Attempts: {details.providerWelcomeEmail.attempt_count}.</p>{details.providerWelcomeEmail.last_error && <p className="mt-2 text-sm font-semibold text-[#9a4e25]">Last delivery error: {details.providerWelcomeEmail.last_error}</p>}{providerWelcomeResult && <p role="status" className={`mt-2 text-sm font-bold ${providerWelcomeResult.includes("could not") || providerWelcomeResult.includes("failed") ? "text-[#9a4e25]" : "text-[#34704a]"}`}>{providerWelcomeResult}</p>}</div>{!["sent", "delivered", "sending"].includes(details.providerWelcomeEmail.status) && <button type="button" disabled={providerWelcomeBusy} onClick={() => void retryProviderWelcome()} className="shrink-0 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:cursor-not-allowed disabled:opacity-50">{providerWelcomeBusy ? "Sending…" : details.providerWelcomeEmail.status === "failed" ? "Retry provider welcome" : "Send provider welcome"}</button>}</section>}
           <StripeConnectionSummary consumerStripe={details.consumerStripe} provider={details.provider} />
           <section><h3 className="mb-3 text-lg font-bold">Account and contact</h3><DetailGrid items={[
             { label: "Full name", value: details.account.name }, { label: "Email", value: details.account.email }, { label: "Phone", value: details.account.phone },

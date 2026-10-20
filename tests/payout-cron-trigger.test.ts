@@ -48,7 +48,7 @@ test("payout scheduler fails clearly on an HTML response or an unsuccessful payl
   );
 });
 
-test("the single scheduled job runs payouts, reminders, and Jarvis incident checks", async () => {
+test("the single scheduled job runs payouts, reminders, Jarvis checks, and provider welcome retries", async () => {
   const requestedPaths: string[] = [];
   const result = await triggerScheduledOperations({
     origin: "https://bubsbookings.com",
@@ -59,6 +59,6 @@ test("the single scheduled job runs payouts, reminders, and Jarvis incident chec
     },
   });
 
-  assert.deepEqual(requestedPaths, ["/api/cron/payment-releases", "/api/cron/booking-reminders", "/api/cron/jarvis-incidents"]);
-  assert.deepEqual(result, { paymentReleases: { ok: true }, bookingReminders: { ok: true }, jarvisIncidents: { ok: true } });
+  assert.deepEqual(requestedPaths, ["/api/cron/payment-releases", "/api/cron/booking-reminders", "/api/cron/jarvis-incidents", "/api/cron/provider-welcome-emails"]);
+  assert.deepEqual(result, { paymentReleases: { ok: true }, bookingReminders: { ok: true }, jarvisIncidents: { ok: true }, providerWelcomeEmails: { ok: true } });
 });

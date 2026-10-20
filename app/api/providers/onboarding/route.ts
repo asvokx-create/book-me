@@ -18,7 +18,7 @@ import { AFFILIATE_COOKIE, lockAffiliateAttribution, normalizeAffiliateCode } fr
 import { slugifyProviderName } from "@/lib/provider-profile-options";
 import { isServiceDeliveryType } from "@/lib/service-delivery";
 import { isHourlyBillingIncrement, isPricingType, validateHourlyPricing } from "@/lib/service-pricing";
-import { sendProviderWelcomeEmail } from "@/lib/provider-welcome-email";
+import { deliverProviderWelcomeEmail, enqueueProviderWelcomeEmail } from "@/lib/provider-welcome-email";
 
 const weekdayNumbers: Record<string, number> = {
   Sun: 0,
@@ -273,16 +273,15 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!existing) {
+      await enqueueProviderWelcomeEmail({ userId: session.user.id, providerId }, client);
+    }
+
     await client.query("COMMIT");
     await runAutomatedProviderVerification(providerId).catch((error) => {
       console.error("Initial automated provider verification failed", providerId, error);
     });
-    if (!existing) await sendProviderWelcomeEmail({
-      userId: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      businessName: business,
-    }).catch((error) => console.error("Provider welcome email failed", {
+    if (!existing) await deliverProviderWelcomeEmail(session.user.id).catch((error) => console.error("Provider welcome email delivery failed", {
       userId: session.user.id,
       message: error instanceof Error ? error.message : "Unknown error",
     }));

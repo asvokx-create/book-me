@@ -4,6 +4,7 @@ import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
 import { sendAccountWelcome } from "@/lib/welcome-message";
 import { getComplimentaryProHistory, getComplimentaryProStatus, reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
+import { retryProviderWelcomeEmail } from "@/lib/provider-welcome-email";
 
 export const runtime = "nodejs";
 
@@ -63,7 +64,7 @@ export async function GET(
       if (providerResult.rows[0] && refreshedPlan.rows[0]) providerResult.rows[0].plan = refreshedPlan.rows[0].plan;
     }
 
-    const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity, welcomeEmail, affiliateAttribution, portfolio] = await Promise.all([
+    const [settings, counts, services, bookings, reviews, reports, disputes, supportRequests, activity, welcomeEmail, providerWelcomeEmail, affiliateAttribution, portfolio] = await Promise.all([
       database.query(
         `SELECT city, state, search_radius_miles, booking_notifications, message_notifications,
                 theme, time_zone, created_at, updated_at,
@@ -156,6 +157,13 @@ export async function GET(
         [userId],
       ),
       database.query(
+        `SELECT status, attempt_count, queued_at, attempted_at, sent_at, delivered_at, updated_at,
+                CASE WHEN last_error='' THEN NULL ELSE last_error END AS last_error
+         FROM provider_welcome_email_deliveries
+         WHERE user_id=$1 LIMIT 1`,
+        [userId],
+      ),
+      database.query(
         `SELECT affiliate.display_name AS affiliate_name, affiliate.affiliate_code, program.name AS program_name,
                 referral.attributed_at, referral.qualified_at, referral.revenue_share_started_at,
                 referral.revenue_share_ends_at, referral.status, provider.created_at AS provider_signup_at
@@ -202,6 +210,7 @@ export async function GET(
       supportRequests: supportRequests.rows,
       activity: activity.rows,
       welcomeEmail: welcomeEmail.rows[0] ?? null,
+      providerWelcomeEmail: providerWelcomeEmail.rows[0] ?? { status: "not_attempted", attempt_count: 0 },
       affiliateAttribution: affiliateAttribution.rows[0] ?? null,
       portfolio: portfolio.rows,
       privacyNote: "Passwords, authentication secrets, payment-card and bank details, private conversations, booking addresses, and booking notes are intentionally excluded.",
@@ -225,11 +234,37 @@ export async function POST(
   const { userId } = await params;
   if (!userId || userId.length > 200) return NextResponse.json({ error: "Invalid account." }, { status: 400 });
 
-  const account = await database.query<{ name: string; email: string }>(
-    `SELECT name, email FROM "user" WHERE id = $1`,
+  const body = await request.json().catch(() => null) as { action?: string } | null;
+  const account = await database.query<{ name: string; email: string; provider_id: string | null; provider_active: boolean }>(
+    `SELECT account.name, account.email, provider.id::text AS provider_id, COALESCE(provider.is_active,false) AS provider_active
+     FROM "user" account
+     LEFT JOIN provider_profiles provider ON provider.user_id=account.id
+     WHERE account.id = $1`,
     [userId],
   );
   if (!account.rows[0]) return NextResponse.json({ error: "Account not found." }, { status: 404 });
+
+  if (body?.action === "retry_provider_welcome") {
+    const provider = account.rows[0];
+    if (!provider.provider_id || !provider.provider_active) return NextResponse.json({ error: "An active provider profile is required." }, { status: 409 });
+    const current = await database.query<{ status: string }>(
+      "SELECT status FROM provider_welcome_email_deliveries WHERE user_id=$1 LIMIT 1",
+      [userId],
+    );
+    if (["sent", "delivered", "sending"].includes(current.rows[0]?.status ?? "")) {
+      return NextResponse.json({ error: "This provider welcome email was already sent or is being delivered." }, { status: 409 });
+    }
+    const delivery = await retryProviderWelcomeEmail({ userId, providerId: provider.provider_id });
+    await database.query(
+      `INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
+       VALUES ($1, 'provider_welcome_email_retried', 'account', $2, $3::jsonb)`,
+      [session.user.id, userId, JSON.stringify({ status: delivery.status })],
+    );
+    if (delivery.status === "failed") return NextResponse.json({ error: "The provider welcome email failed and was kept for automatic retry." }, { status: 502 });
+    if (delivery.status === "skipped") return NextResponse.json({ error: "Email delivery is not configured. The message was kept for automatic retry." }, { status: 503 });
+    if (delivery.status === "not_due") return NextResponse.json({ error: "The provider welcome email is already being processed." }, { status: 409 });
+    return NextResponse.json({ ok: true, status: delivery.status, message: "Provider welcome email sent." });
+  }
 
   const delivery = await sendAccountWelcome({ id: userId, name: account.rows[0].name, email: account.rows[0].email });
   await database.query(

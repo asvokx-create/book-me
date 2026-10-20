@@ -42,20 +42,43 @@ test("Stripe status uses details, payouts, transfers, and outstanding requiremen
   assert.match(status, /Cache-Control": "private, no-store/);
 });
 
-test("provider welcome email is one-time and links to authenticated billing setup", async () => {
+test("provider welcome email is durable, one-time, and links to authenticated provider pages", async () => {
   const email = await readFile(new URL("../lib/provider-welcome-email.ts", import.meta.url), "utf8");
   const onboarding = await readFile(new URL("../app/api/providers/onboarding/route.ts", import.meta.url), "utf8");
   const emailDestination = await readFile(new URL("../app/provider/payout-setup/page.tsx", import.meta.url), "utf8");
-  assert.match(email, /email_type='provider_welcome'/);
-  assert.match(email, /status='sent'/);
-  assert.match(email, /provider-welcome-\$\{input\.userId\}/);
-  assert.match(email, /Set Up Your Payouts/);
+  assert.match(email, /provider_welcome_email_deliveries/);
+  assert.match(email, /FOR UPDATE OF delivery SKIP LOCKED/);
+  assert.match(email, /provider-welcome-\$\{row\.user_id\}/);
+  assert.match(email, /Important: Set Up Your Stripe Payouts/);
   assert.match(email, /Set Up Stripe Payouts/);
+  assert.match(email, /Go to Provider Dashboard/);
   assert.match(email, /\/provider\/payout-setup/);
+  assert.match(email, /\/provider\/dashboard/);
   assert.match(emailDestination, /auth\.api\.getSession/);
   assert.match(emailDestination, /\/login\?redirect=\$\{encodeURIComponent\(billingPath\)\}/);
   assert.match(emailDestination, /redirect\(billingPath\)/);
-  assert.match(onboarding, /if \(!existing\) await sendProviderWelcomeEmail/);
+  assert.match(onboarding, /enqueueProviderWelcomeEmail[\s\S]*client/);
+  assert.match(onboarding, /COMMIT[\s\S]*deliverProviderWelcomeEmail/);
+});
+
+test("provider welcome delivery has automatic retries, webhook confirmation, and admin-only retry", async () => {
+  const migration = await readFile(new URL("../database/migrations/100_provider_welcome_email_queue.sql", import.meta.url), "utf8");
+  const queue = await readFile(new URL("../lib/provider-welcome-email.ts", import.meta.url), "utf8");
+  const cron = await readFile(new URL("../app/api/cron/provider-welcome-emails/route.ts", import.meta.url), "utf8");
+  const webhook = await readFile(new URL("../app/api/webhooks/marketing-email/route.ts", import.meta.url), "utf8");
+  const adminRoute = await readFile(new URL("../app/api/admin/accounts/[userId]/route.ts", import.meta.url), "utf8");
+  const adminDashboard = await readFile(new URL("../components/admin-dashboard.tsx", import.meta.url), "utf8");
+
+  assert.match(migration, /PRIMARY KEY[\s\S]*status IN \('queued', 'sending', 'sent', 'delivered', 'failed'\)/);
+  assert.match(queue, /attempt_count < 5/);
+  assert.match(queue, /retryDelayMinutes/);
+  assert.match(cron, /processProviderWelcomeEmailQueue/);
+  assert.match(webhook, /provider_welcome_email_deliveries/);
+  assert.match(webhook, /email\.delivered/);
+  assert.match(adminRoute, /getAdminSession/);
+  assert.match(adminRoute, /retry_provider_welcome/);
+  assert.match(adminDashboard, /Provider welcome email/);
+  assert.match(adminDashboard, /window\.confirm/);
 });
 
 test("existing Connect flow is owner-authorized and reuses current accounts", async () => {

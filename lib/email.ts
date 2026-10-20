@@ -14,6 +14,7 @@ type EmailInput = {
   tips?: string[];
   actionLabel?: string;
   actionUrl?: string;
+  actions?: Array<{ label: string; url: string }>;
   userId?: string;
   bookingId?: string;
   emailType: string;
@@ -55,10 +56,12 @@ async function recordDelivery(input: EmailInput, status: "sent" | "skipped" | "f
 export async function sendTransactionalEmail(input: EmailInput) {
   if (!isEmailConfigured()) {
     await recordDelivery(input, "skipped", "", "Email provider is not configured.");
-    return { sent: false, skipped: true };
+    return { sent: false, skipped: true, providerMessageId: "", error: "Email provider is not configured." };
   }
 
-  const actionUrl = input.actionUrl ? absoluteUrl(input.actionUrl) : "";
+  const actions = input.actions?.length
+    ? input.actions.slice(0, 3).map((action) => ({ label: action.label, url: absoluteUrl(action.url) }))
+    : input.actionUrl ? [{ label: input.actionLabel ?? "Open BubsBookings", url: absoluteUrl(input.actionUrl) }] : [];
   const idempotencyKey = (input.idempotencyKey
     ?? (input.bookingId && input.userId ? [input.emailType, input.bookingId, input.userId].join("-") : ""))
     .slice(0, 250);
@@ -66,7 +69,8 @@ export async function sendTransactionalEmail(input: EmailInput) {
     ? `<div style="margin:24px 0 0;background:#f4f6ef;border-radius:18px;padding:18px 20px"><p style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:0 0 12px">Tips for a strong start</p><ul style="color:#4f6257;font-size:15px;line-height:1.55;margin:0;padding-left:20px">${input.tips.map((tip) => `<li style="margin:0 0 9px">${escapeHtml(tip)}</li>`).join("")}</ul></div>`
     : "";
   const sectionsHtml = input.sections?.map((section) => `<div style="margin:24px 0 0;background:#fff9d9;border:1px solid #e5d970;border-radius:18px;padding:18px 20px"><h2 style="font-size:18px;line-height:1.3;margin:0 0 8px">${escapeHtml(section.heading)}</h2><p style="font-size:15px;line-height:1.6;color:#5f7067;margin:0">${escapeHtml(section.message)}</p></div>`).join("") ?? "";
-  const html = `<!doctype html><html><body style="margin:0;background:#f4f4ef;font-family:Arial,sans-serif;color:#183126"><div style="max-width:600px;margin:0 auto;padding:32px 18px"><div style="background:#fff;border:1px solid #dfe5df;border-radius:24px;padding:32px"><p style="font-weight:700;font-size:20px;margin:0 0 28px">BubsBookings</p><h1 style="font-size:28px;line-height:1.15;margin:0 0 16px">${escapeHtml(input.heading)}</h1><p style="font-size:16px;line-height:1.65;color:#5f7067;margin:0">${escapeHtml(input.message)}</p>${sectionsHtml}${tipsHtml}${actionUrl ? `<p style="margin:28px 0 0"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#eee25a;color:#183126;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px">${escapeHtml(input.actionLabel ?? "Open BubsBookings")}</a></p>` : ""}<p style="font-size:12px;line-height:1.5;color:#829087;margin:30px 0 0">BubsBookings will never ask for your password by email.</p></div></div></body></html>`;
+  const actionsHtml = actions.length ? `<div style="margin:28px 0 0">${actions.map((action, index) => `<a href="${escapeHtml(action.url)}" style="display:inline-block;margin:${index ? "10px 10px 0 0" : "0 10px 0 0"};background:${index ? "#183126" : "#eee25a"};color:${index ? "#fff" : "#183126"};text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px">${escapeHtml(action.label)}</a>`).join("")}</div>` : "";
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f4ef;font-family:Arial,sans-serif;color:#183126"><div style="max-width:600px;margin:0 auto;padding:32px 18px"><div style="background:#fff;border:1px solid #dfe5df;border-radius:24px;padding:32px"><p style="font-weight:700;font-size:20px;margin:0 0 28px">BubsBookings</p><h1 style="font-size:28px;line-height:1.15;margin:0 0 16px">${escapeHtml(input.heading)}</h1><p style="font-size:16px;line-height:1.65;color:#5f7067;margin:0;white-space:pre-line">${escapeHtml(input.message)}</p>${sectionsHtml}${tipsHtml}${actionsHtml}<p style="font-size:12px;line-height:1.5;color:#829087;margin:30px 0 0">BubsBookings will never ask for your password by email.</p></div></div></body></html>`;
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
@@ -81,12 +85,12 @@ export async function sendTransactionalEmail(input: EmailInput) {
     const result = await response.json().catch(() => ({})) as { id?: string; message?: string };
     if (!response.ok) throw new Error(result.message ?? `Email provider returned ${response.status}.`);
     await recordDelivery(input, "sent", result.id ?? "");
-    return { sent: true, skipped: false };
+    return { sent: true, skipped: false, providerMessageId: result.id ?? "", error: "" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown email error";
     await recordDelivery(input, "failed", "", message);
     console.error("Transactional email failed", { type: input.emailType, message });
-    return { sent: false, skipped: false };
+    return { sent: false, skipped: false, providerMessageId: "", error: message };
   }
 }
 
