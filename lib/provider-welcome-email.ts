@@ -80,7 +80,7 @@ export async function deliverProviderWelcomeEmail(userId?: string) {
     userId: row.user_id,
     emailType: "provider_welcome",
     idempotencyKey: `provider-welcome-${row.user_id}`,
-    subject: "Welcome to BubsBookings!",
+    subject: "Set Up Your Provider Account",
     heading: `Hi ${firstName},`,
     message: `Welcome to BubsBookings! We’re excited to have you join our growing community of service providers.\n\nWith BubsBookings, you can create your own business page, list your services, manage bookings, communicate with customers, track payments, and use marketing tools like your custom link and QR code.\n\nThanks for joining us!\n\nChristian\nFounder, BubsBookings`,
     sections: [{

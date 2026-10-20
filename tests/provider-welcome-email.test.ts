@@ -50,7 +50,7 @@ test("scheduled operations process pending provider welcomes without an admin se
 
 test("provider welcome content includes the required Stripe and dashboard actions", async () => {
   const email = await read("lib/provider-welcome-email.ts");
-  assert.match(email, /subject: "Welcome to BubsBookings!"/);
+  assert.match(email, /subject: "Set Up Your Provider Account"/);
   assert.match(email, /Important: Set Up Your Stripe Payouts/);
   assert.match(email, /Before you can receive payouts from bookings/);
   assert.match(email, /Set Up Stripe Payouts/);
