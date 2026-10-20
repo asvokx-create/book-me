@@ -8,6 +8,7 @@ import { subscriptionProvidesProAccess } from "@/lib/team-seat-rules";
 import { syncProviderAgeVerificationFromStripe } from "@/lib/provider-age-verification";
 import { subscriptionPeriodEndUnix } from "@/lib/subscription-lifecycle";
 import { getComplimentaryProStatus, reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
+import { providerPayoutSetupState } from "@/lib/provider-payout-status";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -39,7 +40,7 @@ export async function GET() {
   const mode = getStripeMode();
   const hasCurrentConnect = provider.stripe_connect_mode === mode && Boolean(provider.stripe_account_id);
   const hasCurrentBilling = provider.stripe_billing_mode === mode && Boolean(provider.stripe_customer_id);
-  let payoutState: "not_started" | "in_review" | "action_needed" | "ready" = hasCurrentConnect ? "in_review" : "not_started";
+  let payoutState = providerPayoutSetupState({ connected: hasCurrentConnect, detailsSubmitted: false, payoutsEnabled: false, transfersStatus: null });
   let requirements: string[] = [];
   let disabledReason: string | null = null;
   let taxReportingStatus: string | null = null;
@@ -85,7 +86,15 @@ export async function GET() {
       requirements = [...new Set([...(account.requirements?.past_due ?? []), ...(account.requirements?.currently_due ?? [])])];
       disabledReason = account.requirements?.disabled_reason ?? null;
       taxReportingStatus = account.capabilities?.tax_reporting_us_1099_k ?? null;
-      payoutState = account.charges_enabled && account.payouts_enabled ? "ready" : requirements.length || disabledReason ? "action_needed" : "in_review";
+      payoutState = providerPayoutSetupState({
+        connected: true,
+        detailsSubmitted: account.details_submitted,
+        payoutsEnabled: account.payouts_enabled,
+        transfersStatus: account.capabilities?.transfers,
+        currentlyDue: account.requirements?.currently_due,
+        pastDue: account.requirements?.past_due,
+        disabledReason,
+      });
       await database.query("UPDATE provider_profiles SET stripe_charges_enabled = $2, stripe_payouts_enabled = $3 WHERE stripe_account_id = $1 AND stripe_connect_mode = $4", [provider.stripe_account_id, account.charges_enabled, account.payouts_enabled, mode]);
     } catch (error) {
       console.error("Stripe Connect status refresh failed", error);
@@ -127,5 +136,5 @@ export async function GET() {
       taxReportingStatus,
     },
     ageVerification: { status: provider.age_verification_status },
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }

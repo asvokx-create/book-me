@@ -32,6 +32,7 @@ import { isAllDayAvailability } from "@/lib/availability-hours";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 import { dashboardWidgetDetails, ownerDashboardWidgets, workerDashboardWidgets, type DashboardWidgetId } from "@/lib/provider-dashboard-widgets";
 import { formatDurationMinutes, formatHourlyRate, formatServicePrice } from "@/lib/service-pricing";
+import ProviderPayoutReminder from "@/components/provider-payout-reminder";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
 export type DashboardSection = "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "customers" | "revenue" | "services" | "profile" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
@@ -460,6 +461,8 @@ export default function ProviderDashboard({ section = "overview", initialConvers
           {listingDeleted && <div className="mb-6 flex items-start justify-between gap-5 rounded-2xl border border-[#a8c1a9] bg-[#e8f2e7] p-4 text-sm"><div><p className="font-bold">Listing deleted.</p><p className="mt-1 text-[#567060]">It is no longer visible in customer searches.</p></div><button onClick={() => setListingDeleted(false)} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#64786a] transition hover:bg-[#cbdcc8]"><UiIcon name="close" className="h-4 w-4" /></button></div>}
 
           {providerLoaded && !provider && <div className="mb-6 rounded-2xl border border-[#d6ca65] bg-[#fff8cd] p-5 text-sm"><p className="font-bold">Create your provider profile to use this dashboard.</p><p className="mt-1 text-[#6f6840]">Add your business, first service, and availability to start getting discovered.</p><Link href="/providers/join" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 font-bold text-white">Start provider setup</Link></div>}
+
+          {provider && !isWorker && <ProviderPayoutReminder />}
 
           {section === "overview" && <AccountLocationReminder />}
 
