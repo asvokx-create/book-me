@@ -253,11 +253,13 @@ export async function POST(request: Request) {
       affiliateAttributionLocked = attribution.attributed;
       if (affiliateAttributionToken && /^[0-9a-f-]{36}$/i.test(affiliateAttributionToken)) {
         await client.query(`UPDATE affiliate_clicks SET
-            account_created_at=COALESCE(account_created_at,now()),
+            account_created_at=COALESCE(account_created_at,
+              CASE WHEN EXISTS (SELECT 1 FROM "user" account
+                WHERE account.id=$2 AND account."createdAt">=affiliate_clicks.created_at) THEN now() END),
             onboarding_started_at=COALESCE(onboarding_started_at,now()),
             company_created_at=COALESCE(company_created_at,now()),
             first_listing_created_at=COALESCE(first_listing_created_at,now())
-          WHERE attribution_token=$1::uuid`, [affiliateAttributionToken]);
+          WHERE attribution_token=$1::uuid`, [affiliateAttributionToken, session.user.id]);
       }
     }
 

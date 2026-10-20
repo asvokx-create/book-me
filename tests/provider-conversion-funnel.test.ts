@@ -39,12 +39,15 @@ test("provider destination rejects unsafe referral codes and unsupported paramet
 test("affiliate funnel milestones are additive, idempotent, and do not rewrite referral terms", async () => {
   const migration = await readFile(new URL("../database/migrations/098_provider_affiliate_funnel.sql", import.meta.url), "utf8");
   const route = await readFile(new URL("../app/api/affiliates/funnel/route.ts", import.meta.url), "utf8");
+  const onboarding = await readFile(new URL("../app/api/providers/onboarding/route.ts", import.meta.url), "utf8");
   const affiliates = await readFile(new URL("../lib/affiliates.ts", import.meta.url), "utf8");
   assert.match(migration, /ADD COLUMN IF NOT EXISTS signup_started_at/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS first_listing_published_at/);
   assert.doesNotMatch(migration, /UPDATE\s+affiliate_(referrals|commissions)/i);
   assert.match(route, /signup_started_at=COALESCE\(signup_started_at,now\(\)\)/);
-  assert.match(route, /authenticatedEvents\.has\(eventName\)/);
+  assert.match(route, /account\."createdAt" >= click\.created_at/);
+  assert.match(route, /session\.user\.id/);
+  assert.match(onboarding, /account\."createdAt">=affiliate_clicks\.created_at/);
   assert.match(affiliates, /'onboarding_completed'/);
   assert.match(affiliates, /markAffiliateListingPublished/);
 });
