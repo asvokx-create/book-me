@@ -544,6 +544,11 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
               })}
               {filteredListings.length === 0 && <EmptyState title="No matching listings" body="No listings use this delivery type yet." />}
               </div>
+              {filteredListings.length > 0 && <details className="rounded-[1.7rem] border border-[#9a4e25]/20 bg-[#fff8f2] p-5">
+                <summary className="cursor-pointer font-bold text-[#8a4628]">Delete listings</summary>
+                <p className="mt-2 text-xs leading-5 text-[#765e4c]">Deleting removes a listing from provider and admin dashboards. Booking, payment, review, and audit history is preserved.</p>
+                <div className="mt-4 divide-y divide-[#9a4e25]/15">{filteredListings.map((listing) => <div key={listing.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate text-sm font-bold">{listing.title}</p><p className="mt-1 truncate text-xs text-[#765e4c]">{listing.business_name} · {listing.category}</p></div><button type="button" disabled={busyId === listing.id} onClick={() => void runAction({ action: "listing_delete", targetId: listing.id, needsReason: true, confirmText: `Delete “${listing.title}” from provider and admin listing dashboards?`, successText: "Listing deleted." })} className="min-h-11 shrink-0 rounded-full bg-[#8a4628] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#6f351d] disabled:opacity-50">Delete listing</button></div>)}</div>
+              </details>}
             </div>
           )}
 

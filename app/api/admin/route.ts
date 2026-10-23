@@ -446,6 +446,52 @@ export async function PATCH(request: Request) {
       targetType = "account";
       auditAction = "account_warned";
       details = { reason };
+    } else if (action === "listing_delete") {
+      if (!reason) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "Add an internal reason for deleting this listing." }, { status: 400 });
+      }
+      const listingResult = await client.query<{ id: string; title: string; provider_id: string; company_id: string; user_id: string }>(
+        `SELECT service.id::text, service.title, service.provider_id::text,
+                service.company_id::text, provider.user_id
+         FROM services service
+         JOIN provider_profiles provider ON provider.id=service.provider_id
+         WHERE service.id=$1::uuid AND service.provider_deleted_at IS NULL
+         FOR UPDATE OF service, provider`,
+        [targetId],
+      );
+      const listing = listingResult.rows[0];
+      if (!listing) throw new Error("NOT_FOUND");
+      await client.query(
+        `UPDATE services
+         SET is_active=false, age_verification_blocked=false,
+             provider_deleted_at=now(), updated_at=now()
+         WHERE id=$1::uuid AND provider_deleted_at IS NULL`,
+        [targetId],
+      );
+      await client.query(
+        `UPDATE provider_team_members member
+         SET status='inactive', updated_at=now()
+         WHERE member.provider_id::text=$1 AND member.company_id::text=$2 AND member.status='active'
+           AND NOT EXISTS (
+             SELECT 1 FROM services remaining
+             WHERE remaining.provider_id=member.provider_id
+               AND remaining.company_id=member.company_id
+               AND remaining.is_active=true
+               AND remaining.provider_deleted_at IS NULL
+           )`,
+        [listing.provider_id, listing.company_id],
+      );
+      await client.query(
+        `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+         VALUES ($1, 'listing_deleted', 'A listing was removed by BubsBookings', $2,
+                 '/provider/dashboard/services', $3)
+         ON CONFLICT (dedupe_key) DO NOTHING`,
+        [listing.user_id, `“${listing.title}” was removed by an administrator. Contact support if you have questions.`, `admin-listing-deleted-${targetId}`],
+      );
+      targetType = "listing";
+      auditAction = "listing_deleted";
+      details = { reason, title: listing.title, providerId: listing.provider_id };
     } else if (action === "listing_status" && (status === "active" || status === "inactive")) {
       if (status === "active") {
         const eligibility = await client.query<{ id: string }>(

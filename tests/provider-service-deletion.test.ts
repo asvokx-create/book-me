@@ -38,3 +38,18 @@ test("the listing deletion endpoint preserves records while hiding deleted listi
   assert.match(adminListingPage, /s\.provider_deleted_at IS NULL/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS provider_deleted_at timestamptz/);
 });
+
+test("authorized administrators can delete listings with confirmation, a reason, and an audit record", () => {
+  const dashboard = read("components", "admin-dashboard.tsx");
+  const route = read("app", "api", "admin", "route.ts");
+
+  assert.match(dashboard, /Delete listings/);
+  assert.match(dashboard, /action: "listing_delete"/);
+  assert.match(dashboard, /needsReason: true/);
+  assert.match(dashboard, /Delete .* from provider and admin listing dashboards/);
+  assert.match(route, /action === "listing_delete"/);
+  assert.match(route, /Add an internal reason for deleting this listing/);
+  assert.match(route, /provider_deleted_at=now\(\)/);
+  assert.match(route, /auditAction = "listing_deleted"/);
+  assert.match(route, /admin-listing-deleted-/);
+});
