@@ -465,7 +465,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
           {providerLoaded && !provider && <div className="mb-6 rounded-2xl border border-[#d6ca65] bg-[#fff8cd] p-5 text-sm"><p className="font-bold">Create your provider profile to use this dashboard.</p><p className="mt-1 text-[#6f6840]">Add your business, first service, and availability to start getting discovered.</p><Link href="/providers/join" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 font-bold text-white">Start provider setup</Link></div>}
 
-          {provider && !isWorker && <ProviderActivationChecklist activation={provider.activation} showWhenComplete={section === "overview"} />}
+          {provider && !isWorker && <ProviderActivationChecklist activation={provider.activation} />}
 
           {section === "overview" && <AccountLocationReminder />}
 

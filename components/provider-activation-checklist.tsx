@@ -42,7 +42,7 @@ function Step({ title, step, action }: { title: string; step: LocalStep; action?
   </li>;
 }
 
-export default function ProviderActivationChecklist({ activation, showWhenComplete = true }: { activation: ProviderActivation; showWhenComplete?: boolean }) {
+export default function ProviderActivationChecklist({ activation }: { activation: ProviderActivation }) {
   const [stripe, setStripe] = useState<StripeStatus | null>(null);
   const [statusUnavailable, setStatusUnavailable] = useState(false);
   const [openingStripe, setOpeningStripe] = useState(false);
@@ -100,8 +100,8 @@ export default function ProviderActivationChecklist({ activation, showWhenComple
       : { status: "under_review" as const, detail: "Checking your Stripe payout status." };
   const steps = [activation.companyPage, activation.firstListing, ageStep, payoutStep];
   const completeCount = steps.filter((step) => step.status === "completed").length;
-  const allComplete = completeCount === steps.length && activation.listings.every((listing) => listing.publiclyAvailable);
-  if (allComplete && !showWhenComplete) return null;
+  const allComplete = completeCount === steps.length;
+  if (allComplete) return null;
 
   return <section id="activation-checklist" aria-labelledby="activation-checklist-title" className="mb-6 scroll-mt-24 rounded-[1.75rem] border border-[#d8cb63] bg-[#fff9d9] p-5 shadow-[0_8px_25px_rgba(92,78,18,.06)] sm:p-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#74691d]">Provider activation</p><h2 id="activation-checklist-title" className="mt-1 text-2xl font-bold">Get Your Business Ready</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#706942]">Complete each applicable step to publish your services and receive payouts.</p></div><span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#4f604f]">{completeCount}/{steps.length} complete</span></div>
