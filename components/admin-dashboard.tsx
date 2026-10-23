@@ -21,6 +21,10 @@ type Stats = {
   users: number; active_providers: number; active_services: number; bookings_30d: number;
   open_reports: number; blocked_30d: number; unique_site_views: number;
 };
+type AdminStatCard = {
+  id: string; label: string; value: number; detail: string; description: string; timeRange: string; basis: string;
+  destinationLabel: string; destinationSection?: AdminSection; destinationHref?: string;
+};
 type SafetyReport = {
   id: string; category: string; details: string; status: string; created_at: string;
   reporter_name: string; reporter_email: string; reported_name: string; reported_email: string;
@@ -181,6 +185,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const [moderationRiskFilter, setModerationRiskFilter] = useState<"all" | "low" | "medium" | "high">("all");
   const [moderationStatusFilter, setModerationStatusFilter] = useState("all");
   const [pendingAction, setPendingAction] = useState<AdminActionOptions | null>(null);
+  const [selectedStatId, setSelectedStatId] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [accountDetails, setAccountDetails] = useState<AccountDetails | null>(null);
   const [accountDetailsLoading, setAccountDetailsLoading] = useState(false);
@@ -286,6 +291,13 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedAccount]);
 
+  useEffect(() => {
+    if (!selectedStatId) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setSelectedStatId(null); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedStatId]);
+
   const firstName = adminName.trim().split(/\s+/)[0] || "Admin";
   const openReports = data?.reports.filter((report) => report.status === "open" || report.status === "reviewing") ?? [];
   const criticalEvents = data?.events.filter((event) => event.severity === "critical" || event.severity === "high") ?? [];
@@ -299,15 +311,16 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const filteredMessageModeration = data?.messageModeration.filter((event) =>
     (moderationRiskFilter === "all" || event.risk_level === moderationRiskFilter)
     && (moderationStatusFilter === "all" || event.status === moderationStatusFilter)) ?? [];
-  const statCards = data ? [
-    { label: "Total accounts", value: data.stats.users, detail: "Customers and providers" },
-    { label: "Active providers", value: data.stats.active_providers, detail: "Visible businesses" },
-    { label: "Active listings", value: data.stats.active_services, detail: "Bookable services" },
-    { label: "Site views", value: data.stats.unique_site_views, detail: "Unique visitors · all time" },
-    { label: "Bookings", value: data.stats.bookings_30d, detail: "Last 30 days" },
-    { label: "Open reports", value: data.stats.open_reports, detail: "Needs review" },
-    { label: "Safety blocks", value: data.stats.blocked_30d, detail: "Last 30 days" },
+  const statCards: AdminStatCard[] = data ? [
+    { id: "accounts", label: "Total accounts", value: data.stats.users, detail: "All registered accounts", description: "Every registered BubsBookings account, including customer, provider, and administrator accounts.", timeRange: "All time", basis: "Current account records", destinationLabel: "View accounts", destinationSection: "accounts" },
+    { id: "providers", label: "Active providers", value: data.stats.active_providers, detail: "Active provider profiles", description: "Provider profiles currently marked active. A provider can be active even when an individual listing still needs verification.", timeRange: "Current status", basis: "Active provider profiles", destinationLabel: "View provider accounts", destinationSection: "accounts" },
+    { id: "listings", label: "Active listings", value: data.stats.active_services, detail: "Bookable services", description: "Active services belonging to an active company and an active provider whose required age verification is complete.", timeRange: "Current status", basis: "Publicly eligible service listings", destinationLabel: "View listings", destinationSection: "listings" },
+    { id: "views", label: "Site views", value: data.stats.unique_site_views, detail: "Unique visitors · all time", description: "Distinct visitors with a recorded public-page view. Private admin, account, affiliate, and provider dashboard pages are excluded.", timeRange: "All time", basis: "First-party analytics visitor identifiers", destinationLabel: "Open growth analytics", destinationHref: "/admin/growth" },
+    { id: "bookings", label: "Bookings", value: data.stats.bookings_30d, detail: "Last 30 days", description: "Bookings created during the last 30 days, including every status. This is not limited to completed or paid bookings.", timeRange: "Rolling 30 days", basis: "Booking creation date", destinationLabel: "Open operations", destinationHref: "/admin/operations" },
+    { id: "reports", label: "Open reports", value: data.stats.open_reports, detail: "Needs review", description: "Safety reports that are currently open or under review and still need an administrator decision.", timeRange: "Current status", basis: "Open and reviewing safety reports", destinationLabel: "Review reports", destinationSection: "reports" },
+    { id: "blocks", label: "Safety blocks", value: data.stats.blocked_30d, detail: "Last 30 days", description: "Safety moderation events and message actions that blocked or restricted content during the last 30 days. Logged-only message events are excluded.", timeRange: "Rolling 30 days", basis: "Safety Bot moderation records", destinationLabel: "Review Safety Bot", destinationSection: "moderation" },
   ] : [];
+  const selectedStat = statCards.find((stat) => stat.id === selectedStatId) ?? null;
   const activeNavItem = navItems.find((item) => item.id === section) ?? navItems[0];
 
   function selectSection(nextSection: AdminSection) {
@@ -404,7 +417,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
           {data && section === "overview" && (
             <div className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {statCards.map((stat) => <div key={stat.label} className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6 shadow-[0_16px_40px_rgba(24,49,38,.05)]"><p className="text-xs font-extrabold uppercase tracking-[.13em] text-[#718078]">{stat.label}</p><p className="mt-3 text-4xl font-bold tracking-tight">{stat.value}</p><p className="mt-2 text-sm text-[#718078]">{stat.detail}</p></div>)}
+                {statCards.map((stat) => <button type="button" key={stat.id} onClick={() => setSelectedStatId(stat.id)} aria-label={`View details for ${stat.label}`} className="group rounded-[1.7rem] border border-[#183126]/10 bg-white p-6 text-left shadow-[0_16px_40px_rgba(24,49,38,.05)] transition hover:border-[#34704a]/35 hover:shadow-[0_20px_45px_rgba(24,49,38,.1)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]"><span className="flex items-start justify-between gap-4"><span><span className="block text-xs font-extrabold uppercase tracking-[.13em] text-[#718078]">{stat.label}</span><span className="mt-3 block text-4xl font-bold tracking-tight">{stat.value}</span><span className="mt-2 block text-sm text-[#718078]">{stat.detail}</span></span><span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#f1f3ed] text-lg transition group-hover:bg-[#eee25a]">›</span></span><span className="mt-4 block text-xs font-bold text-[#34704a]">View details</span></button>)}
               </div>
               <div className="grid gap-5 xl:grid-cols-2">
                 <div className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-6">
@@ -587,10 +600,43 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
           )}
         </section>
       </div>
+      {selectedStat && <AdminStatDialog stat={selectedStat} onClose={() => setSelectedStatId(null)} onOpenSection={(nextSection) => { setSelectedStatId(null); selectSection(nextSection); }} />}
       {selectedAccount && <AccountDetailDialog account={selectedAccount} details={accountDetails} loading={accountDetailsLoading} error={accountDetailsError} onClose={closeAccount} onRetry={() => openAccount(selectedAccount)} onDashboardRefresh={load} />}
       {pendingAction && <div className="fixed inset-0 z-[100] grid place-items-center bg-[#10251c]/55 p-3 sm:p-5" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title"><div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-white p-6 shadow-2xl sm:max-h-[calc(100dvh-2.5rem)] sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Confirm admin action</p><h2 id="admin-confirm-title" className="mt-2 text-2xl font-bold">Are you sure?</h2><p className="mt-3 text-sm leading-6 text-[#687970]">{pendingAction.confirmText}</p><p className="mt-4 rounded-2xl bg-[#f5f5ef] p-4 text-xs leading-5 text-[#718078]">This change is recorded in the permanent admin audit history.</p><div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={Boolean(busyId)} onClick={() => setPendingAction(null)} className="min-h-11 rounded-full px-5 py-3 text-sm font-bold transition hover:bg-[#edf1ec]">Cancel</button><button type="button" disabled={Boolean(busyId)} onClick={() => void executeAction({ ...pendingAction, confirmText: undefined })} className="min-h-11 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{busyId ? "Saving…" : pendingAction.status === "active" || pendingAction.status === "visible" ? "Restore" : "Confirm"}</button></div></div></div>}
     </main>
   );
+}
+
+function AdminStatDialog({ stat, onClose, onOpenSection }: { stat: AdminStatCard; onClose: () => void; onOpenSection: (section: AdminSection) => void }) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, []);
+
+  const dialog = <div className="fixed inset-0 z-[650] grid place-items-center overflow-y-auto bg-[#10251c]/55 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
+    <section role="dialog" aria-modal="true" aria-labelledby="admin-stat-detail-title" className="max-h-[calc(100dvh-1.5rem)] w-full max-w-xl overflow-y-auto rounded-[2rem] bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)]">
+      <header className="sticky top-0 flex items-start justify-between gap-4 border-b border-[#183126]/10 bg-white/95 px-5 py-5 backdrop-blur sm:px-7">
+        <div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#718078]">Overview metric</p><h2 id="admin-stat-detail-title" className="mt-1 text-2xl font-bold">{stat.label}</h2></div>
+        <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#183126]/20 text-xl transition hover:bg-[#edf1ec]" aria-label="Close metric details">×</button>
+      </header>
+      <div className="p-5 sm:p-7">
+        <div className="rounded-3xl bg-[#183126] p-6 text-white"><p className="text-5xl font-bold tracking-tight">{stat.value}</p><p className="mt-2 text-sm text-[#c5d3cc]">{stat.detail}</p></div>
+        <p className="mt-6 text-base leading-7 text-[#43574d]">{stat.description}</p>
+        <dl className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl bg-[#f4f4ef] p-4"><dt className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Time range</dt><dd className="mt-2 text-sm font-bold">{stat.timeRange}</dd></div>
+          <div className="rounded-2xl bg-[#f4f4ef] p-4"><dt className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">How it is counted</dt><dd className="mt-2 text-sm font-bold">{stat.basis}</dd></div>
+        </dl>
+        <div className="mt-7 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" onClick={onClose} className="min-h-11 rounded-full px-5 py-3 text-sm font-bold transition hover:bg-[#edf1ec]">Close</button>
+          {stat.destinationSection && <button type="button" onClick={() => onOpenSection(stat.destinationSection!)} className="min-h-11 rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:bg-[#dfd23d]">{stat.destinationLabel}</button>}
+          {stat.destinationHref && <Link href={stat.destinationHref} className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#eee25a] px-5 py-3 text-sm font-bold text-[#183126] transition hover:bg-[#dfd23d]">{stat.destinationLabel}</Link>}
+        </div>
+      </div>
+    </section>
+  </div>;
+
+  return typeof document === "undefined" ? null : createPortal(dialog, document.body);
 }
 
 function EmptyState({ title, body }: { title: string; body: string }) {
