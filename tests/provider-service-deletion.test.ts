@@ -43,7 +43,8 @@ test("authorized administrators can delete listings with confirmation, a reason,
   const dashboard = read("components", "admin-dashboard.tsx");
   const route = read("app", "api", "admin", "route.ts");
 
-  assert.match(dashboard, /Delete listings/);
+  assert.match(dashboard, /admin-action-row[\s\S]*Delete listing/);
+  assert.doesNotMatch(dashboard, /<summary[^>]*>Delete listings<\/summary>/);
   assert.match(dashboard, /action: "listing_delete"/);
   assert.match(dashboard, /needsReason: true/);
   assert.match(dashboard, /Delete .* from provider and admin listing dashboards/);
