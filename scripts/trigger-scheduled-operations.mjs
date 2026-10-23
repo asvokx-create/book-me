@@ -1,6 +1,8 @@
 import { triggerScheduledOperations } from "../lib/payout-cron-trigger.mjs";
+import { assertPatchedNodeRuntime } from "./verify-node-runtime.mjs";
 
 try {
+  assertPatchedNodeRuntime();
   const result = await triggerScheduledOperations();
   console.log(JSON.stringify({ ok: true, scheduledOperations: result }));
 } catch (error) {

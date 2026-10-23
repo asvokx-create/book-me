@@ -2,10 +2,15 @@
   "name": "book-me",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.22.1"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
+    "prestart": "node scripts/verify-node-runtime.mjs",
     "start": "node scripts/setup-marketplace-db.mjs && next start",
+    "security:node-runtime": "node scripts/verify-node-runtime.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "lint": "eslint",
     "db:auth": "npx auth@latest migrate --yes --config ./lib/auth.ts",
@@ -17,7 +22,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1124.0",
     "better-auth": "^1.7.2",
-    "next": "16.3.8",
+    "next": "16.4.3",
     "openai": "^7.38.0",
     "pg": "^8.23.0",
     "react": "19.2.8",
@@ -32,7 +37,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
