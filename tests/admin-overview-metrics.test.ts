@@ -19,6 +19,15 @@ test("every admin overview metric opens an accessible detail dialog", async () =
   assert.match(dashboard, /destinationHref/);
 });
 
+test("active providers opens a provider-only account view", async () => {
+  const dashboard = await read("components/admin-dashboard.tsx");
+
+  assert.match(dashboard, /accountScope === "active_providers" && \(!account\.provider_id \|\| account\.provider_active !== true\)/);
+  assert.match(dashboard, /selectedStat\.id === "providers" \? "active_providers" : "all"/);
+  assert.match(dashboard, /Showing active providers only/);
+  assert.match(dashboard, /Show all accounts/);
+});
+
 test("admin metric explanations match the server-side definitions", async () => {
   const [dashboard, route] = await Promise.all([
     read("components/admin-dashboard.tsx"),

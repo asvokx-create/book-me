@@ -181,6 +181,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [accountSearch, setAccountSearch] = useState("");
+  const [accountScope, setAccountScope] = useState<"all" | "active_providers">("all");
   const [listingDeliveryFilter, setListingDeliveryFilter] = useState<"ALL" | "IN_PERSON" | "REMOTE" | "BOTH">("ALL");
   const [moderationRiskFilter, setModerationRiskFilter] = useState<"all" | "low" | "medium" | "high">("all");
   const [moderationStatusFilter, setModerationStatusFilter] = useState("all");
@@ -303,6 +304,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const criticalEvents = data?.events.filter((event) => event.severity === "critical" || event.severity === "high") ?? [];
   const normalizedAccountSearch = accountSearch.trim().toLocaleLowerCase();
   const filteredAccounts = data?.accounts.filter((account) => {
+    if (accountScope === "active_providers" && (!account.provider_id || account.provider_active !== true)) return false;
     if (!normalizedAccountSearch) return true;
     return [account.id, account.name, account.email, account.role, account.provider_id ? "provider" : "", account.is_partner ? "partner" : "", account.business_name ?? ""]
       .some((value) => value.toLocaleLowerCase().includes(normalizedAccountSearch));
@@ -323,7 +325,8 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   const selectedStat = statCards.find((stat) => stat.id === selectedStatId) ?? null;
   const activeNavItem = navItems.find((item) => item.id === section) ?? navItems[0];
 
-  function selectSection(nextSection: AdminSection) {
+  function selectSection(nextSection: AdminSection, nextAccountScope: "all" | "active_providers" = "all") {
+    if (nextSection === "accounts") setAccountScope(nextAccountScope);
     setSection(nextSection);
     setMobileNavOpen(false);
   }
@@ -495,6 +498,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
 
           {data && section === "accounts" && (
             <div className="space-y-4">
+              {accountScope === "active_providers" && <div role="status" className="flex flex-col gap-3 rounded-[1.7rem] border border-[#34704a]/20 bg-[#e9f3e7] p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold text-[#285b3b]">Showing active providers only</p><p className="mt-1 text-sm text-[#52665b]">Inactive providers, customers, administrators, and other accounts are hidden from this view.</p></div><button type="button" onClick={() => setAccountScope("all")} className="min-h-11 shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-[#183126] transition hover:bg-[#eee25a]">Show all accounts</button></div>}
               <div className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5">
                 <label htmlFor="admin-account-search" className="text-sm font-bold">Search accounts</label>
                 <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -511,7 +515,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                     />
                   </div>
                   <p className="shrink-0 text-xs font-semibold text-[#718078]" aria-live="polite">
-                    {normalizedAccountSearch ? `${filteredAccounts.length} of ${data.accounts.length} accounts` : `${data.accounts.length} accounts`}
+                    {accountScope === "active_providers" ? `${filteredAccounts.length} active provider${filteredAccounts.length === 1 ? "" : "s"}` : normalizedAccountSearch ? `${filteredAccounts.length} of ${data.accounts.length} accounts` : `${data.accounts.length} accounts`}
                   </p>
                 </div>
               </div>
@@ -534,7 +538,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
                   </div>
                 </article>
               ))}
-              {filteredAccounts.length === 0 && <EmptyState title="No matching accounts" body="Try searching with a different name, email, account ID, role, account type, or business." />}
+              {filteredAccounts.length === 0 && <EmptyState title={accountScope === "active_providers" ? "No matching active providers" : "No matching accounts"} body={accountScope === "active_providers" ? "No active providers match this search. Clear the search or show all accounts." : "Try searching with a different name, email, account ID, role, account type, or business."} />}
             </div>
           )}
 
@@ -600,7 +604,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
           )}
         </section>
       </div>
-      {selectedStat && <AdminStatDialog stat={selectedStat} onClose={() => setSelectedStatId(null)} onOpenSection={(nextSection) => { setSelectedStatId(null); selectSection(nextSection); }} />}
+      {selectedStat && <AdminStatDialog stat={selectedStat} onClose={() => setSelectedStatId(null)} onOpenSection={(nextSection) => { setSelectedStatId(null); selectSection(nextSection, selectedStat.id === "providers" ? "active_providers" : "all"); }} />}
       {selectedAccount && <AccountDetailDialog account={selectedAccount} details={accountDetails} loading={accountDetailsLoading} error={accountDetailsError} onClose={closeAccount} onRetry={() => openAccount(selectedAccount)} onDashboardRefresh={load} />}
       {pendingAction && <div className="fixed inset-0 z-[100] grid place-items-center bg-[#10251c]/55 p-3 sm:p-5" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title"><div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-white p-6 shadow-2xl sm:max-h-[calc(100dvh-2.5rem)] sm:p-8"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Confirm admin action</p><h2 id="admin-confirm-title" className="mt-2 text-2xl font-bold">Are you sure?</h2><p className="mt-3 text-sm leading-6 text-[#687970]">{pendingAction.confirmText}</p><p className="mt-4 rounded-2xl bg-[#f5f5ef] p-4 text-xs leading-5 text-[#718078]">This change is recorded in the permanent admin audit history.</p><div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={Boolean(busyId)} onClick={() => setPendingAction(null)} className="min-h-11 rounded-full px-5 py-3 text-sm font-bold transition hover:bg-[#edf1ec]">Cancel</button><button type="button" disabled={Boolean(busyId)} onClick={() => void executeAction({ ...pendingAction, confirmText: undefined })} className="min-h-11 rounded-full bg-[#183126] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315846] disabled:opacity-50">{busyId ? "Saving…" : pendingAction.status === "active" || pendingAction.status === "visible" ? "Restore" : "Confirm"}</button></div></div></div>}
     </main>
