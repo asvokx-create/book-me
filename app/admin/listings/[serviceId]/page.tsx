@@ -7,6 +7,7 @@ import { formatDuration, getServiceVisual } from "@/lib/marketplace";
 import ServiceCategoryIcon from "@/components/service-category-icon";
 import { getAdminSession } from "@/lib/admin";
 import { formatDurationMinutes, formatHourlyRate } from "@/lib/service-pricing";
+import { listingInactiveReasons, type ProviderAgeVerificationStatus } from "@/lib/provider-activation";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,11 @@ type ListingPreview = {
   pricing_type: "FIXED" | "HOURLY"; hourly_rate_cents: number | null;
   minimum_duration_minutes: number | null; maximum_duration_minutes: number | null;
   billing_increment_minutes: number | null; default_duration_minutes: number | null;
-  age_verification_status: string; publicly_available: boolean;
+  age_verification_status: ProviderAgeVerificationStatus; publicly_available: boolean;
+  age_verification_blocked: boolean; provider_is_active: boolean; company_is_active: boolean;
+  stripe_connected: boolean; stripe_payouts_enabled: boolean; screening_status: string;
+  screening_checked_at: Date | null; safety_review_status: string; safety_reviewed_at: Date | null;
+  last_status_update: Date;
 };
 
 export default async function AdminListingPreviewPage({ params }: PageProps<"/admin/listings/[serviceId]">) {
@@ -29,14 +34,26 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
     `SELECT s.id::text, s.title, s.category, s.description, s.price_cents, s.duration_minutes,
             s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes,
             s.billing_increment_minutes, s.default_duration_minutes,
-            s.is_active, s.business_name, p.city, p.state, p.service_radius_miles, s.delivery_type, s.remote_delivery_details,
-            p.age_verification_status,
+            s.is_active, s.age_verification_blocked, s.business_name, p.city, p.state, p.service_radius_miles, s.delivery_type, s.remote_delivery_details,
+            p.age_verification_status, p.is_active AS provider_is_active, company.is_active AS company_is_active,
+            (p.stripe_account_id IS NOT NULL) AS stripe_connected, p.stripe_payouts_enabled,
+            p.screening_status, p.screening_checked_at,
+            CASE WHEN safety.created_at IS NULL THEN 'not_reviewed'
+                 WHEN COALESCE((safety.details->>'allowed')::boolean, false) THEN 'passed'
+                 ELSE 'action_required' END AS safety_review_status,
+            safety.created_at AS safety_reviewed_at,
+            GREATEST(s.updated_at, p.updated_at, company.updated_at, COALESCE(safety.created_at, s.created_at)) AS last_status_update,
             (s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified' AND company.is_active = true) AS publicly_available,
             COALESCE((SELECT array_agg(si.public_url ORDER BY si.sort_order, si.created_at)
               FROM service_images si WHERE si.service_id = s.id), ARRAY[]::text[]) AS image_urls
      FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
      JOIN provider_companies company ON company.id = s.company_id
+     LEFT JOIN LATERAL (
+       SELECT details, created_at FROM admin_audit_log
+       WHERE action='listing_safety_scanned' AND target_type='listing' AND target_id=s.id::text
+       ORDER BY created_at DESC LIMIT 1
+     ) safety ON true
      WHERE s.id::text = $1
      LIMIT 1`,
     [serviceId],
@@ -48,12 +65,19 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
   const deliveryLabel = listing.delivery_type === "REMOTE" ? "🌐 Available online" : listing.delivery_type === "BOTH" ? `🌐 Online or in person near ${listing.city}, ${listing.state}` : `📍 ${listing.city}, ${listing.state}`;
   const serviceAreaLabel = listing.delivery_type === "REMOTE" ? "Available online across the United States" : listing.delivery_type === "BOTH" ? `Online nationwide or within ${listing.service_radius_miles} miles of ${listing.city}` : `Within ${listing.service_radius_miles} miles of ${listing.city}`;
   const hourly = listing.pricing_type === "HOURLY" && listing.hourly_rate_cents !== null;
+  const inactiveReasons = listingInactiveReasons({
+    isActive: listing.is_active,
+    ageVerificationBlocked: listing.age_verification_blocked,
+    providerIsActive: listing.provider_is_active,
+    companyIsActive: listing.company_is_active,
+    ageVerificationStatus: listing.age_verification_status,
+  });
 
   return <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
     <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6"><Link href="/admin" className="flex items-center gap-2 text-xl font-bold"><BrandLockup /></Link><span className="rounded-full bg-[#eee25a] px-3 py-1 text-xs font-extrabold uppercase tracking-wider">Admin preview</span></div></header>
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <BackButton label="Back to listings" fallbackHref="/admin" />
-      <div className="mt-6 rounded-2xl border border-[#d9ca55] bg-[#fff8cf] p-4 text-sm"><strong>This is an admin-only preview.</strong> {listing.publicly_available ? "The listing is currently visible in the marketplace." : listing.is_active && listing.age_verification_status !== "verified" ? "The service record is active, but it remains off the public marketplace until the provider completes required age verification." : listing.is_active ? "The service record is active, but the provider or business is not currently public." : "The listing is currently removed from the marketplace."}</div>
+      <div className="mt-6 rounded-2xl border border-[#d9ca55] bg-[#fff8cf] p-4 text-sm"><strong>This is an admin-only preview.</strong> {listing.publicly_available ? " The listing is currently visible in the marketplace." : " The listing is not public."}{inactiveReasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5">{inactiveReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
       <div className="mt-7 grid gap-7 lg:grid-cols-[1.25fr_.75fr]">
         <section>
           <div role="img" aria-label={`${listing.title} cover`} style={images[0] ? { backgroundImage: `url("${images[0]}")` } : undefined} className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-cover bg-center sm:h-[420px] ${images[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
@@ -67,6 +91,7 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
           <p className="mt-7 max-w-2xl text-lg leading-8 text-[#5b6d64]">{listing.description}</p>
         </section>
         <aside className="h-fit rounded-[2rem] border border-[#183126]/10 bg-white p-7 shadow-[0_20px_50px_rgba(24,49,38,.10)]">
+          <div className="mb-6 rounded-2xl bg-[#f5f5ef] p-4 text-sm"><p className="font-bold">Activation details</p><dl className="mt-3 space-y-2 text-[#687970]"><div className="flex justify-between gap-4"><dt>Age verification</dt><dd className="font-semibold text-[#183126]">{listing.age_verification_status.replaceAll("_", " ")}</dd></div><div className="flex justify-between gap-4"><dt>Stripe payouts, last known</dt><dd className="font-semibold text-[#183126]">{!listing.stripe_connected ? "Not connected" : listing.stripe_payouts_enabled ? "Ready" : "Incomplete or under review"}</dd></div><div className="flex justify-between gap-4"><dt>Safety review</dt><dd className="font-semibold text-[#183126]">{listing.safety_review_status.replaceAll("_", " ")}</dd></div><div className="flex justify-between gap-4"><dt>Last status update</dt><dd className="text-right font-semibold text-[#183126]">{new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(listing.last_status_update))}</dd></div></dl><p className="mt-3 text-xs leading-5">Stripe payout setup is required to receive earnings, but it does not control listing publication.</p></div>
           <p className="text-xs font-bold uppercase tracking-wider text-[#718078]">{hourly ? "Hourly rate" : "Starting price"}</p>
           <p className="mt-2 text-4xl font-bold">{hourly ? formatHourlyRate(listing.hourly_rate_cents!) : `$${(listing.price_cents / 100).toFixed(2)}`}</p>
           <div className="mt-6 space-y-3 text-sm">

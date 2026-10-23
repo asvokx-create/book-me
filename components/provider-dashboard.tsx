@@ -32,7 +32,7 @@ import { isAllDayAvailability } from "@/lib/availability-hours";
 import { formatInUserTimeZone, useUserTimeZone } from "@/components/preferences-provider";
 import { dashboardWidgetDetails, ownerDashboardWidgets, workerDashboardWidgets, type DashboardWidgetId } from "@/lib/provider-dashboard-widgets";
 import { formatDurationMinutes, formatHourlyRate, formatServicePrice } from "@/lib/service-pricing";
-import ProviderPayoutReminder from "@/components/provider-payout-reminder";
+import ProviderActivationChecklist, { type ProviderActivation } from "@/components/provider-activation-checklist";
 
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
 export type DashboardSection = "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "customers" | "revenue" | "services" | "profile" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
@@ -71,6 +71,7 @@ type ProviderSummary = {
   hasInPersonServices: boolean;
   publicProfileSlug: string;
   publicProfileVisible: boolean;
+  activation: ProviderActivation;
 };
 
 type ProviderService = { id: string; companyId: string; companySlug: string; businessName: string; locationId: string | null; locationName: string | null; location: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; slug: string; title: string; category: string; price: number; durationMinutes: number; pricingType: "FIXED" | "HOURLY"; hourlyRateCents: number | null; minimumDurationMinutes: number | null; imageUrls: string[]; createdAt: string; viewCount: number; completedBookingCount: number };
@@ -462,7 +463,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
           {providerLoaded && !provider && <div className="mb-6 rounded-2xl border border-[#d6ca65] bg-[#fff8cd] p-5 text-sm"><p className="font-bold">Create your provider profile to use this dashboard.</p><p className="mt-1 text-[#6f6840]">Add your business, first service, and availability to start getting discovered.</p><Link href="/providers/join" className="mt-4 inline-flex rounded-full bg-[#183126] px-4 py-2 font-bold text-white">Start provider setup</Link></div>}
 
-          {provider && !isWorker && <ProviderPayoutReminder />}
+          {provider && !isWorker && <ProviderActivationChecklist activation={provider.activation} showWhenComplete={section === "overview"} />}
 
           {section === "overview" && <AccountLocationReminder />}
 

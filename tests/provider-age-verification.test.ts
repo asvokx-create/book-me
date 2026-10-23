@@ -71,7 +71,7 @@ test("admin listing status reflects public eligibility and cannot restore an unv
   assert.match(admin, /p\.age_verification_status = 'verified'/);
   assert.match(admin, /This listing cannot be made public until its provider completes required age verification/);
   assert.match(dashboard, /verification required/);
-  assert.match(preview, /remains off the public marketplace until the provider completes required age verification/);
+  assert.match(preview, /listingInactiveReasons/);
 });
 
 test("only profiles that existed before the policy can receive a documented admin exception", () => {

@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ error: screening.summary, screening }, { status: 422 });
   }
-  const existingProfile = await database.query<{ plan: ProviderPlan; city: string; state: string; public_profile_slug: string }>("SELECT plan, city, state, public_profile_slug FROM provider_profiles WHERE user_id = $1", [session.user.id]);
+  const existingProfile = await database.query<{ plan: ProviderPlan; city: string; state: string; public_profile_slug: string; age_verification_status: string }>("SELECT plan, city, state, public_profile_slug, age_verification_status FROM provider_profiles WHERE user_id = $1", [session.user.id]);
   const plan: ProviderPlan = isOwnerEmail(session.user.email)
     ? "owner"
     : existingProfile.rows[0]?.plan ?? "starter";
@@ -136,6 +136,7 @@ export async function POST(request: Request) {
   const state = locationParts.length > 1 ? locationParts.pop()! : "WA";
   const city = locationParts.join(", ") || serviceArea;
   const existing = existingProfile.rows[0];
+  const listingAgeVerified = existing?.age_verification_status === "verified";
   if (deliveryType !== "REMOTE" && existing && !PLAN_ENTITLEMENTS[plan].multipleLocations && `${existing.city}, ${existing.state}`.toLowerCase() !== `${city}, ${state}`.toLowerCase()) {
     return NextResponse.json({ error: "Starter uses one shared service location. Use your existing location or upgrade to Pro for multiple locations.", upgradeRequired: true }, { status: 403 });
   }
@@ -235,14 +236,14 @@ export async function POST(request: Request) {
     const serviceResult = await client.query<{ id: string }>(
       `INSERT INTO services (provider_id, company_id, location_id, business_name, slug, category, delivery_type, remote_delivery_details, title, description, price_cents, duration_minutes, city, state, latitude, longitude,
           pricing_type,hourly_rate_cents,minimum_duration_minutes,maximum_duration_minutes,billing_increment_minutes,default_duration_minutes,is_active,age_verification_blocked)
-       VALUES ($1, $2, CASE WHEN $7='REMOTE' THEN NULL ELSE $3::uuid END, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,$17,$18,$19,$20,$21,$22,false,true)
+       VALUES ($1, $2, CASE WHEN $7='REMOTE' THEN NULL ELSE $3::uuid END, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,$17,$18,$19,$20,$21,$22,$23,$24)
        RETURNING id::text`,
       [providerId, companyId, serviceLocation.id, business, slugify(service), category, deliveryType, remoteDeliveryDetails, service, description,
         pricingType === "HOURLY" ? hourlyRateCents : Math.round(price * 100), pricingType === "HOURLY" ? defaultDurationMinutes : durationMinutes,
         serviceLocation.city, serviceLocation.state, serviceLocation.latitude, serviceLocation.longitude, pricingType,
         pricingType === "HOURLY" ? hourlyRateCents : null, pricingType === "HOURLY" ? minimumDurationMinutes : null,
         pricingType === "HOURLY" ? maximumDurationMinutes : null, pricingType === "HOURLY" ? billingIncrementMinutes : null,
-        pricingType === "HOURLY" ? defaultDurationMinutes : null],
+        pricingType === "HOURLY" ? defaultDurationMinutes : null, listingAgeVerified, !listingAgeVerified],
     );
 
     if (!existing) {

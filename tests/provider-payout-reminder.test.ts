@@ -19,16 +19,16 @@ test("provider payout reminder uses the required status-specific language", () =
 });
 
 test("dashboard reminder is persistent, responsive, and opens the existing Connect flow", async () => {
-  const reminder = await readFile(new URL("../components/provider-payout-reminder.tsx", import.meta.url), "utf8");
+  const reminder = await readFile(new URL("../components/provider-activation-checklist.tsx", import.meta.url), "utf8");
   const dashboard = await readFile(new URL("../components/provider-dashboard.tsx", import.meta.url), "utf8");
-  assert.match(reminder, /Complete Your Payout Setup/);
+  assert.match(reminder, /Connect Stripe payouts/);
   assert.match(reminder, /Set Up Stripe Payouts/);
   assert.match(reminder, /\/api\/stripe\/status/);
   assert.match(reminder, /\/api\/stripe\/connect/);
   assert.match(reminder, /setInterval[\s\S]*30_000/);
   assert.doesNotMatch(reminder, /dismiss|localStorage/);
   assert.match(reminder, /sm:flex-row/);
-  assert.match(dashboard, /provider && !isWorker && <ProviderPayoutReminder/);
+  assert.match(dashboard, /provider && !isWorker && <ProviderActivationChecklist/);
 });
 
 test("Stripe status uses details, payouts, transfers, and outstanding requirements", async () => {

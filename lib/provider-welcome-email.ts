@@ -84,10 +84,14 @@ export async function deliverProviderWelcomeEmail(userId?: string) {
     heading: `Hi ${firstName},`,
     message: `Welcome to BubsBookings! We’re excited to have you join our growing community of service providers.\n\nWith BubsBookings, you can create your own business page, list your services, manage bookings, communicate with customers, track payments, and use marketing tools like your custom link and QR code.\n\nThanks for joining us!\n\nChristian\nFounder, BubsBookings`,
     sections: [{
+      heading: "Finish Your Provider Activation",
+      message: "Your listings may stay private until you complete required age verification and any applicable listing requirements. You’ll also need to finish Stripe payout setup before you can receive earnings from bookings.",
+    }, {
       heading: "Important: Set Up Your Stripe Payouts",
       message: "Before you can receive payouts from bookings, you’ll need to complete your Stripe Connect setup.",
     }],
     actions: [
+      { label: "Review Activation Checklist", url: "/provider/dashboard#activation-checklist" },
       { label: "Set Up Stripe Payouts", url: "/provider/payout-setup" },
       { label: "Go to Provider Dashboard", url: "/provider/dashboard" },
     ],

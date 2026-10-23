@@ -109,12 +109,25 @@ async function loadDashboard() {
       `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.delivery_type, s.is_active, s.price_cents,
               s.pricing_type,s.hourly_rate_cents,s.minimum_duration_minutes,
               s.created_at, s.business_name, p.city, p.state, p.id::text AS provider_id,
-              p.is_active AS provider_is_active, p.age_verification_status,
+              p.is_active AS provider_is_active, p.age_verification_status, p.age_verification_source,
+              (p.stripe_account_id IS NOT NULL) AS stripe_connected,
+              p.stripe_charges_enabled, p.stripe_payouts_enabled,
+              p.screening_status, p.screening_checked_at, s.age_verification_blocked,
               company.is_active AS company_is_active,
+              CASE WHEN safety.created_at IS NULL THEN 'not_reviewed'
+                   WHEN COALESCE((safety.details->>'allowed')::boolean, false) THEN 'passed'
+                   ELSE 'action_required' END AS safety_review_status,
+              safety.created_at AS safety_reviewed_at,
+              GREATEST(s.updated_at, p.updated_at, company.updated_at, COALESCE(safety.created_at, s.created_at)) AS last_status_update,
               (s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified' AND company.is_active = true) AS publicly_available
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
        JOIN provider_companies company ON company.id = s.company_id
+       LEFT JOIN LATERAL (
+         SELECT details, created_at FROM admin_audit_log
+         WHERE action='listing_safety_scanned' AND target_type='listing' AND target_id=s.id::text
+         ORDER BY created_at DESC LIMIT 1
+       ) safety ON true
        ORDER BY s.created_at DESC
        LIMIT 75`,
     ),

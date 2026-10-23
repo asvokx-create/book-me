@@ -4,6 +4,7 @@ import { hasAdminAccess, isOwnerEmail } from "@/lib/admin";
 import type { ProviderPlan } from "@/lib/plans";
 import { getProviderAccess } from "@/lib/provider-access";
 import { isProviderScreeningCurrent } from "@/lib/provider-screening-freshness";
+import { ageActivationStep, listingInactiveReasons, type ProviderAgeVerificationStatus } from "@/lib/provider-activation";
 
 export async function GET() {
   const access = await getProviderAccess();
@@ -35,13 +36,16 @@ export async function GET() {
     service_radius_miles: number;
     public_profile_slug: string;
     public_profile_visible: boolean;
+    age_verification_status: ProviderAgeVerificationStatus;
+    updated_at: Date;
   }>(
     `SELECT p.id::text, p.user_id, p.business_name, p.city, p.state, p.plan, p.is_active,
             u.name AS user_name,
             u."emailVerified" AS email_verified, p.phone_verified, p.identity_verified,
             p.business_verified, p.screening_status, p.screening_score, p.screening_summary,
             p.screening_checked_at, p.cancellation_window_hours, p.cancellation_policy, p.no_show_policy,
-            p.service_radius_miles, p.public_profile_slug, p.public_profile_visible
+            p.service_radius_miles, p.public_profile_slug, p.public_profile_visible,
+            p.age_verification_status, p.updated_at
      FROM provider_profiles p
      JOIN "user" u ON u.id = p.user_id
      WHERE p.id::text = $1`,
@@ -132,6 +136,43 @@ export async function GET() {
     location: service.delivery_type === "REMOTE" ? "Available online" : `${service.city}, ${service.state}`,
     deliveryType: service.delivery_type,
   }));
+  const activationListingsResult = await database.query<{
+    id: string; title: string; is_active: boolean; age_verification_blocked: boolean;
+    company_is_active: boolean; updated_at: Date;
+  }>(
+    `SELECT service.id::text, service.title, service.is_active, service.age_verification_blocked,
+            company.is_active AS company_is_active,
+            GREATEST(service.updated_at, company.updated_at, $2::timestamptz) AS updated_at
+     FROM services service
+     JOIN provider_companies company ON company.id=service.company_id
+     WHERE service.provider_id::text=$1
+       AND ($3::text IS NULL OR company.name=$3)
+     ORDER BY service.created_at`,
+    [provider.id, provider.updated_at, access.memberCompanyName],
+  );
+  const companyResult = await database.query<{ total: number; active: number }>(
+    `SELECT count(*)::int AS total, count(*) FILTER (WHERE is_active=true)::int AS active
+     FROM provider_companies
+     WHERE provider_id::text=$1 AND ($2::text IS NULL OR name=$2)`,
+    [provider.id, access.memberCompanyName],
+  );
+  const activationListings = activationListingsResult.rows.map((listing) => {
+    const reasons = listingInactiveReasons({
+      isActive: listing.is_active,
+      ageVerificationBlocked: listing.age_verification_blocked,
+      providerIsActive: provider.is_active,
+      companyIsActive: listing.company_is_active,
+      ageVerificationStatus: provider.age_verification_status,
+    });
+    return {
+      id: listing.id,
+      title: listing.title,
+      publiclyAvailable: reasons.length === 0,
+      reasons,
+      lastStatusUpdate: listing.updated_at,
+    };
+  });
+  const companies = companyResult.rows[0] ?? { total: 0, active: 0 };
   const availabilityResult = await database.query<{
     service_id: string | null;
     weekday: number;
@@ -180,6 +221,20 @@ export async function GET() {
     hasInPersonServices: services.some((service) => service.deliveryType === "IN_PERSON" || service.deliveryType === "BOTH"),
     publicProfileSlug: provider.public_profile_slug,
     publicProfileVisible: provider.public_profile_visible,
+    activation: {
+      companyPage: {
+        status: companies.active > 0 ? "completed" : companies.total > 0 ? "action_required" : "not_started",
+        detail: companies.active > 0 ? "Your company page is ready." : companies.total > 0 ? "Your company page is inactive." : "Create your company page.",
+      },
+      firstListing: {
+        status: activationListings.length > 0 ? "completed" : "not_started",
+        detail: activationListings.length > 0 ? "You created your first service listing." : "Create your first service listing.",
+      },
+      ageVerification: ageActivationStep(provider.age_verification_status),
+      ageVerificationStatus: provider.age_verification_status,
+      listings: activationListings,
+      publicListingCount: activationListings.filter((listing) => listing.publiclyAvailable).length,
+    },
     service: services[0] ?? null,
     services,
     availability: services[0] ? availabilityByService[services[0].id] ?? [] : defaultAvailability,
