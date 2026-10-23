@@ -109,7 +109,8 @@ export async function GET() {
      FROM services s
      JOIN provider_companies company ON company.id = s.company_id AND company.is_active = true
      LEFT JOIN provider_locations location ON location.id = s.location_id AND location.is_active = true
-     WHERE s.provider_id::text = $1 AND (s.is_active = true OR s.age_verification_blocked = true)
+     WHERE s.provider_id::text = $1 AND s.provider_deleted_at IS NULL
+       AND (s.is_active = true OR s.age_verification_blocked = true)
        AND ($2::text IS NULL OR company.name = $2)
      ORDER BY s.created_at DESC`,
     [provider.id, access.memberCompanyName, provider.user_id],
@@ -136,6 +137,28 @@ export async function GET() {
     location: service.delivery_type === "REMOTE" ? "Available online" : `${service.city}, ${service.state}`,
     deliveryType: service.delivery_type,
   }));
+  const archivedServicesResult = await database.query<{
+    id: string; title: string; category: string; business_name: string; created_at: Date;
+  }>(
+    `SELECT service.id::text, service.title, service.category,
+            company.name AS business_name, service.created_at
+     FROM services service
+     JOIN provider_companies company ON company.id=service.company_id
+     WHERE service.provider_id::text=$1
+       AND service.is_active=false
+       AND service.age_verification_blocked=false
+       AND service.provider_deleted_at IS NULL
+       AND ($2::text IS NULL OR company.name=$2)
+     ORDER BY service.updated_at DESC, service.created_at DESC`,
+    [provider.id, access.memberCompanyName],
+  );
+  const archivedServices = archivedServicesResult.rows.map((service) => ({
+    id: service.id,
+    title: service.title,
+    category: service.category,
+    businessName: service.business_name,
+    createdAt: service.created_at,
+  }));
   const activationListingsResult = await database.query<{
     id: string; title: string; is_active: boolean; age_verification_blocked: boolean;
     company_is_active: boolean; updated_at: Date;
@@ -144,8 +167,10 @@ export async function GET() {
             company.is_active AS company_is_active,
             GREATEST(service.updated_at, company.updated_at, $2::timestamptz) AS updated_at
      FROM services service
-     JOIN provider_companies company ON company.id=service.company_id
+     JOIN provider_companies company ON company.id=service.company_id AND company.is_active=true
      WHERE service.provider_id::text=$1
+       AND service.provider_deleted_at IS NULL
+       AND (service.is_active=true OR service.age_verification_blocked=true)
        AND ($3::text IS NULL OR company.name=$3)
      ORDER BY service.created_at`,
     [provider.id, provider.updated_at, access.memberCompanyName],
@@ -237,6 +262,7 @@ export async function GET() {
     },
     service: services[0] ?? null,
     services,
+    archivedServices,
     availability: services[0] ? availabilityByService[services[0].id] ?? [] : defaultAvailability,
     availabilityByService,
   });

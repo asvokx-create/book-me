@@ -47,6 +47,9 @@ test("provider activation data comes from owner-authorized server records", asyn
   ]);
   assert.match(route, /getProviderAccess/);
   assert.match(route, /service\.provider_id::text=\$1/);
+  assert.match(route, /company\.id=service\.company_id AND company\.is_active=true/);
+  assert.match(route, /service\.provider_deleted_at IS NULL/);
+  assert.match(route, /service\.is_active=true OR service\.age_verification_blocked=true/);
   assert.match(route, /age_verification_status/);
   assert.match(route, /publicListingCount/);
   assert.match(component, /Get Your Business Ready/);

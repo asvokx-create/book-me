@@ -51,6 +51,7 @@ type ProviderSummary = {
   isAdmin: boolean;
   service: ProviderService | null;
   services: ProviderService[];
+  archivedServices: ArchivedProviderService[];
   availability: Array<{ weekday: number; startTime: string; endTime: string }>;
   availabilityByService: Record<string, Array<{ weekday: number; startTime: string; endTime: string }>>;
   emailVerified: boolean;
@@ -75,6 +76,7 @@ type ProviderSummary = {
 };
 
 type ProviderService = { id: string; companyId: string; companySlug: string; businessName: string; locationId: string | null; locationName: string | null; location: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; slug: string; title: string; category: string; price: number; durationMinutes: number; pricingType: "FIXED" | "HOURLY"; hourlyRateCents: number | null; minimumDurationMinutes: number | null; imageUrls: string[]; createdAt: string; viewCount: number; completedBookingCount: number };
+type ArchivedProviderService = { id: string; title: string; category: string; businessName: string; createdAt: string };
 
 type RevenueSummary = {
   totalRevenue: number;
@@ -182,7 +184,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
   const [providerLoaded, setProviderLoaded] = useState(false);
   const [photoUploadFailed, setPhotoUploadFailed] = useState(false);
   const [listingDeleted, setListingDeleted] = useState(false);
-  const [servicePendingDeletion, setServicePendingDeletion] = useState<ProviderService | null>(null);
+  const [servicePendingDeletion, setServicePendingDeletion] = useState<ProviderService | ArchivedProviderService | null>(null);
   const [serviceDeleteBusy, setServiceDeleteBusy] = useState(false);
   const [serviceDeleteError, setServiceDeleteError] = useState("");
   const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
@@ -395,7 +397,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
     setServiceDeleteBusy(true);
     setServiceDeleteError("");
     const response = await fetch(`/api/providers/services/${service.id}`, { method: "DELETE" }).catch(() => null);
-    const result = response ? await response.json().catch(() => null) as { error?: string } | null : null;
+    const result = response ? await response.json().catch(() => null) as { error?: string; action?: "archived" | "deleted" } | null : null;
     if (!response?.ok) {
       setServiceDeleteError(result?.error ?? "We could not delete this listing. Please try again.");
       setServiceDeleteBusy(false);
@@ -404,13 +406,17 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
     setProvider((current) => {
       if (!current) return current;
+      if (result?.action === "deleted") {
+        return { ...current, archivedServices: current.archivedServices.filter((item) => item.id !== service.id) };
+      }
       const services = current.services.filter((item) => item.id !== service.id);
-      return { ...current, services, service: current.service?.id === service.id ? services[0] ?? null : current.service };
+      const archived = { id: service.id, title: service.title, category: service.category, businessName: service.businessName, createdAt: service.createdAt };
+      return { ...current, services, archivedServices: [archived, ...current.archivedServices], service: current.service?.id === service.id ? services[0] ?? null : current.service };
     });
     setSelectedAvailabilityServiceId((current) => current === service.id ? "" : current);
     setServicePendingDeletion(null);
     setServiceDeleteBusy(false);
-    showSavedNotice(`“${service.title}” was deleted and is no longer visible in customer searches.`);
+    showSavedNotice(result?.action === "deleted" ? `“${service.title}” was removed from your archived listings.` : `“${service.title}” was archived and is no longer visible in customer searches.`);
     router.refresh();
   }
 
@@ -533,6 +539,11 @@ export default function ProviderDashboard({ section = "overview", initialConvers
             <section className="rounded-[2rem] border border-[#183126]/10 bg-white p-5 sm:p-6"><div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-xl font-bold">Company listings</h2><p className="mt-1 text-xs text-[#738179]">See each listing&apos;s lifetime views since it was published.</p></div><Link href="/providers/join" className="inline-flex shrink-0 rounded-full bg-[#eee25a] px-4 py-2.5 text-sm font-bold">+ Add a listing</Link></div>{provider?.services.length ? <div className="mt-5 space-y-5">{provider.services.map((service) => <div key={service.id} className="rounded-2xl bg-[#f5f5ef] p-4"><div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><Link href={`/companies/${service.companySlug}`} className="max-w-full truncate text-xs font-bold uppercase tracking-[.1em] text-[#52665b] underline decoration-[#c5b940] underline-offset-4">{service.businessName}</Link><Link href={`/companies/${service.companySlug}`} className="shrink-0 text-xs font-bold">View company →</Link></div><div className="grid grid-cols-[3.5rem_minmax(0,1fr)] items-start gap-3 sm:flex sm:items-center sm:gap-4">{service.imageUrls[0] ? <span role="img" aria-label={`${service.title} cover`} style={{ backgroundImage: `url("${service.imageUrls[0]}")` }} className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cover bg-center" /> : <ServiceCategoryIcon category={service.category} compact className="h-14 min-h-14 w-14 min-w-14 rounded-2xl [&_svg]:h-9 [&_svg]:w-9" />}<div className="min-w-0"><p className="font-bold leading-snug">{service.title}</p><p className="mt-1 text-xs text-[#738179]">{service.pricingType === "FIXED" ? "From " : ""}{formatServicePrice(service)} · {service.pricingType === "HOURLY" ? `${formatDurationMinutes(service.minimumDurationMinutes ?? service.durationMinutes)} minimum` : formatDuration(service.durationMinutes)}</p><div className="mt-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#183126]">◉ {service.viewCount.toLocaleString()} {service.viewCount === 1 ? "view" : "views"}</span><span className="text-[11px] text-[#738179]">Since {new Date(service.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span></div></div><div className="col-span-2 mt-1 flex w-full flex-wrap gap-2 sm:col-auto sm:mt-0 sm:w-auto"><Link href={`/provider/services/${service.id}/edit`} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-[#183126]/15 bg-white px-4 py-2.5 text-xs font-bold hover:border-[#4d725d] sm:flex-none">Edit listing</Link><button type="button" onClick={() => { setServicePendingDeletion(service); setServiceDeleteError(""); }} className="min-h-11 rounded-full border border-[#9a4e3a]/20 bg-[#fff6f1] px-4 py-2.5 text-xs font-bold text-[#9a4e3a] transition hover:bg-[#fff0e8]">Delete listing</button></div></div><ServiceImageManager serviceId={service.id} initialImageUrls={service.imageUrls} compact /></div>)}</div> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">Create a company page and its first service to appear in customer searches.</p>}</section>
             <section className="rounded-[2rem] bg-[#183126] p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#a9c1b1]">Profile strength</p><div className="mt-3 flex items-end justify-between"><p className="text-3xl font-bold">{hasListingPhotos ? "100%" : "75%"}</p><p className="text-xs text-[#adbbb3]">{hasListingPhotos ? "Complete" : "Add listing photos"}</p></div><div className="mt-4 h-2 rounded-full bg-white/15"><div className={`h-full rounded-full bg-[#eee25a] ${hasListingPhotos ? "w-full" : "w-3/4"}`} /></div><p className="mt-5 text-sm font-bold text-[#eee25a]">{hasListingPhotos ? "Your profile is ready ✓" : "Add photos to a service"}</p></section>
           </div>}
+
+          {section === "services" && !isWorker && provider && <section className="mt-5 rounded-[2rem] border border-[#183126]/10 bg-white p-5 sm:p-6">
+            <div><p className="text-xs font-bold uppercase tracking-[.13em] text-[#718078]">Not public</p><h2 className="mt-2 text-xl font-bold">Archived listings</h2><p className="mt-1 text-sm text-[#738179]">Archived listings are hidden from customers. You can remove old listings from this archive without affecting required booking or payment records.</p></div>
+            {provider.archivedServices.length ? <div className="mt-5 divide-y divide-[#183126]/10 rounded-2xl border border-[#183126]/10 bg-[#f8f8f3] px-4">{provider.archivedServices.map((service) => <article key={service.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="font-bold">{service.title}</p><p className="mt-1 text-xs text-[#738179]">{service.businessName} · {service.category} · Archived</p></div><button type="button" onClick={() => { setServicePendingDeletion(service); setServiceDeleteError(""); }} className="min-h-11 shrink-0 rounded-full border border-[#9a4e3a]/20 bg-[#fff6f1] px-4 py-2.5 text-xs font-bold text-[#9a4e3a] transition hover:bg-[#fff0e8]">Delete from archive</button></article>)}</div> : <p className="mt-5 rounded-2xl bg-[#f5f5ef] p-5 text-sm text-[#738179]">You do not have any archived listings.</p>}
+          </section>}
 
           {section === "marketing" && !isWorker && <ProviderMarketingTools services={provider?.services ?? []} providerProfile={provider ? { slug: provider.publicProfileSlug, name: provider.businessName, visible: provider.publicProfileVisible } : null} plan={provider?.plan ?? "starter"} />}
           {section === "profile" && !isWorker && <ProviderProfileEditor />}

@@ -252,10 +252,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ provider_id: string; company_id: string; business_name: string }>(
-      `SELECT s.provider_id::text, s.company_id::text, s.business_name
+    const result = await client.query<{ provider_id: string; company_id: string; business_name: string; is_active: boolean; age_verification_blocked: boolean }>(
+      `SELECT s.provider_id::text, s.company_id::text, s.business_name,
+              s.is_active, s.age_verification_blocked
        FROM services s JOIN provider_profiles p ON p.id = s.provider_id
-       WHERE s.id::text = $1 AND p.user_id = $2 AND (s.is_active = true OR s.age_verification_blocked = true)
+       WHERE s.id::text = $1 AND p.user_id = $2 AND s.provider_deleted_at IS NULL
        FOR UPDATE OF s, p`,
       [serviceId, userId],
     );
@@ -264,7 +265,18 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "Listing not found." }, { status: 404 });
     }
-    await client.query("UPDATE services SET is_active = false, updated_at = now() WHERE id::text = $1", [serviceId]);
+    const action = removed.is_active || removed.age_verification_blocked ? "archived" : "deleted";
+    if (action === "archived") {
+      await client.query(
+        "UPDATE services SET is_active=false, age_verification_blocked=false, updated_at=now() WHERE id::text=$1",
+        [serviceId],
+      );
+    } else {
+      await client.query(
+        "UPDATE services SET provider_deleted_at=now(), updated_at=now() WHERE id::text=$1",
+        [serviceId],
+      );
+    }
     await client.query(
       `UPDATE provider_team_members member
        SET status = 'inactive', updated_at = now()
@@ -281,7 +293,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
     await runAutomatedProviderVerification(removed.provider_id).catch((error) => {
       console.error("Post-listing-removal verification failed", removed.provider_id, error);
     });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, action });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Listing removal failed", error);
