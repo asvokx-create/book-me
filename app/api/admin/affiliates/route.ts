@@ -60,7 +60,7 @@ function compensationTerms(body: Record<string, unknown>) {
 }
 
 async function dashboard() {
-  const [summary, programs, affiliates, commissions, payouts, campaigns, campaignFunnel, recentClicks, auditHistory, milestoneAchievements, reserve] = await Promise.all([
+  const [summary, programs, affiliates, commissions, payouts, campaigns, campaignFunnel, recentClicks, auditHistory, milestoneAchievements, acceptanceHistory, reserve] = await Promise.all([
     database.query(`SELECT
       (SELECT count(*)::int FROM affiliate_profiles WHERE status IN ('applied','under_review')) AS applications,
       (SELECT count(*)::int FROM affiliate_profiles WHERE status = 'active') AS active_affiliates,
@@ -97,6 +97,10 @@ async function dashboard() {
       affiliate.monthly_website_traffic, affiliate.average_content_views, affiliate.other_audience_size,
       affiliate.custom_partnership_notes,
       affiliate.payment_status, affiliate.tax_onboarding_status, affiliate.applied_at, affiliate.approved_at,
+      affiliate.partner_agreement_accepted_at,affiliate.partner_agreement_version,affiliate.partner_agreement_content_hash,
+      affiliate.terms_accepted_at,affiliate.terms_version,affiliate.terms_content_hash,
+      affiliate.privacy_acknowledged_at,affiliate.privacy_version,affiliate.privacy_content_hash,
+      affiliate.agreement_reacceptance_required_at,affiliate.agreement_reacceptance_reason,
       affiliate.compensation_type, affiliate.milestone_bonuses_override, affiliate.milestone_backfill_approved,
       affiliate.activation_bonus_enabled_override, affiliate.revenue_share_enabled_override,
       affiliate.custom_campaign_enabled_override, affiliate.custom_campaign_amount_cents,
@@ -198,9 +202,13 @@ async function dashboard() {
       JOIN affiliate_profiles affiliate ON affiliate.id=achievement.affiliate_id
       LEFT JOIN affiliate_commissions commission ON commission.id=achievement.commission_id
       ORDER BY achievement.earned_at DESC LIMIT 150`),
+    database.query(`SELECT acceptance.id::text,acceptance.affiliate_id::text,acceptance.document_key,
+      acceptance.document_version,acceptance.content_hash,acceptance.acceptance_event,acceptance.accepted_at
+      FROM affiliate_agreement_acceptances acceptance
+      ORDER BY acceptance.accepted_at DESC LIMIT 500`),
     getAffiliateReserveHealth(),
   ]);
-  return { summary: summary.rows[0], reserve, programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, campaigns: campaigns.rows, campaignFunnel: campaignFunnel.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows, milestoneAchievements: milestoneAchievements.rows };
+  return { summary: summary.rows[0], reserve, programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, campaigns: campaigns.rows, campaignFunnel: campaignFunnel.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows, milestoneAchievements: milestoneAchievements.rows, acceptanceHistory: acceptanceHistory.rows };
 }
 
 export async function GET() {

@@ -18,6 +18,9 @@ export default function PartnerApplicationForm({ account }: { account: { name: s
   const [error, setError] = useState("");
   const [audienceSize, setAudienceSize] = useState("");
   const [customRequested, setCustomRequested] = useState(false);
+  const [partnerAgreementAccepted, setPartnerAgreementAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
 
   function updateAudienceSize(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 15);
@@ -33,6 +36,9 @@ export default function PartnerApplicationForm({ account }: { account: { name: s
     body.customPartnershipTypes = form.getAll("customPartnershipTypes");
     body.platforms = form.getAll("platforms");
     body.promotionTypes = form.getAll("promotionTypes");
+    body.partnerAgreementAccepted = partnerAgreementAccepted;
+    body.termsAccepted = termsAccepted;
+    body.privacyAcknowledged = privacyAcknowledged;
     const response = await fetch("/api/affiliates/apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const result = await response.json() as { error?: string };
     if (!response.ok) { setStatus("idle"); setError(result.error ?? "We could not submit your application."); return; }
@@ -75,7 +81,11 @@ export default function PartnerApplicationForm({ account }: { account: { name: s
       </div>}
     </section>
 
-    <div className="mt-5 rounded-2xl border border-[#183126]/10 bg-white p-4 text-xs leading-5 text-[#687970]"><p>Partners must clearly disclose compensated links, avoid misleading claims, and may only refer legitimate new providers. Commissions are subject to qualification, refund, dispute, fraud, and holding-period rules.</p><label className="mt-3 flex cursor-pointer items-start gap-3 text-sm leading-6 text-[#183126]"><input name="partnerAgreementAccepted" type="checkbox" value="true" required className="mt-1 h-5 w-5 shrink-0 accent-[#183126]" /><span>I have reviewed and agree to the <Link href="/partner-agreement" target="_blank" className="font-bold underline underline-offset-2">Partner Agreement</Link>. Submission is an application only; it does not approve or activate a partnership.</span></label></div>
+    <fieldset className="mt-5 rounded-2xl border border-[#183126]/10 bg-white p-4 text-xs leading-5 text-[#687970]"><legend className="px-1 text-sm font-bold text-[#183126]">Required agreements</legend><p>Partners must clearly disclose compensated links, avoid misleading claims, and may only refer legitimate new providers. Commissions are subject to qualification, refund, dispute, fraud, and holding-period rules.</p><div className="mt-3 grid gap-3">
+      <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-[#183126]"><input name="partnerAgreementAccepted" type="checkbox" checked={partnerAgreementAccepted} onChange={event => setPartnerAgreementAccepted(event.target.checked)} required className="mt-1 h-5 w-5 shrink-0 accent-[#183126]" /><span>I have read and agree to the <Link href="/partner-agreement" target="_blank" className="font-bold underline underline-offset-2">BubsBookings Partner Agreement</Link>.</span></label>
+      <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-[#183126]"><input name="termsAccepted" type="checkbox" checked={termsAccepted} onChange={event => setTermsAccepted(event.target.checked)} required className="mt-1 h-5 w-5 shrink-0 accent-[#183126]" /><span>I have read and agree to the <Link href="/terms" target="_blank" className="font-bold underline underline-offset-2">BubsBookings Terms of Service</Link>.</span></label>
+      <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-[#183126]"><input name="privacyAcknowledged" type="checkbox" checked={privacyAcknowledged} onChange={event => setPrivacyAcknowledged(event.target.checked)} required className="mt-1 h-5 w-5 shrink-0 accent-[#183126]" /><span>I acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline underline-offset-2">BubsBookings Privacy Policy</Link>.</span></label>
+    </div><p className="mt-3">Submission is an application only; it does not approve or activate a partnership. Optional promotional email choices, if offered, are separate from these required agreements.</p></fieldset>
     {error && <p role="alert" className="mt-4 rounded-xl bg-[#fff1e8] p-3 text-sm font-bold text-[#9a4e25]">{error}</p>}
     <button disabled={status === "saving"} className="mt-5 min-h-12 w-full rounded-full bg-[#eee25a] px-6 py-3.5 font-bold disabled:opacity-60">{status === "saving" ? "Submitting…" : "Submit application"}</button>
   </form>;

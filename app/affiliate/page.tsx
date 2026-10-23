@@ -11,6 +11,8 @@ import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { getStripeMode } from "@/lib/stripe";
 import { getAffiliateMilestoneProgress } from "@/lib/affiliate-milestones";
+import AffiliateAgreementReacceptance from "@/components/affiliate-agreement-reacceptance";
+import { AFFILIATE_LEGAL_DOCUMENTS } from "@/lib/legal-document-versions";
 
 export const metadata: Metadata = { title: "Partner dashboard", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -32,6 +34,8 @@ export default async function AffiliateDashboardPage({ searchParams }: { searchP
     custom_campaign_starts_on:Date|null;custom_campaign_ends_on:Date|null;
     stripe_account_id: string | null; stripe_connect_mode: "test" | "live" | null;
     stripe_payouts_enabled: boolean; payment_status: string; tax_onboarding_status: string;
+    partner_agreement_version: string | null; terms_version: string | null; privacy_version: string | null;
+    agreement_reacceptance_required_at: Date | null; agreement_reacceptance_reason: string | null;
   }>(`SELECT affiliate.id::text, affiliate.display_name, affiliate.affiliate_code, affiliate.status, program.name AS program_name,
       affiliate.compensation_type,
       COALESCE(affiliate.activation_bonus_enabled_override,program.activation_bonus_enabled,false) AS activation_bonus_enabled,
@@ -43,7 +47,9 @@ export default async function AffiliateDashboardPage({ searchParams }: { searchP
       COALESCE(affiliate.revenue_share_duration_override_months,program.revenue_share_duration_months) AS revenue_share_duration_months,
       affiliate.custom_campaign_amount_cents,affiliate.custom_campaign_starts_on,affiliate.custom_campaign_ends_on
       ,affiliate.stripe_account_id,affiliate.stripe_connect_mode,affiliate.stripe_payouts_enabled,
-      affiliate.payment_status,affiliate.tax_onboarding_status
+      affiliate.payment_status,affiliate.tax_onboarding_status,
+      affiliate.partner_agreement_version,affiliate.terms_version,affiliate.privacy_version,
+      affiliate.agreement_reacceptance_required_at,affiliate.agreement_reacceptance_reason
       FROM affiliate_profiles affiliate JOIN affiliate_programs program ON program.id = affiliate.program_id
       WHERE affiliate.user_id = $1
       ORDER BY affiliate.created_at DESC LIMIT 1`, [session.user.id]);
@@ -80,6 +86,11 @@ export default async function AffiliateDashboardPage({ searchParams }: { searchP
     profile.milestone_bonuses_enabled ? getAffiliateMilestoneProgress(profile.id) : Promise.resolve(null),
   ]);
   const stats = statsResult.rows[0];
+  const agreementVersionChanged = profile.partner_agreement_version !== null && (
+    profile.partner_agreement_version !== AFFILIATE_LEGAL_DOCUMENTS.partnerAgreement.version
+    || profile.terms_version !== AFFILIATE_LEGAL_DOCUMENTS.termsOfService.version
+    || profile.privacy_version !== AFFILIATE_LEGAL_DOCUMENTS.privacyPolicy.version
+  );
   const conversion = stats.clicks ? Math.round(stats.signups / stats.clicks * 1000) / 10 : 0;
   const metrics:Array<[string,string|number]>=[["Referral-link clicks",stats.clicks],["First-touch visits",stats.first_touch_visits],["Signup starts",stats.signup_starts],["Accounts created",stats.account_creations],["Provider profiles",stats.signups],["Published listings",stats.published_listings],["Qualified providers",stats.qualified],["Profile conversion",`${conversion}%`],["Bookings generated",stats.bookings]];
   if(profile.revenue_share_enabled)metrics.push(["Eligible platform revenue",money(stats.eligible_revenue)]);
@@ -89,6 +100,7 @@ export default async function AffiliateDashboardPage({ searchParams }: { searchP
     <PartnerCompensationSummary compensationType={profile.compensation_type} activationBonusEnabled={profile.activation_bonus_enabled} activationBonusCents={profile.activation_bonus_cents} revenueShareEnabled={profile.revenue_share_enabled} revenueShareBasisPoints={profile.revenue_share_basis_points} revenueShareDurationMonths={profile.revenue_share_duration_months} milestoneBonusesEnabled={profile.milestone_bonuses_enabled} customCampaignEnabled={profile.custom_campaign_enabled} customCampaignAmountCents={profile.custom_campaign_amount_cents} customCampaignStartsOn={profile.custom_campaign_starts_on} customCampaignEndsOn={profile.custom_campaign_ends_on} />
     {profile.milestone_bonuses_enabled&&milestoneProgress ? <ProviderGrowthMilestones activeProviderCount={milestoneProgress.activeProviderCount} milestones={milestoneProgress.milestones} completedThresholds={milestoneProgress.achievements.filter((item) => !item.reversedAt && !["reversed","rejected"].includes(item.status)).map((item) => item.threshold)} enabled={milestoneProgress.enabled} historicalReviewPending={milestoneProgress.enabled && !milestoneProgress.backfillApproved} /> : null}
     {profile.status === "paused" ? <div role="status" className="mt-6 rounded-2xl border border-[#b05a3c]/20 bg-[#fff1e8] p-4 text-sm leading-6"><strong>Your partner account is paused.</strong> Historical reporting remains available, but your referral link will not attribute new providers until the account is reactivated.</div> : null}
+    {agreementVersionChanged || profile.agreement_reacceptance_required_at ? <AffiliateAgreementReacceptance reason={profile.agreement_reacceptance_reason} /> : null}
     <AffiliateStripeSetup initialConnected={Boolean(profile.stripe_account_id&&profile.stripe_connect_mode===getStripeMode())} initialReady={profile.stripe_connect_mode===getStripeMode()&&profile.stripe_payouts_enabled&&profile.payment_status==="ready"} initialTaxState={profile.tax_onboarding_status} returning={params.stripe==="connect-return"||params.stripe==="connect-refresh"}/>
     <section className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{metrics.map(([label,value]) => <article key={label} className="rounded-2xl border border-[#183126]/10 bg-white p-5"><p className="text-xs font-bold uppercase tracking-wider text-[#718078]">{label}</p><p className="mt-2 text-2xl font-bold">{value}</p></article>)}</section>
     {profile.status === "active" ? <div className="mt-7"><AffiliateLinkBuilder code={profile.affiliate_code} /></div> : null}

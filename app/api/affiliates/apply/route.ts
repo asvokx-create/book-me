@@ -8,6 +8,8 @@ import { auth, isEmailVerificationRequired } from "@/lib/auth";
 import { safelyLinkHistoricalAffiliate } from "@/lib/affiliate-account";
 import { PARTNER_AGREEMENT_VERSION } from "@/lib/policy-consent";
 import { safeHttpUrl } from "@/lib/safe-url";
+import { validateAffiliateAgreementConsent } from "@/lib/affiliate-agreement-consent";
+import { AFFILIATE_LEGAL_DOCUMENTS } from "@/lib/legal-document-versions";
 
 const partnershipTypes = new Set(["Fixed campaign payment", "Revenue share", "Hybrid partnership", "Sponsored placement", "Newsletter promotion", "Website / blog promotion", "Social media promotion", "Other"]);
 const platforms = new Set(["YouTube", "TikTok", "Instagram", "Facebook", "X", "Newsletter / Email", "Website / Blog", "Podcast", "Community", "Other"]);
@@ -66,8 +68,9 @@ export async function POST(request: Request) {
   const requestedPromotions = selected(body, "promotionTypes", promotionTypes);
   const customNotes = field(body, "customPartnershipNotes", 1200);
   const otherAudienceSize = field(body, "otherAudienceSize", 120);
-  if (body.partnerAgreementAccepted !== "true" && body.partnerAgreementAccepted !== true) {
-    return NextResponse.json({ error: "Review and accept the Partner Agreement before applying." }, { status: 400 });
+  const agreementConsent = validateAffiliateAgreementConsent(body);
+  if (!agreementConsent.accepted) {
+    return NextResponse.json({ error: `Complete each required acknowledgment before applying: ${agreementConsent.missing.join(", ")}.` }, { status: 400 });
   }
   if (name.length < 2 || !/^\S+@\S+\.\S+$/.test(email) || audience.length < 10 || plan.length < 30) {
     return NextResponse.json({ error: "Add audience details and a clear promotion plan. Your account name and email must also be valid." }, { status: 400 });
@@ -88,19 +91,49 @@ export async function POST(request: Request) {
   if (Object.entries(links).some(([key, value]) => field(body, linkKeys[key] ?? key) && !value)) {
     return NextResponse.json({ error: "Social and website links must be valid http or https URLs." }, { status: 400 });
   }
-  const inserted = await database.query<{ id: string }>(`INSERT INTO affiliate_profiles (user_id,account_link_status,account_linked_at,program_id, display_name, email,
-      website_url, youtube_url, instagram_url, tiktok_url, other_social_url, audience_size, primary_audience, promotion_plan, applicant_notes,
-      partner_agreement_accepted_at, partner_agreement_version, custom_partnership_requested, custom_partnership_types,
-      active_platforms, promotion_types, follower_count, subscriber_count, email_list_size, monthly_website_traffic,
-      average_content_views, other_audience_size, media_kit_url, custom_partnership_notes, portfolio_url)
-    SELECT $1,'linked',now(),program.id, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), $13, $14, $15, $16, $17,
-      $18, $19, $20, $21, $22, $23, $24, $25, $26
-    FROM affiliate_programs program WHERE program.status = 'enabled' ORDER BY program.created_at ASC LIMIT 1
-    ON CONFLICT DO NOTHING RETURNING id::text`, [account.id, name, email, links.website, links.youtube, links.instagram,
-    links.tiktok, links.other, field(body, "audienceSize", 80), audience, plan, notes, PARTNER_AGREEMENT_VERSION, customRequested, requestedTypes,
-    activePlatforms, requestedPromotions, ...counts, otherAudienceSize, links.mediaKit, customNotes, links.portfolio]);
-  if (!inserted.rows[0]) return NextResponse.json({ error: "This account already has a Partner application, or its verified email is already connected to one." }, { status: 409 });
-  const applicationId = inserted.rows[0].id;
+  const client = await database.connect();
+  let applicationId = "";
+  try {
+    await client.query("BEGIN");
+    const inserted = await client.query<{ id: string }>(`INSERT INTO affiliate_profiles (user_id,account_link_status,account_linked_at,program_id, display_name, email,
+        website_url, youtube_url, instagram_url, tiktok_url, other_social_url, audience_size, primary_audience, promotion_plan, applicant_notes,
+        partner_agreement_accepted_at, partner_agreement_version, custom_partnership_requested, custom_partnership_types,
+        active_platforms, promotion_types, follower_count, subscriber_count, email_list_size, monthly_website_traffic,
+        average_content_views, other_audience_size, media_kit_url, custom_partnership_notes, portfolio_url)
+      SELECT $1,'linked',now(),program.id, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), $13, $14, $15, $16, $17,
+        $18, $19, $20, $21, $22, $23, $24, $25, $26
+      FROM affiliate_programs program WHERE program.status = 'enabled' ORDER BY program.created_at ASC LIMIT 1
+      ON CONFLICT DO NOTHING RETURNING id::text`, [account.id, name, email, links.website, links.youtube, links.instagram,
+      links.tiktok, links.other, field(body, "audienceSize", 80), audience, plan, notes, PARTNER_AGREEMENT_VERSION, customRequested, requestedTypes,
+      activePlatforms, requestedPromotions, ...counts, otherAudienceSize, links.mediaKit, customNotes, links.portfolio]);
+    if (!inserted.rows[0]) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "This account already has a Partner application, or its verified email is already connected to one." }, { status: 409 });
+    }
+    applicationId = inserted.rows[0].id;
+    const acceptedAt = new Date().toISOString();
+    await client.query(`UPDATE affiliate_profiles SET
+        partner_agreement_accepted_at=$2, partner_agreement_version=$3, partner_agreement_content_hash=$4,
+        terms_accepted_at=$2, terms_version=$5, terms_content_hash=$6,
+        privacy_acknowledged_at=$2, privacy_version=$7, privacy_content_hash=$8
+      WHERE id=$1`, [applicationId, acceptedAt,
+      AFFILIATE_LEGAL_DOCUMENTS.partnerAgreement.version, AFFILIATE_LEGAL_DOCUMENTS.partnerAgreement.contentHash,
+      AFFILIATE_LEGAL_DOCUMENTS.termsOfService.version, AFFILIATE_LEGAL_DOCUMENTS.termsOfService.contentHash,
+      AFFILIATE_LEGAL_DOCUMENTS.privacyPolicy.version, AFFILIATE_LEGAL_DOCUMENTS.privacyPolicy.contentHash]);
+    for (const document of Object.values(AFFILIATE_LEGAL_DOCUMENTS)) {
+      await client.query(`INSERT INTO affiliate_agreement_acceptances
+          (affiliate_id,user_id,document_key,document_version,content_hash,acceptance_event,accepted_at,audit_metadata)
+        VALUES ($1,$2,$3,$4,$5,'affiliate_application',$6,$7::jsonb)`, [applicationId, account.id, document.key,
+        document.version, document.contentHash, acceptedAt, JSON.stringify({ source: "affiliate_application", authenticated: true })]);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    console.error("Affiliate application agreement recording failed", error instanceof Error ? error.message : "Unknown error");
+    return NextResponse.json({ error: "Your application could not be recorded. No application was created. Please try again." }, { status: 500 });
+  } finally {
+    client.release();
+  }
   await Promise.allSettled([
     sendTransactionalEmail({
       to: email,

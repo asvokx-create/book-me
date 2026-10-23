@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
 const publicPolicyPages = [
   "terms",
@@ -20,12 +20,33 @@ const publicPolicyPages = [
   "promise",
 ];
 
+async function findTsxFiles(directory: URL): Promise<URL[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(entries.map(async (entry) => {
+    const path = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, directory);
+    if (entry.isDirectory()) return findTsxFiles(path);
+    return entry.isFile() && entry.name.endsWith(".tsx") ? [path] : [];
+  }));
+  return files.flat();
+}
+
 test("public policy pages never expose prohibited publication labels", async () => {
   const forbiddenDraftingLabels = /NEEDS? LEGAL REVIEW|LEGAL REVIEW REQUIRED|TODO LEGAL|ATTORNEY REVIEW|DRAFT ONLY|INTERNAL (?:DRAFT|NOTE)|REVIEW BEFORE PRODUCTION|PLACEHOLDER LEGAL|NOT FINAL/i;
   const sources = await Promise.all(publicPolicyPages.map((page) => readFile(new URL(`../app/${page}/page.tsx`, import.meta.url), "utf8")));
 
   for (const [index, source] of sources.entries()) {
     assert.doesNotMatch(source, forbiddenDraftingLabels, `${publicPolicyPages[index]} contains a prohibited publication label`);
+  }
+});
+
+test("user-facing pages and components never expose legal-review or draft disclaimers", async () => {
+  const forbiddenPublicationLanguage = /NEEDS?\s+(?:AN?\s+)?LEGAL\s+REVIEW|LEGAL\s+REVIEW\s+REQUIRED|REQUIRES?\s+(?:AN?\s+)?LEGAL\s+REVIEW|ATTORNEY\s+REVIEW|COUNSEL\s+REVIEW|PENDING\s+LEGAL\s+REVIEW|SUBJECT\s+TO\s+LEGAL\s+REVIEW|CONSULT\s+(?:AN?\s+)?(?:ATTORNEY|LAWYER|LEGAL\s+COUNSEL)|NOT\s+LEGAL\s+ADVICE|TODO\s+LEGAL|DRAFT\s+ONLY|INTERNAL\s+(?:DRAFT|NOTE)|REVIEW\s+BEFORE\s+PRODUCTION|PLACEHOLDER\s+LEGAL|NOT\s+FINAL/i;
+  const roots = [new URL("../app/", import.meta.url), new URL("../components/", import.meta.url)];
+  const files = (await Promise.all(roots.map(findTsxFiles))).flat();
+
+  for (const file of files) {
+    const source = await readFile(file, "utf8");
+    assert.doesNotMatch(source, forbiddenPublicationLanguage, `${file.pathname} contains prohibited publication language`);
   }
 });
 
@@ -93,9 +114,9 @@ test("published legal versions and guide compensation language stay current", as
     readFile(new URL("../lib/guides.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(policyConsent, /POLICY_VERSION = "2026-10-14"/);
+  assert.match(policyConsent, /POLICY_VERSION = "2026-10-22"/);
   assert.match(policyConsent, /PROVIDER_AGREEMENT_VERSION = "2026-10-14"/);
-  assert.match(policyConsent, /POLICY_EFFECTIVE_DATE = "October 14, 2026"/);
+  assert.match(policyConsent, /POLICY_EFFECTIVE_DATE = "October 22, 2026"/);
   assert.match(providerAgreement, /effectiveDate=\{POLICY_EFFECTIVE_DATE\}/);
   assert.doesNotMatch(guides, /\$10 activation bonus|20% share|60-day attribution window/);
   assert.equal((guides.match(/updatedAt: "2026-10-07"/g) ?? []).length, 21);
@@ -133,15 +154,19 @@ test("provider and partner onboarding expose and retain the relevant agreements"
   const [form, route, migration, providerOnboarding] = await Promise.all([
     readFile(new URL("../components/partner-application-form.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/affiliates/apply/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../database/migrations/069_partner_application_consent.sql", import.meta.url), "utf8"),
+    readFile(new URL("../database/migrations/102_affiliate_agreement_acceptance_history.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/providers/join/onboarding-form.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(form, /name="partnerAgreementAccepted" type="checkbox" value="true" required/);
-  assert.match(form, /I have reviewed and agree to the/);
-  assert.match(route, /partnerAgreementAccepted/);
+  assert.match(form, /name="partnerAgreementAccepted" type="checkbox"/);
+  assert.match(form, /name="termsAccepted" type="checkbox"/);
+  assert.match(form, /name="privacyAcknowledged" type="checkbox"/);
+  assert.match(form, /I have read and agree to the/);
+  assert.match(route, /validateAffiliateAgreementConsent/);
   assert.match(route, /partner_agreement_accepted_at, partner_agreement_version/);
   assert.match(route, /PARTNER_AGREEMENT_VERSION/);
-  assert.match(migration, /partner_agreement_accepted_at timestamptz/);
+  assert.match(migration, /affiliate_agreement_acceptances/);
+  assert.match(migration, /terms_accepted_at timestamptz/);
+  assert.match(migration, /privacy_acknowledged_at timestamptz/);
   assert.match(providerOnboarding, /href="\/provider-agreement"/);
   assert.match(providerOnboarding, /href="\/payment-billing"/);
 });
