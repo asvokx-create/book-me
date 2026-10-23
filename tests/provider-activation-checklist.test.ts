@@ -53,6 +53,7 @@ test("provider activation data comes from owner-authorized server records", asyn
   assert.match(route, /age_verification_status/);
   assert.match(route, /publicListingCount/);
   assert.match(component, /Get Your Business Ready/);
+  assert.match(component, /if \(!stripe && !statusUnavailable\) return null/);
   assert.match(component, /if \(allComplete\) return null/);
   assert.doesNotMatch(component, /showWhenComplete/);
   assert.match(component, /\/api\/stripe\/provider-age-verification/);

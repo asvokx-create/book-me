@@ -98,6 +98,7 @@ export default function ProviderActivationChecklist({ activation }: { activation
     : statusUnavailable
       ? { status: "action_required" as const, detail: "We could not confirm your payout status. Open Stripe setup to make sure your account is ready." }
       : { status: "under_review" as const, detail: "Checking your Stripe payout status." };
+  if (!stripe && !statusUnavailable) return null;
   const steps = [activation.companyPage, activation.firstListing, ageStep, payoutStep];
   const completeCount = steps.filter((step) => step.status === "completed").length;
   const allComplete = completeCount === steps.length;
