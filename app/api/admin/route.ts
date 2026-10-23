@@ -128,6 +128,7 @@ async function loadDashboard() {
          WHERE action='listing_safety_scanned' AND target_type='listing' AND target_id=s.id::text
          ORDER BY created_at DESC LIMIT 1
        ) safety ON true
+       WHERE s.provider_deleted_at IS NULL
        ORDER BY s.created_at DESC
        LIMIT 75`,
     ),
@@ -259,7 +260,7 @@ export async function PATCH(request: Request) {
               s.business_name, p.city, p.state, p.user_id AS owner_id
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
-       WHERE s.id::text = $1
+       WHERE s.id::text = $1 AND s.provider_deleted_at IS NULL
        LIMIT 1`,
       [targetId],
     );
@@ -453,6 +454,7 @@ export async function PATCH(request: Request) {
            JOIN provider_profiles p ON p.id = s.provider_id
            JOIN provider_companies company ON company.id = s.company_id
            WHERE s.id = $1::uuid
+             AND s.provider_deleted_at IS NULL
              AND p.is_active = true
              AND p.age_verification_status = 'verified'
              AND company.is_active = true
@@ -468,7 +470,7 @@ export async function PATCH(request: Request) {
         }
       }
       const result = await client.query<{ id: string; is_active: boolean; provider_id: string; company_id: string }>(
-        "UPDATE services SET is_active = $2, updated_at = now() WHERE id = $1::uuid RETURNING id::text, is_active, provider_id::text, company_id::text",
+        "UPDATE services SET is_active = $2, updated_at = now() WHERE id = $1::uuid AND provider_deleted_at IS NULL RETURNING id::text, is_active, provider_id::text, company_id::text",
         [targetId, status === "active"],
       );
       if (!result.rowCount) throw new Error("NOT_FOUND");

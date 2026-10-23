@@ -54,7 +54,7 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
        WHERE action='listing_safety_scanned' AND target_type='listing' AND target_id=s.id::text
        ORDER BY created_at DESC LIMIT 1
      ) safety ON true
-     WHERE s.id::text = $1
+     WHERE s.id::text = $1 AND s.provider_deleted_at IS NULL
      LIMIT 1`,
     [serviceId],
   );

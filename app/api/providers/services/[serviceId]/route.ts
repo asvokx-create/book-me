@@ -265,18 +265,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "Listing not found." }, { status: 404 });
     }
-    const action = removed.is_active || removed.age_verification_blocked ? "archived" : "deleted";
-    if (action === "archived") {
-      await client.query(
-        "UPDATE services SET is_active=false, age_verification_blocked=false, updated_at=now() WHERE id::text=$1",
-        [serviceId],
-      );
-    } else {
-      await client.query(
-        "UPDATE services SET provider_deleted_at=now(), updated_at=now() WHERE id::text=$1",
-        [serviceId],
-      );
-    }
+    await client.query(
+      "UPDATE services SET is_active=false, age_verification_blocked=false, provider_deleted_at=now(), updated_at=now() WHERE id::text=$1",
+      [serviceId],
+    );
     await client.query(
       `UPDATE provider_team_members member
        SET status = 'inactive', updated_at = now()
@@ -293,7 +285,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
     await runAutomatedProviderVerification(removed.provider_id).catch((error) => {
       console.error("Post-listing-removal verification failed", removed.provider_id, error);
     });
-    return NextResponse.json({ ok: true, action });
+    return NextResponse.json({ ok: true, action: "deleted" });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Listing removal failed", error);

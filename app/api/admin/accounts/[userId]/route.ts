@@ -76,7 +76,7 @@ export async function GET(
       database.query(
         `SELECT
           (SELECT count(*)::int FROM bookings b WHERE b.customer_id = $1 OR ($2::uuid IS NOT NULL AND b.provider_id = $2::uuid)) AS bookings,
-          (SELECT count(*)::int FROM services s WHERE $2::uuid IS NOT NULL AND s.provider_id = $2::uuid) AS listings,
+          (SELECT count(*)::int FROM services s WHERE $2::uuid IS NOT NULL AND s.provider_id = $2::uuid AND s.provider_deleted_at IS NULL) AS listings,
           (SELECT count(*)::int FROM reviews r WHERE r.customer_id = $1 OR ($2::uuid IS NOT NULL AND r.provider_id = $2::uuid)) AS reviews,
           (SELECT count(*)::int FROM safety_reports sr WHERE sr.reporter_id = $1 OR sr.reported_user_id = $1) AS safety_reports,
           (SELECT count(*)::int FROM booking_disputes d WHERE d.opened_by = $1 OR d.against_user_id = $1) AS disputes,
@@ -86,7 +86,7 @@ export async function GET(
       database.query(
         `SELECT id::text, slug, title, category, business_name, price_cents,pricing_type,hourly_rate_cents,minimum_duration_minutes,
                 duration_minutes, is_active, created_at, updated_at
-         FROM services WHERE $1::uuid IS NOT NULL AND provider_id = $1::uuid
+         FROM services WHERE $1::uuid IS NOT NULL AND provider_id = $1::uuid AND provider_deleted_at IS NULL
          ORDER BY created_at DESC LIMIT 50`,
         [providerId ?? null],
       ),

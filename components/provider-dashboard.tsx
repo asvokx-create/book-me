@@ -406,17 +406,13 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
     setProvider((current) => {
       if (!current) return current;
-      if (result?.action === "deleted") {
-        return { ...current, archivedServices: current.archivedServices.filter((item) => item.id !== service.id) };
-      }
       const services = current.services.filter((item) => item.id !== service.id);
-      const archived = { id: service.id, title: service.title, category: service.category, businessName: service.businessName, createdAt: service.createdAt };
-      return { ...current, services, archivedServices: [archived, ...current.archivedServices], service: current.service?.id === service.id ? services[0] ?? null : current.service };
+      return { ...current, services, archivedServices: current.archivedServices.filter((item) => item.id !== service.id), service: current.service?.id === service.id ? services[0] ?? null : current.service };
     });
     setSelectedAvailabilityServiceId((current) => current === service.id ? "" : current);
     setServicePendingDeletion(null);
     setServiceDeleteBusy(false);
-    showSavedNotice(result?.action === "deleted" ? `“${service.title}” was removed from your archived listings.` : `“${service.title}” was archived and is no longer visible in customer searches.`);
+    showSavedNotice(`“${service.title}” was deleted and removed from all listing dashboards.`);
     router.refresh();
   }
 
