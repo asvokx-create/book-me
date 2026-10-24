@@ -100,13 +100,7 @@ test("provider pricing discloses the separate customer service fee and processin
   assert.match(pricing, /Customers pay a separate \$2\.99 BubsBookings service fee at checkout/);
   assert.match(pricing, /Stripe processing costs are separate from the BubsBookings platform fee/);
   assert.match(pricing, /no separate card-processing surcharge/);
-  for (const row of [
-    '["$100", "$10", "$6"]',
-    '["$500", "$50", "$30"]',
-    '["$1,000", "$100", "$60"]',
-    '["$2,000", "$200", "$100"]',
-    '["$5,000", "$200", "$100"]',
-  ]) assert.ok(pricing.includes(row), `missing pricing example ${row}`);
+  assert.doesNotMatch(pricing, /Platform fee examples/);
 });
 
 test("provider-facing pages distinguish pending processing costs from final earnings", () => {
