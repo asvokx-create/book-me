@@ -61,9 +61,10 @@ export async function runAutomatedProviderVerification(providerId: string): Prom
     category: string;
     description: string;
     price_cents: number;
+    pricing_type: "FIXED" | "HOURLY" | "QUOTE_ONLY";
     duration_minutes: number;
     is_active: boolean;
-  }>(`SELECT title, business_name, category, description, price_cents, duration_minutes, is_active
+  }>(`SELECT title, business_name, category, description, price_cents, pricing_type, duration_minutes, is_active
     FROM services WHERE provider_id::text = $1`, [providerId]);
   const activeServices = servicesResult.rows.filter((service) => service.is_active);
 
@@ -80,7 +81,7 @@ export async function runAutomatedProviderVerification(providerId: string): Prom
   const contentSafety = scanContent(businessText);
   const servicesComplete = activeServices.length > 0 && activeServices.every((service) =>
     service.title.trim().length >= 2 && service.business_name.trim().length >= 2
-    && service.description.trim().length >= 30 && service.price_cents > 0 && service.duration_minutes > 0);
+    && service.description.trim().length >= 30 && (service.pricing_type === "QUOTE_ONLY" || service.price_cents > 0) && service.duration_minutes > 0);
   const businessPassed = provider.business_name.trim().length >= 2
     && provider.bio.trim().length >= 30
     && Boolean(provider.city.trim() && provider.state.trim() && provider.latitude !== null && provider.longitude !== null)

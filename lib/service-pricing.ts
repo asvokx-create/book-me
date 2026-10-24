@@ -1,4 +1,4 @@
-export const PRICING_TYPES = ["FIXED", "HOURLY"] as const;
+export const PRICING_TYPES = ["FIXED", "HOURLY", "QUOTE_ONLY"] as const;
 export type PricingType = (typeof PRICING_TYPES)[number];
 export const HOURLY_BILLING_INCREMENTS = [15, 30, 60] as const;
 
@@ -24,7 +24,7 @@ function requireSafeInteger(value: number, label: string, minimum = 0) {
 }
 
 export function isPricingType(value: unknown): value is PricingType {
-  return value === "FIXED" || value === "HOURLY";
+  return value === "FIXED" || value === "HOURLY" || value === "QUOTE_ONLY";
 }
 
 export function isHourlyBillingIncrement(value: unknown): value is 15 | 30 | 60 {
@@ -87,6 +87,7 @@ export function formatHourlyRate(rateCents: number) {
 }
 
 export function formatServicePrice(input: { pricingType: PricingType; price: number; hourlyRateCents: number | null }) {
+  if (input.pricingType === "QUOTE_ONLY") return "Request a Quote";
   return input.pricingType === "HOURLY" && input.hourlyRateCents !== null ? formatHourlyRate(input.hourlyRateCents) : `$${input.price}`;
 }
 

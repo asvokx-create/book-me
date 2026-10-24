@@ -73,7 +73,7 @@ export async function GET() {
     category: string;
     price_cents: number;
     duration_minutes: number;
-    pricing_type: "FIXED" | "HOURLY";
+    pricing_type: "FIXED" | "HOURLY" | "QUOTE_ONLY";
     hourly_rate_cents: number | null;
     minimum_duration_minutes: number | null;
     image_urls: string[] | null;

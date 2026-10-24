@@ -114,6 +114,11 @@ export async function POST(request: Request) {
   );
   const service = serviceResult.rows[0];
   if (!service) return NextResponse.json({ error: "This provider is not available on that day." }, { status: 409 });
+  const quoteOnly = service.pricing_type === "QUOTE_ONLY";
+  if (quoteOnly && (packageId || requestedAddOns.length > 0 || couponCode || recurrence !== "one_time")) {
+    return NextResponse.json({ error: "Quote-only services cannot use fixed-price booking options before a quote is accepted." }, { status: 400 });
+  }
+  if (quoteOnly && notes.length < 3) return NextResponse.json({ error: "Describe what you need so the provider can prepare an accurate quote." }, { status: 400 });
   if (!isServiceDeliveryType(service.delivery_type) || !serviceSupportsMethod(service.delivery_type, requestedDeliveryMethod)) return NextResponse.json({ error: "That delivery method is not available for this service." }, { status: 400 });
   if (!service.recurrence_options.includes(recurrence)) return NextResponse.json({ error: "That booking frequency is not available for this service." }, { status: 400 });
   const isRemote = requestedDeliveryMethod === "REMOTE";
@@ -143,7 +148,7 @@ export async function POST(request: Request) {
     if (coupon.repeatCustomerOnly && priorCount.rows[0].count < 1) return NextResponse.json({ error: "That coupon is for returning customers." }, { status: 400 });
   }
   let billableDurationMinutes = selectedPackage?.durationMinutes ?? service.duration_minutes;
-  let serviceBasePriceCents = selectedPackage?.priceCents ?? service.price_cents;
+  let serviceBasePriceCents = quoteOnly ? 0 : selectedPackage?.priceCents ?? service.price_cents;
   if (service.pricing_type === "HOURLY") {
     try {
       const config: HourlyPricingConfig = { pricingType: "HOURLY", hourlyRateCents: service.hourly_rate_cents!, minimumDurationMinutes: service.minimum_duration_minutes!, maximumDurationMinutes: service.maximum_duration_minutes, billingIncrementMinutes: service.billing_increment_minutes!, defaultDurationMinutes: service.default_duration_minutes! };
@@ -154,10 +159,12 @@ export async function POST(request: Request) {
   let commerce;
   try { commerce = calculateCommerceSelection({ servicePriceCents: serviceBasePriceCents, selectedPackage, addOns: requestedAddOns.map((item) => ({ addOn: addOnById.get(item.addOnId)!, quantity: item.quantity })), coupon }); }
   catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Choose valid booking options." }, { status: 400 }); }
-  if (commerce.serviceSubtotalCents < 50) return NextResponse.json({ error: "The discounted booking total must be at least $0.50." }, { status: 400 });
-  const financialSnapshot = calculateBookingFinancialSnapshot(commerce.serviceSubtotalCents, service.plan);
+  if (!quoteOnly && commerce.serviceSubtotalCents < 50) return NextResponse.json({ error: "The discounted booking total must be at least $0.50." }, { status: 400 });
+  const calculatedFinancialSnapshot = calculateBookingFinancialSnapshot(commerce.serviceSubtotalCents, service.plan);
+  const financialSnapshot = quoteOnly ? { ...calculatedFinancialSnapshot, customerServiceFeeCents: 0, customerTotalCents: 0 } : calculatedFinancialSnapshot;
   const selectedDurationMinutes = billableDurationMinutes + commerce.selectedAddOns.reduce((total,item) => total + item.additionalMinutes * item.quantity,0);
-  const pricingSummary = service.pricing_type === "HOURLY"
+  const pricingSummary = quoteOnly ? "Custom quote requested. No price has been approved yet."
+    : service.pricing_type === "HOURLY"
     ? `${formatDurationMinutes(billableDurationMinutes)} at $${(service.hourly_rate_cents! / 100).toFixed(2)}/hr; $${(commerce.serviceSubtotalCents / 100).toFixed(2)} service subtotal.`
     : `$${(commerce.serviceSubtotalCents / 100).toFixed(2)} service subtotal.`;
   const questions = Array.isArray(service.booking_questions) ? service.booking_questions.filter((question): question is string => typeof question === "string") : [];
@@ -184,6 +191,10 @@ export async function POST(request: Request) {
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [service.provider_id]);
+    if (quoteOnly) {
+      const openRequest = await client.query(`SELECT 1 FROM bookings WHERE customer_id=$1 AND service_id::text=$2 AND pricing_type_snapshot='QUOTE_ONLY' AND status='requested' LIMIT 1`, [session.user.id, service.id]);
+      if (openRequest.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: "You already have an open quote request for this service." }, { status: 409 }); }
+    }
     if (coupon) {
       const reserved = await client.query(`UPDATE provider_coupons coupon SET redemption_count=coupon.redemption_count+1 WHERE coupon.id=$1::uuid AND coupon.is_active=true AND (coupon.expires_at IS NULL OR coupon.expires_at>now()) AND (coupon.usage_limit IS NULL OR coupon.redemption_count<coupon.usage_limit) AND EXISTS (SELECT 1 FROM provider_profiles provider WHERE provider.id=coupon.provider_id AND provider.plan IN ('pro','business','owner') AND provider.is_active=true) RETURNING coupon.id`, [coupon.id]);
       if (!reserved.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: "That coupon is no longer available." }, { status: 409 }); }

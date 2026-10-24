@@ -20,7 +20,7 @@ type RequestRow = {
   budget_min_cents: number | null; budget_max_cents: number | null; status: string; expires_at: Date;
   created_at: Date; service_address_line1?: string; service_address_line2?: string | null;
   matched_service_id?: string; matched_service_title?: string; matched_service_delivery_type?: ServiceDeliveryType; distance_miles?: number;
-  matched_service_pricing_type?: "FIXED" | "HOURLY"; matched_service_hourly_rate_cents?: number | null; matched_service_minimum_duration_minutes?: number | null; matched_service_maximum_duration_minutes?: number | null; matched_service_billing_increment_minutes?: number | null; matched_service_default_duration_minutes?: number | null;
+  matched_service_pricing_type?: "FIXED" | "HOURLY" | "QUOTE_ONLY"; matched_service_hourly_rate_cents?: number | null; matched_service_minimum_duration_minutes?: number | null; matched_service_maximum_duration_minutes?: number | null; matched_service_billing_increment_minutes?: number | null; matched_service_default_duration_minutes?: number | null;
   conversation_id?: string | null; match_status?: string; viewed_at?: Date | null; responded_at?: Date | null;
 };
 

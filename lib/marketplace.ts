@@ -180,7 +180,7 @@ export async function getServices(options: { query?: string; category?: string; 
   }
   if (options.maxPrice && Number.isFinite(options.maxPrice)) {
     values.push(Math.round(options.maxPrice * 100));
-    conditions.push(`CASE WHEN s.pricing_type='HOURLY' THEN s.hourly_rate_cents ELSE s.price_cents END <= $${values.length}`);
+    conditions.push(`s.pricing_type <> 'QUOTE_ONLY' AND CASE WHEN s.pricing_type='HOURLY' THEN s.hourly_rate_cents ELSE s.price_cents END <= $${values.length}`);
   }
   if (options.maxDuration && Number.isFinite(options.maxDuration)) {
     values.push(options.maxDuration);
@@ -189,8 +189,8 @@ export async function getServices(options: { query?: string; category?: string; 
   values.push(searchOrigin ? Math.max(requestedLimit, 200) : requestedLimit);
 
   const planPriority = "CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN 0 ELSE 1 END";
-  const displayedPrice = "CASE WHEN s.pricing_type='HOURLY' THEN s.hourly_rate_cents ELSE s.price_cents END";
-  const orderBy = options.sort === "price-low" ? `${displayedPrice} ASC, ${planPriority}, s.created_at DESC` : options.sort === "price-high" ? `${displayedPrice} DESC, ${planPriority}, s.created_at DESC` : `${planPriority}, s.created_at DESC`;
+  const displayedPrice = "CASE WHEN s.pricing_type='QUOTE_ONLY' THEN NULL WHEN s.pricing_type='HOURLY' THEN s.hourly_rate_cents ELSE s.price_cents END";
+  const orderBy = options.sort === "price-low" ? `${displayedPrice} ASC NULLS LAST, ${planPriority}, s.created_at DESC` : options.sort === "price-high" ? `${displayedPrice} DESC NULLS LAST, ${planPriority}, s.created_at DESC` : `${planPriority}, s.created_at DESC`;
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,

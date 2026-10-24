@@ -8,7 +8,7 @@ export async function GET() {
 
   const result = await database.query<{
     id: string; customer: string; customer_image: string | null; service: string; starts_at: Date; location: string;
-    price_cents: number; pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string; previous_booking_count: number; plan: "starter" | "pro" | "business" | "owner";
+    price_cents: number; pricing_type_snapshot: "FIXED" | "HOURLY" | "QUOTE_ONLY"; hourly_rate_cents_snapshot: number | null; status: "requested" | "confirmed" | "completed" | "cancelled"; assignee_name: string; previous_booking_count: number; plan: "starter" | "pro" | "business" | "owner";
   }>(
     `SELECT b.id::text, u.name AS customer, u.image AS customer_image, s.title AS service, b.starts_at,
             CASE WHEN b.delivery_method = 'REMOTE' THEN 'Remote service' WHEN b.status IN ('confirmed', 'completed') OR EXISTS (

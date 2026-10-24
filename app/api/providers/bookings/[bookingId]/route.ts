@@ -58,7 +58,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       customer_id: string; customer_name: string; service_title: string; service_business_name: string;
       reschedule_starts_at: Date | null; reschedule_ends_at: Date | null; reschedule_reason: string | null;
       assigned_team_member_id: string | null; quote_status: string; payment_status: string; payment_flow: string | null; service_location_id: string; recurring_series_id: string | null;
-      pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number;
+      pricing_type_snapshot: "FIXED" | "HOURLY" | "QUOTE_ONLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number;
       billing_increment_minutes_snapshot: 15 | 30 | 60 | null; minimum_duration_minutes_snapshot: number | null; maximum_duration_minutes_snapshot: number | null;
       add_on_total_cents: number; discount_cents: number;
       age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
@@ -115,7 +115,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       await client.query(`UPDATE bookings SET quote_status = 'pending', quoted_price_cents = $2,
         quote_message = $3, quote_sent_at = now(), quote_responded_at = NULL,
         quoted_pricing_type=$4,quoted_hourly_rate_cents=$5,quoted_duration_minutes=$6 WHERE id::text = $1`,
-        [bookingId, cents, reason, booking.pricing_type_snapshot, quotedRateCents, quotedDuration]);
+        [bookingId, cents, reason, booking.pricing_type_snapshot === "HOURLY" ? "HOURLY" : "FIXED", quotedRateCents, quotedDuration]);
       await client.query(`INSERT INTO booking_events (booking_id, actor_user_id, event_type, message, metadata)
         VALUES ($1::uuid, $2, 'quote_sent', $3, jsonb_build_object('priceCents', $4::integer,'hourlyRateCents',$5::integer,'durationMinutes',$6::integer))`,
         [bookingId, session.user.id, `Provider sent a $${(cents / 100).toFixed(2)} quote: ${reason}`, cents, quotedRateCents, quotedDuration]);
@@ -293,6 +293,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
       }
       if (booking.quote_status === "pending") { await client.query("ROLLBACK"); return NextResponse.json({ error: "The customer must approve or decline the new quote before you confirm this booking." }, { status: 409 }); }
       if (booking.quote_status === "declined") { await client.query("ROLLBACK"); return NextResponse.json({ error: "The customer declined the quote. Send a revised quote or decline the booking request." }, { status: 409 }); }
+      if (booking.pricing_type_snapshot === "QUOTE_ONLY" && booking.quote_status !== "accepted") { await client.query("ROLLBACK"); return NextResponse.json({ error: "Send a custom quote and wait for the customer to accept it before confirming this request." }, { status: 409 }); }
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [booking.provider_id]);
       const unavailable = await unavailableBookingProfessionals(client, { bookingId, providerId: booking.provider_id,
         serviceId: booking.service_id, startsAt: booking.starts_at, endsAt: booking.ends_at });

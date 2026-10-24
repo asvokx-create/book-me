@@ -179,6 +179,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
                 <Link href={`/services/${service.slug}?from=${encodeURIComponent(currentResultsPath)}`} className="block" aria-label={`View ${service.title}`}>
                 <div role="img" aria-label={`${service.title} cover`} style={service.imageUrls[0] ? { backgroundImage: `url("${service.imageUrls[0]}")` } : undefined} className={`relative h-56 overflow-hidden bg-cover bg-center ${service.imageUrls[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${getServiceVisual(service.category).gradient}`}`}>
                   {!service.imageUrls[0] && <div className="absolute inset-0 grid place-items-center"><ServiceCategoryIcon category={service.category} className="h-24 min-h-24 w-24 min-w-24 [&_svg]:h-16 [&_svg]:w-16" /></div>}
+                    {service.pricingType === "QUOTE_ONLY" && <span className="absolute left-4 top-4 rounded-full bg-white px-3 py-1.5 text-xs font-bold shadow-sm">Custom Quote</span>}
                 </div>
                 </Link>
                 <div className="p-6">

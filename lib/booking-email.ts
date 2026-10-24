@@ -18,7 +18,7 @@ type BookingEmailRow = {
   provider_notifications: boolean;
   payment_status: string;
   ends_at: Date;
-  pricing_type_snapshot: "FIXED" | "HOURLY";
+  pricing_type_snapshot: "FIXED" | "HOURLY" | "QUOTE_ONLY";
   hourly_rate_cents_snapshot: number | null;
   billable_duration_minutes: number;
   price_cents: number;
@@ -55,7 +55,9 @@ export async function sendBookingUpdateEmails(bookingId: string, event: "request
   if (!booking) return;
   const when = appointmentLabel(booking.starts_at);
   const until = appointmentLabel(booking.ends_at);
-  const pricing = booking.pricing_type_snapshot === "HOURLY" && booking.hourly_rate_cents_snapshot !== null
+  const pricing = booking.pricing_type_snapshot === "QUOTE_ONLY"
+    ? " This is a custom quote request. No price has been approved or charged."
+    : booking.pricing_type_snapshot === "HOURLY" && booking.hourly_rate_cents_snapshot !== null
     ? ` ${formatDurationMinutes(booking.billable_duration_minutes)} at $${(booking.hourly_rate_cents_snapshot / 100).toFixed(2)}/hr; service subtotal $${(booking.price_cents / 100).toFixed(2)}.`
     : ` Service price $${(booking.price_cents / 100).toFixed(2)}.`;
 
@@ -80,7 +82,9 @@ export async function sendBookingUpdateEmails(bookingId: string, event: "request
 export async function sendBookingReminder(booking: BookingEmailRow, hours: 24 | 1) {
   const when = appointmentLabel(booking.starts_at);
   const until = appointmentLabel(booking.ends_at);
-  const pricing = booking.pricing_type_snapshot === "HOURLY" && booking.hourly_rate_cents_snapshot !== null
+  const pricing = booking.pricing_type_snapshot === "QUOTE_ONLY"
+    ? " Custom quote pending. No price has been approved or charged."
+    : booking.pricing_type_snapshot === "HOURLY" && booking.hourly_rate_cents_snapshot !== null
     ? ` ${formatDurationMinutes(booking.billable_duration_minutes)} at $${(booking.hourly_rate_cents_snapshot / 100).toFixed(2)}/hr; service subtotal $${(booking.price_cents / 100).toFixed(2)}.`
     : ` Service price $${(booking.price_cents / 100).toFixed(2)}.`;
   const providerMessage = `${booking.service_title} is scheduled from ${when} to ${until}.${pricing} Open BubsBookings for the latest details or to message the other person.`;

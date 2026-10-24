@@ -20,7 +20,7 @@ import CustomSelect from "@/components/custom-select";
 type BookingState = "confirmed" | "requested" | "completed" | "cancelled";
 
 type Booking = { id: string; serviceId: string; providerId: string; service: string; serviceSlug: string; category: string; provider: string; startsAt: string; price: number; location: string; deliveryMethod: "IN_PERSON" | "REMOTE"; state: BookingState; assigneeName: string };
-type SavedService = { id: string; slug: string; title: string; provider: string; price: number; pricingType: "FIXED" | "HOURLY"; hourlyRateCents: number | null; category: string; city: string; state: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; imageUrls: string[] };
+type SavedService = { id: string; slug: string; title: string; provider: string; price: number; pricingType: "FIXED" | "HOURLY" | "QUOTE_ONLY"; hourlyRateCents: number | null; category: string; city: string; state: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; imageUrls: string[] };
 
 const initialBookings: Booking[] = [];
 const serviceVisuals: Record<string, { gradient: string }> = {

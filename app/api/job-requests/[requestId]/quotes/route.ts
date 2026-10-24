@@ -40,7 +40,7 @@ export async function POST(request: Request, context: RouteContext<"/api/job-req
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const match = await client.query<{ customer_id: string; customer_email: string; customer_notifications: boolean; status: string; service_id: string; conversation_id: string | null; request_delivery_type: RequestDeliveryType; service_delivery_type: ServiceDeliveryType; pricing_type: "FIXED" | "HOURLY"; hourly_rate_cents: number | null; minimum_duration_minutes: number | null; maximum_duration_minutes: number | null; billing_increment_minutes: 15 | 30 | 60 | null; default_duration_minutes: number | null }>(
+    const match = await client.query<{ customer_id: string; customer_email: string; customer_notifications: boolean; status: string; service_id: string; conversation_id: string | null; request_delivery_type: RequestDeliveryType; service_delivery_type: ServiceDeliveryType; pricing_type: "FIXED" | "HOURLY" | "QUOTE_ONLY"; hourly_rate_cents: number | null; minimum_duration_minutes: number | null; maximum_duration_minutes: number | null; billing_increment_minutes: 15 | 30 | 60 | null; default_duration_minutes: number | null }>(
       `SELECT request.customer_id, customer.email AS customer_email,
               COALESCE(settings.request_notifications, true) AS customer_notifications,
               request.status, match.service_id::text, request.delivery_type AS request_delivery_type, service.delivery_type AS service_delivery_type,

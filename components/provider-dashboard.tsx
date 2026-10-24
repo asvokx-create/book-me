@@ -37,7 +37,7 @@ import ProviderActivationChecklist, { type ProviderActivation } from "@/componen
 type RequestStatus = "new" | "accepted" | "cancelled" | "completed";
 export type DashboardSection = "overview" | "bookings" | "opportunities" | "calendar" | "messages" | "customers" | "revenue" | "services" | "profile" | "marketing" | "locations" | "availability" | "reviews" | "team" | "billing" | "settings";
 
-type ProviderBooking = { id: string; customer: string; customerImage: string; initials: string; service: string; startsAt: string; location: string; price: number; pricingType: "FIXED" | "HOURLY"; hourlyRateCents: number | null; status: RequestStatus; assigneeName: string; repeatBookings: number };
+type ProviderBooking = { id: string; customer: string; customerImage: string; initials: string; service: string; startsAt: string; location: string; price: number; pricingType: "FIXED" | "HOURLY" | "QUOTE_ONLY"; hourlyRateCents: number | null; status: RequestStatus; assigneeName: string; repeatBookings: number };
 const initialRequests: ProviderBooking[] = [];
 
 type ProviderSummary = {
@@ -75,7 +75,7 @@ type ProviderSummary = {
   activation: ProviderActivation;
 };
 
-type ProviderService = { id: string; companyId: string; companySlug: string; businessName: string; locationId: string | null; locationName: string | null; location: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; slug: string; title: string; category: string; price: number; durationMinutes: number; pricingType: "FIXED" | "HOURLY"; hourlyRateCents: number | null; minimumDurationMinutes: number | null; imageUrls: string[]; createdAt: string; viewCount: number; completedBookingCount: number };
+type ProviderService = { id: string; companyId: string; companySlug: string; businessName: string; locationId: string | null; locationName: string | null; location: string; deliveryType: "IN_PERSON" | "REMOTE" | "BOTH"; slug: string; title: string; category: string; price: number; durationMinutes: number; pricingType: "FIXED" | "HOURLY" | "QUOTE_ONLY"; hourlyRateCents: number | null; minimumDurationMinutes: number | null; imageUrls: string[]; createdAt: string; viewCount: number; completedBookingCount: number };
 type ArchivedProviderService = { id: string; title: string; category: string; businessName: string; createdAt: string };
 
 type RevenueSummary = {
@@ -106,6 +106,7 @@ function formatCurrency(amount: number) {
 }
 
 function formatBookedPrice(booking: ProviderBooking) {
+  if (booking.pricingType === "QUOTE_ONLY") return "Custom quote pending";
   const total = formatCurrency(booking.price);
   return booking.pricingType === "HOURLY" && booking.hourlyRateCents !== null
     ? `${formatHourlyRate(booking.hourlyRateCents)} · ${total} booked`

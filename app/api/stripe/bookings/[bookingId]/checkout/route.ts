@@ -29,7 +29,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     platform_fee_cents: number; provider_payout_cents: number; customer_service_fee_cents: number;
     customer_total_cents: number | null;
     base_price_cents: number; add_on_total_cents: number; discount_cents: number; package_snapshot: { name?: string } | null; coupon_code_snapshot: string | null;
-    pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number;
+    pricing_type_snapshot: "FIXED" | "HOURLY" | "QUOTE_ONLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number;
   }>(`SELECT b.id::text, s.title, s.business_name AS provider_name, b.price_cents, b.status,
       b.payment_status, b.quote_status, p.plan, p.stripe_account_id, p.age_verification_status, p.stripe_connect_mode, b.stripe_mode,
       b.stripe_checkout_session_id, b.payment_flow, b.provider_plan_snapshot, b.provider_fee_basis_points, b.provider_fee_cap_cents,
@@ -40,6 +40,7 @@ export async function POST(request: Request, context: RouteContext<"/api/stripe/
     WHERE b.id::text = $1 AND b.customer_id = $2`, [bookingId, session.user.id]);
   const booking = result.rows[0];
   if (!booking) return NextResponse.json({ error: "Booking not found." }, { status: 404 });
+  if (booking.pricing_type_snapshot === "QUOTE_ONLY") return NextResponse.json({ error: "Accept the provider's custom quote before checkout." }, { status: 409 });
   if (booking.status !== "confirmed" && booking.status !== "completed") return NextResponse.json({ error: "The provider must confirm this booking before payment." }, { status: 409 });
   if (booking.quote_status === "pending" || booking.quote_status === "declined") return NextResponse.json({ error: "Resolve the custom quote before payment." }, { status: 409 });
   const mode = getStripeMode();

@@ -142,18 +142,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
 
   const packagesValid = packages.length <= 3 && packages.every((item) => item.name && item.name.length <= 60 && item.description.length <= 500 && Number.isSafeInteger(item.priceCents) && item.priceCents >= 50 && Number.isInteger(item.durationMinutes) && item.durationMinutes > 0 && (item.deliveryDays === null || Number.isInteger(item.deliveryDays) && item.deliveryDays >= 0 && item.deliveryDays <= 365) && (item.revisionCount === null || Number.isInteger(item.revisionCount) && item.revisionCount >= 0 && item.revisionCount <= 100));
   const addOnsValid = addOns.length <= 10 && addOns.every((item) => item.name && item.name.length <= 80 && item.description.length <= 500 && Number.isSafeInteger(item.priceCents) && item.priceCents >= 0 && Number.isInteger(item.additionalMinutes) && item.additionalMinutes >= 0 && item.additionalMinutes <= 43200 && Number.isInteger(item.maxQuantity) && item.maxQuantity >= 1 && item.maxQuantity <= 20);
-  let hourlyValid = pricingType === "FIXED";
+  let hourlyValid = pricingType !== "HOURLY";
   if (pricingType === "HOURLY" && isHourlyBillingIncrement(billingIncrementMinutes)) {
     try {
       validateHourlyPricing({ pricingType, hourlyRateCents, minimumDurationMinutes, maximumDurationMinutes, billingIncrementMinutes, defaultDurationMinutes });
       hourlyValid = true;
     } catch { hourlyValid = false; }
   }
-  const fixedPricingValid = pricingType === "HOURLY" || Number.isFinite(price) && price > 0 && price <= 1_000_000 && Number.isInteger(durationMinutes) && durationMinutes >= 15 && durationMinutes <= 2_147_483_647;
-  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !category || category.length > 80 || !deliveryType || description.length < 10 || description.length > 2000 || preparationNotes.length > 1000 || (deliveryType !== "REMOTE" && !locationId) || !fixedPricingValid || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180) || !packagesValid || !addOnsValid || !hourlyValid || (pricingType === "HOURLY" && packages.length > 0)) {
+  const fixedPricingValid = pricingType !== "FIXED" || Number.isFinite(price) && price > 0 && price <= 1_000_000;
+  const durationValid = Number.isInteger(durationMinutes) && durationMinutes >= 15 && durationMinutes <= 2_147_483_647;
+  if (!businessName || businessName.length > 120 || !title || title.length > 120 || !category || category.length > 80 || !deliveryType || description.length < 10 || description.length > 2000 || preparationNotes.length > 1000 || (deliveryType !== "REMOTE" && !locationId) || !fixedPricingValid || !durationValid || bookingQuestions.length > 3 || bookingQuestions.some((question) => question.length > 180) || !packagesValid || !addOnsValid || !hourlyValid || (pricingType === "HOURLY" && packages.length > 0)) {
     return NextResponse.json({ error: "Complete every field with valid listing details." }, { status: 400 });
   }
-  const effectivePriceCents = pricingType === "HOURLY" ? hourlyRateCents : Math.round(price * 100);
+  let effectivePriceCents = pricingType === "HOURLY" ? hourlyRateCents : pricingType === "QUOTE_ONLY" ? 0 : Math.round(price * 100);
   const effectiveDurationMinutes = pricingType === "HOURLY" ? defaultDurationMinutes : durationMinutes;
   const safety = await checkAndRecordContent({ userId, surface: "provider_listing", fields: [businessName, title, description, preparationNotes, ...packages.flatMap((item) => [item.name,item.description,...item.features]), ...addOns.flatMap((item) => [item.name,item.description])] });
   if (!safety.allowed) return NextResponse.json({ error: safety.message }, { status: 422 });
@@ -169,8 +170,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const ownership = await client.query<{ provider_id: string; plan: ProviderPlan; business_name: string; company_id: string; current_location_id: string | null }>(
-      `SELECT s.provider_id::text, p.plan, company.name AS business_name, company.id::text AS company_id, s.location_id::text AS current_location_id
+    const ownership = await client.query<{ provider_id: string; plan: ProviderPlan; business_name: string; company_id: string; current_location_id: string | null; current_price_cents: number }>(
+      `SELECT s.provider_id::text, p.plan, company.name AS business_name, company.id::text AS company_id, s.location_id::text AS current_location_id,
+              s.price_cents AS current_price_cents
        FROM services s JOIN provider_profiles p ON p.id = s.provider_id
        JOIN provider_companies company ON company.id = s.company_id
        WHERE s.id::text = $1 AND p.user_id = $2 AND (s.is_active = true OR s.age_verification_blocked = true)
@@ -181,6 +183,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "Listing not found." }, { status: 404 });
     }
+    if (pricingType === "QUOTE_ONLY") effectivePriceCents = ownership.rows[0].current_price_cents;
     if (ownership.rows[0].business_name !== businessName) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "A listing cannot be moved between company pages. Create a new listing under the correct company." }, { status: 400 });

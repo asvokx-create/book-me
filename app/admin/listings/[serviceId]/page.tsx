@@ -16,7 +16,7 @@ type ListingPreview = {
   duration_minutes: number; is_active: boolean; business_name: string; city: string;
   state: string; service_radius_miles: number; image_urls: string[] | null;
   delivery_type: "IN_PERSON" | "REMOTE" | "BOTH"; remote_delivery_details: string;
-  pricing_type: "FIXED" | "HOURLY"; hourly_rate_cents: number | null;
+  pricing_type: "FIXED" | "HOURLY" | "QUOTE_ONLY"; hourly_rate_cents: number | null;
   minimum_duration_minutes: number | null; maximum_duration_minutes: number | null;
   billing_increment_minutes: number | null; default_duration_minutes: number | null;
   age_verification_status: ProviderAgeVerificationStatus; publicly_available: boolean;
@@ -65,6 +65,7 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
   const deliveryLabel = listing.delivery_type === "REMOTE" ? "🌐 Available online" : listing.delivery_type === "BOTH" ? `🌐 Online or in person near ${listing.city}, ${listing.state}` : `📍 ${listing.city}, ${listing.state}`;
   const serviceAreaLabel = listing.delivery_type === "REMOTE" ? "Available online across the United States" : listing.delivery_type === "BOTH" ? `Online nationwide or within ${listing.service_radius_miles} miles of ${listing.city}` : `Within ${listing.service_radius_miles} miles of ${listing.city}`;
   const hourly = listing.pricing_type === "HOURLY" && listing.hourly_rate_cents !== null;
+  const quoteOnly = listing.pricing_type === "QUOTE_ONLY";
   const inactiveReasons = listingInactiveReasons({
     isActive: listing.is_active,
     ageVerificationBlocked: listing.age_verification_blocked,
@@ -92,8 +93,8 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
         </section>
         <aside className="h-fit rounded-[2rem] border border-[#183126]/10 bg-white p-7 shadow-[0_20px_50px_rgba(24,49,38,.10)]">
           <div className="mb-6 rounded-2xl bg-[#f5f5ef] p-4 text-sm"><p className="font-bold">Activation details</p><dl className="mt-3 space-y-2 text-[#687970]"><div className="flex justify-between gap-4"><dt>Age verification</dt><dd className="font-semibold text-[#183126]">{listing.age_verification_status.replaceAll("_", " ")}</dd></div><div className="flex justify-between gap-4"><dt>Stripe payouts, last known</dt><dd className="font-semibold text-[#183126]">{!listing.stripe_connected ? "Not connected" : listing.stripe_payouts_enabled ? "Ready" : "Incomplete or under review"}</dd></div><div className="flex justify-between gap-4"><dt>Safety review</dt><dd className="font-semibold text-[#183126]">{listing.safety_review_status.replaceAll("_", " ")}</dd></div><div className="flex justify-between gap-4"><dt>Last status update</dt><dd className="text-right font-semibold text-[#183126]">{new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(listing.last_status_update))}</dd></div></dl><p className="mt-3 text-xs leading-5">Stripe payout setup is required to receive earnings, but it does not control listing publication.</p></div>
-          <p className="text-xs font-bold uppercase tracking-wider text-[#718078]">{hourly ? "Hourly rate" : "Starting price"}</p>
-          <p className="mt-2 text-4xl font-bold">{hourly ? formatHourlyRate(listing.hourly_rate_cents!) : `$${(listing.price_cents / 100).toFixed(2)}`}</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-[#718078]">{quoteOnly ? "Pricing" : hourly ? "Hourly rate" : "Starting price"}</p>
+          <p className="mt-2 text-4xl font-bold">{quoteOnly ? "Custom Quote" : hourly ? formatHourlyRate(listing.hourly_rate_cents!) : `$${(listing.price_cents / 100).toFixed(2)}`}</p>
           <div className="mt-6 space-y-3 text-sm">
             <p className="rounded-2xl bg-[#f5f5ef] p-4"><strong>{hourly ? "Booking duration" : "Typical duration"}</strong><span className="mt-1 block text-[#687970]">{hourly ? `${formatDurationMinutes(listing.default_duration_minutes ?? listing.duration_minutes)} default` : formatDuration(listing.duration_minutes)}</span>{hourly && <span className="mt-1 block text-xs text-[#718078]">Minimum {formatDurationMinutes(listing.minimum_duration_minutes ?? listing.duration_minutes)} · {listing.billing_increment_minutes ?? 30}-minute increments{listing.maximum_duration_minutes ? ` · Maximum ${formatDurationMinutes(listing.maximum_duration_minutes)}` : ""}</span>}</p>
             <p className="rounded-2xl bg-[#f5f5ef] p-4"><strong>Service availability</strong><span className="mt-1 block text-[#687970]">{serviceAreaLabel}</span></p>

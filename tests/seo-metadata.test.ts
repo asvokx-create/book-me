@@ -87,6 +87,6 @@ test("linked service-card artwork has an accessible text alternative", () => {
   for (const page of [["app", "companies", "[slug]", "page.tsx"], ["app", "locations", "[city]", "page.tsx"]]) {
     const source = read(...page);
     assert.match(source, /role="img" aria-label=\{service\.image/, `${page.join("/")} must label linked card artwork`);
-    assert.match(source, /className=\{`grid h-48/, `${page.join("/")} keeps a stable image frame`);
+    assert.match(source, /className=\{`(?:relative )?grid h-48/, `${page.join("/")} keeps a stable image frame`);
   }
 });
