@@ -53,7 +53,16 @@ export async function GET(
               (stripe_account_id IS NOT NULL) AS stripe_connected,
               provider_agreement_accepted_at, provider_agreement_version,
               pro_trial_used_at_test, pro_trial_used_at_live, public_profile_slug, public_profile_visible,
-              years_experience, experience_summary, specialties, languages, provider_highlights, created_at, updated_at
+              years_experience, experience_summary, specialties, languages, provider_highlights, created_at, updated_at,
+              EXISTS (
+                SELECT 1
+                FROM services service
+                JOIN provider_companies company ON company.id = service.company_id AND company.is_active = true
+                WHERE service.provider_id = provider_profiles.id
+                  AND service.provider_deleted_at IS NULL
+                  AND (service.is_active = true OR service.age_verification_blocked = true)
+                  AND service.delivery_type IN ('IN_PERSON', 'BOTH')
+              ) AS has_in_person_services
        FROM provider_profiles WHERE user_id = $1`,
       [userId],
     );

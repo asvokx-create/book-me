@@ -108,7 +108,7 @@ type AccountDetails = {
   consumerStripe: { connected: boolean; mode: "test" | "live" | null };
   provider: null | {
     id: string; business_name: string; bio: string; phone: string | null; city: string; state: string;
-    service_radius_miles: number; plan: ProviderPlan; is_active: boolean; is_verified: boolean;
+    service_radius_miles: number; has_in_person_services: boolean; plan: ProviderPlan; is_active: boolean; is_verified: boolean;
     phone_verified: boolean; identity_verified: boolean; business_verified: boolean;
     screening_status: string; screening_score: number | null; screening_summary: string; screening_checked_at: string | null;
     stripe_subscription_status: string; stripe_charges_enabled: boolean; stripe_payouts_enabled: boolean;
@@ -820,7 +820,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
           <section><h3 className="mb-3 text-lg font-bold">Marketplace history</h3><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">{Object.entries(details.counts).map(([key, value]) => <div key={key} className="rounded-2xl bg-[#183126] p-4 text-white"><p className="text-2xl font-bold">{value}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#bdd0c6]">{label(key)}</p></div>)}</div></section>
           {details.provider && <details open className="rounded-3xl border border-[#183126]/10 p-5"><summary className="cursor-pointer text-lg font-bold">Provider profile, service area, and billing</summary><div className="mt-4 space-y-4"><p className="text-sm text-[#718078]">Provider business and service coverage. This does not replace the general account location above.</p><DetailGrid items={[
             { label: "Business", value: details.provider.business_name }, { label: "Provider plan", value: PLAN_ENTITLEMENTS[details.provider.plan].name }, { label: "Provider active", value: details.provider.is_active },
-            { label: "Business phone", value: details.provider.phone }, { label: "Service base", value: `${details.provider.city}, ${details.provider.state}` }, { label: "Service radius", value: `${details.provider.service_radius_miles} miles` },
+            { label: "Business phone", value: details.provider.phone }, { label: "Service base", value: `${details.provider.city}, ${details.provider.state}` }, { label: "Travel radius", value: details.provider.has_in_person_services ? `${details.provider.service_radius_miles} miles` : "Not used for remote-only services" },
             { label: "Phone details checked", value: details.provider.phone_verified }, { label: "Stripe identity", value: details.provider.identity_verified }, { label: "Business profile checked", value: details.provider.business_verified },
             { label: "Safety screening", value: label(details.provider.screening_status) }, { label: "Screening score", value: details.provider.screening_score }, { label: "Screening checked", value: details.provider.screening_checked_at ? formatDate(details.provider.screening_checked_at) : null },
             { label: "Stripe connected", value: details.provider.stripe_connected }, { label: "Charges enabled", value: details.provider.stripe_charges_enabled }, { label: "Payouts enabled", value: details.provider.stripe_payouts_enabled },

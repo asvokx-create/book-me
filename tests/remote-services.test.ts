@@ -133,3 +133,14 @@ test("remote-only provider settings do not present a working-radius control", ()
   assert.match(settings, /Your active services are remote/);
   assert.match(providerApi, /hasInPersonServices: services\.some/);
 });
+
+test("remote-only provider and admin views do not present a travel radius as active", () => {
+  const locations = source("components/location-manager.tsx");
+  const locationsApi = source("app/api/providers/locations/route.ts");
+  const admin = source("components/admin-dashboard.tsx");
+  const adminAccount = source("app/api/admin/accounts/[userId]/route.ts");
+  assert.match(locationsApi, /in_person_listing_count/);
+  assert.match(locations, /No travel radius used for remote-only services/);
+  assert.match(adminAccount, /has_in_person_services/);
+  assert.match(admin, /Not used for remote-only services/);
+});

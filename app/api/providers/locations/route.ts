@@ -31,11 +31,12 @@ export async function GET() {
   if (!access) return NextResponse.json({ error: "Provider access not found." }, { status: 404 });
   const result = await database.query<{
     id: string; company_id: string; company_name: string; name: string; city: string; state: string;
-    service_radius_miles: number; is_primary: boolean; listing_count: number; worker_ids: string[]; service_areas: Array<{ label: string }> | null;
+    service_radius_miles: number; is_primary: boolean; listing_count: number; in_person_listing_count: number; worker_ids: string[]; service_areas: Array<{ label: string }> | null;
   }>(
     `SELECT location.id::text, company.id::text AS company_id, company.name AS company_name,
             location.name, location.city, location.state, location.service_radius_miles, location.is_primary,
             count(DISTINCT service.id) FILTER (WHERE service.is_active = true)::int AS listing_count,
+            count(DISTINCT service.id) FILTER (WHERE service.is_active = true AND service.delivery_type IN ('IN_PERSON', 'BOTH'))::int AS in_person_listing_count,
             (SELECT jsonb_agg(jsonb_build_object('label', CASE WHEN area.area_type = 'zip' THEN area.postal_code || ' · ' || area.city || ', ' || area.state ELSE area.city || ', ' || area.state END) ORDER BY area.area_type, area.normalized_value)
              FROM provider_location_service_areas area WHERE area.location_id = location.id) AS service_areas,
             COALESCE(array_agg(DISTINCT assignment.team_member_id::text)
@@ -56,7 +57,7 @@ export async function GET() {
   ) : { rows: [] };
   const planResult = await database.query<{ plan: ProviderPlan }>("SELECT plan FROM provider_profiles WHERE id::text = $1", [access.providerId]);
   return NextResponse.json({
-    locations: result.rows.map((row) => ({ id: row.id, companyId: row.company_id, companyName: row.company_name, name: row.name, location: `${row.city}, ${row.state}`, serviceRadiusMiles: row.service_radius_miles, isPrimary: row.is_primary, listingCount: row.listing_count, workerIds: row.worker_ids, serviceAreas: row.service_areas?.map((area) => area.label) ?? [] })),
+    locations: result.rows.map((row) => ({ id: row.id, companyId: row.company_id, companyName: row.company_name, name: row.name, location: `${row.city}, ${row.state}`, serviceRadiusMiles: row.service_radius_miles, isPrimary: row.is_primary, listingCount: row.listing_count, inPersonListingCount: row.in_person_listing_count, workerIds: row.worker_ids, serviceAreas: row.service_areas?.map((area) => area.label) ?? [] })),
     members: members.rows.map((row) => ({ id: row.id, name: row.name, companyId: row.company_id })),
     isOwner: access.isOwner,
     plan: planResult.rows[0]?.plan ?? "starter",
