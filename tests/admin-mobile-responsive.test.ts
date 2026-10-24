@@ -17,6 +17,10 @@ test("admin mobile navigation exposes every dashboard and route section without 
   assert.match(dashboard, /admin-nav-shell min-w-0 overflow-x-hidden/);
   assert.match(dashboard, /xl:max-h-\[calc\(100dvh-2rem\)\] xl:overflow-y-auto/);
   assert.match(dashboard, /xl:hidden/);
+  assert.match(dashboard, /aria-label="Admin account actions"/);
+  assert.match(dashboard, /aria-label="Admin tools"/);
+  assert.match(dashboard, /dashboard-container flex flex-wrap items-center justify-between/);
+  assert.match(dashboard, /flex min-w-0 flex-1 flex-wrap items-center justify-end/);
   assert.doesNotMatch(dashboard, /mobile-scroll-row/);
 
   for (const href of ["/admin/reported-bugs", "/admin/disputes", "/admin/support", "/admin/operations", "/admin/expenses", "/account"]) {

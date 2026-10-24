@@ -82,6 +82,8 @@ test("admin listing visibility shows all statuses without adding Stripe as a pub
   assert.match(dashboard, /Stripe payouts/);
   assert.match(dashboard, /Safety review/);
   assert.match(preview, /Stripe payout setup is required to receive earnings, but it does not control listing publication/);
+  assert.match(preview, /className="!absolute bottom-8 right-10/);
+  assert.match(preview, /left-6 top-6 z-10/);
   assert.match(marketplace, /p\.age_verification_status = 'verified'/);
   assert.doesNotMatch(marketplace, /stripe_payouts_enabled/);
 });

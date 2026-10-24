@@ -81,8 +81,8 @@ export default async function AdminListingPreviewPage({ params }: PageProps<"/ad
       <div className="mt-7 grid gap-7 lg:grid-cols-[1.25fr_.75fr]">
         <section>
           <div role="img" aria-label={`${listing.title} cover`} style={images[0] ? { backgroundImage: `url("${images[0]}")` } : undefined} className={`relative h-72 overflow-hidden rounded-[2.5rem] bg-cover bg-center sm:h-[420px] ${images[0] ? "bg-[#e5e8e2]" : `bg-gradient-to-br ${visual.gradient}`}`}>
-            {!images[0] && <ServiceCategoryIcon category={listing.category} className="absolute bottom-8 right-10 h-28 min-h-28 w-28 min-w-28 opacity-90 sm:h-32 sm:min-h-32 sm:w-32 sm:min-w-32 [&_svg]:h-20 [&_svg]:w-20" />}
-            <span className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-xs font-bold">{listing.publicly_available ? "Public listing" : listing.is_active ? "Verification required" : "Removed listing"}</span>
+            {!images[0] && <ServiceCategoryIcon category={listing.category} className="!absolute bottom-8 right-10 h-28 min-h-28 w-28 min-w-28 opacity-90 sm:h-32 sm:min-h-32 sm:w-32 sm:min-w-32 [&_svg]:h-20 [&_svg]:w-20" />}
+            <span className="absolute left-6 top-6 z-10 rounded-full bg-white/90 px-4 py-2 text-xs font-bold">{listing.publicly_available ? "Public listing" : listing.is_active ? "Verification required" : "Removed listing"}</span>
           </div>
           {images.length > 1 && <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{images.slice(1).map((url, index) => <div key={url} role="img" aria-label={`${listing.title} photo ${index + 2}`} style={{ backgroundImage: `url("${url}")` }} className="aspect-[4/3] rounded-2xl bg-cover bg-center" />)}</div>}
           <p className="mt-8 text-sm font-bold uppercase tracking-[.15em] text-[#6c7d74]">{listing.category}</p>

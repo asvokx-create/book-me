@@ -334,14 +334,14 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
   return (
     <main className="admin-page min-h-screen overflow-x-clip bg-[#f4f4ef] text-[#183126]">
       <header className="border-b border-[#183126]/10 bg-white">
-        <div className="dashboard-container flex items-center justify-between gap-2 px-3 py-4 min-[360px]:px-4 sm:px-8">
-          <div className="min-w-0 flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2.5 text-xl font-bold">
+        <div className="dashboard-container flex flex-wrap items-center justify-between gap-2 px-3 py-4 min-[360px]:px-4 sm:px-8">
+          <div className="flex shrink-0 items-center gap-4">
+            <Link href="/" className="flex min-w-0 items-center gap-2.5 text-xl font-bold">
               <BrandLockup compact />
             </Link>
-            <span className="hidden rounded-full bg-[#eee25a] px-3 py-1 text-xs font-extrabold uppercase tracking-wider sm:inline">Admin</span>
+            <span className="hidden shrink-0 rounded-full bg-[#eee25a] px-3 py-1 text-xs font-extrabold uppercase tracking-wider sm:inline">Admin</span>
           </div>
-          <div className="flex shrink-0 items-center gap-1 min-[360px]:gap-2 sm:gap-3">
+          <div aria-label="Admin account actions" className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1 min-[360px]:gap-2 sm:gap-3">
             <Link href="/admin/reported-bugs" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Bug reports</Link>
             <Link href="/admin/disputes" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Disputes</Link>
             <Link href="/admin/support" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] lg:inline-flex">Support</Link>
@@ -386,7 +386,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
               </button>
             ))}
             <Link href="/admin/recommendations" className="hidden min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white xl:flex">Client recommendations</Link>
-            <div className="mt-2 grid gap-1 border-t border-white/10 pt-3 sm:col-span-2 sm:grid-cols-2 xl:hidden">
+            <div aria-label="Admin tools" className="mt-2 grid gap-1 border-t border-white/10 pt-3 sm:col-span-2 sm:grid-cols-2 xl:hidden">
               <Link href="/admin/reported-bugs" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Bug reports</Link>
               <Link href="/admin/disputes" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Booking disputes</Link>
               <Link href="/admin/support" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Support &amp; verification</Link>
