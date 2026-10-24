@@ -10,7 +10,7 @@ import { recordAnalytics } from "@/lib/analytics";
 import { refundUnreleasedBooking } from "@/lib/payment-release";
 import { unavailableBookingProfessionals } from "@/lib/booking-staff";
 import { CUSTOMER_SERVICE_FEE_CENTS } from "@/lib/booking-fees";
-import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "@/lib/booking-financials";
+import { calculateBookingFinancialSnapshot, estimateProviderProcessingFeeCents, type BookingFinancialPlan } from "@/lib/booking-financials";
 
 export async function GET(_request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -34,7 +34,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     refund_reason: string | null; refund_amount_cents: number | null; refunded_amount_cents: number;
     refund_failure_reason: string | null; payment_release_status: string; platform_fee_cents: number; provider_fee_basis_points: number | null; provider_fee_cap_cents: number | null;
     customer_service_fee_cents: number; customer_service_fee_refunded_cents: number;
-    provider_payout_cents: number; provider_processing_fee_cents: number; stripe_processing_fee_cents: number | null; processing_fee_status: "not_applicable" | "pending" | "final" | "unavailable"; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
+    provider_payout_cents: number; provider_processing_fee_cents: number; stripe_processing_fee_cents: number | null; stripe_transfer_reversed_cents: number; processing_fee_status: "not_applicable" | "pending" | "final" | "unavailable"; completion_confirmation_due_at: Date | null; customer_confirmed_at: Date | null;
     payout_released_at: Date | null; payout_failure_reason: string | null; payout_freeze_reason: string | null; delivery_method: "IN_PERSON" | "REMOTE";
     base_price_cents: number; add_on_total_cents: number; discount_cents: number; package_snapshot: Record<string, unknown> | null; add_on_snapshot: unknown[]; coupon_code_snapshot: string | null; recurring_series_id: string | null; recurrence_index: number | null; recurrence_frequency: string | null; recurrence_status: string | null; booking_kind: string;
     pricing_type_snapshot: "FIXED" | "HOURLY"; hourly_rate_cents_snapshot: number | null; billable_duration_minutes: number; billing_increment_minutes_snapshot: number | null; minimum_duration_minutes_snapshot: number | null; maximum_duration_minutes_snapshot: number | null; actual_duration_minutes: number | null;
@@ -52,7 +52,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
             b.payment_status, b.paid_at, b.stripe_mode, b.payment_flow, b.refund_status, b.refund_reason,
             b.refund_amount_cents, b.refunded_amount_cents, b.refund_failure_reason,
             b.payment_release_status, b.platform_fee_cents, b.provider_fee_basis_points, b.provider_fee_cap_cents, b.provider_payout_cents,
-            b.provider_processing_fee_cents, b.stripe_processing_fee_cents, b.processing_fee_status,
+            b.provider_processing_fee_cents, b.stripe_processing_fee_cents, b.stripe_transfer_reversed_cents, b.processing_fee_status,
             b.customer_service_fee_cents, b.customer_service_fee_refunded_cents,
             b.completion_confirmation_due_at, b.customer_confirmed_at, b.payout_released_at,
             b.payout_failure_reason, b.payout_freeze_reason,
@@ -99,6 +99,11 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
      WHERE booking_id::text=$1 AND status='pending' ORDER BY created_at DESC LIMIT 1`, [bookingId],
   );
   const viewerRole = row.customer_id === session.user.id ? "customer" : row.provider_user_id === session.user.id ? "provider" : "worker";
+  const financialSnapshotVisible = viewerRole === "provider" && (row.stripe_mode === null || row.stripe_mode === getStripeMode());
+  const estimatedProcessing = estimateProviderProcessingFeeCents({
+    serviceSubtotalCents: row.price_cents,
+    customerTotalCents: row.price_cents + CUSTOMER_SERVICE_FEE_CENTS,
+  });
   const tipResult = await database.query<{
     id: string; amount_cents: number; tip_type: "percentage" | "custom"; percentage: number | null;
     payment_status: "pending" | "paid" | "failed" | "cancelled" | "refunded" | "partially_refunded" | "disputed";
@@ -143,20 +148,25 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
     cancellationPolicy: row.cancellation_policy,
     paymentStatus: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? row.payment_status : "unpaid",
     paidAt: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? row.paid_at : null,
-    paymentRelease: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? {
+    paymentRelease: viewerRole !== "worker" && (row.stripe_mode === getStripeMode() || financialSnapshotVisible) ? {
       status: row.payment_release_status,
       platformFee: row.platform_fee_cents / 100,
       platformFeeBasisPoints: row.provider_fee_basis_points ?? 0,
       platformFeeCap: row.provider_fee_cap_cents === null ? null : row.provider_fee_cap_cents / 100,
       providerProcessingFee: row.provider_processing_fee_cents / 100,
+      transferReversed: row.stripe_transfer_reversed_cents / 100,
       processingFeeStatus: row.processing_fee_status,
       providerPayout: row.provider_payout_cents / 100,
+      estimatedProviderProcessingFee: estimatedProcessing.estimatedProviderProcessingFeeCents / 100,
+      estimatedProviderPayout: Math.max(0, row.price_cents - row.platform_fee_cents - estimatedProcessing.estimatedProviderProcessingFeeCents) / 100,
+      processingEstimateBasisPoints: estimatedProcessing.estimateBasisPoints,
+      processingEstimateFixedFee: estimatedProcessing.estimateFixedCents / 100,
       confirmationDueAt: row.completion_confirmation_due_at,
       customerConfirmedAt: row.customer_confirmed_at,
       releasedAt: row.payout_released_at,
       failureReason: row.payout_failure_reason,
       freezeReason: row.payout_freeze_reason,
-    } : { status: "not_applicable", platformFee: 0, platformFeeBasisPoints: 0, platformFeeCap: null, providerProcessingFee: 0, processingFeeStatus: "not_applicable", providerPayout: 0, confirmationDueAt: null,
+    } : { status: "not_applicable", platformFee: 0, platformFeeBasisPoints: 0, platformFeeCap: null, providerProcessingFee: 0, transferReversed: 0, processingFeeStatus: "not_applicable", providerPayout: 0, estimatedProviderProcessingFee: 0, estimatedProviderPayout: 0, processingEstimateBasisPoints: 0, processingEstimateFixedFee: 0, confirmationDueAt: null,
       customerConfirmedAt: null, releasedAt: null, failureReason: null, freezeReason: null },
     refund: { status: viewerRole !== "worker" && row.stripe_mode === getStripeMode() ? row.refund_status : "none",
       reason: row.refund_reason, requestedAmount: row.refund_amount_cents === null ? null : row.refund_amount_cents / 100,

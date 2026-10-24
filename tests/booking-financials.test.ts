@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   allocateProviderProcessingFeeCents,
   calculateBookingFinancialSnapshot,
+  estimateProviderProcessingFeeCents,
   isProviderPayoutEligible,
   paymentReleaseStatusAfterPayment,
   providerNetAfterServiceRefund,
@@ -64,6 +65,23 @@ test("actual Stripe fee allocation is proportional, capped by Stripe's reported 
   assert.equal(calculateBookingFinancialSnapshot(10_000, "starter").customerServiceFeeCents, 299);
 });
 
+test("pre-acceptance processing estimate uses the customer charge and allocates only the service portion", () => {
+  const estimate = estimateProviderProcessingFeeCents({ serviceSubtotalCents: 10_000, customerTotalCents: 10_299 });
+  assert.equal(estimate.estimatedStripeProcessingFeeCents, 329);
+  assert.equal(estimate.estimatedProviderProcessingFeeCents, 319);
+  assert.equal(estimate.estimatedPlatformProcessingFeeCents, 10);
+});
+
+test("provider sees an estimated fee breakdown before the accept booking action", () => {
+  const bookingDetails = readFileSync(new URL("../components/booking-details.tsx", import.meta.url), "utf8");
+  const estimateIndex = bookingDetails.indexOf("Estimated earnings");
+  const acceptIndex = bookingDetails.indexOf('providerAction("accepted")');
+  assert.ok(estimateIndex >= 0);
+  assert.ok(acceptIndex > estimateIndex);
+  assert.match(bookingDetails, /Estimated Stripe processing/);
+  assert.match(bookingDetails, /Stripe&apos;s actual fee can vary/);
+});
+
 test("processing allocation excludes taxes and tips by accepting only the service subtotal and customer checkout total", () => {
   const allocation = allocateProviderProcessingFeeCents({ stripeProcessingFeeCents: 123, serviceSubtotalCents: 5_000, customerTotalCents: 5_299 });
   assert.equal(allocation.providerProcessingFeeCents, 116);
@@ -81,6 +99,46 @@ test("provider pricing discloses the separate customer service fee and processin
   const pricing = readFileSync(new URL("../app/pricing/page.tsx", import.meta.url), "utf8");
   assert.match(pricing, /Customers pay a separate \$2\.99 BubsBookings service fee at checkout/);
   assert.match(pricing, /Stripe processing costs are separate from the BubsBookings platform fee/);
+  assert.match(pricing, /no separate card-processing surcharge/);
+  for (const row of [
+    '["$100", "$10", "$6"]',
+    '["$500", "$50", "$30"]',
+    '["$1,000", "$100", "$60"]',
+    '["$2,000", "$200", "$100"]',
+    '["$5,000", "$200", "$100"]',
+  ]) assert.ok(pricing.includes(row), `missing pricing example ${row}`);
+});
+
+test("provider-facing pages distinguish pending processing costs from final earnings", () => {
+  const bookingDetails = readFileSync(new URL("../components/booking-details.tsx", import.meta.url), "utf8");
+  const billingPanel = readFileSync(new URL("../components/billing-panel.tsx", import.meta.url), "utf8");
+  const providerDashboard = readFileSync(new URL("../components/provider-dashboard.tsx", import.meta.url), "utf8");
+  assert.match(bookingDetails, /Provider-allocated Stripe processing/);
+  assert.match(bookingDetails, /displayedProviderProcessingFee/);
+  assert.match(bookingDetails, /Final service earnings/);
+  assert.match(bookingDetails, /transferReversed/);
+  assert.match(billingPanel, /Separate actual cost/);
+  assert.match(billingPanel, /varies by transaction/);
+  assert.match(providerDashboard, /Estimated earnings secured/);
+  assert.match(providerDashboard, /Paid-out amounts are net service earnings/);
+});
+
+test("customer checkout charges only the service subtotal and disclosed $2.99 service fee", () => {
+  const checkout = readFileSync(new URL("../app/api/stripe/bookings/[bookingId]/checkout/route.ts", import.meta.url), "utf8");
+  assert.match(checkout, /unit_amount: booking\.price_cents/);
+  assert.match(checkout, /unit_amount: snapshot\.customerServiceFeeCents/);
+  assert.match(checkout, /name: "BubsBookings service fee"/);
+  assert.doesNotMatch(checkout, /card.processing|processing surcharge|processing fee[^\n]*line_items/i);
+});
+
+test("payment and refund policies disclose actual reconciliation and refund uncertainty", () => {
+  const payments = readFileSync(new URL("../app/payment-billing/page.tsx", import.meta.url), "utf8");
+  const refunds = readFileSync(new URL("../app/cancellations-refunds/page.tsx", import.meta.url), "utf8");
+  assert.match(payments, /does not promise a fixed processing rate/);
+  assert.match(payments, /actual balance-transaction fee/);
+  assert.match(payments, /BubsBookings does not promise that Stripe processing costs are refundable/);
+  assert.match(refunds, /remaining \$2\.99 BubsBookings customer service fee is also refunded/);
+  assert.match(refunds, /proportional transfer reversal or later recovery/);
 });
 
 test("provider completion after payment enters customer review", () => {

@@ -2,6 +2,8 @@ export type BookingFinancialPlan = "starter" | "pro" | "business" | "owner";
 
 export const DEFAULT_CUSTOMER_SERVICE_FEE_CENTS = 299;
 export const CUSTOMER_REVIEW_PERIOD_MS = 48 * 60 * 60 * 1000;
+export const STRIPE_PROCESSING_ESTIMATE_BASIS_POINTS = 290;
+export const STRIPE_PROCESSING_ESTIMATE_FIXED_CENTS = 30;
 
 const PROVIDER_FEE_BASIS_POINTS: Record<BookingFinancialPlan, number> = {
   starter: 1_000,
@@ -110,6 +112,42 @@ export function allocateProviderProcessingFeeCents(input: {
   return {
     providerProcessingFeeCents,
     platformProcessingFeeCents: input.stripeProcessingFeeCents - providerProcessingFeeCents,
+  };
+}
+
+/**
+ * Produces a display-only estimate before Stripe has processed the payment.
+ * The final provider deduction must always come from Stripe's reported balance
+ * transaction fee through allocateProviderProcessingFeeCents.
+ */
+export function estimateProviderProcessingFeeCents(input: {
+  serviceSubtotalCents: number;
+  customerTotalCents: number;
+  estimateBasisPoints?: number;
+  estimateFixedCents?: number;
+}) {
+  requireCents(input.serviceSubtotalCents, "Service subtotal");
+  if (!Number.isSafeInteger(input.customerTotalCents) || input.customerTotalCents < 1) {
+    throw new RangeError("Customer total must be a positive integer number of cents.");
+  }
+  const estimateBasisPoints = input.estimateBasisPoints ?? STRIPE_PROCESSING_ESTIMATE_BASIS_POINTS;
+  const estimateFixedCents = input.estimateFixedCents ?? STRIPE_PROCESSING_ESTIMATE_FIXED_CENTS;
+  if (!Number.isSafeInteger(estimateBasisPoints) || estimateBasisPoints < 0 || estimateBasisPoints > 10_000) {
+    throw new RangeError("Processing estimate basis points must be a whole number between 0 and 10,000.");
+  }
+  requireCents(estimateFixedCents, "Processing estimate fixed amount");
+  const estimatedStripeProcessingFeeCents = Math.round(input.customerTotalCents * estimateBasisPoints / 10_000) + estimateFixedCents;
+  const allocation = allocateProviderProcessingFeeCents({
+    stripeProcessingFeeCents: estimatedStripeProcessingFeeCents,
+    serviceSubtotalCents: input.serviceSubtotalCents,
+    customerTotalCents: input.customerTotalCents,
+  });
+  return {
+    estimatedStripeProcessingFeeCents,
+    estimatedProviderProcessingFeeCents: allocation.providerProcessingFeeCents,
+    estimatedPlatformProcessingFeeCents: allocation.platformProcessingFeeCents,
+    estimateBasisPoints,
+    estimateFixedCents,
   };
 }
 
