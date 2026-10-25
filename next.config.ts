@@ -31,6 +31,9 @@ function securityHeaders(microphone: "()" | "(self)") {
 }
 
 const nextConfig: NextConfig = {
+  // A separate output directory lets CI and local verification builds run while
+  // a development server is using the default .next directory.
+  distDir: process.env.NEXT_DIST_DIR?.trim() || ".next",
   poweredByHeader: false,
   // Dynamic public pages obtain metadata from the marketplace at request time.
   // Disable metadata streaming so every crawler receives title, canonical, and

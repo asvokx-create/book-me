@@ -18,13 +18,13 @@ The safe architecture is to keep every credential and integration on the server.
 
 ## Phase 1: implemented
 
-Phase 1 adds an admin-only, read-only chat and browser voice interface at `/admin/jarvis`.
+Phase 1 adds an admin-only operations chat and browser voice interface at `/admin/jarvis`.
 
 Security boundaries:
 
 - Existing server-side admin authorization applies to the page and API.
 - Same-origin POST checks and authenticated rate limits protect the route.
-- Only aggregate counts are queried. Names, emails, addresses, messages, notes, payment credentials, and secrets are excluded.
+- Aggregate counts plus safe admin record IDs, statuses, categories, and BubsBookings page paths are queried. Names, emails, addresses, messages, notes, payment credentials, and secrets are excluded.
 - OpenAI requests use a server-only key, `store: false`, a configured model, and a fixed output limit.
 - The model receives no tools and therefore cannot modify BubsBookings.
 - Prompt instructions treat metrics and questions as untrusted data.
@@ -33,13 +33,13 @@ Security boundaries:
 - Browser voice input and spoken answers require separate deliberate actions.
 - Deterministic incident detection identifies recent failed operations checks, stuck Stripe webhooks, failed payouts, elevated payment failures, email failures, and booking cancellations.
 
-## Phase 2: planned, not implemented
+## Phase 2: secure phone foundation implemented
 
 Phase 2 adds the secure phone foundation through Twilio and the OpenAI voice API. A signed-in administrator generates a six-digit, one-time code that expires after 10 minutes. Twilio validates the code before routing the call to OpenAI through encrypted SIP. Twilio and OpenAI webhooks are signature-verified and deduplicated.
 
-GPT-6 Luna is the default text, reasoning, and code-task model. It does not support audio. Phone sessions therefore use a dedicated OpenAI realtime voice model. After the caller completes strong authentication, the voice session may hand a structured bug report or operational question to the GPT-6 Luna workflow.
+GPT-6 Luna is the default text, reasoning, and code-task model. It does not support audio. Phone sessions therefore use a dedicated OpenAI realtime voice model. The current phone session can answer operational questions but cannot create a code task until the realtime server tool loop is implemented.
 
-The intended inbound coding flow is:
+The remaining inbound coding flow is:
 
 1. The administrator generates a short-lived, single-use phone code while signed into BubsBookings.
 2. The SIP provider connects the call only after the caller supplies that code. Caller ID is never sufficient authorization.
@@ -60,13 +60,15 @@ Outbound incident calls remain off by default and require:
 - Separate daily and monthly voice spending limits.
 - No customer or provider private data in call prompts or recordings.
 
-## Phase 3: planned, not implemented
+## Phase 3: approval-gated Codex foundation implemented
 
 Phase 3 should use a dedicated GitHub App, not a personal access token. Recommended permissions are repository contents read and write, pull requests read and write, checks read, and metadata read. Administration, secrets, deployments, environments, organization access, and workflow modification should remain unavailable.
 
-Jarvis may create a branch, propose a narrow change, open a pull request, and summarize existing CI results. It must not merge or deploy. Production deployment must remain protected by an explicit human approval outside the model. Financial actions, account restrictions, secret changes, and production-data mutations must never be inferred from chat approval.
+The intended GitHub publishing phase may create a branch, propose a narrow change, open a pull request, and summarize existing CI results. It must not merge or deploy. Production deployment must remain protected by an explicit human approval outside the model. Financial actions, account restrictions, secret changes, and production-data mutations must never be inferred from chat approval.
 
-The preferred coding runtime is the OpenAI Agents API with a managed Codex harness and an isolated sandbox. GPT-6 Luna can handle focused fixes and triage. Higher-risk or repeatedly failing work should stop for human review rather than silently switching models or increasing spend. A dedicated GitHub App should publish only the resulting branch and pull request after tests complete.
+The admin interface can create a draft repair task and show its exact contents. A separate admin action approves and dispatches the task to the OpenAI Agents API in a preconfigured hosted environment. Every task has a per-session spending limit and an audit record. Codex is instructed to inspect the repository, make the smallest safe change, run checks, and never deploy automatically.
+
+The hosted environment must be prepared separately and must not contain production secrets. A future dedicated GitHub App may publish reviewed branches and pull requests. The current bridge does not merge, deploy, or grant repository administration access.
 
 Before Phase 3, the GitHub workflow should also run the full automated test command in addition to its current dependency, migration, lint, and build checks.
 
@@ -78,6 +80,9 @@ Phase 1 requires these server-only values:
 - `JARVIS_OPENAI_MODEL`, which defaults to `gpt-6-luna`
 - `JARVIS_DAILY_REQUEST_LIMIT`
 - `JARVIS_DAILY_TOKEN_LIMIT`
+- `JARVIS_CODEX_ENVIRONMENT_ID`
+- `JARVIS_CODEX_MODEL`, which defaults to `gpt-6-luna`
+- `JARVIS_CODEX_SPEND_LIMIT_CENTS`, which defaults to 100 cents for each approved task
 
 No value should use a `NEXT_PUBLIC_` prefix. The database migration must be applied before the route is used.
 
@@ -91,7 +96,10 @@ Phase 2 would add phone-number rental, telephony minutes, and Realtime audio usa
 
 - Phase 1 requires an OpenAI API key and model configuration before it can answer.
 - The browser determines whether speech recognition is available and may process audio under that browser vendor's terms.
-- Operational incidents are visible in chat but do not yet create alerts or phone calls.
+- Outbound incident calls use the configured phone settings and remain off until an administrator opts in.
 - The assistant has no conversation memory between requests.
 - No production OpenAI request has been made by automated tests.
-- Phone and GitHub write integrations remain intentionally unavailable.
+- An outbound incident call can create an idempotent repair draft when the administrator says "tell Codex to fix it" or presses 1. The draft still requires approval at `/admin/jarvis`.
+- The inbound conversational phone session cannot yet create a repair draft from arbitrary spoken bug dictation because its realtime server tool loop is not implemented.
+- A Codex task requires a dedicated hosted environment ID. The task stays a draft until an administrator approves it.
+- GitHub publishing and pull-request creation remain unavailable until a least-privilege GitHub App is configured. Codex never deploys automatically.

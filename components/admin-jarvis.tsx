@@ -6,6 +6,11 @@ type Incident = { key: string; severity: "critical" | "high" | "medium"; title: 
 type Message = { id: string; role: "admin" | "jarvis"; text: string; incidents?: Incident[]; generatedAt?: string };
 type PhoneSettings = { outboundAlertsEnabled: boolean; minimumSeverity: "critical" | "high"; quietHoursStart: number; quietHoursEnd: number; timeZone: string };
 type PhoneStatus = { inboundConfigured: boolean; outboundConfigured: boolean; alertPhone: string; maxOutboundCallsPerDay: number; settings: PhoneSettings };
+type CodexTask = {
+  id: string; title: string; description: string; source: "admin_chat" | "bug_report" | "phone";
+  status: "draft" | "approved" | "dispatched" | "completed" | "failed" | "cancelled";
+  codex_session_id: string | null; failure_code: string | null; created_at: string;
+};
 
 type SpeechRecognitionEventLike = { results: ArrayLike<{ 0: { transcript: string } }> };
 type SpeechRecognitionErrorLike = { error?: string };
@@ -37,6 +42,11 @@ export default function AdminJarvis() {
   const [phone, setPhone] = useState<PhoneStatus | null>(null);
   const [phoneCode, setPhoneCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [phoneBusy, setPhoneBusy] = useState(false);
+  const [codexTasks, setCodexTasks] = useState<CodexTask[]>([]);
+  const [codexConfigured, setCodexConfigured] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskBusy, setTaskBusy] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
@@ -48,6 +58,10 @@ export default function AdminJarvis() {
       .then(async (response) => response.ok ? response.json() as Promise<PhoneStatus> : null)
       .then((payload) => setPhone(payload))
       .catch(() => setPhone(null));
+    fetch("/api/admin/jarvis/code-tasks", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() as Promise<{ tasks?: CodexTask[]; configured?: boolean }> : null)
+      .then((payload) => { setCodexTasks(payload?.tasks ?? []); setCodexConfigured(Boolean(payload?.configured)); })
+      .catch(() => { setCodexTasks([]); setCodexConfigured(false); });
     return () => recognitionRef.current?.stop();
   }, []);
 
@@ -78,6 +92,39 @@ export default function AdminJarvis() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function createCodexTask(event: React.FormEvent) {
+    event.preventDefault();
+    if (taskBusy || taskTitle.trim().length < 3 || taskDescription.trim().length < 10) return;
+    setTaskBusy(true); setError("");
+    try {
+      const response = await fetch("/api/admin/jarvis/code-tasks", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: taskTitle.trim(), description: taskDescription.trim() }),
+      });
+      const payload = response.headers.get("content-type")?.includes("application/json") ? await response.json() as { task?: CodexTask; error?: string } : null;
+      if (!response.ok || !payload?.task) throw new Error(payload?.error || "The Codex task could not be created.");
+      setCodexTasks((current) => [payload.task!, ...current]);
+      setTaskTitle(""); setTaskDescription("");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The Codex task could not be created.");
+    } finally { setTaskBusy(false); }
+  }
+
+  async function updateCodexTask(id: string, action: "approve" | "cancel") {
+    setTaskBusy(true); setError("");
+    try {
+      const response = await fetch("/api/admin/jarvis/code-tasks", {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action }),
+      });
+      const payload = response.headers.get("content-type")?.includes("application/json") ? await response.json() as { task?: CodexTask; error?: string } : null;
+      if (!response.ok) throw new Error(payload?.error || "The Codex task could not be updated.");
+      setCodexTasks((current) => current.map((task) => task.id === id
+        ? (payload?.task ?? { ...task, status: "cancelled" }) : task));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The Codex task could not be updated.");
+    } finally { setTaskBusy(false); }
   }
 
   function toggleListening() {
@@ -142,7 +189,7 @@ export default function AdminJarvis() {
   return <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
     <section className="min-w-0 rounded-[2rem] border border-[#183126]/10 bg-white p-5 shadow-sm sm:p-7" aria-label="Jarvis chat">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#183126]/10 pb-5">
-        <div><h2 className="text-xl font-bold">Operations chat</h2><p className="mt-1 text-sm text-[#718078]">Aggregate metrics only. Each request is authorized and audited.</p></div>
+        <div><h2 className="text-xl font-bold">Operations chat</h2><p className="mt-1 text-sm text-[#718078]">Operational metrics and safe admin activity. Each request is authorized and audited.</p></div>
         <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${configured ? "bg-[#e4efdf] text-[#285b3b]" : configured === false ? "bg-[#fff0e7] text-[#8c421e]" : "bg-[#f2f2ec] text-[#65736c]"}`}>{configured === null ? "Checking setup" : configured ? "Ready" : "Setup required"}</span>
       </div>
 
@@ -166,8 +213,9 @@ export default function AdminJarvis() {
     </section>
 
     <aside className="space-y-4">
-      <section className="rounded-[1.7rem] bg-[#183126] p-5 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-white/60">Safety boundary</p><h2 className="mt-2 text-xl font-bold">Read only by design</h2><p className="mt-3 text-sm leading-6 text-white/75">Jarvis receives aggregate counts, not customer names, emails, messages, addresses, payment details, or secrets.</p></section>
-      <section className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5"><h2 className="font-bold">Jarvis cannot</h2><ul className="mt-3 space-y-2 text-sm leading-5 text-[#64756c]"><li>Deploy or change code</li><li>Move money or issue refunds</li><li>Suspend or edit accounts</li><li>Send messages or alerts</li><li>Reveal private customer data</li></ul></section>
+      <section className="rounded-[1.7rem] bg-[#183126] p-5 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-white/60">Admin visibility</p><h2 className="mt-2 text-xl font-bold">Broad access with safeguards</h2><p className="mt-3 text-sm leading-6 text-white/75">Jarvis can inspect operational metrics, incidents, record statuses, categories, safe page paths, and internal IDs. Credentials, payment details, and raw private customer content stay excluded.</p></section>
+      <section className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5"><h2 className="font-bold">High-impact actions stay protected</h2><ul className="mt-3 space-y-2 text-sm leading-5 text-[#64756c]"><li>Code work requires your approval</li><li>Deployments remain manual</li><li>Money and refunds remain blocked</li><li>Account changes remain blocked</li><li>Secrets and private data remain hidden</li></ul></section>
+      <section className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Codex repairs</p><h2 className="mt-2 text-lg font-bold">Send an approved bug to Codex</h2><p className="mt-2 text-sm leading-6 text-[#64756c]">Create a draft first. Review the exact text, then approve it before Codex starts. Codex cannot deploy automatically.</p><form onSubmit={createCodexTask} className="mt-4 space-y-3"><label className="block text-xs font-bold" htmlFor="codex-task-title">Bug title</label><input id="codex-task-title" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} maxLength={160} className="w-full rounded-xl border border-[#183126]/15 px-3 py-2 text-sm" placeholder="Short description"/><label className="block text-xs font-bold" htmlFor="codex-task-description">What is wrong</label><textarea id="codex-task-description" value={taskDescription} onChange={(event) => setTaskDescription(event.target.value)} maxLength={5000} rows={4} className="w-full rounded-xl border border-[#183126]/15 px-3 py-2 text-sm" placeholder="What happened, where it happened, and what should happen instead"/><button type="submit" disabled={taskBusy || taskTitle.trim().length < 3 || taskDescription.trim().length < 10} className="min-h-11 w-full rounded-full bg-[#183126] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Create draft</button></form><p className={`mt-3 text-xs font-semibold ${codexConfigured ? "text-[#285b3b]" : "text-[#9a4e25]"}`}>{codexConfigured ? "Codex connection ready" : "Codex environment setup required before approval"}</p><div className="mt-4 space-y-3">{codexTasks.filter((task) => !["cancelled", "completed"].includes(task.status)).slice(0, 5).map((task) => <article key={task.id} className="rounded-2xl bg-[#f5f6f1] p-3"><p className="text-sm font-bold">{task.title}</p><p className="mt-1 line-clamp-3 text-xs leading-5 text-[#64756c]">{task.description}</p><p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-[#718078]">{task.status}</p>{task.status === "draft" && <div className="mt-3 flex gap-2"><button type="button" disabled={taskBusy || !codexConfigured} onClick={() => updateCodexTask(task.id, "approve")} className="rounded-full bg-[#eee25a] px-3 py-2 text-xs font-bold disabled:opacity-50">Approve and send</button><button type="button" disabled={taskBusy} onClick={() => updateCodexTask(task.id, "cancel")} className="rounded-full border border-[#183126]/15 px-3 py-2 text-xs font-bold">Cancel</button></div>}</article>)}</div></section>
       <section className="rounded-[1.7rem] border border-[#d9ca55] bg-[#fff8cf] p-5"><h2 className="font-bold">Voice privacy</h2><p className="mt-2 text-sm leading-6 text-[#685d27]">Voice input uses the browser&apos;s speech-recognition support. Review the transcript before sending. Spoken answers only start when you select Read aloud.</p></section>
       <section className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Jarvis phone</p><h2 className="mt-2 text-lg font-bold">Call securely</h2><p className="mt-2 text-sm leading-6 text-[#64756c]">Generate a one-time code while signed in, then enter it when Jarvis answers. Each code expires after 10 minutes.</p><button type="button" disabled={phoneBusy || !phone?.inboundConfigured} onClick={createPhoneCode} className="mt-4 min-h-11 w-full rounded-full bg-[#183126] px-4 py-2 text-sm font-bold text-white hover:bg-[#315846] disabled:cursor-not-allowed disabled:opacity-50">{phoneBusy ? "Working..." : "Generate phone code"}</button>{phoneCode && <div className="mt-4 rounded-2xl bg-[#eef3ea] p-4 text-center"><p className="text-xs font-bold uppercase tracking-wide text-[#64756c]">One-time code</p><p className="mt-1 font-mono text-3xl font-bold tracking-[.18em]">{phoneCode.code}</p><p className="mt-2 text-xs text-[#64756c]">Expires {new Date(phoneCode.expiresAt).toLocaleTimeString()}</p></div>}{phone && !phone.inboundConfigured && <p className="mt-3 text-xs font-semibold text-[#9a4e25]">Twilio and OpenAI phone settings are still required on the server.</p>}</section>
       <section className="rounded-[1.7rem] border border-[#183126]/10 bg-white p-5"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718078]">Incident calls</p><h2 className="mt-2 text-lg font-bold">Outbound alerts</h2><p className="mt-2 text-sm leading-6 text-[#64756c]">Calls {phone?.alertPhone ?? "not configured"}. Quiet hours are 9 PM to 7 AM Pacific. A hard limit of {phone?.maxOutboundCallsPerDay ?? 10} calls per day applies.</p><label className="mt-4 flex items-center gap-3 text-sm font-bold"><input type="checkbox" checked={phone?.settings.outboundAlertsEnabled ?? false} disabled={phoneBusy || !phone?.outboundConfigured} onChange={(event) => phone && savePhoneSettings({ ...phone.settings, outboundAlertsEnabled: event.target.checked })} className="h-5 w-5 accent-[#183126]"/>Call me for critical incidents</label>{phone?.settings.outboundAlertsEnabled && <button type="button" disabled={phoneBusy} onClick={() => savePhoneSettings({ ...phone.settings, outboundAlertsEnabled: false })} className="mt-3 text-xs font-bold underline underline-offset-4">Turn off incident calls</button>}</section>

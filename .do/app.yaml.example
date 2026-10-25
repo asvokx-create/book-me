@@ -62,6 +62,17 @@ services:
       - key: JARVIS_MAX_OUTBOUND_CALLS_PER_DAY
         value: "10"
         scope: RUN_TIME
+      # Create this as a dedicated OpenAI Agents API environment without
+      # production secrets or deploy credentials.
+      - key: JARVIS_CODEX_ENVIRONMENT_ID
+        value: REPLACE_WITH_OPENAI_HOSTED_ENVIRONMENT_ID
+        scope: RUN_TIME
+      - key: JARVIS_CODEX_MODEL
+        value: gpt-6-luna
+        scope: RUN_TIME
+      - key: JARVIS_CODEX_SPEND_LIMIT_CENTS
+        value: "100"
+        scope: RUN_TIME
 
 jobs:
   # One scheduled component handles booking reminders and the protected payout

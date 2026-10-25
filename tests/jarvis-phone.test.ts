@@ -65,3 +65,20 @@ test("Jarvis outbound alerts default to opt-in off", async () => {
   const migration = await readFile(new URL("../database/migrations/096_jarvis_phone.sql", import.meta.url), "utf8");
   assert.match(migration, /outbound_alerts_enabled boolean NOT NULL DEFAULT false/);
 });
+
+test("Jarvis incident calls create only an approval-gated Codex draft", async () => {
+  const [phone, action, bridge, migration] = await Promise.all([
+    readFile(new URL("../lib/jarvis-phone.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/jarvis/twilio/incident-action/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/jarvis-codex.ts", import.meta.url), "utf8"),
+    readFile(new URL("../database/migrations/104_jarvis_codex_tasks.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(phone, /input="speech dtmf"/);
+  assert.match(phone, /createCodexDraftFromIncident/);
+  assert.match(action, /verifyTwilioSignature/);
+  assert.match(action, /speech\.includes\("codex"\)/);
+  assert.match(action, /Review and approve it in the Jarvis admin dashboard/);
+  assert.match(bridge, /status text NOT NULL DEFAULT 'draft'|status = 'draft'/);
+  assert.match(migration, /source_incident_alert_id uuid REFERENCES jarvis_incident_alerts/);
+  assert.match(migration, /jarvis_codex_tasks_open_incident_key/);
+});

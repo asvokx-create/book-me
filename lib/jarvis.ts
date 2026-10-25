@@ -29,8 +29,18 @@ function numberValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function safePagePath(value: unknown) {
+  try {
+    const url = new URL(String(value ?? ""), "https://bubsbookings.com");
+    return url.hostname === "bubsbookings.com" || url.hostname === "www.bubsbookings.com" ? url.pathname.slice(0, 300) : "";
+  } catch {
+    return "";
+  }
+}
+
 export async function getJarvisOperationalSnapshot(): Promise<JarvisOperationalSnapshot> {
-  const result = await database.query<Record<string, unknown>>(`SELECT
+  const [result, bugs, support, disputes] = await Promise.all([
+    database.query<Record<string, unknown>>(`SELECT
     (SELECT count(*)::int FROM "user") AS total_accounts,
     (SELECT count(*)::int FROM provider_profiles) AS total_providers,
     (SELECT count(*)::int FROM provider_profiles WHERE is_active = true) AS active_providers,
@@ -51,7 +61,14 @@ export async function getJarvisOperationalSnapshot(): Promise<JarvisOperationalS
     (SELECT count(*)::int FROM analytics_events WHERE event_name = 'page_view' AND created_at >= now() - interval '24 hours') AS page_views_24h,
     (SELECT count(DISTINCT COALESCE(user_id, anonymous_id))::int FROM analytics_events WHERE event_name = 'page_view' AND created_at >= now() - interval '24 hours') AS unique_visitors_24h,
     (SELECT count(*)::int FROM operations_checks WHERE status = 'failed' AND created_at >= now() - interval '15 minutes') AS failed_checks_15m,
-    (SELECT count(*)::int FROM operations_checks WHERE status = 'warning' AND created_at >= now() - interval '15 minutes') AS warning_checks_15m`);
+    (SELECT count(*)::int FROM operations_checks WHERE status = 'warning' AND created_at >= now() - interval '15 minutes') AS warning_checks_15m`),
+    database.query<Record<string, unknown>>(`SELECT id::text, page_url, status, created_at
+      FROM bug_reports ORDER BY created_at DESC LIMIT 25`),
+    database.query<Record<string, unknown>>(`SELECT id::text, status, created_at
+      FROM support_requests ORDER BY created_at DESC LIMIT 15`),
+    database.query<Record<string, unknown>>(`SELECT id::text, category, status, created_at
+      FROM booking_disputes ORDER BY created_at DESC LIMIT 15`),
+  ]);
   const row = result.rows[0] ?? {};
   return {
     generatedAt: new Date().toISOString(),
@@ -68,6 +85,20 @@ export async function getJarvisOperationalSnapshot(): Promise<JarvisOperationalS
     delivery: { failedEmails24h: numberValue(row.failed_emails_24h), stuckStripeWebhooks: numberValue(row.stuck_webhooks) },
     analytics: { pageViews24h: numberValue(row.page_views_24h), uniqueVisitors24h: numberValue(row.unique_visitors_24h) },
     monitoring: { failedChecks15m: numberValue(row.failed_checks_15m), warningChecks15m: numberValue(row.warning_checks_15m) },
+    adminActivity: {
+      bugReports: bugs.rows.map((record) => ({
+        id: String(record.id), kind: "bug" as const, status: String(record.status),
+        pagePath: safePagePath(record.page_url), createdAt: new Date(String(record.created_at)).toISOString(),
+      })),
+      supportRequests: support.rows.map((record) => ({
+        id: String(record.id), kind: "support" as const, status: String(record.status),
+        createdAt: new Date(String(record.created_at)).toISOString(),
+      })),
+      disputes: disputes.rows.map((record) => ({
+        id: String(record.id), kind: "dispute" as const, status: String(record.status),
+        category: String(record.category), createdAt: new Date(String(record.created_at)).toISOString(),
+      })),
+    },
   };
 }
 

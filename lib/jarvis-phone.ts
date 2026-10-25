@@ -4,6 +4,7 @@ import { createHash, createHmac, randomBytes, randomInt } from "node:crypto";
 import OpenAI from "openai";
 import { database } from "@/lib/database";
 import { getJarvisOperationalSnapshot } from "@/lib/jarvis";
+import { createJarvisCodexTask } from "@/lib/jarvis-codex";
 import { buildJarvisInstructions, detectJarvisIncidents, type JarvisIncident } from "@/lib/jarvis-policy";
 import { computeTwilioSignature, constantTimeTextEqual, incidentFingerprint, incidentMeetsThreshold, isE164PhoneNumber, isInsideApprovedCallingHours, safeVoiceAlertText, type JarvisPhoneSettings } from "@/lib/jarvis-phone-policy";
 
@@ -180,10 +181,12 @@ async function reserveOutboundCall() {
 async function createTwilioAlertCall(incident: JarvisIncident, alertId: string) {
   const config = jarvisPhoneConfiguration();
   const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.twilioAccountSid)}/Calls.json`;
+  const codexAction = xmlEscape(twilioWebhookUrl(`/api/jarvis/twilio/incident-action?alertId=${encodeURIComponent(alertId)}`));
+  const prompt = `${xmlEscape(safeVoiceAlertText(incident))} Say tell Codex to fix it, or press 1, to create a repair draft for your review.`;
   const body = new URLSearchParams({
     To: config.alertPhone,
     From: config.twilioPhone,
-    Twiml: `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="Polly.Matthew">${xmlEscape(safeVoiceAlertText(incident))}</Say></Response>`,
+    Twiml: `<?xml version="1.0" encoding="UTF-8"?><Response><Gather action="${codexAction}" method="POST" input="speech dtmf" numDigits="1" timeout="6" speechTimeout="auto" hints="tell Codex to fix it,send it to Codex"><Say voice="Polly.Matthew">${prompt}</Say></Gather><Say voice="Polly.Matthew">No repair draft was created. You can review the incident in the admin dashboard.</Say></Response>`,
     StatusCallback: twilioWebhookUrl("/api/jarvis/twilio/status"),
     StatusCallbackEvent: "completed",
     TimeLimit: String(OUTBOUND_CALL_SECONDS_LIMIT),
@@ -197,6 +200,30 @@ async function createTwilioAlertCall(incident: JarvisIncident, alertId: string) 
   const payload = response.headers.get("content-type")?.includes("application/json") ? await response.json() as { sid?: string; code?: number } : null;
   if (!response.ok || !payload?.sid) throw new Error(`TWILIO_${payload?.code ?? response.status}`);
   await database.query("UPDATE jarvis_incident_alerts SET status = 'calling', twilio_call_sid = $2, updated_at = now() WHERE id::text = $1", [alertId, payload.sid]);
+}
+
+export async function createCodexDraftFromIncident(alertId: string, callSid: string) {
+  const result = await database.query<{
+    id: string; title: string; evidence: string; incident_key: string; twilio_call_sid: string | null; actor_user_id: string | null;
+  }>(`SELECT a.id::text, a.title, a.evidence, a.incident_key, a.twilio_call_sid,
+      s.updated_by AS actor_user_id
+    FROM jarvis_incident_alerts a CROSS JOIN jarvis_phone_settings s
+    WHERE a.id::text = $1 AND s.singleton = true LIMIT 1`, [alertId]);
+  const incident = result.rows[0];
+  if (!incident || incident.twilio_call_sid !== callSid || !incident.actor_user_id) return { created: false, reason: "not_authorized" as const };
+  try {
+    const task = await createJarvisCodexTask({
+      actorUserId: incident.actor_user_id,
+      source: "phone",
+      sourceIncidentAlertId: incident.id,
+      title: `Investigate incident: ${incident.title}`.slice(0, 160),
+      description: `Jarvis detected the operational incident "${incident.title}". Evidence: ${incident.evidence}. Investigate the root cause, make the smallest safe repair if code changes are appropriate, and verify the result. Do not deploy automatically.`.slice(0, 5_000),
+    });
+    return { created: true, taskId: task.id };
+  } catch (error) {
+    if (error instanceof Error && /duplicate key|unique/i.test(error.message)) return { created: false, reason: "already_exists" as const };
+    throw error;
+  }
 }
 
 export async function runJarvisIncidentAlerts(now = new Date()) {
