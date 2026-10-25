@@ -28,6 +28,7 @@ export type JarvisCodexTask = {
   source: "admin_chat" | "bug_report" | "phone";
   source_bug_report_id: string | null;
   source_incident_alert_id: string | null;
+  source_phone_call_sid: string | null;
   title: string;
   description: string;
   status: "draft" | "approved" | "dispatched" | "completed" | "failed" | "cancelled";
@@ -40,7 +41,7 @@ export type JarvisCodexTask = {
 
 export async function listJarvisCodexTasks() {
   const result = await database.query<JarvisCodexTask>(`SELECT id::text, source,
-      source_bug_report_id::text, source_incident_alert_id::text, title, description, status, codex_session_id,
+      source_bug_report_id::text, source_incident_alert_id::text, source_phone_call_sid, title, description, status, codex_session_id,
       failure_code, created_at, approved_at, dispatched_at
     FROM jarvis_codex_tasks
     ORDER BY created_at DESC LIMIT 25`);
@@ -53,16 +54,18 @@ export async function createJarvisCodexTask(input: {
   description: string;
   sourceBugReportId?: string | null;
   sourceIncidentAlertId?: string | null;
+  sourcePhoneCallSid?: string | null;
   source?: "admin_chat" | "bug_report" | "phone";
 }) {
   const result = await database.query<JarvisCodexTask>(`INSERT INTO jarvis_codex_tasks
-      (source, source_bug_report_id, source_incident_alert_id, title, description, created_by)
-    VALUES ($1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, $4, $5, $6)
-    RETURNING id::text, source, source_bug_report_id::text, source_incident_alert_id::text, title, description, status,
+      (source, source_bug_report_id, source_incident_alert_id, source_phone_call_sid, title, description, created_by)
+    VALUES ($1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, NULLIF($4, ''), $5, $6, $7)
+    RETURNING id::text, source, source_bug_report_id::text, source_incident_alert_id::text, source_phone_call_sid, title, description, status,
       codex_session_id, failure_code, created_at, approved_at, dispatched_at`, [
     input.source ?? (input.sourceBugReportId ? "bug_report" : "admin_chat"),
     input.sourceBugReportId ?? "",
     input.sourceIncidentAlertId ?? "",
+    input.sourcePhoneCallSid ?? "",
     input.title,
     input.description,
     input.actorUserId,
@@ -72,7 +75,7 @@ export async function createJarvisCodexTask(input: {
     VALUES ($1, 'jarvis_codex_task_created', 'jarvis_codex_task', $2, $3::jsonb)`, [
     input.actorUserId,
     result.rows[0].id,
-    JSON.stringify({ source: result.rows[0].source, sourceBugReportId: input.sourceBugReportId ?? null, sourceIncidentAlertId: input.sourceIncidentAlertId ?? null }),
+    JSON.stringify({ source: result.rows[0].source, sourceBugReportId: input.sourceBugReportId ?? null, sourceIncidentAlertId: input.sourceIncidentAlertId ?? null, sourcePhoneCallSid: input.sourcePhoneCallSid ?? null }),
   ]);
   return result.rows[0];
 }
@@ -97,7 +100,7 @@ export async function approveAndDispatchJarvisCodexTask(taskId: string, actorUse
   const claimed = await database.query<JarvisCodexTask>(`UPDATE jarvis_codex_tasks SET
       status = 'approved', approved_by = $2, approved_at = now(), failure_code = NULL
     WHERE id::text = $1 AND status = 'draft'
-    RETURNING id::text, source, source_bug_report_id::text, source_incident_alert_id::text, title, description, status,
+    RETURNING id::text, source, source_bug_report_id::text, source_incident_alert_id::text, source_phone_call_sid, title, description, status,
       codex_session_id, failure_code, created_at, approved_at, dispatched_at`, [taskId, actorUserId]);
   const task = claimed.rows[0];
   if (!task) throw new Error("TASK_NOT_DRAFT");

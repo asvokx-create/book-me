@@ -82,3 +82,28 @@ test("Jarvis incident calls create only an approval-gated Codex draft", async ()
   assert.match(migration, /source_incident_alert_id uuid REFERENCES jarvis_incident_alerts/);
   assert.match(migration, /jarvis_codex_tasks_open_incident_key/);
 });
+
+test("authenticated inbound calls can create one reviewable bug draft without dispatching it", async () => {
+  const [phone, verify, menu, report, bridge, migration] = await Promise.all([
+    readFile(new URL("../lib/jarvis-phone.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/jarvis/twilio/verify/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/jarvis/twilio/menu/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/jarvis/twilio/bug-report/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/jarvis-codex.ts", import.meta.url), "utf8"),
+    readFile(new URL("../database/migrations/105_jarvis_phone_bug_reports.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(verify, /report a bug or press 1/);
+  assert.match(verify, /talk to Jarvis or press 2/);
+  assert.match(menu, /verifyTwilioSignature/);
+  assert.match(menu, /bucket: "jarvis-phone-menu", limit: 5/);
+  assert.match(menu, /issueJarvisSipSessionToken/);
+  assert.match(report, /verifyTwilioSignature/);
+  assert.match(report, /bucket: "jarvis-phone-bug-report", limit: 3/);
+  assert.match(report, /Review and approve it in the Jarvis admin dashboard/);
+  assert.match(phone, /jarvisQuestionContainsSensitiveData\(transcript\)/);
+  assert.match(phone, /sourcePhoneCallSid: callSid/);
+  assert.match(bridge, /status: "draft" \| "approved"/);
+  assert.match(migration, /actor_user_id text REFERENCES "user"/);
+  assert.match(migration, /jarvis_codex_tasks_open_phone_call_key/);
+  assert.doesNotMatch(report, /approveAndDispatchJarvisCodexTask/);
+});
