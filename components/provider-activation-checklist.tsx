@@ -46,6 +46,7 @@ export default function ProviderActivationChecklist({ activation }: { activation
   const [stripe, setStripe] = useState<StripeStatus | null>(null);
   const [statusUnavailable, setStatusUnavailable] = useState(false);
   const [openingStripe, setOpeningStripe] = useState(false);
+  const [openingAgeVerification, setOpeningAgeVerification] = useState(false);
   const [stripeError, setStripeError] = useState("");
 
   const refreshStripeStatus = useCallback(async () => {
@@ -85,6 +86,34 @@ export default function ProviderActivationChecklist({ activation }: { activation
     window.location.assign(result.url);
   }
 
+  async function openAgeVerification() {
+    setOpeningAgeVerification(true);
+    setStripeError("");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 20_000);
+    try {
+      const response = await fetch("/api/stripe/provider-age-verification", { method: "POST", signal: controller.signal });
+      const contentType = response.headers.get("content-type") ?? "";
+      const result = contentType.includes("application/json")
+        ? await response.json().catch(() => null) as { url?: string; verified?: boolean; error?: string } | null
+        : null;
+      if (!response.ok || (!result?.url && !result?.verified)) {
+        setStripeError(result?.error ?? "We could not open Stripe age verification. Please try again.");
+        return;
+      }
+      if (result.verified) {
+        window.location.reload();
+        return;
+      }
+      window.location.assign(result.url!);
+    } catch {
+      setStripeError("We could not open Stripe age verification. Please check your connection and try again.");
+    } finally {
+      window.clearTimeout(timeout);
+      setOpeningAgeVerification(false);
+    }
+  }
+
   const ageStep = stripe ? (() => {
     const status = stripe.ageVerification.status;
     if (status === "verified") return { status: "completed" as const, detail: "Your required age verification is complete." };
@@ -109,7 +138,7 @@ export default function ProviderActivationChecklist({ activation }: { activation
     <ol className="mt-5 grid gap-3">
       <Step title="Create your company page" step={activation.companyPage} action={<Link href="/providers/join" className="inline-flex rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white">Create company page</Link>} />
       <Step title="Create your first service listing" step={activation.firstListing} action={<Link href="/providers/join" className="inline-flex rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white">Create service</Link>} />
-      <Step title="Complete required age verification" step={ageStep} action={<form action="/api/stripe/provider-age-verification" method="post"><button type="submit" className="rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white">Verify age</button></form>} />
+      <Step title="Complete required age verification" step={ageStep} action={<button type="button" onClick={() => void openAgeVerification()} disabled={openingAgeVerification || stripe?.configured === false || ageStep.status === "under_review"} aria-busy={openingAgeVerification} className="rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-60">{openingAgeVerification ? "Opening Stripe..." : ageStep.status === "action_required" ? "Continue age verification" : "Verify age"}</button>} />
       <Step title="Connect Stripe payouts" step={payoutStep} action={<button type="button" onClick={() => void openStripe()} disabled={openingStripe || stripe?.configured === false} className="rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-60">{openingStripe ? "Opening Stripe..." : "Set Up Stripe Payouts"}</button>} />
     </ol>
     <p className="mt-3 text-xs leading-5 text-[#706942]">Stripe payout setup is required to receive earnings. It does not determine whether a listing is public.</p>

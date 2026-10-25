@@ -219,8 +219,13 @@ export default function AdminIssueQueue({ type }: { type: "bugs" | "disputes" })
       const action = outcome === "provider" ? "release the held payout to the provider" : outcome === "partial" ? `issue a $${amount?.toFixed(2)} partial refund and adjust the provider share` : "refund the held payment to the customer";
       if (!window.confirm(`This will ${action}. This financial decision cannot be undone from this screen. Continue?`)) return;
     }
-    const note = window.prompt(status === "reviewing" ? "Optional admin note:" : "Explain why this decision was made:", issue.admin_note)?.trim();
-    if (note === undefined) return;
+    // Starting review should be a single, dependable action on mobile. Browser
+    // prompts can be blocked or appear behind the page on iPad and Safari.
+    const promptedNote = status === "reviewing"
+      ? issue.admin_note
+      : window.prompt("Explain why this decision was made:", issue.admin_note)?.trim();
+    if (promptedNote === undefined) return;
+    const note = promptedNote.trim();
     if (outcome && note.length < 3) {
       setError("Add a short note explaining the dispute decision.");
       return;

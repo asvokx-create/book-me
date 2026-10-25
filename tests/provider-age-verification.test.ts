@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { isAtLeastEighteen } from "../lib/age-eligibility.ts";
+import { providerAgeVerificationError } from "../lib/provider-age-verification-errors.ts";
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
@@ -36,15 +37,31 @@ test("Stripe Connect readiness is separate from provider age verification and St
 
 test("provider verification can never leave the Stripe handoff button stuck", () => {
   const billing = read("components/billing-panel.tsx");
+  const checklist = read("components/provider-activation-checklist.tsx");
   const providerRoute = read("app/api/stripe/provider-age-verification/route.ts");
 
   assert.match(billing, /const result = await response\.json\(\)\.catch\(\(\) => null\)/);
   assert.match(billing, /We could not open Stripe right now/);
   assert.match(billing, /finally \{\s*window\.clearTimeout\(timeout\);\s*setWorking\(""\);/);
   assert.match(billing, /window\.location\.assign\(result\.url\)/);
-  assert.match(billing, /<form action="\/api\/stripe\/provider-age-verification" method="post"/);
-  assert.match(providerRoute, /NextResponse\.redirect\(result\.url, 303\)/);
-  assert.match(providerRoute, /age-verification-error/);
+  assert.match(billing, /openStripe\("\/api\/stripe\/provider-age-verification"\)/);
+  assert.match(checklist, /async function openAgeVerification\(\)/);
+  assert.match(checklist, /aria-busy=\{openingAgeVerification\}/);
+  assert.match(checklist, /setStripeError\(result\?\.error/);
+  assert.match(providerRoute, /NextResponse\.json\(\{ url: result\.url, status: result\.status \}\)/);
+  assert.match(providerRoute, /providerAgeVerificationError/);
+});
+
+test("Stripe Identity account setup errors are safe and actionable", () => {
+  const expected = providerAgeVerificationError({ code: "identity_api_invalid_application", message: "private Stripe detail" });
+  assert.equal(expected.status, 503);
+  assert.equal(expected.code, "identity_api_invalid_application");
+  assert.match(expected.message, /temporarily unavailable/);
+  assert.doesNotMatch(expected.message, /private Stripe detail/);
+
+  const generic = providerAgeVerificationError(new Error("secret failure"));
+  assert.equal(generic.status, 502);
+  assert.doesNotMatch(generic.message, /secret failure/);
 });
 
 test("unverified providers are blocked from public listings, booking acceptance, checkout, and transfers", () => {

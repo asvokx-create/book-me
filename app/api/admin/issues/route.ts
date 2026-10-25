@@ -58,12 +58,31 @@ export async function PATCH(request: Request) {
     if (note.length < 3) return NextResponse.json({ error: "Add a short note explaining the decision." }, { status: 400 });
   }
   if (type === "bugs") {
-    const result = await database.query("UPDATE bug_reports SET status = $2, admin_note = $3, updated_at = now() WHERE id::text = $1 RETURNING id", [id, status, note]);
-    if (!result.rowCount) return NextResponse.json({ error: "That case was not found." }, { status: 404 });
+    const result = await database.query<{ id: string; reporter_id: string }>(
+      `UPDATE bug_reports
+       SET status = $2, admin_note = $3, updated_at = now()
+       WHERE id::text = $1
+         AND (($2 = 'reviewing' AND status = 'open')
+           OR ($2 IN ('resolved', 'dismissed') AND status IN ('open', 'reviewing')))
+       RETURNING id::text, reporter_id`,
+      [id, status, note],
+    );
+    if (!result.rowCount) return NextResponse.json({ error: "That bug report was already updated or could not be found. Refresh the queue and try again." }, { status: 409 });
     await database.query(
       `INSERT INTO admin_audit_log (actor_user_id, action, target_type, target_id, details)
        VALUES ($1, $2, 'bug_report', $3, $4::jsonb)`,
       [session.user.id, `bugs_${status}`, id, JSON.stringify({ status, note })],
+    );
+    const notification = status === "reviewing"
+      ? { title: "Your bug report is under review", message: "The BubsBookings team has started reviewing your report." }
+      : status === "resolved"
+        ? { title: "Your bug report was resolved", message: "The BubsBookings team marked your report as resolved." }
+        : { title: "Your bug report was closed", message: "The BubsBookings team finished reviewing your report." };
+    await database.query(
+      `INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+       VALUES ($1, 'bug_report_update', $2, $3, '/account/bug-reports', $4)
+       ON CONFLICT (dedupe_key) DO NOTHING`,
+      [result.rows[0].reporter_id, notification.title, notification.message, `bug-report-${id}-${status}`],
     );
     return NextResponse.json({ ok: true });
   }
