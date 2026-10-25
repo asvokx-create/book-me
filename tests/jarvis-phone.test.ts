@@ -97,7 +97,7 @@ test("authenticated inbound calls can create one reviewable bug draft without di
     readFile(new URL("../lib/jarvis-codex.ts", import.meta.url), "utf8"),
     readFile(new URL("../database/migrations/105_jarvis_phone_bug_reports.sql", import.meta.url), "utf8"),
   ]);
-  assert.match(verify, /How can I help you\?/);
+  assert.match(verify, /How can I help you, Sir\?/);
   assert.doesNotMatch(verify, /To report a bug/);
   assert.match(menu, /verifyTwilioSignature/);
   assert.match(menu, /bucket: "jarvis-phone-menu", limit: 5/);
@@ -115,8 +115,11 @@ test("authenticated inbound calls can create one reviewable bug draft without di
 
 test("Jarvis voice instructions favor fluid conversation without weakening approval controls", async () => {
   const phone = await readFile(new URL("../lib/jarvis-phone.ts", import.meta.url), "utf8");
+  assert.match(phone, /voice: "cedar"/);
+  assert.match(phone, /calm, polished, warm, professional masculine presentation/);
+  assert.match(phone, /Address the administrator as Sir naturally/);
   assert.match(phone, /Use natural turn-taking and short spoken sentences/);
-  assert.match(phone, /first spoken sentence must be exactly: How can I help you\?/);
+  assert.match(phone, /first spoken sentence must be exactly: How can I help you, Sir\?/);
   assert.match(phone, /respond directly to the request instead of repeating the greeting/);
   assert.match(phone, /cannot edit code, open a pull request, deploy/);
 });

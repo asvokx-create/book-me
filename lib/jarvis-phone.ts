@@ -159,13 +159,13 @@ export async function acceptOpenAIPhoneCall(callId: string, eventType: string) {
   const endpoint = live
     ? `https://api.openai.com/v1/live/sessions/${encodeURIComponent(callId)}/accept`
     : `https://api.openai.com/v1/realtime/calls/${encodeURIComponent(callId)}/accept`;
-  const instructions = `${buildJarvisInstructions(snapshot, incidents)}\n\nThis is an authenticated phone call. Use natural turn-taking and short spoken sentences. Do not recite menus or give a long introduction. If you speak before the caller states a request, your first spoken sentence must be exactly: How can I help you? If the caller speaks first, respond directly to the request instead of repeating the greeting. You may help document a bug report or proposed code change, but you cannot edit code, open a pull request, deploy, contact users, or perform any mutation in this phone phase.`;
+  const instructions = `${buildJarvisInstructions(snapshot, incidents)}\n\nThis is an authenticated phone call. Speak with a calm, polished, warm, professional masculine presentation. Be unfailingly polite. Address the administrator as Sir naturally when greeting him, acknowledging a request, or delivering an important update, without repeating the title in every sentence. Use natural turn-taking and short spoken sentences. Do not recite menus or give a long introduction. If you speak before the caller states a request, your first spoken sentence must be exactly: How can I help you, Sir? If the caller speaks first, respond directly to the request instead of repeating the greeting. You may help document a bug report or proposed code change, but you cannot edit code, open a pull request, deploy, contact users, or perform any mutation in this phone phase.`;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify(live
-      ? { session: { type: "live", model: config.voiceModel, instructions, audio: { output: { voice: "marin" } }, delegation: { type: "client" } } }
-      : { type: "realtime", model: process.env.JARVIS_REALTIME_VOICE_MODEL?.trim() || "gpt-realtime-2.1", instructions }),
+      ? { session: { type: "live", model: config.voiceModel, instructions, audio: { output: { voice: "cedar" } }, delegation: { type: "client" } } }
+      : { type: "realtime", model: process.env.JARVIS_REALTIME_VOICE_MODEL?.trim() || "gpt-realtime-2.1", instructions, audio: { output: { voice: "cedar" } } }),
     signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) throw new Error(`OpenAI call acceptance returned HTTP ${response.status}.`);
@@ -217,7 +217,7 @@ async function createTwilioAlertCall(incident: JarvisIncident, alertId: string) 
   const config = jarvisPhoneConfiguration();
   const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.twilioAccountSid)}/Calls.json`;
   const responseAction = xmlEscape(twilioWebhookUrl(`/api/jarvis/twilio/incident-response?alertId=${encodeURIComponent(alertId)}`));
-  const prompt = `${xmlEscape(safeVoiceAlertText(incident))} Is now a good time to talk about this? Say yes or press 1. Say no or press 2.`;
+  const prompt = `Sir, ${xmlEscape(safeVoiceAlertText(incident))} Is now a good time to talk about this? Say yes or press 1. Say no or press 2.`;
   const body = new URLSearchParams({
     To: config.alertPhone,
     From: config.twilioPhone,
