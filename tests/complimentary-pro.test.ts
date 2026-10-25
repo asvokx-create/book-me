@@ -112,6 +112,8 @@ test("grant endpoints, Stripe safeguards, expiry job, and audit history are wire
   assert.doesNotMatch(complimentarySource, /complimentary_pro_grants\s+grant\b/);
   assert.match(complimentarySource, /FOR UPDATE/);
   assert.match(complimentarySource, /ORDER BY provider\.id FOR UPDATE OF provider/);
+  assert.doesNotMatch(complimentarySource, /SELECT DISTINCT provider\.id::text AS provider_id/);
+  assert.match(complimentarySource, /EXISTS \(\s*SELECT 1 FROM complimentary_pro_grants complimentary/);
   assert.match(complimentarySource, /await client\.query\("BEGIN"\)[\s\S]*await client\.query\("COMMIT"\)/);
   assert.match(complimentarySource, /NOT EXISTS \(SELECT 1 FROM complimentary_pro_grants active/);
   assert.match(complimentarySource, /SUBSCRIPTION_CHECKOUT_PENDING/);

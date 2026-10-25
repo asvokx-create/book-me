@@ -177,11 +177,16 @@ export async function reconcileExpiredComplimentaryProGrants(providerId?: string
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const candidates = await client.query<{ provider_id: string }>(`SELECT DISTINCT provider.id::text AS provider_id
+    const candidates = await client.query<{ provider_id: string }>(`SELECT provider.id::text AS provider_id
       FROM provider_profiles provider
-      JOIN complimentary_pro_grants complimentary ON complimentary.provider_id = provider.id
-      WHERE complimentary.revoked_at IS NULL AND complimentary.expires_at IS NOT NULL AND complimentary.expires_at <= now()
-        AND ($1::uuid IS NULL OR provider.id = $1::uuid)
+      WHERE ($1::uuid IS NULL OR provider.id = $1::uuid)
+        AND EXISTS (
+          SELECT 1 FROM complimentary_pro_grants complimentary
+          WHERE complimentary.provider_id = provider.id
+            AND complimentary.revoked_at IS NULL
+            AND complimentary.expires_at IS NOT NULL
+            AND complimentary.expires_at <= now()
+        )
       ORDER BY provider.id FOR UPDATE OF provider`, [providerId ?? null]);
     const providerIds = candidates.rows.map((row) => row.provider_id);
     if (!providerIds.length) {
