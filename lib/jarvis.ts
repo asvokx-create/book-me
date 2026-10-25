@@ -137,13 +137,15 @@ type OpenAIResponse = {
   error?: { message?: string };
 };
 
+export type JarvisConversationTurn = { role: "admin" | "jarvis"; text: string };
+
 function responseText(payload: OpenAIResponse) {
   return (payload.output ?? []).flatMap((item) => item.content ?? [])
     .filter((content) => content.type === "output_text" && typeof content.text === "string")
     .map((content) => content.text?.trim()).filter(Boolean).join("\n").slice(0, 8_000);
 }
 
-export async function askJarvis(question: string) {
+export async function askJarvis(question: string, history: JarvisConversationTurn[] = []) {
   const config = jarvisConfiguration();
   if (!config.configured) throw new Error("NOT_CONFIGURED");
   const snapshot = await getJarvisOperationalSnapshot();
@@ -154,7 +156,13 @@ export async function askJarvis(question: string) {
     body: JSON.stringify({
       model: config.model,
       instructions: buildJarvisInstructions(snapshot, incidents),
-      input: question,
+      input: [
+        ...history.slice(-8).map((turn) => ({
+          role: turn.role === "admin" ? "user" : "assistant",
+          content: turn.text.slice(0, 2_000),
+        })),
+        { role: "user", content: question },
+      ],
       max_output_tokens: MAX_OUTPUT_TOKENS,
       store: false,
     }),

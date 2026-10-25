@@ -4,12 +4,12 @@ import { createHash, createHmac, randomBytes, randomInt } from "node:crypto";
 import OpenAI from "openai";
 import { database } from "@/lib/database";
 import { getJarvisOperationalSnapshot } from "@/lib/jarvis";
-import { createJarvisCodexTask } from "@/lib/jarvis-codex";
+import { approveAndDispatchJarvisCodexTask, createJarvisCodexTask } from "@/lib/jarvis-codex";
 import { buildJarvisInstructions, detectJarvisIncidents, jarvisQuestionContainsSensitiveData, type JarvisIncident } from "@/lib/jarvis-policy";
 import { computeTwilioSignature, constantTimeTextEqual, incidentFingerprint, incidentMeetsThreshold, isE164PhoneNumber, isInsideApprovedCallingHours, safeVoiceAlertText, type JarvisPhoneSettings } from "@/lib/jarvis-phone-policy";
 
 const PHONE_CODE_TTL_MINUTES = 10;
-const PHONE_SESSION_TTL_MINUTES = 5;
+const PHONE_SESSION_TTL_MINUTES = 15;
 const DEFAULT_MAX_OUTBOUND_CALLS_PER_DAY = 10;
 const OUTBOUND_CALL_SECONDS_LIMIT = 120;
 
@@ -117,9 +117,32 @@ export async function createCodexDraftFromPhoneReport(callSid: string, rawTransc
     });
     return { created: true, taskId: task.id };
   } catch (error) {
-    if (error instanceof Error && /duplicate key|unique/i.test(error.message)) return { created: false, reason: "already_exists" as const };
+    if (error instanceof Error && /duplicate key|unique/i.test(error.message)) {
+      const existing = await database.query<{ id: string }>(`SELECT id::text FROM jarvis_codex_tasks
+        WHERE source_phone_call_sid = $1 AND status IN ('draft', 'approved', 'dispatched') ORDER BY created_at DESC LIMIT 1`, [callSid]);
+      return { created: false, reason: "already_exists" as const, taskId: existing.rows[0]?.id };
+    }
     throw error;
   }
+}
+
+export async function approvePhoneCodexTask(taskId: string, callSid: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(taskId) || !/^CA[a-fA-F0-9]{32}$/.test(callSid)) return { dispatched: false, reason: "not_authorized" as const };
+  const result = await database.query<{ id: string; status: string; actor_user_id: string }>(`SELECT task.id::text, task.status, task.created_by AS actor_user_id
+    FROM jarvis_codex_tasks task
+    LEFT JOIN jarvis_phone_sessions phone ON phone.twilio_call_sid = $2 AND phone.actor_user_id = task.created_by
+      AND phone.expires_at > now()
+    LEFT JOIN jarvis_incident_alerts alert ON alert.id = task.source_incident_alert_id
+    WHERE task.id::text = $1 AND task.source = 'phone'
+      AND ((task.source_phone_call_sid = $2 AND phone.actor_user_id IS NOT NULL)
+        OR (task.source_incident_alert_id IS NOT NULL AND alert.twilio_call_sid = $2))
+    LIMIT 1`, [taskId, callSid]);
+  const task = result.rows[0];
+  if (!task) return { dispatched: false, reason: "not_authorized" as const };
+  if (["approved", "dispatched", "completed"].includes(task.status)) return { dispatched: true, alreadyDispatched: true };
+  if (task.status !== "draft") return { dispatched: false, reason: "not_available" as const };
+  const dispatched = await approveAndDispatchJarvisCodexTask(task.id, task.actor_user_id);
+  return { dispatched: true, alreadyDispatched: false, sessionId: dispatched.codex_session_id };
 }
 
 function sipHeader(headers: Array<{ name?: string; value?: string }> | undefined, name: string) {
@@ -159,7 +182,7 @@ export async function acceptOpenAIPhoneCall(callId: string, eventType: string) {
   const endpoint = live
     ? `https://api.openai.com/v1/live/sessions/${encodeURIComponent(callId)}/accept`
     : `https://api.openai.com/v1/realtime/calls/${encodeURIComponent(callId)}/accept`;
-  const instructions = `${buildJarvisInstructions(snapshot, incidents)}\n\nThis is an authenticated phone call. Speak with a calm, polished, warm, professional masculine presentation. Be unfailingly polite. Address the administrator as Sir naturally when greeting him, acknowledging a request, or delivering an important update, without repeating the title in every sentence. Use natural turn-taking and short spoken sentences. Do not recite menus or give a long introduction. If you speak before the caller states a request, your first spoken sentence must be exactly: How can I help you, Sir? If the caller speaks first, respond directly to the request instead of repeating the greeting. You may help document a bug report or proposed code change, but you cannot edit code, open a pull request, deploy, contact users, or perform any mutation in this phone phase.`;
+  const instructions = `${buildJarvisInstructions(snapshot, incidents)}\n\nThis is an authenticated phone call. Speak with a calm, polished, warm, professional masculine presentation. Be unfailingly polite. Address the administrator as Sir naturally when greeting him, acknowledging a request, or delivering an important update, without repeating the title in every sentence. Sound like a real conversation, not a script. Use natural turn-taking and short spoken sentences. Use brief acknowledgements and contractions. Answer directly and allow the caller to interrupt. Do not recite menus or give a long introduction. If you speak before the caller states a request, your first spoken sentence must be exactly: How can I help you, Sir? If the caller speaks first, respond directly to the request instead of repeating the greeting. You can answer ordinary questions, explain BubsBookings, and describe its value like an accurate salesperson using the product facts above. You may help document a bug report or proposed code change, but you cannot edit code, approve a task, open a pull request, deploy, contact users, or perform any mutation in this live conversation. If the caller wants Codex work, explain that the secure phone workflow can create a draft and will require a separate explicit spoken approval before dispatch.`;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
@@ -256,7 +279,12 @@ export async function createCodexDraftFromIncident(alertId: string, callSid: str
     });
     return { created: true, taskId: task.id };
   } catch (error) {
-    if (error instanceof Error && /duplicate key|unique/i.test(error.message)) return { created: false, reason: "already_exists" as const };
+    if (error instanceof Error && /duplicate key|unique/i.test(error.message)) {
+      const existing = await database.query<{ id: string }>(`SELECT task.id::text FROM jarvis_codex_tasks task
+        WHERE task.source_incident_alert_id = $1::uuid AND task.status IN ('draft', 'approved', 'dispatched')
+        ORDER BY task.created_at DESC LIMIT 1`, [alertId]);
+      return { created: false, reason: "already_exists" as const, taskId: existing.rows[0]?.id };
+    }
     throw error;
   }
 }

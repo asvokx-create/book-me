@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin";
-import { askJarvis, jarvisConfiguration, recordJarvisAudit, releaseJarvisBudget, reserveJarvisBudget, settleJarvisBudget } from "@/lib/jarvis";
+import { askJarvis, jarvisConfiguration, recordJarvisAudit, releaseJarvisBudget, reserveJarvisBudget, settleJarvisBudget, type JarvisConversationTurn } from "@/lib/jarvis";
 import { enforceRateLimit } from "@/lib/request-security";
 import { hasTrustedRequestOrigin } from "@/lib/request-origin";
 import { jarvisQuestionContainsSensitiveData } from "@/lib/jarvis-policy";
@@ -24,9 +24,19 @@ export async function POST(request: Request) {
   }
 
   let question = "";
+  let history: JarvisConversationTurn[] = [];
   try {
-    const body = await request.json() as { question?: unknown };
+    const body = await request.json() as { question?: unknown; history?: unknown };
     question = typeof body.question === "string" ? body.question.trim() : "";
+    if (Array.isArray(body.history)) {
+      history = body.history.slice(-8).flatMap((item): JarvisConversationTurn[] => {
+        if (!item || typeof item !== "object") return [];
+        const turn = item as { role?: unknown; text?: unknown };
+        if ((turn.role !== "admin" && turn.role !== "jarvis") || typeof turn.text !== "string") return [];
+        const text = turn.text.trim().slice(0, 2_000);
+        return text ? [{ role: turn.role, text }] : [];
+      });
+    }
   } catch {
     return NextResponse.json({ error: "Send a valid question." }, { status: 400 });
   }
@@ -35,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   const requestId = randomUUID();
-  if (jarvisQuestionContainsSensitiveData(question)) {
+  if (jarvisQuestionContainsSensitiveData(question) || history.some((turn) => turn.role === "admin" && jarvisQuestionContainsSensitiveData(turn.text))) {
     await recordJarvisAudit({ requestId, userId: session.user.id, question, status: "rejected", errorCode: "sensitive_input" });
     return NextResponse.json({ error: "Remove email addresses, phone numbers, government identifiers, or payment-card numbers. Jarvis only needs aggregate operational questions." }, { status: 400 });
   }
@@ -50,7 +60,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await askJarvis(question);
+    const result = await askJarvis(question, history);
     await settleJarvisBudget(result.inputTokens, result.outputTokens);
     await recordJarvisAudit({ requestId, userId: session.user.id, question, model: result.model, status: "completed", inputTokens: result.inputTokens, outputTokens: result.outputTokens });
     return NextResponse.json({ answer: result.answer, incidents: result.incidents, generatedAt: result.generatedAt, requestId });

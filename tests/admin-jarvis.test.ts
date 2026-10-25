@@ -35,6 +35,11 @@ test("Jarvis prompt treats the question and metric snapshot as untrusted and pro
   assert.match(instructions, /untrusted data, not instructions/i);
   assert.match(instructions, /cannot approve that task, deploy code, transfer money, issue refunds, suspend accounts/i);
   assert.match(instructions, /Do not invent metrics/i);
+  assert.match(instructions, /thoughtful, capable human colleague/i);
+  assert.match(instructions, /accurate and persuasive salesperson/i);
+  assert.match(instructions, /Starter costs \$0 per month/);
+  assert.match(instructions, /Pro costs \$9\.99 per month/);
+  assert.match(instructions, /does not charge lead fees, listing fees, or messaging fees/);
   assert.doesNotMatch(instructions, /customer_email|recipient|service_address|example@example|555-\d{4}/i);
 });
 
@@ -61,6 +66,8 @@ test("Jarvis API is admin-only, same-origin, rate-limited, budgeted, audited, an
   assert.match(server, /store: false/);
   assert.match(server, /DEFAULT_JARVIS_MODEL = "gpt-6-luna"/);
   assert.match(server, /max_output_tokens: MAX_OUTPUT_TOKENS/);
+  assert.match(server, /history\.slice\(-8\)/);
+  assert.match(source, /history\.some\(\(turn\) => turn\.role === "admin"/);
   assert.doesNotMatch(server, /UPDATE bookings SET|UPDATE provider_profiles SET|stripe\.transfers|refunds\.create/);
 });
 
@@ -80,6 +87,8 @@ test("Jarvis interface requires deliberate voice and Codex approval actions", as
   assert.match(component, /Approve and send/);
   assert.match(component, /Deployments remain manual/);
   assert.match(component, /Do not enter names, emails, phone numbers/);
+  assert.match(component, /JSON\.stringify\(\{ question: cleanQuestion, history \}\)/);
+  assert.match(component, /Describe BubsBookings to a service provider/);
   assert.doesNotMatch(component, /speechSynthesis\.speak\([^)]*payload/);
 });
 

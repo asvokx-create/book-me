@@ -67,10 +67,11 @@ test("Jarvis outbound alerts default to opt-in off", async () => {
 });
 
 test("Jarvis incident calls create only an approval-gated Codex draft", async () => {
-  const [phone, response, action, bridge, migration] = await Promise.all([
+  const [phone, response, action, approval, bridge, migration] = await Promise.all([
     readFile(new URL("../lib/jarvis-phone.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/jarvis/twilio/incident-response/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/jarvis/twilio/incident-action/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/jarvis/twilio/codex-approval/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/jarvis-codex.ts", import.meta.url), "utf8"),
     readFile(new URL("../database/migrations/104_jarvis_codex_tasks.sql", import.meta.url), "utf8"),
   ]);
@@ -82,18 +83,23 @@ test("Jarvis incident calls create only an approval-gated Codex draft", async ()
   assert.match(response, /Would you like me to create a Codex repair draft for your review\?/);
   assert.match(action, /verifyTwilioSignature/);
   assert.match(action, /speech\.includes\("codex"\)/);
-  assert.match(action, /Review and approve it in the Jarvis admin dashboard/);
+  assert.match(action, /Would you like me to approve it and send it to Codex now\?/);
+  assert.match(approval, /verifyTwilioSignature/);
+  assert.match(approval, /approvePhoneCodexTask/);
+  assert.match(approval, /I need a clear approval before I send this task/);
+  assert.match(approval, /Codex cannot deploy or push it automatically/);
   assert.match(bridge, /status text NOT NULL DEFAULT 'draft'|status = 'draft'/);
   assert.match(migration, /source_incident_alert_id uuid REFERENCES jarvis_incident_alerts/);
   assert.match(migration, /jarvis_codex_tasks_open_incident_key/);
 });
 
-test("authenticated inbound calls can create one reviewable bug draft without dispatching it", async () => {
-  const [phone, verify, menu, report, bridge, migration] = await Promise.all([
+test("authenticated inbound calls require a separate explicit approval before dispatching a bug draft", async () => {
+  const [phone, verify, menu, report, approval, bridge, migration] = await Promise.all([
     readFile(new URL("../lib/jarvis-phone.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/jarvis/twilio/verify/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/jarvis/twilio/menu/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/jarvis/twilio/bug-report/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/jarvis/twilio/codex-approval/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/jarvis-codex.ts", import.meta.url), "utf8"),
     readFile(new URL("../database/migrations/105_jarvis_phone_bug_reports.sql", import.meta.url), "utf8"),
   ]);
@@ -104,9 +110,15 @@ test("authenticated inbound calls can create one reviewable bug draft without di
   assert.match(menu, /issueJarvisSipSessionToken/);
   assert.match(report, /verifyTwilioSignature/);
   assert.match(report, /bucket: "jarvis-phone-bug-report", limit: 3/);
-  assert.match(report, /Review and approve it in the Jarvis admin dashboard/);
+  assert.match(report, /Would you like me to approve it and send it to Codex now\?/);
   assert.match(phone, /jarvisQuestionContainsSensitiveData\(transcript\)/);
   assert.match(phone, /sourcePhoneCallSid: callSid/);
+  assert.match(phone, /task\.source_phone_call_sid = \$2/);
+  assert.match(phone, /alert\.twilio_call_sid = \$2/);
+  assert.match(phone, /approveAndDispatchJarvisCodexTask/);
+  assert.match(approval, /bucket: "jarvis-phone-codex-approval", limit: 4/);
+  assert.match(approval, /digits === "1"/);
+  assert.match(approval, /digits === "2"/);
   assert.match(bridge, /status: "draft" \| "approved"/);
   assert.match(migration, /actor_user_id text REFERENCES "user"/);
   assert.match(migration, /jarvis_codex_tasks_open_phone_call_key/);
@@ -119,7 +131,10 @@ test("Jarvis voice instructions favor fluid conversation without weakening appro
   assert.match(phone, /calm, polished, warm, professional masculine presentation/);
   assert.match(phone, /Address the administrator as Sir naturally/);
   assert.match(phone, /Use natural turn-taking and short spoken sentences/);
+  assert.match(phone, /Sound like a real conversation, not a script/);
+  assert.match(phone, /describe its value like an accurate salesperson/);
+  assert.match(phone, /You can answer ordinary questions/);
   assert.match(phone, /first spoken sentence must be exactly: How can I help you, Sir\?/);
   assert.match(phone, /respond directly to the request instead of repeating the greeting/);
-  assert.match(phone, /cannot edit code, open a pull request, deploy/);
+  assert.match(phone, /cannot edit code, approve a task, open a pull request, deploy/);
 });
