@@ -67,14 +67,19 @@ test("Jarvis outbound alerts default to opt-in off", async () => {
 });
 
 test("Jarvis incident calls create only an approval-gated Codex draft", async () => {
-  const [phone, action, bridge, migration] = await Promise.all([
+  const [phone, response, action, bridge, migration] = await Promise.all([
     readFile(new URL("../lib/jarvis-phone.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/jarvis/twilio/incident-response/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/jarvis/twilio/incident-action/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/jarvis-codex.ts", import.meta.url), "utf8"),
     readFile(new URL("../database/migrations/104_jarvis_codex_tasks.sql", import.meta.url), "utf8"),
   ]);
   assert.match(phone, /input="speech dtmf"/);
+  assert.match(phone, /Is now a good time to talk about this\?/);
   assert.match(phone, /createCodexDraftFromIncident/);
+  assert.match(response, /verifyTwilioSignature/);
+  assert.match(response, /not now\|bad time/);
+  assert.match(response, /Would you like me to create a Codex repair draft for your review\?/);
   assert.match(action, /verifyTwilioSignature/);
   assert.match(action, /speech\.includes\("codex"\)/);
   assert.match(action, /Review and approve it in the Jarvis admin dashboard/);
@@ -92,8 +97,8 @@ test("authenticated inbound calls can create one reviewable bug draft without di
     readFile(new URL("../lib/jarvis-codex.ts", import.meta.url), "utf8"),
     readFile(new URL("../database/migrations/105_jarvis_phone_bug_reports.sql", import.meta.url), "utf8"),
   ]);
-  assert.match(verify, /report a bug or press 1/);
-  assert.match(verify, /talk to Jarvis or press 2/);
+  assert.match(verify, /How can I help you\?/);
+  assert.doesNotMatch(verify, /To report a bug/);
   assert.match(menu, /verifyTwilioSignature/);
   assert.match(menu, /bucket: "jarvis-phone-menu", limit: 5/);
   assert.match(menu, /issueJarvisSipSessionToken/);
@@ -106,4 +111,12 @@ test("authenticated inbound calls can create one reviewable bug draft without di
   assert.match(migration, /actor_user_id text REFERENCES "user"/);
   assert.match(migration, /jarvis_codex_tasks_open_phone_call_key/);
   assert.doesNotMatch(report, /approveAndDispatchJarvisCodexTask/);
+});
+
+test("Jarvis voice instructions favor fluid conversation without weakening approval controls", async () => {
+  const phone = await readFile(new URL("../lib/jarvis-phone.ts", import.meta.url), "utf8");
+  assert.match(phone, /Use natural turn-taking and short spoken sentences/);
+  assert.match(phone, /first spoken sentence must be exactly: How can I help you\?/);
+  assert.match(phone, /respond directly to the request instead of repeating the greeting/);
+  assert.match(phone, /cannot edit code, open a pull request, deploy/);
 });

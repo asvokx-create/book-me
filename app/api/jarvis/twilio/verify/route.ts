@@ -15,5 +15,5 @@ export async function POST(request: Request) {
   const token = await authorizeJarvisPhoneCall(callSid, params.get("From") ?? "", params.get("Digits") ?? "");
   if (!token) return twiml("<Say voice=\"Polly.Matthew\">That code is invalid or expired. Generate a new code and call again.</Say><Hangup/>");
   const action = xmlEscape(twilioWebhookUrl("/api/jarvis/twilio/menu"));
-  return twiml(`<Gather action="${action}" method="POST" input="speech dtmf" numDigits="1" timeout="7" speechTimeout="auto" hints="report a bug,talk to Jarvis"><Say voice="Polly.Matthew">Code accepted. To report a bug, say report a bug or press 1. To talk with Jarvis about operations, say talk to Jarvis or press 2.</Say></Gather><Say voice="Polly.Matthew">No selection was received. Goodbye.</Say>`);
+  return twiml(`<Say voice="Polly.Matthew">Code accepted.</Say><Gather action="${action}" method="POST" input="speech dtmf" numDigits="1" timeout="8" speechTimeout="auto" hints="report a bug,talk to Jarvis,operations question"><Say voice="Polly.Matthew">How can I help you?</Say></Gather><Say voice="Polly.Matthew">I did not hear a request. Please call again when you are ready.</Say>`);
 }

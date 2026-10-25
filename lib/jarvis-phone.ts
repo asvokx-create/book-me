@@ -159,7 +159,7 @@ export async function acceptOpenAIPhoneCall(callId: string, eventType: string) {
   const endpoint = live
     ? `https://api.openai.com/v1/live/sessions/${encodeURIComponent(callId)}/accept`
     : `https://api.openai.com/v1/realtime/calls/${encodeURIComponent(callId)}/accept`;
-  const instructions = `${buildJarvisInstructions(snapshot, incidents)}\n\nThis is an authenticated phone call. Speak naturally and briefly. You may help document a bug report or proposed code change, but you cannot edit code, open a pull request, deploy, contact users, or perform any mutation in this phone phase.`;
+  const instructions = `${buildJarvisInstructions(snapshot, incidents)}\n\nThis is an authenticated phone call. Use natural turn-taking and short spoken sentences. Do not recite menus or give a long introduction. If you speak before the caller states a request, your first spoken sentence must be exactly: How can I help you? If the caller speaks first, respond directly to the request instead of repeating the greeting. You may help document a bug report or proposed code change, but you cannot edit code, open a pull request, deploy, contact users, or perform any mutation in this phone phase.`;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
@@ -216,12 +216,12 @@ async function reserveOutboundCall() {
 async function createTwilioAlertCall(incident: JarvisIncident, alertId: string) {
   const config = jarvisPhoneConfiguration();
   const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.twilioAccountSid)}/Calls.json`;
-  const codexAction = xmlEscape(twilioWebhookUrl(`/api/jarvis/twilio/incident-action?alertId=${encodeURIComponent(alertId)}`));
-  const prompt = `${xmlEscape(safeVoiceAlertText(incident))} Say tell Codex to fix it, or press 1, to create a repair draft for your review.`;
+  const responseAction = xmlEscape(twilioWebhookUrl(`/api/jarvis/twilio/incident-response?alertId=${encodeURIComponent(alertId)}`));
+  const prompt = `${xmlEscape(safeVoiceAlertText(incident))} Is now a good time to talk about this? Say yes or press 1. Say no or press 2.`;
   const body = new URLSearchParams({
     To: config.alertPhone,
     From: config.twilioPhone,
-    Twiml: `<?xml version="1.0" encoding="UTF-8"?><Response><Gather action="${codexAction}" method="POST" input="speech dtmf" numDigits="1" timeout="6" speechTimeout="auto" hints="tell Codex to fix it,send it to Codex"><Say voice="Polly.Matthew">${prompt}</Say></Gather><Say voice="Polly.Matthew">No repair draft was created. You can review the incident in the admin dashboard.</Say></Response>`,
+    Twiml: `<?xml version="1.0" encoding="UTF-8"?><Response><Gather action="${responseAction}" method="POST" input="speech dtmf" numDigits="1" timeout="7" speechTimeout="auto" hints="yes,no,not now"><Say voice="Polly.Matthew">${prompt}</Say></Gather><Say voice="Polly.Matthew">I did not hear a response. You can review the incident in the admin dashboard.</Say></Response>`,
     StatusCallback: twilioWebhookUrl("/api/jarvis/twilio/status"),
     StatusCallbackEvent: "completed",
     TimeLimit: String(OUTBOUND_CALL_SECONDS_LIMIT),
