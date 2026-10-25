@@ -80,7 +80,8 @@ Phase 1 requires these server-only values:
 - `JARVIS_OPENAI_MODEL`, which defaults to `gpt-6-luna`
 - `JARVIS_DAILY_REQUEST_LIMIT`
 - `JARVIS_DAILY_TOKEN_LIMIT`
-- `JARVIS_CODEX_ENVIRONMENT_ID`
+- `JARVIS_CODEX_ENVIRONMENT_TEMPLATE_ID`
+- `JARVIS_CODEX_AGENT_ID`
 - `JARVIS_CODEX_MODEL`, which defaults to `gpt-6-luna`
 - `JARVIS_CODEX_SPEND_LIMIT_CENTS`, which defaults to 100 cents for each approved task
 
@@ -101,5 +102,5 @@ Phase 2 would add phone-number rental, telephony minutes, and Realtime audio usa
 - No production OpenAI request has been made by automated tests.
 - An outbound incident call can create an idempotent repair draft when the administrator says "tell Codex to fix it" or presses 1. The draft still requires approval at `/admin/jarvis`.
 - The inbound conversational phone session cannot yet create a repair draft from arbitrary spoken bug dictation because its realtime server tool loop is not implemented.
-- A Codex task requires a dedicated hosted environment ID. The task stays a draft until an administrator approves it.
+- A Codex task requires a dedicated hosted environment template and a saved least-privilege agent. The task stays a draft until an administrator approves it.
 - GitHub publishing and pull-request creation remain unavailable until a least-privilege GitHub App is configured. Codex never deploys automatically.

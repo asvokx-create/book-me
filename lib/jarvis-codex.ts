@@ -12,10 +12,12 @@ function boundedInteger(value: string | undefined, fallback: number, minimum: nu
 }
 
 export function jarvisCodexConfiguration() {
-  const environmentId = process.env.JARVIS_CODEX_ENVIRONMENT_ID?.trim() ?? "";
+  const environmentTemplateId = process.env.JARVIS_CODEX_ENVIRONMENT_TEMPLATE_ID?.trim() ?? "";
+  const agentId = process.env.JARVIS_CODEX_AGENT_ID?.trim() ?? "";
   return {
-    configured: Boolean(process.env.OPENAI_API_KEY?.trim() && environmentId),
-    environmentId,
+    configured: Boolean(process.env.OPENAI_API_KEY?.trim() && environmentTemplateId && agentId),
+    environmentTemplateId,
+    agentId,
     model: process.env.JARVIS_CODEX_MODEL?.trim() || DEFAULT_CODEX_MODEL,
     spendLimitCents: boundedInteger(process.env.JARVIS_CODEX_SPEND_LIMIT_CENTS, DEFAULT_SPEND_LIMIT_CENTS, 10, 2_500),
   };
@@ -103,10 +105,11 @@ export async function approveAndDispatchJarvisCodexTask(taskId: string, actorUse
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const session = await client.beta.agents.sessions.create({
-      environment: { type: "openai_hosted", environment_id: config.environmentId },
+      environment: { type: "openai_hosted", environment_template_id: config.environmentTemplateId },
+      agent_id: config.agentId,
       agent: {
         model: config.model,
-        instructions: "You are Codex for BubsBookings. Follow the repository instructions and the approved task. Never deploy automatically.",
+        instructions: "You are Codex for BubsBookings. Use only the approved BubsBookings repository. Follow the repository instructions and the approved task. Never deploy automatically.",
         reasoning: { effort: "medium" },
       },
       input: codexTaskPrompt(task),

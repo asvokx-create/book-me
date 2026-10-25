@@ -93,6 +93,8 @@ test("Jarvis Codex bridge is admin-only, origin-protected, approval-gated, and s
   assert.match(bridge, /status = 'draft'/);
   assert.match(bridge, /status = 'approved'/);
   assert.match(bridge, /spend_control: \{ limit: config\.spendLimitCents \}/);
+  assert.match(bridge, /environment_template_id: config\.environmentTemplateId/);
+  assert.match(bridge, /agent_id: config\.agentId/);
   assert.match(bridge, /Never deploy automatically/);
   assert.match(migration, /source_bug_report_id uuid REFERENCES bug_reports/);
   assert.match(migration, /approved_by text REFERENCES "user"/);

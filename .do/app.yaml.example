@@ -64,8 +64,11 @@ services:
         scope: RUN_TIME
       # Create this as a dedicated OpenAI Agents API environment without
       # production secrets or deploy credentials.
-      - key: JARVIS_CODEX_ENVIRONMENT_ID
-        value: REPLACE_WITH_OPENAI_HOSTED_ENVIRONMENT_ID
+      - key: JARVIS_CODEX_ENVIRONMENT_TEMPLATE_ID
+        value: REPLACE_WITH_OPENAI_HOSTED_ENVIRONMENT_TEMPLATE_ID
+        scope: RUN_TIME
+      - key: JARVIS_CODEX_AGENT_ID
+        value: REPLACE_WITH_OPENAI_AGENT_ID
         scope: RUN_TIME
       - key: JARVIS_CODEX_MODEL
         value: gpt-6-luna
