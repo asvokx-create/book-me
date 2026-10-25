@@ -58,9 +58,9 @@ export async function grantComplimentaryPro(input: {
   try {
     await client.query("BEGIN");
     const providerResult = await client.query<{
-      id: string; plan: string; stripe_subscription_id: string | null;
+      id: string; plan: string; stripe_subscription_id: string | null; stripe_subscription_checkout_session_id: string | null;
       stripe_subscription_status: string; stripe_billing_mode: string | null;
-    }>(`SELECT id::text, plan, stripe_subscription_id, stripe_subscription_status, stripe_billing_mode
+    }>(`SELECT id::text, plan, stripe_subscription_id, stripe_subscription_checkout_session_id, stripe_subscription_status, stripe_billing_mode
         FROM provider_profiles WHERE id::text = $1 AND is_active = true FOR UPDATE`, [input.providerId]);
     const provider = providerResult.rows[0];
     if (!provider) throw new Error("PROVIDER_NOT_FOUND");
@@ -70,6 +70,7 @@ export async function grantComplimentaryPro(input: {
       status: provider.stripe_subscription_status,
       billingMode: provider.stripe_billing_mode,
     }, getStripeMode())) throw new Error("PAID_SUBSCRIPTION_ACTIVE");
+    if (provider.stripe_subscription_checkout_session_id) throw new Error("SUBSCRIPTION_CHECKOUT_PENDING");
 
     const currentResult = await client.query<{ id: string; starts_at: Date; expires_at: Date | null }>(
       `SELECT id::text, starts_at, expires_at FROM complimentary_pro_grants
@@ -173,42 +174,50 @@ export async function revokeComplimentaryPro(input: { providerId: string; admini
 
 export async function reconcileExpiredComplimentaryProGrants(providerId?: string) {
   const mode = getStripeMode();
-  await database.query(`INSERT INTO complimentary_pro_grant_events
-    (grant_id, provider_id, actor_user_id, action, previous_expires_at)
-    SELECT complimentary.id, complimentary.provider_id, NULL, 'expired', complimentary.expires_at
-    FROM complimentary_pro_grants complimentary
-    WHERE complimentary.revoked_at IS NULL AND complimentary.expires_at IS NOT NULL AND complimentary.expires_at <= now()
-      AND ($1::uuid IS NULL OR complimentary.provider_id = $1::uuid)
-      AND NOT EXISTS (SELECT 1 FROM complimentary_pro_grant_events event
-        WHERE event.grant_id = complimentary.id AND event.action = 'expired')
-    ON CONFLICT DO NOTHING`, [providerId ?? null]);
-  const expired = await database.query<{ provider_id: string }>(
-    `WITH expired AS (
-       SELECT DISTINCT complimentary.provider_id
-       FROM complimentary_pro_grants complimentary
-       WHERE complimentary.revoked_at IS NULL AND complimentary.expires_at IS NOT NULL AND complimentary.expires_at <= now()
-         AND ($1::uuid IS NULL OR complimentary.provider_id = $1::uuid)
-         AND NOT EXISTS (
-           SELECT 1 FROM complimentary_pro_grants active
-           WHERE active.provider_id = complimentary.provider_id AND active.revoked_at IS NULL
-             AND active.starts_at <= now() AND (active.expires_at IS NULL OR active.expires_at > now())
-         )
-     )
-     UPDATE provider_profiles provider SET plan = CASE
-       WHEN provider.stripe_subscription_id IS NOT NULL AND provider.stripe_billing_mode = $2
-         AND provider.stripe_subscription_status IN ('active', 'trialing', 'past_due') THEN 'pro'
-       ELSE 'starter' END,
-       updated_at = now()
-     FROM expired WHERE provider.id = expired.provider_id AND provider.plan = 'pro'
-     RETURNING provider.id::text AS provider_id`, [providerId ?? null, mode],
-  );
-  if (expired.rows.length) {
-    await database.query(`UPDATE provider_team_members member SET status = 'inactive'
-      WHERE member.provider_id::text = ANY($1::text[]) AND member.status IN ('pending', 'active')
-        AND NOT EXISTS (SELECT 1 FROM provider_profiles provider WHERE provider.id = member.provider_id
-          AND provider.stripe_subscription_id IS NOT NULL AND provider.stripe_billing_mode = $2
-          AND provider.stripe_subscription_status IN ('active', 'trialing', 'past_due'))`,
-    [expired.rows.map((row) => row.provider_id), mode]);
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    const candidates = await client.query<{ provider_id: string }>(`SELECT DISTINCT provider.id::text AS provider_id
+      FROM provider_profiles provider
+      JOIN complimentary_pro_grants complimentary ON complimentary.provider_id = provider.id
+      WHERE complimentary.revoked_at IS NULL AND complimentary.expires_at IS NOT NULL AND complimentary.expires_at <= now()
+        AND ($1::uuid IS NULL OR provider.id = $1::uuid)
+      ORDER BY provider.id FOR UPDATE OF provider`, [providerId ?? null]);
+    const providerIds = candidates.rows.map((row) => row.provider_id);
+    if (!providerIds.length) {
+      await client.query("COMMIT");
+      return { complimentaryProExpired: 0 };
+    }
+    await client.query(`INSERT INTO complimentary_pro_grant_events
+      (grant_id, provider_id, actor_user_id, action, previous_expires_at)
+      SELECT complimentary.id, complimentary.provider_id, NULL, 'expired', complimentary.expires_at
+      FROM complimentary_pro_grants complimentary
+      WHERE complimentary.provider_id = ANY($1::uuid[]) AND complimentary.revoked_at IS NULL
+        AND complimentary.expires_at IS NOT NULL AND complimentary.expires_at <= now()
+        AND NOT EXISTS (SELECT 1 FROM complimentary_pro_grant_events event
+          WHERE event.grant_id = complimentary.id AND event.action = 'expired')
+      ON CONFLICT DO NOTHING`, [providerIds]);
+    const expired = await client.query<{ provider_id: string; plan: string }>(`UPDATE provider_profiles provider SET plan = CASE
+        WHEN provider.stripe_subscription_id IS NOT NULL AND provider.stripe_billing_mode = $2
+          AND provider.stripe_subscription_status IN ('active', 'trialing', 'past_due') THEN 'pro'
+        ELSE 'starter' END,
+        updated_at = now()
+      WHERE provider.id = ANY($1::uuid[]) AND provider.plan = 'pro'
+        AND NOT EXISTS (SELECT 1 FROM complimentary_pro_grants active
+          WHERE active.provider_id = provider.id AND active.revoked_at IS NULL
+            AND active.starts_at <= now() AND (active.expires_at IS NULL OR active.expires_at > now()))
+      RETURNING provider.id::text AS provider_id, provider.plan`, [providerIds, mode]);
+    const downgradedIds = expired.rows.filter((row) => row.plan === "starter").map((row) => row.provider_id);
+    if (downgradedIds.length) {
+      await client.query(`UPDATE provider_team_members member SET status = 'inactive'
+        WHERE member.provider_id::text = ANY($1::text[]) AND member.status IN ('pending', 'active')`, [downgradedIds]);
+    }
+    await client.query("COMMIT");
+    return { complimentaryProExpired: expired.rows.length };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
   }
-  return { complimentaryProExpired: expired.rows.length };
 }

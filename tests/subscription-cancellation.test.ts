@@ -144,7 +144,9 @@ test("self-service cancellation is Stripe-confirmed, authorized, idempotent, rev
   assert.match(webhook, /stripe_subscription_event_created_at/);
   assert.match(webhook, /stripe_subscription_status = 'canceled'/);
   assert.match(webhook, /customer\.subscription\.deleted/);
-  assert.match(webhook, /plan = 'starter'/);
+  assert.match(webhook, /THEN 'pro' ELSE 'starter' END/);
+  assert.match(webhook, /FROM complimentary_pro_grants/);
+  assert.match(webhook, /provider\.rows\[0\]\.plan !== "pro"/);
   assert.match(webhook, /stripe_cancel_at_period_end = false/);
   assert.doesNotMatch(webhook, /DELETE FROM (services|bookings|messages|provider_customers)/i);
   assert.match(migration, /stripe_cancel_at_period_end boolean NOT NULL DEFAULT false/);

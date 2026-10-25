@@ -8,12 +8,14 @@ import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { LISTING_IMAGE_MAX_BYTES, LISTING_IMAGE_MAX_MB } from "@/lib/listing-images";
 import { detectSupportedImageFormat } from "@/lib/image-format";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ serviceId: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in before adding listing photos." }, { status: 401 });
+  await reconcileExpiredComplimentaryProGrants();
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "image-upload", limit: 12, windowSeconds: 3600 })) {
     return NextResponse.json({ error: "Too many photo uploads. Please try again later." }, { status: 429 });
   }

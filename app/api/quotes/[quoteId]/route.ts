@@ -7,10 +7,12 @@ import { recordAnalytics } from "@/lib/analytics";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
 import { sendBookingUpdateEmails } from "@/lib/booking-email";
 import { unavailableBookingProfessionals } from "@/lib/booking-staff";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 export async function PATCH(request: Request, context: RouteContext<"/api/quotes/[quoteId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to respond to this quote." }, { status: 401 });
+  await reconcileExpiredComplimentaryProGrants();
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "job-quote-response", limit: 15 })) return NextResponse.json({ error: "Too many quote changes. Please wait a minute." }, { status: 429 });
   const { quoteId } = await context.params;
   const body = await request.json() as { action?: unknown };

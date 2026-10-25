@@ -11,6 +11,7 @@ import { getStripeMode } from "@/lib/stripe";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import UiIcon from "@/components/ui-icon";
 import { publicPageMetadata } from "@/lib/seo";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 export const metadata: Metadata = publicPageMetadata({
   title: "Provider pricing",
@@ -54,6 +55,7 @@ async function getCurrentProviderPlan(): Promise<CurrentProviderPlan | null> {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) return null;
     if (isOwnerEmail(session.user.email)) return { plan: "owner", trialEligible: false };
+    await reconcileExpiredComplimentaryProGrants();
     const result = await database.query<{ plan: ProviderPlan; pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null }>(
       `SELECT plan, pro_trial_used_at_test, pro_trial_used_at_live
        FROM provider_profiles WHERE user_id = $1 AND is_active = true LIMIT 1`,

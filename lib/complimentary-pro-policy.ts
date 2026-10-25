@@ -1,7 +1,7 @@
-export type ComplimentaryProDuration = "30_days" | "3_months" | "6_months" | "1_year" | "lifetime" | "custom";
+export type ComplimentaryProDuration = "30_days" | "2_months" | "3_months" | "6_months" | "1_year" | "lifetime" | "custom";
 
 export function isComplimentaryProDuration(value: unknown): value is ComplimentaryProDuration {
-  return value === "30_days" || value === "3_months" || value === "6_months"
+  return value === "30_days" || value === "2_months" || value === "3_months" || value === "6_months"
     || value === "1_year" || value === "lifetime" || value === "custom";
 }
 
@@ -24,6 +24,7 @@ export function complimentaryProExpiration(input: {
   if (!Number.isFinite(start.getTime())) throw new RangeError("Choose a valid grant start date.");
   if (input.duration === "lifetime") return null;
   if (input.duration === "30_days") return new Date(start.getTime() + 30 * 86_400_000);
+  if (input.duration === "2_months") return addUtcMonths(start, 2);
   if (input.duration === "3_months") return addUtcMonths(start, 3);
   if (input.duration === "6_months") return addUtcMonths(start, 6);
   if (input.duration === "1_year") return addUtcMonths(start, 12);

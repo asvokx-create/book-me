@@ -10,9 +10,11 @@ import { runAutomatedProviderVerification } from "@/lib/provider-verification";
 import { isServiceDeliveryType, type ServiceDeliveryType } from "@/lib/service-delivery";
 import { isRecurrenceOption, type RecurrenceOption } from "@/lib/service-commerce";
 import { isHourlyBillingIncrement, isPricingType, validateHourlyPricing, type PricingType } from "@/lib/service-pricing";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 async function getSessionUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
+  if (session) await reconcileExpiredComplimentaryProGrants();
   return session?.user.id ?? null;
 }
 

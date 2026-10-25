@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { hasConfirmedAge } from "@/lib/account-age";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 export async function getProviderAccess() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -23,6 +24,9 @@ export async function getProviderAccess() {
   );
   const member = membership.rows[0];
   if (member) {
+    await reconcileExpiredComplimentaryProGrants(member.provider_id);
+    const stillActive = await database.query("SELECT 1 FROM provider_team_members WHERE id::text = $1 AND status IN ('pending', 'active')", [member.member_id]);
+    if (!stillActive.rowCount) return null;
     await database.query(`UPDATE provider_team_members SET user_id = $1, status = 'active'
       WHERE id::text = $2 AND (user_id IS NULL OR user_id = $1)`, [session.user.id, member.member_id]);
     return { session, providerId: member.provider_id, isOwner: false as const, memberId: member.member_id, memberRole: member.role, memberCompanyName: member.company_name };
@@ -32,6 +36,9 @@ export async function getProviderAccess() {
     "SELECT id::text FROM provider_profiles WHERE user_id = $1 AND is_active = true LIMIT 1",
     [session.user.id],
   );
-  if (owned.rows[0]) return { session, providerId: owned.rows[0].id, isOwner: true as const, memberId: null, memberRole: "Owner", memberCompanyName: null };
+  if (owned.rows[0]) {
+    await reconcileExpiredComplimentaryProGrants(owned.rows[0].id);
+    return { session, providerId: owned.rows[0].id, isOwner: true as const, memberId: null, memberRole: "Owner", memberCompanyName: null };
+  }
   return null;
 }

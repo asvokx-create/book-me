@@ -11,6 +11,7 @@ import { refundUnreleasedBooking } from "@/lib/payment-release";
 import { unavailableBookingProfessionals } from "@/lib/booking-staff";
 import { CUSTOMER_SERVICE_FEE_CENTS } from "@/lib/booking-fees";
 import { calculateBookingFinancialSnapshot, estimateProviderProcessingFeeCents, type BookingFinancialPlan } from "@/lib/booking-financials";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 export async function GET(_request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -198,6 +199,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/booking
 export async function PATCH(request: Request, context: RouteContext<"/api/bookings/[bookingId]">) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  await reconcileExpiredComplimentaryProGrants();
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "customer-booking-update", limit: 12 }))
     return NextResponse.json({ error: "Too many booking changes. Please wait a minute and try again." }, { status: 429 });
   const { bookingId } = await context.params;

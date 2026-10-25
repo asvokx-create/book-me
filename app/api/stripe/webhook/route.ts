@@ -617,15 +617,19 @@ async function processEvent(event: Stripe.Event) {
       const client = await database.connect();
       try {
         await client.query("BEGIN");
-        const provider = await client.query<{ id: string }>(`UPDATE provider_profiles SET plan = 'starter', stripe_subscription_id = NULL,
+        const provider = await client.query<{ id: string; plan: string }>(`UPDATE provider_profiles SET plan = CASE WHEN EXISTS (
+            SELECT 1 FROM complimentary_pro_grants complimentary
+            WHERE complimentary.provider_id = provider_profiles.id AND complimentary.revoked_at IS NULL
+              AND complimentary.starts_at <= now() AND (complimentary.expires_at IS NULL OR complimentary.expires_at > now())
+          ) THEN 'pro' ELSE 'starter' END, stripe_subscription_id = NULL,
           stripe_subscription_checkout_session_id = NULL, stripe_subscription_status = $2,
           stripe_current_period_end = NULL, stripe_cancel_at_period_end = false,
           stripe_subscription_event_created_at = $4,
           extra_team_seats = 0, stripe_team_seat_item_id = NULL
           WHERE stripe_subscription_id = $1 AND stripe_billing_mode = $3 AND plan <> 'owner'
             AND (stripe_subscription_event_created_at IS NULL OR $4 >= stripe_subscription_event_created_at)
-          RETURNING id::text`, [subscription.id, subscription.status, getStripeMode(), event.created]);
-        if (provider.rows[0]) {
+          RETURNING id::text, plan`, [subscription.id, subscription.status, getStripeMode(), event.created]);
+        if (provider.rows[0] && provider.rows[0].plan !== "pro") {
           await client.query("UPDATE provider_team_members SET status = 'inactive' WHERE provider_id::text = $1 AND status IN ('pending', 'active')", [provider.rows[0].id]);
         }
         await client.query("COMMIT");

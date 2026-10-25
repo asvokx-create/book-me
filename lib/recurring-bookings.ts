@@ -3,6 +3,7 @@ import { database } from "./database";
 import { calculateBookingFinancialSnapshot, type BookingFinancialPlan } from "./booking-financials";
 import { nextOccurrence, type RecurrenceOption } from "./service-commerce";
 import { sendBookingUpdateEmails } from "./booking-email";
+import { reconcileExpiredComplimentaryProGrants } from "./complimentary-pro";
 
 type DueSeries = { id:string; customer_id:string; provider_id:string; provider_user_id:string; service_id:string; service_title:string; frequency:Exclude<RecurrenceOption,"one_time">; next_occurrence_at:Date; plan:BookingFinancialPlan };
 type RecurringSourceBooking = {
@@ -35,6 +36,7 @@ type RecurringSourceBooking = {
 };
 
 export async function generateDueRecurringBookings(limit=50){
+  await reconcileExpiredComplimentaryProGrants();
   const due=await database.query<DueSeries>(`SELECT series.id::text,series.customer_id,series.provider_id::text,provider.user_id AS provider_user_id,series.service_id::text,service.title AS service_title,series.frequency,series.next_occurrence_at,provider.plan FROM recurring_booking_series series JOIN provider_profiles provider ON provider.id=series.provider_id JOIN services service ON service.id=series.service_id WHERE series.status='active' AND series.next_occurrence_at<=now()+interval '30 days' AND NOT EXISTS(SELECT 1 FROM bookings future WHERE future.recurring_series_id=series.id AND future.starts_at>=series.next_occurrence_at AND future.status IN ('requested','confirmed')) ORDER BY series.next_occurrence_at LIMIT $1`,[limit]);
   let created=0;const paused:string[]=[];
   for(const series of due.rows){const client=await database.connect();let bookingId="";try{await client.query("BEGIN");await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",[`recurring-series:${series.id}`]);const locked=await client.query<{next_occurrence_at:Date;frequency:Exclude<RecurrenceOption,"one_time">}>("SELECT next_occurrence_at,frequency FROM recurring_booking_series WHERE id::text=$1 AND status='active' FOR UPDATE",[series.id]);if(!locked.rows[0]){await client.query("ROLLBACK");continue;}const prior=await client.query<RecurringSourceBooking>(`SELECT booking.*,EXTRACT(EPOCH FROM (booking.ends_at-booking.starts_at))/60 AS duration_minutes FROM bookings booking WHERE booking.recurring_series_id::text=$1 ORDER BY booking.recurrence_index DESC LIMIT 1`,[series.id]);const source=prior.rows[0];if(!source){await client.query("UPDATE recurring_booking_series SET status='paused' WHERE id::text=$1",[series.id]);await client.query("COMMIT");paused.push(series.id);continue;}const startsAt=locked.rows[0].next_occurrence_at;const endsAt=new Date(startsAt.getTime()+Number(source.duration_minutes)*60000);const basePrice=Number(source.base_price_cents)+Number(source.add_on_total_cents);const snapshot=calculateBookingFinancialSnapshot(basePrice,series.plan);const nextIndex=Number(source.recurrence_index??0)+1;

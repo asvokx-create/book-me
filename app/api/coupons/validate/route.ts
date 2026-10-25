@@ -7,6 +7,7 @@ import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { enforceRateLimit } from "@/lib/request-security";
 import { calculateCommerceSelection, type CouponRule, type ServiceAddOn, type ServicePackage } from "@/lib/service-commerce";
 import { calculateHourlyBasePriceCents, validateHourlyDuration, type HourlyPricingConfig, type PricingType } from "@/lib/service-pricing";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 type CouponRequest = {
   serviceId?: unknown;
@@ -19,6 +20,7 @@ type CouponRequest = {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Log in to apply a coupon." }, { status: 401 });
+  await reconcileExpiredComplimentaryProGrants();
   if (!await enforceRateLimit({ request, userId: session.user.id, bucket: "coupon-validate", limit: 30 })) {
     return NextResponse.json({ error: "Too many coupon checks. Please wait a minute and try again." }, { status: 429 });
   }

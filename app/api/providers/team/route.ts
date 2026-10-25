@@ -8,6 +8,7 @@ import { getProviderAccess } from "@/lib/provider-access";
 import { enforceRateLimit } from "@/lib/request-security";
 import { sendTransactionalEmail } from "@/lib/email";
 import { totalTeamSeats } from "@/lib/team-seat-rules";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 async function currentProvider() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -18,6 +19,13 @@ async function currentProvider() {
   );
   const provider = result.rows[0];
   if (!provider) return null;
+  await reconcileExpiredComplimentaryProGrants(provider.id);
+  const refreshed = await database.query<{ plan: ProviderPlan; extra_team_seats: number }>(
+    "SELECT plan, extra_team_seats FROM provider_profiles WHERE id::text = $1",
+    [provider.id],
+  );
+  provider.plan = refreshed.rows[0]?.plan ?? provider.plan;
+  provider.extra_team_seats = refreshed.rows[0]?.extra_team_seats ?? provider.extra_team_seats;
 
   if (isOwnerEmail(session.user.email)) {
     if (provider.plan !== "owner") {

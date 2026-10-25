@@ -19,6 +19,7 @@ import { slugifyProviderName } from "@/lib/provider-profile-options";
 import { isServiceDeliveryType } from "@/lib/service-delivery";
 import { isHourlyBillingIncrement, isPricingType, validateHourlyPricing } from "@/lib/service-pricing";
 import { deliverProviderWelcomeEmail, enqueueProviderWelcomeEmail } from "@/lib/provider-welcome-email";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 const weekdayNumbers: Record<string, number> = {
   Sun: 0,
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Log in before creating a provider profile." }, { status: 401 });
   }
+  await reconcileExpiredComplimentaryProGrants();
 
   const body = (await request.json()) as Record<string, unknown>;
   const business = typeof body.business === "string" ? body.business.trim() : "";

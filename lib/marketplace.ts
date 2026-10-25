@@ -10,6 +10,7 @@ import type { RecurrenceOption, ServiceAddOn, ServicePackage } from "./service-c
 import { isProviderScreeningCurrent } from "./provider-screening-freshness";
 import { publicPersonalName } from "./public-provider-identity";
 import type { PricingType } from "./service-pricing";
+import { reconcileExpiredComplimentaryProGrants } from "./complimentary-pro";
 
 const PRIORITY_DISTANCE_BAND_MILES = 10;
 
@@ -147,6 +148,7 @@ function mapService(row: ServiceRow): ServiceListing {
 
 export async function getServices(options: { query?: string; category?: string; delivery?: "ALL" | ServiceDeliveryType | "IN_PERSON" | "REMOTE"; location?: string; radiusMiles?: number; maxPrice?: number; maxDuration?: number; sort?: string; limit?: number } = {}) {
   if (!isDatabaseConfigured()) return [];
+  await reconcileExpiredComplimentaryProGrants();
 
   const values: Array<string | number | string[]> = [];
   const conditions = ["s.is_active = true", "p.is_active = true", "p.age_verification_status = 'verified'"];
@@ -237,6 +239,7 @@ export async function getServices(options: { query?: string; category?: string; 
 
 export async function getServiceBySlug(slug: string): Promise<ServiceDetails | null> {
   if (!isDatabaseConfigured()) return null;
+  await reconcileExpiredComplimentaryProGrants();
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
@@ -311,6 +314,7 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
 
 export async function getServiceById(id: string) {
   if (!isDatabaseConfigured()) return null;
+  await reconcileExpiredComplimentaryProGrants();
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
@@ -336,6 +340,7 @@ export async function getServiceById(id: string) {
 
 export async function getProviderBySlug(slug: string, options: { includeHidden?: boolean; ownerProviderId?: string } = {}) {
   if (!isDatabaseConfigured()) return null;
+  await reconcileExpiredComplimentaryProGrants();
   const providerResult = await database.query<{
     id: string;
     public_profile_slug: string;
@@ -496,6 +501,7 @@ async function getServicesForProvider(providerId: string) {
 
 export async function getFavoriteServices(customerId: string) {
   if (!isDatabaseConfigured()) return [];
+  await reconcileExpiredComplimentaryProGrants();
   const result = await database.query<ServiceRow>(
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,

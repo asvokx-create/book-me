@@ -111,7 +111,7 @@ type AccountDetails = {
     service_radius_miles: number; has_in_person_services: boolean; plan: ProviderPlan; is_active: boolean; is_verified: boolean;
     phone_verified: boolean; identity_verified: boolean; business_verified: boolean;
     screening_status: string; screening_score: number | null; screening_summary: string; screening_checked_at: string | null;
-    stripe_subscription_status: string; stripe_charges_enabled: boolean; stripe_payouts_enabled: boolean;
+    stripe_subscription_status: string; stripe_subscription_checkout_pending: boolean; stripe_charges_enabled: boolean; stripe_payouts_enabled: boolean;
     age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
     age_verification_source: "stripe_identity" | "admin_exception" | null;
     age_verification_exception_eligible: boolean; age_verification_exception_note: string | null;
@@ -832,7 +832,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             { label: "Provider agreement", value: details.provider.provider_agreement_accepted_at ? formatDate(details.provider.provider_agreement_accepted_at) : null }, { label: "Agreement version", value: details.provider.provider_agreement_version },
             { label: "Public profile", value: details.provider.public_profile_visible ? "Visible" : "Hidden" }, { label: "Public slug", value: details.provider.public_profile_slug }, { label: "Years experience", value: details.provider.years_experience },
           ]} />
-            {details.complimentaryPro && <AdminComplimentaryPro providerId={details.provider.id} status={details.complimentaryPro} history={details.complimentaryProHistory} onChanged={onRetry} />}
+            {details.complimentaryPro && <AdminComplimentaryPro providerId={details.provider.id} status={details.complimentaryPro} history={details.complimentaryProHistory} paidBillingConflict={["active", "trialing", "past_due"].includes(details.provider.stripe_subscription_status) || details.provider.stripe_subscription_checkout_pending} onChanged={onRetry} />}
             <section className={`rounded-2xl border p-4 ${details.provider.age_verification_source === "admin_exception" ? "border-[#d9ca55] bg-[#fff8cf]" : "border-[#183126]/10 bg-[#f8f8f4]"}`}>
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Legacy provider eligibility</p>
               <h4 className="mt-1 font-bold">{details.provider.age_verification_source === "admin_exception" ? "Documented admin exception is active" : details.provider.age_verification_exception_eligible ? "Manual exception available" : "Stripe verification required"}</h4>

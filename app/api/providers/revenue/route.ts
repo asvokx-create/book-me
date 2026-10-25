@@ -4,10 +4,12 @@ import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { getStripeMode } from "@/lib/stripe";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
+import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  await reconcileExpiredComplimentaryProGrants();
 
   const providerResult = await database.query<{ id: string; plan: ProviderPlan }>(
     "SELECT id::text,plan FROM provider_profiles WHERE user_id = $1 AND is_active = true",

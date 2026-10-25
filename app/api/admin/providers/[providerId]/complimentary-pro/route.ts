@@ -13,6 +13,7 @@ function errorResponse(error: unknown) {
   const known: Record<string, [string, number]> = {
     PROVIDER_NOT_FOUND: ["Provider profile not found.", 404],
     PAID_SUBSCRIPTION_ACTIVE: ["This provider already has a paid Pro subscription. The Stripe subscription was not changed.", 409],
+    SUBSCRIPTION_CHECKOUT_PENDING: ["This provider has a pending paid Pro checkout. Resolve or expire that checkout before granting complimentary Pro so billing cannot overlap.", 409],
     PLAN_ALREADY_INCLUDED: ["This provider already has a plan that includes Pro benefits.", 409],
     LIFETIME_ALREADY_ACTIVE: ["This provider already has lifetime complimentary Pro.", 409],
     NO_ACTIVE_GRANT: ["This provider does not have an active complimentary Pro grant.", 409],
