@@ -74,7 +74,7 @@ test("search matches labels and descriptions and preserves original option value
 test("popup styles cover layering, dark mode, scrolling, and mobile-size touch targets", () => {
   const component = readFileSync(path.join(root, "components", "custom-select.tsx"), "utf8");
   const styles = readFileSync(path.join(root, "app", "globals.css"), "utf8");
-  assert.match(styles, /\.custom-select-menu\s*\{\s*z-index:\s*360/);
+  assert.match(styles, /\.custom-select-menu\s*\{\s*z-index:\s*1000/);
   assert.match(styles, /html\[data-theme="dark"\] \.custom-select-menu/);
   assert.match(styles, /html\[data-theme="dark"\] \.custom-select-option/);
   assert.match(component, /min-h-11/);
