@@ -261,6 +261,7 @@ export async function POST(request: Request) {
             account_created_at=COALESCE(account_created_at,
               CASE WHEN EXISTS (SELECT 1 FROM "user" account
                 WHERE account.id=$2 AND account."createdAt">=affiliate_clicks.created_at) THEN now() END),
+            account_user_id=COALESCE(account_user_id,$2),
             onboarding_started_at=COALESCE(onboarding_started_at,now()),
             company_created_at=COALESCE(company_created_at,now()),
             first_listing_created_at=COALESCE(first_listing_created_at,now())

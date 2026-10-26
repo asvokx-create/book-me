@@ -60,7 +60,7 @@ function compensationTerms(body: Record<string, unknown>) {
 }
 
 async function dashboard() {
-  const [summary, programs, affiliates, commissions, payouts, campaigns, campaignFunnel, recentClicks, auditHistory, milestoneAchievements, acceptanceHistory, reserve] = await Promise.all([
+  const [summary, programs, affiliates, commissions, payouts, campaigns, campaignFunnel, campaignFailures, campaignTraffic, recentClicks, auditHistory, milestoneAchievements, acceptanceHistory, reserve] = await Promise.all([
     database.query(`SELECT
       (SELECT count(*)::int FROM affiliate_profiles WHERE status IN ('applied','under_review')) AS applications,
       (SELECT count(*)::int FROM affiliate_profiles WHERE status = 'active') AS active_affiliates,
@@ -121,6 +121,8 @@ async function dashboard() {
       (SELECT count(*)::int FROM affiliate_click_events click WHERE click.affiliate_id=affiliate.id) AS clicks,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id AND click.signup_clicked_at IS NOT NULL) AS signup_clicks,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id AND click.signup_started_at IS NOT NULL) AS signup_starts,
+      (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id AND click.signup_submitted_at IS NOT NULL) AS signup_submissions,
+      (SELECT count(DISTINCT failure.click_id)::int FROM affiliate_signup_failures failure WHERE failure.affiliate_id=affiliate.id) AS signup_failures,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id AND click.account_created_at IS NOT NULL) AS account_creations,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id AND click.onboarding_started_at IS NOT NULL) AS onboarding_starts,
       (SELECT count(*)::int FROM affiliate_clicks click WHERE click.affiliate_id=affiliate.id AND click.first_listing_published_at IS NOT NULL) AS published_listings,
@@ -172,20 +174,50 @@ async function dashboard() {
       ORDER BY campaign.created_at DESC LIMIT 100`),
     database.query(`SELECT campaign.id::text, campaign.campaign_name, campaign.campaign_starts_on,
       campaign.campaign_ends_on, campaign.affiliate_code, affiliate.display_name AS affiliate_name,
+      (SELECT count(*)::int FROM affiliate_click_events raw_click
+        WHERE raw_click.affiliate_id=affiliate.id
+          AND (campaign.program_id IS NULL OR raw_click.program_id=campaign.program_id)
+          AND (campaign.campaign_starts_on IS NULL OR raw_click.created_at>=campaign.campaign_starts_on::timestamptz)
+          AND (campaign.campaign_ends_on IS NULL OR raw_click.created_at<(campaign.campaign_ends_on+1)::timestamptz)) AS total_referral_clicks,
       count(DISTINCT click.id)::int AS first_touch_visits,
       count(DISTINCT click.id) FILTER (WHERE click.signup_started_at IS NOT NULL)::int AS signup_starts,
+      count(DISTINCT click.id) FILTER (WHERE click.signup_submitted_at IS NOT NULL)::int AS signup_submissions,
+      count(DISTINCT failure.click_id)::int AS signup_failures,
       count(DISTINCT click.id) FILTER (WHERE click.account_created_at IS NOT NULL)::int AS account_creations,
       count(DISTINCT referral.id)::int AS provider_profiles,
+      count(DISTINCT click.id) FILTER (WHERE click.first_listing_created_at IS NOT NULL)::int AS listings_created,
       count(DISTINCT click.id) FILTER (WHERE click.first_listing_published_at IS NOT NULL)::int AS published_listings,
       count(DISTINCT referral.id) FILTER (WHERE referral.qualified_at IS NOT NULL)::int AS qualified_providers
       FROM creator_campaign_payments campaign
       JOIN affiliate_profiles affiliate ON affiliate.id=campaign.affiliate_id
       LEFT JOIN affiliate_clicks click ON click.affiliate_id=affiliate.id
+        AND (campaign.program_id IS NULL OR click.program_id=campaign.program_id)
         AND (campaign.campaign_starts_on IS NULL OR click.created_at>=campaign.campaign_starts_on::timestamptz)
         AND (campaign.campaign_ends_on IS NULL OR click.created_at<(campaign.campaign_ends_on+1)::timestamptz)
       LEFT JOIN affiliate_referrals referral ON referral.click_id=click.id
+      LEFT JOIN affiliate_signup_failures failure ON failure.click_id=click.id
       GROUP BY campaign.id,affiliate.id
       ORDER BY campaign.campaign_starts_on DESC NULLS LAST,campaign.created_at DESC LIMIT 100`),
+    database.query(`SELECT campaign.id::text AS campaign_id, failure.failure_category, failure.auth_method,
+      count(*)::int AS failure_count
+      FROM creator_campaign_payments campaign
+      JOIN affiliate_profiles affiliate ON affiliate.id=campaign.affiliate_id
+      JOIN affiliate_signup_failures failure ON failure.affiliate_id=affiliate.id
+        AND (campaign.program_id IS NULL OR failure.program_id=campaign.program_id)
+        AND (campaign.campaign_starts_on IS NULL OR failure.created_at>=campaign.campaign_starts_on::timestamptz)
+        AND (campaign.campaign_ends_on IS NULL OR failure.created_at<(campaign.campaign_ends_on+1)::timestamptz)
+      GROUP BY campaign.id,failure.failure_category,failure.auth_method
+      ORDER BY campaign.id,failure_count DESC`),
+    database.query(`SELECT campaign.id::text AS campaign_id, click.device_category, click.browser_category,
+      count(*)::int AS click_count
+      FROM creator_campaign_payments campaign
+      JOIN affiliate_profiles affiliate ON affiliate.id=campaign.affiliate_id
+      JOIN affiliate_click_events click ON click.affiliate_id=affiliate.id
+        AND (campaign.program_id IS NULL OR click.program_id=campaign.program_id)
+        AND (campaign.campaign_starts_on IS NULL OR click.created_at>=campaign.campaign_starts_on::timestamptz)
+        AND (campaign.campaign_ends_on IS NULL OR click.created_at<(campaign.campaign_ends_on+1)::timestamptz)
+      GROUP BY campaign.id,click.device_category,click.browser_category
+      ORDER BY campaign.id,click_count DESC`),
     database.query(`SELECT click.id::text, click.affiliate_code, click.landing_path, click.utm_campaign, click.utm_content,
       click.created_at, click.signup_started_at, click.account_created_at,
       click.first_listing_published_at, affiliate.display_name AS affiliate_name
@@ -208,7 +240,7 @@ async function dashboard() {
       ORDER BY acceptance.accepted_at DESC LIMIT 500`),
     getAffiliateReserveHealth(),
   ]);
-  return { summary: summary.rows[0], reserve, programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, campaigns: campaigns.rows, campaignFunnel: campaignFunnel.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows, milestoneAchievements: milestoneAchievements.rows, acceptanceHistory: acceptanceHistory.rows };
+  return { summary: summary.rows[0], reserve, programs: programs.rows, affiliates: affiliates.rows, commissions: commissions.rows, payouts: payouts.rows, campaigns: campaigns.rows, campaignFunnel: campaignFunnel.rows, campaignFailures: campaignFailures.rows, campaignTraffic: campaignTraffic.rows, recentClicks: recentClicks.rows, auditHistory: auditHistory.rows, milestoneAchievements: milestoneAchievements.rows, acceptanceHistory: acceptanceHistory.rows };
 }
 
 export async function GET() {

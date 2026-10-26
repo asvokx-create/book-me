@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 
-function record(eventName: "signup_clicked" | "signup_started") {
+type SignupMethod = "email" | "google" | "unknown";
+export type SignupFailureCategory = "age_eligibility" | "agreement" | "location" | "validation" | "account_exists" | "rate_limited" | "oauth" | "network" | "authentication" | "unknown";
+
+function record(eventName: "signup_clicked" | "signup_started" | "signup_submitted" | "signup_failed", details: { authMethod?: SignupMethod; failureCategory?: SignupFailureCategory } = {}) {
   const send = () => fetch("/api/affiliates/funnel", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     keepalive: true,
-    body: JSON.stringify({ eventName }),
+    body: JSON.stringify({ eventName, ...details }),
   });
   void send().then(async (response) => {
     const result = await response.json().catch(() => null) as { ignored?: boolean } | null;
@@ -26,6 +29,23 @@ export function ProviderSignupButton({ href, compact = false }: { href: string; 
 
 export function recordProviderSignupStarted() {
   record("signup_started");
+}
+
+export function recordProviderSignupSubmitted(authMethod: Exclude<SignupMethod, "unknown">) {
+  record("signup_submitted", { authMethod });
+}
+
+export function recordProviderSignupFailed(authMethod: SignupMethod, failureCategory: SignupFailureCategory) {
+  record("signup_failed", { authMethod, failureCategory });
+}
+
+export function signupFailureCategory(error: unknown): SignupFailureCategory {
+  const value = typeof error === "string" ? error : error && typeof error === "object" && "message" in error ? String(error.message) : "";
+  const lower = value.toLowerCase();
+  if (/already|exists|registered/.test(lower)) return "account_exists";
+  if (/rate|too many|limit/.test(lower)) return "rate_limited";
+  if (/oauth|google|provider/.test(lower)) return "oauth";
+  return "authentication";
 }
 
 export function recordProviderOnboardingStarted() {

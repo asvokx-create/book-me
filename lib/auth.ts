@@ -7,6 +7,7 @@ import { sendAccountWelcome } from "./welcome-message";
 import { normalizeAccountLocation } from "./account-location";
 import { hasValidAgeEligibilityAttestation } from "./age-eligibility";
 import { hasValidPolicyConsentAttestation } from "./policy-consent-attestation";
+import { recordAffiliateAccountCreated } from "./affiliate-funnel";
 
 const emailEnabled = isEmailConfigured();
 const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -130,7 +131,12 @@ export const auth = betterAuth({
           }
           return { data: ageVerification };
         },
-        async after(user) {
+        async after(user, context) {
+          await recordAffiliateAccountCreated({
+            userId: user.id,
+            createdAt: user.createdAt,
+            cookieHeader: context?.headers?.get("cookie"),
+          }).catch((error) => console.error("Affiliate account creation milestone failed", error instanceof Error ? error.message : "Unknown error"));
           await sendAccountWelcome({ id: user.id, email: user.email, name: user.name });
         },
       },

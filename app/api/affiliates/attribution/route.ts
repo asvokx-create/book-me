@@ -12,6 +12,7 @@ export async function POST(request: Request) {
     ...(body ?? {}),
     code: body?.code,
     landingPath: body?.landingPath,
+    userAgent: request.headers.get("user-agent"),
     savedToken: cookieValue(request.headers.get("cookie"), AFFILIATE_COOKIE),
   });
   if (result.status === "invalid") {

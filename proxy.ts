@@ -76,6 +76,7 @@ export async function proxy(request: NextRequest) {
           utmCampaign: request.nextUrl.searchParams.get("utm_campaign"),
           utmContent: request.nextUrl.searchParams.get("utm_content"),
           utmTerm: request.nextUrl.searchParams.get("utm_term"),
+          userAgent: request.headers.get("user-agent"),
         });
       } catch (error) {
         console.error("Affiliate raw click recording failed", error instanceof Error ? error.message : "Unknown error");
@@ -89,6 +90,7 @@ export async function proxy(request: NextRequest) {
         utmCampaign: request.nextUrl.searchParams.get("utm_campaign"),
         utmContent: request.nextUrl.searchParams.get("utm_content"),
         utmTerm: request.nextUrl.searchParams.get("utm_term"),
+        userAgent: request.headers.get("user-agent"),
         savedToken: cookieValue(request.headers.get("cookie"), AFFILIATE_COOKIE),
       });
       if (result.status === "created") {

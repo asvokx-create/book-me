@@ -10,7 +10,7 @@ import { getGoogleSignInErrorMessage } from "../lib/oauth-error";
 import { normalizeAccountLocation } from "../lib/account-location";
 import UiIcon from "@/components/ui-icon";
 import CustomSelect from "@/components/custom-select";
-import { recordProviderSignupStarted } from "@/components/provider-signup-actions";
+import { recordProviderSignupFailed, recordProviderSignupStarted, recordProviderSignupSubmitted, signupFailureCategory } from "@/components/provider-signup-actions";
 
 type SocialProvider = "google";
 
@@ -60,9 +60,15 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ dateOfBirth }),
-    });
+    }).catch(() => null);
+    if (!response) {
+      if (isProviderIntent) recordProviderSignupFailed("unknown", "network");
+      setError("We could not confirm your eligibility. Check your connection and try again.");
+      return false;
+    }
     const payload = await response.json().catch(() => null) as { error?: string } | null;
     if (!response.ok) {
+      if (isProviderIntent) recordProviderSignupFailed("unknown", "age_eligibility");
       setError(payload?.error ?? "We could not confirm your eligibility. Please try again.");
       return false;
     }
@@ -75,9 +81,15 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ termsAccepted: acceptedTerms, privacyAcknowledged: acknowledgedPrivacy }),
-    });
+    }).catch(() => null);
+    if (!response) {
+      if (isProviderIntent) recordProviderSignupFailed(signupMethod, "network");
+      setError("We could not record your agreement. Check your connection and try again.");
+      return false;
+    }
     const payload = await response.json().catch(() => null) as { error?: string } | null;
     if (!response.ok) {
+      if (isProviderIntent) recordProviderSignupFailed(signupMethod, "agreement");
       setError(payload?.error ?? "We could not record your agreement. Please try again.");
       return false;
     }
@@ -94,6 +106,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
     if (method === "email") {
       const phoneDigits = phone.replace(/\D/g, "");
       if (!name.trim() || !email.includes("@") || (phoneDigits.length > 0 && phoneDigits.length !== 10) || password.length < 12) {
+        if (isProviderIntent) recordProviderSignupFailed("email", "validation");
         setError("Enter your name, a valid email address, an optional 10-digit phone number, and a password with at least 12 characters.");
         return;
       }
@@ -127,6 +140,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       return;
     }
     if (!isLogin && !hasRequiredConsents) {
+      if (isProviderIntent) recordProviderSignupFailed(provider, "agreement");
       setError("Complete all required agreements before creating an account.");
       return;
     }
@@ -134,6 +148,7 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
     if (!isLogin) {
       const normalized = normalizeAccountLocation({ city, state, postalCode, country: "United States" });
       if ((!remoteOnly || isProviderIntent) && !normalized.location) {
+        if (isProviderIntent) recordProviderSignupFailed(provider, "location");
         setError(normalized.error ?? "Enter your city, state, and ZIP code before creating an account.");
         return;
       }
@@ -143,17 +158,26 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
 
     setError("");
     setSocialLoading(provider);
+    if (!isLogin && isProviderIntent) recordProviderSignupSubmitted(provider);
     const errorCallbackURL = `/login?oauthError=1&redirect=${encodeURIComponent(redirectTo)}`;
     const newUserCallbackURL = `/account/settings?welcome=1&redirect=${encodeURIComponent(redirectTo)}`;
-    const { error: authError } = await authClient.signIn.social({
+    const result = await authClient.signIn.social({
       provider,
       callbackURL: redirectTo,
       errorCallbackURL,
       newUserCallbackURL,
       requestSignUp: !isLogin,
-    });
+    }).catch(() => null);
+    if (!result) {
+      setSocialLoading(null);
+      if (!isLogin && isProviderIntent) recordProviderSignupFailed(provider, "network");
+      setError("We could not connect to Google. Check your connection and try again.");
+      return;
+    }
+    const { error: authError } = result;
     if (authError) {
       setSocialLoading(null);
+      if (!isLogin && isProviderIntent) recordProviderSignupFailed(provider, signupFailureCategory(authError));
       setError(authError.message ?? "We could not continue with Google.");
     }
   }
@@ -175,10 +199,12 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
     const phoneDigits = phone.replace(/\D/g, "");
     const normalizedLocation = isLogin ? null : normalizeAccountLocation({ city, state, postalCode, country: "United States" });
     if (!isLogin && (!remoteOnly || isProviderIntent) && !normalizedLocation?.location) {
+      if (isProviderIntent) recordProviderSignupFailed("email", "location");
       setError(normalizedLocation?.error ?? "Enter your city, state, and ZIP code.");
       return;
     }
     if ((!isLogin && (!name.trim() || (phoneDigits.length > 0 && phoneDigits.length !== 10) || !hasRequiredConsents || password.length < 12)) || !email.includes("@") || (isLogin && password.length === 0)) {
+      if (!isLogin && isProviderIntent) recordProviderSignupFailed("email", "validation");
       setError("Enter valid account details. If provided, phone numbers need 10 digits. New passwords need at least 12 characters.");
       return;
     }
@@ -206,7 +232,8 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       return;
     }
 
-    const { data: signUpData, error: authError } = await authClient.signUp.email({
+    if (isProviderIntent) recordProviderSignupSubmitted("email");
+    const signUpResult = await authClient.signUp.email({
       email,
       password,
       name: name.trim(),
@@ -217,9 +244,16 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
       country: normalizedLocation?.location?.country ?? "United States",
       ...createPolicyConsentFields(),
       callbackURL: redirectTo,
-    });
+    }).catch(() => null);
     setLoading(false);
+    if (!signUpResult) {
+      if (isProviderIntent) recordProviderSignupFailed("email", "network");
+      setError("We could not create your account. Check your connection and try again.");
+      return;
+    }
+    const { data: signUpData, error: authError } = signUpResult;
     if (authError) {
+      if (isProviderIntent) recordProviderSignupFailed("email", signupFailureCategory(authError));
       setError(authError.message ?? "We could not create your account. Please try again.");
       return;
     }
@@ -269,8 +303,8 @@ export default function AuthForm({ mode, redirectTo = "/account", socialProvider
         {(error || oauthError) && <p role="alert" className="rounded-xl bg-[#fff1e8] px-3 py-2.5 text-xs font-semibold leading-5 text-[#9a4e25]">{error || getGoogleSignInErrorMessage(oauthError, oauthErrorDescription)}</p>}
         {!isLogin && signupStep === 3 && <p className="text-xs leading-5 text-[#66776e]">By creating an account, you agree to the <Link href="/terms" target="_blank" className="font-bold underline">Terms of Service</Link> and acknowledge the <Link href="/privacy" target="_blank" className="font-bold underline">Privacy Policy</Link>, including how BubsBookings uses your account and location information.</p>}
         {!isLogin && signupStep === 2 && <button type="button" onClick={showSignupStepOne} className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#183126]/15 bg-white px-6 py-3 text-sm font-bold text-[#52695d] transition hover:bg-[#e7efe3]"><UiIcon name="arrow-left" className="h-4 w-4" />Back to age eligibility</button>}
-        {!isLogin && signupStep === 3 && <button type="button" onClick={showSignupStepTwoAgain} className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#183126]/15 bg-white px-6 py-3 text-sm font-bold text-[#52695d] transition hover:bg-[#e7efe3]"><UiIcon name="arrow-left" className="h-4 w-4" />Back to account details</button>}
-        <button type="submit" disabled={loading || Boolean(socialLoading) || (!isLogin && signupStep === 3 && !hasRequiredConsents)} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-60">{loading || socialLoading ? "Please wait…" : isLogin ? "Log in" : signupStep === 1 ? "Continue" : signupStep === 2 ? "Next" : "Create account"}</button>
+        {!isLogin && signupStep === 3 && <button type="button" onClick={showSignupStepTwoAgain} className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#183126]/15 bg-white px-6 py-3 text-sm font-bold text-[#52695d] transition hover:bg-[#e7efe3]"><UiIcon name="arrow-left" className="h-4 w-4" />Back to signup options</button>}
+        <button type="submit" disabled={loading || Boolean(socialLoading) || (!isLogin && signupStep === 3 && !hasRequiredConsents)} className="w-full rounded-full bg-[#eee25a] px-6 py-4 font-bold text-[#183126] transition hover:bg-[#f5ea6b] disabled:cursor-not-allowed disabled:opacity-60">{loading || socialLoading ? "Please wait…" : isLogin ? "Log in" : signupStep === 1 ? "Continue" : signupStep === 2 ? "Next" : signupMethod === "google" ? "Continue with Google" : "Create account"}</button>
       </form>
 
       <p className="mt-6 text-center text-sm text-[#74837b]">{isLogin ? "New to BubsBookings?" : "Already have an account?"} <Link href={`${isLogin ? "/signup" : "/login"}${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`} className="font-bold text-[#183126] underline decoration-[#c7bb41] decoration-2 underline-offset-4">{isLogin ? "Sign up" : "Log in"}</Link></p>

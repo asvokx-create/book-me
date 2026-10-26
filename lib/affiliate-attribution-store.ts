@@ -2,6 +2,7 @@ import "server-only";
 
 import { database } from "@/lib/database";
 import { newAttributionToken, normalizeAffiliateCode, safeInternalDestination } from "@/lib/affiliates";
+import { classifyAffiliateTraffic } from "@/lib/affiliate-traffic";
 
 const ATTRIBUTION_TOKEN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -13,6 +14,7 @@ type AttributionInput = {
   utmCampaign?: unknown;
   utmContent?: unknown;
   utmTerm?: unknown;
+  userAgent?: unknown;
   savedToken?: string | null;
 };
 
@@ -24,11 +26,12 @@ type AttributionResult =
 export async function recordAffiliateRawClick(input: Omit<AttributionInput, "savedToken">) {
   const code = normalizeAffiliateCode(input.code);
   if (!code) return false;
+  const traffic = classifyAffiliateTraffic(input.userAgent);
 
   const result = await database.query<{ inserted: boolean }>(
     `INSERT INTO affiliate_click_events (affiliate_id, program_id, affiliate_code, landing_path,
-        utm_source, utm_medium, utm_campaign, utm_content, utm_term)
-      SELECT affiliate.id, program.id, $1, $2, $3, $4, $5, $6, $7
+        utm_source, utm_medium, utm_campaign, utm_content, utm_term, device_category, browser_category)
+      SELECT affiliate.id, program.id, $1, $2, $3, $4, $5, $6, $7, $8, $9
       FROM affiliate_profiles affiliate
       JOIN affiliate_programs program ON program.id = affiliate.program_id
       WHERE lower(affiliate.affiliate_code) = lower($1)
@@ -44,6 +47,8 @@ export async function recordAffiliateRawClick(input: Omit<AttributionInput, "sav
       text(input.utmCampaign),
       text(input.utmContent),
       text(input.utmTerm),
+      traffic.deviceCategory,
+      traffic.browserCategory,
     ],
   );
   return result.rows[0]?.inserted === true;
@@ -52,6 +57,7 @@ export async function recordAffiliateRawClick(input: Omit<AttributionInput, "sav
 export async function storeAffiliateAttribution(input: AttributionInput): Promise<AttributionResult> {
   const code = normalizeAffiliateCode(input.code);
   if (!code) return { status: "invalid", code: "" };
+  const traffic = classifyAffiliateTraffic(input.userAgent);
 
   const savedToken = input.savedToken?.trim() ?? "";
   if (ATTRIBUTION_TOKEN.test(savedToken)) {
@@ -85,8 +91,8 @@ export async function storeAffiliateAttribution(input: AttributionInput): Promis
   const token = newAttributionToken();
   await database.query(
     `INSERT INTO affiliate_clicks (affiliate_id, program_id, attribution_token, affiliate_code, landing_path,
-        utm_source, utm_medium, utm_campaign, utm_content, utm_term)
-      VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10)`,
+        utm_source, utm_medium, utm_campaign, utm_content, utm_term, device_category, browser_category)
+      VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
     [
       match.affiliate_id,
       match.program_id,
@@ -98,6 +104,8 @@ export async function storeAffiliateAttribution(input: AttributionInput): Promis
       text(input.utmCampaign),
       text(input.utmContent),
       text(input.utmTerm),
+      traffic.deviceCategory,
+      traffic.browserCategory,
     ],
   );
   return { status: "created", code, token, maxAge: match.attribution_window_days * 86_400 };
