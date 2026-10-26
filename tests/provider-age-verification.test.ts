@@ -47,7 +47,9 @@ test("provider verification can never leave the Stripe handoff button stuck", ()
   assert.match(billing, /openStripe\("\/api\/stripe\/provider-age-verification"\)/);
   assert.match(checklist, /async function openAgeVerification\(\)/);
   assert.match(checklist, /aria-busy=\{openingAgeVerification\}/);
-  assert.match(checklist, /setStripeError\(result\?\.error/);
+  assert.match(checklist, /setAgeVerificationError\(result\?\.error/);
+  assert.match(checklist, /ageVerificationError && <p role="alert"/);
+  assert.match(checklist, /payoutSetupError && <p role="alert"/);
   assert.match(providerRoute, /NextResponse\.json\(\{ url: result\.url, status: result\.status \}\)/);
   assert.match(providerRoute, /providerAgeVerificationError/);
 });

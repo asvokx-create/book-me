@@ -47,7 +47,8 @@ export default function ProviderActivationChecklist({ activation }: { activation
   const [statusUnavailable, setStatusUnavailable] = useState(false);
   const [openingStripe, setOpeningStripe] = useState(false);
   const [openingAgeVerification, setOpeningAgeVerification] = useState(false);
-  const [stripeError, setStripeError] = useState("");
+  const [payoutSetupError, setPayoutSetupError] = useState("");
+  const [ageVerificationError, setAgeVerificationError] = useState("");
 
   const refreshStripeStatus = useCallback(async () => {
     const response = await fetch("/api/stripe/status", { cache: "no-store" }).catch(() => null);
@@ -72,14 +73,14 @@ export default function ProviderActivationChecklist({ activation }: { activation
 
   async function openStripe() {
     setOpeningStripe(true);
-    setStripeError("");
+    setPayoutSetupError("");
     const response = await fetch("/api/stripe/connect", { method: "POST" }).catch(() => null);
     const contentType = response?.headers.get("content-type") ?? "";
     const result = response && contentType.includes("application/json")
       ? await response.json().catch(() => null) as { url?: string; error?: string } | null
       : null;
     if (!response?.ok || !result?.url) {
-      setStripeError(result?.error ?? "We could not open Stripe right now. Please try again.");
+      setPayoutSetupError(result?.error ?? "We could not open Stripe right now. Please try again.");
       setOpeningStripe(false);
       return;
     }
@@ -88,7 +89,7 @@ export default function ProviderActivationChecklist({ activation }: { activation
 
   async function openAgeVerification() {
     setOpeningAgeVerification(true);
-    setStripeError("");
+    setAgeVerificationError("");
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 20_000);
     try {
@@ -98,7 +99,7 @@ export default function ProviderActivationChecklist({ activation }: { activation
         ? await response.json().catch(() => null) as { url?: string; verified?: boolean; error?: string } | null
         : null;
       if (!response.ok || (!result?.url && !result?.verified)) {
-        setStripeError(result?.error ?? "We could not open Stripe age verification. Please try again.");
+        setAgeVerificationError(result?.error ?? "We could not open Stripe age verification. Please try again.");
         return;
       }
       if (result.verified) {
@@ -107,7 +108,7 @@ export default function ProviderActivationChecklist({ activation }: { activation
       }
       window.location.assign(result.url!);
     } catch {
-      setStripeError("We could not open Stripe age verification. Please check your connection and try again.");
+      setAgeVerificationError("We could not open Stripe age verification. Please check your connection and try again.");
     } finally {
       window.clearTimeout(timeout);
       setOpeningAgeVerification(false);
@@ -138,12 +139,11 @@ export default function ProviderActivationChecklist({ activation }: { activation
     <ol className="mt-5 grid gap-3">
       <Step title="Create your company page" step={activation.companyPage} action={<Link href="/providers/join" className="inline-flex rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white">Create company page</Link>} />
       <Step title="Create your first service listing" step={activation.firstListing} action={<Link href="/providers/join" className="inline-flex rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white">Create service</Link>} />
-      <Step title="Complete required age verification" step={ageStep} action={<button type="button" onClick={() => void openAgeVerification()} disabled={openingAgeVerification || stripe?.configured === false || ageStep.status === "under_review"} aria-busy={openingAgeVerification} className="rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-60">{openingAgeVerification ? "Opening Stripe..." : ageStep.status === "action_required" ? "Continue age verification" : "Verify age"}</button>} />
-      <Step title="Connect Stripe payouts" step={payoutStep} action={<button type="button" onClick={() => void openStripe()} disabled={openingStripe || stripe?.configured === false} className="rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-60">{openingStripe ? "Opening Stripe..." : "Set Up Stripe Payouts"}</button>} />
+      <Step title="Complete required age verification" step={ageStep} action={<div className="max-w-sm"><button type="button" onClick={() => void openAgeVerification()} disabled={openingAgeVerification || stripe?.configured === false || ageStep.status === "under_review"} aria-busy={openingAgeVerification} className="rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-60">{openingAgeVerification ? "Opening Stripe..." : ageStep.status === "action_required" ? "Continue age verification" : "Verify age"}</button>{ageVerificationError && <p role="alert" className="mt-2 rounded-xl bg-[#fff0e8] px-3 py-2 text-xs font-semibold leading-5 text-[#964f2c]">{ageVerificationError}</p>}</div>} />
+      <Step title="Connect Stripe payouts" step={payoutStep} action={<div className="max-w-sm"><button type="button" onClick={() => void openStripe()} disabled={openingStripe || stripe?.configured === false} className="rounded-full bg-[#183126] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-60">{openingStripe ? "Opening Stripe..." : "Set Up Stripe Payouts"}</button>{payoutSetupError && <p role="alert" className="mt-2 rounded-xl bg-[#fff0e8] px-3 py-2 text-xs font-semibold leading-5 text-[#964f2c]">{payoutSetupError}</p>}</div>} />
     </ol>
     <p className="mt-3 text-xs leading-5 text-[#706942]">Stripe payout setup is required to receive earnings. It does not determine whether a listing is public.</p>
     {activation.listings.some((listing) => !listing.publiclyAvailable) && <div className="mt-5 rounded-2xl border border-[#dba986] bg-[#fff3e9] p-4"><h3 className="font-bold text-[#7f4528]">Why your listings are not public</h3><div className="mt-3 space-y-3">{activation.listings.filter((listing) => !listing.publiclyAvailable).map((listing) => <div key={listing.id}><p className="text-sm font-bold">{listing.title}</p><ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-[#765e4c]">{listing.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>)}</div></div>}
-    {stripeError && <p role="alert" className="mt-4 rounded-xl bg-[#fff0e8] px-4 py-3 text-sm font-semibold text-[#964f2c]">{stripeError}</p>}
     {stripe?.configured === false && <p role="alert" className="mt-4 rounded-xl bg-white/70 px-4 py-3 text-sm font-semibold text-[#776f45]">Stripe setup is temporarily unavailable. Please try again later.</p>}
   </section>;
 }
