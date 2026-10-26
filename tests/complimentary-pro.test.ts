@@ -143,3 +143,18 @@ test("duration values reject manipulation", () => {
   for (const value of ["30_days", "2_months", "3_months", "6_months", "1_year", "lifetime", "custom"]) assert.equal(isComplimentaryProDuration(value), true);
   for (const value of ["forever", -1, null, { duration: "lifetime" }]) assert.equal(isComplimentaryProDuration(value), false);
 });
+
+test("complimentary Pro duration choices render above the admin account dialog", async () => {
+  const [styles, dashboard, control] = await Promise.all([
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../components/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/admin-complimentary-pro.tsx", import.meta.url), "utf8"),
+  ]);
+  const menuLayer = Number(styles.match(/\.custom-select-menu\s*\{[\s\S]*?z-index:\s*(\d+)/)?.[1]);
+  const dialogLayer = Number(dashboard.match(/fixed inset-0 z-\[(\d+)\] flex min-w-0 justify-end/)?.[1]);
+  assert.ok(menuLayer > dialogLayer, `dropdown layer ${menuLayer} must be above admin dialog layer ${dialogLayer}`);
+  for (const duration of ["30_days", "2_months", "3_months", "6_months", "1_year", "lifetime", "custom"]) {
+    assert.match(control, new RegExp(`option value="${duration}"`));
+  }
+  assert.match(control, /onChange=\{\(value\) => setDuration/);
+});

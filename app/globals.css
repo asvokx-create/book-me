@@ -801,7 +801,7 @@ html:not([data-theme="dark"]) .home-search-bar :where(label, input, select, butt
 }
 
 .custom-select-menu {
-  z-index: 360;
+  z-index: 1000;
   color: #183126 !important;
 }
 
