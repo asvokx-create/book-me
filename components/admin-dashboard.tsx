@@ -344,16 +344,16 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
             <span className="hidden shrink-0 rounded-full bg-[#eee25a] px-3 py-1 text-xs font-extrabold uppercase tracking-wider sm:inline">Admin</span>
           </div>
           <div aria-label="Admin account actions" className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1 min-[360px]:gap-2 sm:gap-3">
-            <Link href="/admin/reported-bugs" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Bug reports</Link>
-            <Link href="/admin/disputes" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] md:inline-flex">Disputes</Link>
-            <Link href="/admin/support" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] lg:inline-flex">Support</Link>
-            <Link href="/admin/affiliates" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Partners</Link>
-            <Link href="/admin/operations" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Operations</Link>
-            <Link href="/admin/jarvis" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Jarvis</Link>
-            <Link href="/admin/growth" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Growth</Link>
-            <Link href="/admin/expenses" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Expenses</Link>
-            <Link href="/admin/requests" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#eee25a] xl:inline-flex">Requests</Link>
-            <Link href="/account" className="hidden rounded-full px-4 py-2 text-sm font-bold transition hover:bg-[#e4ecdf] sm:inline-flex">View marketplace</Link>
+            <Link href="/admin/reported-bugs" className="admin-header-link hidden md:inline-flex">Bug reports</Link>
+            <Link href="/admin/disputes" className="admin-header-link hidden md:inline-flex">Disputes</Link>
+            <Link href="/admin/support" className="admin-header-link hidden lg:inline-flex">Support</Link>
+            <Link href="/admin/affiliates" className="admin-header-link hidden xl:inline-flex">Partners</Link>
+            <Link href="/admin/operations" className="admin-header-link hidden xl:inline-flex">Operations</Link>
+            <Link href="/admin/jarvis" className="admin-header-link hidden xl:inline-flex">Jarvis</Link>
+            <Link href="/admin/growth" className="admin-header-link hidden xl:inline-flex">Growth</Link>
+            <Link href="/admin/expenses" className="admin-header-link hidden xl:inline-flex">Expenses</Link>
+            <Link href="/admin/requests" className="admin-header-link hidden xl:inline-flex">Requests</Link>
+            <Link href="/account" className="admin-marketplace-link hidden sm:inline-flex">View marketplace</Link>
             <span className="hidden min-[375px]:inline-flex"><ProfileAvatar name={adminName} imageUrl={adminImage} className="h-10 w-10 text-sm" /></span>
             <button onClick={signOut} className="min-h-11 rounded-full px-2.5 py-2 text-sm font-bold text-[#66766e] transition hover:bg-[#fff0e7] hover:text-[#8d4827] sm:px-3">Log out</button>
           </div>

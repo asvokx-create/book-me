@@ -8,6 +8,7 @@ const read = (...parts: string[]) => readFileSync(join(projectRoot, ...parts), "
 
 test("admin mobile navigation exposes every dashboard and route section without a wide tab strip", () => {
   const dashboard = read("components", "admin-dashboard.tsx");
+  const css = read("app", "globals.css");
 
   assert.match(dashboard, /aria-expanded=\{mobileNavOpen\}/);
   assert.match(dashboard, /aria-controls="admin-mobile-menu"/);
@@ -22,6 +23,9 @@ test("admin mobile navigation exposes every dashboard and route section without 
   assert.match(dashboard, /dashboard-container flex flex-wrap items-center justify-between/);
   assert.match(dashboard, /flex min-w-0 flex-1 flex-wrap items-center justify-end/);
   assert.doesNotMatch(dashboard, /mobile-scroll-row/);
+  assert.match(dashboard, /className="admin-header-link hidden/);
+  assert.match(css, /\.admin-header-link \{[^}]*background: #eef3ec;/);
+  assert.match(css, /\.admin-marketplace-link \{[^}]*background: #123d2e;[^}]*color: #fff;/);
 
   for (const href of ["/admin/reported-bugs", "/admin/disputes", "/admin/support", "/admin/operations", "/admin/expenses", "/account"]) {
     assert.match(dashboard, new RegExp(`href="${href.replaceAll("/", "\\/")}"`));

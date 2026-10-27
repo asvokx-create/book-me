@@ -35,6 +35,16 @@ test("homepage search overlays discovery content and uses single-surface filters
   assert.match(css, /\.home-search-delivery \.custom-select-trigger,[\s\S]*?\.location-filter-radius \.custom-select-trigger \{[\s\S]*?border: 0 !important;[\s\S]*?background: transparent !important;/);
 });
 
+test("hero browse action stays visually prominent and clear of the search panel", () => {
+  const preview = read("components", "home-hero-preview.tsx");
+  const css = read("app", "globals.css");
+
+  assert.match(preview, /className="home-hero-explore-action"/);
+  assert.match(css, /\.home-hero-explore-action \{[^}]*background: #123d2e;[^}]*color: #fff;/);
+  assert.match(css, /\.home-search-dock \{[^}]*margin-top: 1rem;/);
+  assert.doesNotMatch(css, /\.home-search-dock \{[^}]*margin-top: -/);
+});
+
 test("phone homepage removes desktop bulk before discovery", () => {
   const home = read("app", "page.tsx");
   const css = read("app", "globals.css");
