@@ -8,5 +8,5 @@ export const dynamic = "force-dynamic";
 export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const session = await getAdminSession();
   if (!session) redirect("/login?redirect=/admin");
-  return children;
+  return <div className="admin-area contents">{children}</div>;
 }

@@ -25,7 +25,8 @@ test("large displays gain useful columns without allowing cards and booking pane
   const bookingPanel = read("components", "stationary-booking-panel.tsx");
   const css = read("app", "globals.css");
 
-  assert.match(home, /min-\[1536px\]:grid-cols-4/);
+  assert.match(home, /home-popular-grid/);
+  assert.match(css, /\.home-popular-grid \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
   assert.match(services, /min-\[1536px\]:grid-cols-4/);
   assert.match(listing, /minmax\(20rem,25rem\)/);
   assert.match(bookingPanel, /service-booking-panel/);
@@ -57,22 +58,17 @@ test("the global responsive system preserves mobile viewport safety", () => {
   assert.doesNotMatch(layout, /user-scalable=no/);
 });
 
-test("upcoming service categories stay compact without collapsing their icons", () => {
+test("homepage category navigation stays compact without collapsing its icons", () => {
   const home = read("app", "page.tsx");
   const categoryIcon = read("components", "service-category-icon.tsx");
-  const categoryCard = read("components", "upcoming-category-card.tsx");
   const css = read("app", "globals.css");
 
-  assert.match(home, /home-upcoming-grid mt-4 grid gap-2/);
-  assert.match(css, /grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 11\.75rem\), 1fr\)\)/);
-  assert.match(categoryCard, /home-upcoming-category[^\"]*min-h-12[^\"]*min-w-0[^\"]*gap-3[^\"]*rounded-lg/);
-  assert.match(categoryCard, /text-\[13px\][^\"]*sm:text-sm/);
-  assert.match(categoryCard, /home-upcoming-label min-w-0 flex-1/);
-  assert.doesNotMatch(categoryCard, /whitespace-nowrap/);
+  assert.match(home, /HOME_CATEGORIES\.map/);
+  assert.match(home, /home-category-card home-category-more/);
+  assert.match(css, /\.home-redesign \.home-category-grid \{ display: grid; grid-template-columns: repeat\(10, minmax\(0, 1fr\)\)/);
   assert.match(categoryIcon, /shrink-0[^\"]*aspect-square/);
   assert.match(categoryIcon, /h-10 min-h-10 w-10 min-w-10/);
-  assert.match(css, /@media \(min-width: 480px\) and \(max-width: 639px\)[\s\S]*?\.home-upcoming-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /\.home-upcoming-label[\s\S]*?white-space: normal;[\s\S]*?word-break: normal;[\s\S]*?overflow-wrap: normal/);
+  assert.match(css, /@media \(max-width: 639px\)[\s\S]*?\.home-redesign \.home-category-grid \{ display: flex/);
 });
 
 test("iPhone layouts keep trust points, listing media, and service details readable", () => {
@@ -116,7 +112,7 @@ test("narrow marketplace controls preserve readable text and stack before they c
   const filters = read("components", "service-filters-menu.tsx");
   const css = read("app", "globals.css");
 
-  assert.match(home, /home-search-input flex flex-1/);
+  assert.match(home, /home-search-input flex min-w-0 flex-1/);
   assert.match(css, /@media \(max-width: 360px\)[\s\S]*?\.home-search-input[\s\S]*?padding-inline: \.75rem/);
   assert.match(css, /main > header a[\s\S]*?min-height: 2\.75rem/);
   assert.match(css, /#all-filters:has\(details\[open\]\)[\s\S]*?z-index: 120/);

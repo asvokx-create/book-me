@@ -51,16 +51,21 @@ test("guide marketplace calls to action use the reader's location context instea
 test("homepage section headings follow the page heading without skipping directly to level three", () => {
   const home = read("app/page.tsx");
   assert.match(home, /<h1 className="type-hero">/);
-  assert.match(home, /<h2 className="text-3xl font-bold tracking-/);
+  assert.match(home, /<h2[^>]*className="text-3xl font-bold tracking-/);
   assert.doesNotMatch(home, /<h3 className="text-3xl font-bold tracking-/);
 });
 
-test("homepage hero uses the supplied browse-services city map without duplicate overlays", () => {
+test("homepage hero uses an image-free category preview with accessible contextual labeling", () => {
   const preview = read("components/home-hero-preview.tsx");
-  assert.match(preview, /browse-services-city-map\.png/);
-  assert.match(preview, /aspect-\[3\/2\]/);
-  assert.match(preview, /Illustrated city map showing local home, repair, pet, photography, and transportation services/);
-  assert.doesNotMatch(preview, /function MapPin|home-preview-road--one|Home cleaning/);
+  assert.match(preview, /Explore BubsBookings/);
+  assert.match(preview, /Find the right help for the job\./);
+  assert.match(preview, /Home repair/);
+  assert.match(preview, /Photography/);
+  assert.match(preview, /Consulting/);
+  assert.match(preview, /Tutoring/);
+  assert.match(preview, /aria-label=/);
+  assert.doesNotMatch(preview, /home-marketplace-hero\.webp/);
+  assert.doesNotMatch(preview, /function MapPin|home-preview-road--one/);
 });
 
 test("the account loading placeholder cannot cover the wordmark on the narrowest phones", () => {

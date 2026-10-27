@@ -140,23 +140,25 @@ function formatBookingTime(startsAt: string, timeZone?: string) {
   return formatInUserTimeZone(startsAt, { hour: "numeric", minute: "2-digit" }, timeZone);
 }
 
-const dashboardNav: Array<{ section: DashboardSection; href: string; label: string }> = [
-  { section: "overview", href: "/provider/dashboard", label: "Overview" },
-  { section: "bookings", href: "/provider/dashboard/bookings", label: "Bookings" },
-  { section: "opportunities", href: "/provider/dashboard/opportunities", label: "Opportunities" },
-  { section: "calendar", href: "/provider/dashboard/calendar", label: "Calendar" },
-  { section: "messages", href: "/provider/dashboard/messages", label: "Messages" },
-  { section: "customers", href: "/provider/dashboard/customers", label: "Customers" },
-  { section: "revenue", href: "/provider/dashboard/revenue", label: "Revenue" },
-  { section: "services", href: "/provider/dashboard/services", label: "Services" },
-  { section: "profile", href: "/provider/dashboard/profile", label: "Public profile" },
-  { section: "marketing", href: "/provider/dashboard/marketing", label: "Marketing" },
-  { section: "locations", href: "/provider/dashboard/locations", label: "Locations" },
-  { section: "availability", href: "/provider/dashboard/availability", label: "Availability" },
-  { section: "reviews", href: "/provider/dashboard/reviews", label: "Reviews" },
-  { section: "team", href: "/provider/dashboard/team", label: "Team" },
-  { section: "billing", href: "/provider/dashboard/billing", label: "Billing" },
-  { section: "settings", href: "/provider/dashboard/settings", label: "Settings" },
+type DashboardNavGroup = "Business" | "Growth" | "Financial" | "Account";
+
+const dashboardNav: Array<{ section: DashboardSection; href: string; label: string; group: DashboardNavGroup }> = [
+  { section: "overview", href: "/provider/dashboard", label: "Overview", group: "Business" },
+  { section: "bookings", href: "/provider/dashboard/bookings", label: "Bookings", group: "Business" },
+  { section: "opportunities", href: "/provider/dashboard/opportunities", label: "Opportunities", group: "Business" },
+  { section: "calendar", href: "/provider/dashboard/calendar", label: "Calendar", group: "Business" },
+  { section: "messages", href: "/provider/dashboard/messages", label: "Messages", group: "Business" },
+  { section: "customers", href: "/provider/dashboard/customers", label: "Customers", group: "Business" },
+  { section: "services", href: "/provider/dashboard/services", label: "Listings", group: "Business" },
+  { section: "marketing", href: "/provider/dashboard/marketing", label: "Marketing", group: "Growth" },
+  { section: "reviews", href: "/provider/dashboard/reviews", label: "Reviews", group: "Growth" },
+  { section: "revenue", href: "/provider/dashboard/revenue", label: "Earnings", group: "Financial" },
+  { section: "billing", href: "/provider/dashboard/billing", label: "Billing & subscription", group: "Financial" },
+  { section: "profile", href: "/provider/dashboard/profile", label: "Company profile", group: "Account" },
+  { section: "locations", href: "/provider/dashboard/locations", label: "Locations", group: "Account" },
+  { section: "availability", href: "/provider/dashboard/availability", label: "Availability", group: "Account" },
+  { section: "team", href: "/provider/dashboard/team", label: "Team", group: "Account" },
+  { section: "settings", href: "/provider/dashboard/settings", label: "Settings", group: "Account" },
 ];
 
 const sectionsNeedingPageHeading: Partial<Record<DashboardSection, string>> = {
@@ -451,7 +453,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
       <div className="dashboard-shell dashboard-container grid gap-6 px-4 py-6 sm:px-8 sm:py-8 lg:grid-cols-[236px_minmax(0,1fr)] lg:gap-8">
         <aside className="dashboard-sidebar hidden lg:block">
           <nav className="dashboard-sidebar-nav w-full space-y-1 text-sm font-semibold">
-            {visibleNav.map((item) => <div key={item.section}>{item.section === "settings" && <div className="dashboard-nav-divider my-4 border-t border-white/10" />}<Link href={item.href} className={`dashboard-nav-link flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "dashboard-nav-link-active bg-[#eee25a] text-[#183126]" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><span className="dashboard-nav-icon"><ProviderDashboardIcon name={item.section} /></span>{item.label}{item.section === "bookings" && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{activeRequests}</span>}</Link></div>)}
+            {visibleNav.map((item, index) => <div key={item.section}>{(index === 0 || visibleNav[index - 1]?.group !== item.group) && <p className={`dashboard-nav-group px-4 pb-1 text-[10px] font-extrabold uppercase tracking-[.16em] text-white/45 ${index ? "mt-5 border-t border-white/10 pt-4" : "pt-2"}`}>{item.group}</p>}<Link href={item.href} className={`dashboard-nav-link flex items-center gap-3 rounded-xl px-4 py-3 transition ${section === item.section ? "dashboard-nav-link-active bg-[#eee25a] text-[#183126]" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><span className="dashboard-nav-icon"><ProviderDashboardIcon name={item.section} /></span>{item.label}{item.section === "bookings" && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{activeRequests}</span>}</Link></div>)}
           </nav>
         </aside>
 

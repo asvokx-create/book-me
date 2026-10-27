@@ -14,5 +14,5 @@ export default async function ProviderLayout({
     if (!session) redirect("/login");
   }
 
-  return children;
+  return <div className="provider-area contents">{children}</div>;
 }

@@ -18,6 +18,13 @@ test("homepage search exposes a compact accessible delivery control on phones", 
   assert.match(css, /\.home-search-location \.location-filter-radius \{ width: 100%/);
 });
 
+test("homepage search prompt keeps the remaining width beside its icon", () => {
+  const search = read("components", "home-service-search.tsx");
+  assert.match(search, /className="home-search-input flex min-w-0 flex-1/);
+  assert.match(search, /inputClassName="min-w-0 flex-1/);
+  assert.doesNotMatch(search, /inputClassName="w-full/);
+});
+
 test("phone homepage removes desktop bulk before discovery", () => {
   const home = read("app", "page.tsx");
   const css = read("app", "globals.css");

@@ -14,5 +14,5 @@ export default async function AccountLayout({
     if (!session) redirect("/login");
   }
 
-  return children;
+  return <div className="account-area contents">{children}</div>;
 }

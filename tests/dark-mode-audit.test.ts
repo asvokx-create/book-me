@@ -21,9 +21,8 @@ test("dark mode has explicit surfaces for the audited visual exceptions", () => 
   for (const selector of [
     ".partners-hero",
     ".message-thread-surface",
-    ".home-preview-badge",
-    ".home-request-banner",
-    ".home-upcoming-panel",
+    ".home-service-card",
+    ".home-hero-v2",
     ".settings-theme-option",
     ".settings-secondary-action",
     ".settings-logout-action",
@@ -40,8 +39,8 @@ test("dark mode has explicit surfaces for the audited visual exceptions", () => 
   assert.match(read("app/signup/page.tsx"), /className="auth-page /);
   assert.match(read("components/messaging-center.tsx"), /className="message-thread-surface /);
   assert.match(read("components/messaging-center.tsx"), /className="grid gap-3 border-b/);
-  for (const className of ["home-preview-badge", "home-header-provider-link", "home-request-banner", "home-upcoming-panel"]) {
-    assert.match(home, new RegExp(`className="${className} `));
+  for (const className of ["home-hero-v2", "home-service-card", "home-provider-cta"]) {
+    assert.match(home, new RegExp(`className="${className}(?: |")`));
   }
   for (const className of ["settings-theme-option", "settings-secondary-action", "settings-logout-action"]) {
     assert.match(settings, new RegExp(className));

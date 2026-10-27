@@ -6,12 +6,12 @@ import { join } from "node:path";
 const projectRoot = process.cwd();
 const read = (...parts: string[]) => readFileSync(join(projectRoot, ...parts), "utf8");
 
-test("category discovery separates live supply from coming-soon demand capture", () => {
+test("homepage category discovery uses supported categories and links to demand capture when supply is empty", () => {
   const home = read("app", "page.tsx");
-  assert.match(home, /populatedCategories/);
-  assert.match(home, /upcomingCategories/);
-  assert.match(home, /More services coming soon/);
-  assert.match(home, /Request a service/);
+  assert.match(home, /const HOME_CATEGORIES/);
+  assert.match(home, /categoryParams\.set\("location", location\)/);
+  assert.match(home, /Listings are coming soon/);
+  assert.match(home, /Join as a provider/);
 });
 
 test("brand markup exposes one consistent BubsBookings accessible name", () => {
