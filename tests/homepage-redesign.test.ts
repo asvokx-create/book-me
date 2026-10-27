@@ -61,10 +61,19 @@ test("homepage hero uses a branded service panel instead of a decorative photo",
 
 test("homepage hero category tiles are individual working links", () => {
   const preview = read("components", "home-hero-preview.tsx");
+  const css = read("app", "globals.css");
   assert.match(preview, /href=\{categoryHref\(category\)\}/);
   assert.match(preview, /category=\$\{encodeURIComponent\(category\)\}/);
   assert.match(preview, /className="home-hero-explore-action"/);
   assert.doesNotMatch(preview, /className="home-hero-collage group/);
+  assert.match(css, /\.home-hero-explore-action \{[^}]*color: #d7e3dc;/);
+});
+
+test("desktop navigation exposes pricing and clearly labels provider listing setup", () => {
+  const home = read("app", "page.tsx");
+  assert.match(home, /<Link href="\/pricing">Pricing<\/Link>/);
+  assert.match(home, /<Link href="\/providers\/join">List Your Service<\/Link>/);
+  assert.doesNotMatch(home, />For Providers<\/Link>/);
 });
 
 test("responsive homepage has deliberate tablet and phone layouts", () => {

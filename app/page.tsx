@@ -79,7 +79,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <Link href="/services">Find a Pro</Link>
             <Link href="/services?showFilters=1#all-filters">Browse Services</Link>
             <Link href="/#how-it-works">How It Works</Link>
-            <Link href="/providers/join">For Providers</Link>
+            <Link href="/pricing">Pricing</Link>
+            <Link href="/providers/join">List Your Service</Link>
           </nav>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <MobileSiteNav />

@@ -3227,7 +3227,7 @@ html[data-theme="dark"] .home-mobile-request p:last-child { color: var(--text-se
 .home-hero-explore-grid > a:focus-visible { outline: 3px solid #eee25a; outline-offset: 2px; }
 .home-hero-explore-grid > a > span:first-child { display: grid; width: 2.35rem; height: 2.35rem; flex: none; place-items: center; border-radius: .75rem; background: #fff; color: #147e50; }
 .home-hero-explore-grid strong { min-width: 0; font-size: .8rem; line-height: 1.2; }
-.home-hero-explore-action { display: inline-flex; width: fit-content; min-height: 2.75rem; margin-top: 1.5rem; align-items: center; gap: .5rem; border-radius: .75rem; background: #123d2e; padding: .7rem 1rem; font-size: .8rem; font-weight: 850; color: #fff; transition: background-color .2s ease; }
+.home-hero-explore-action { display: inline-flex; width: fit-content; min-height: 2.75rem; margin-top: 1.5rem; align-items: center; gap: .5rem; border-radius: .75rem; background: #123d2e; padding: .7rem 1rem; font-size: .8rem; font-weight: 850; color: #d7e3dc; transition: background-color .2s ease; }
 .home-hero-explore-action:hover { background: #1b5a42; }
 .home-hero-explore-action:focus-visible { outline: 3px solid #eee25a; outline-offset: 3px; }
 .home-hero-explore-action svg { width: 1rem; transition: color .2s ease; }
