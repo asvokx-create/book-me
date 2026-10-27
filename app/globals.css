@@ -454,7 +454,7 @@ html:not([data-theme="dark"]) main:not(.home-page)[class*="bg-[#f"] {
 }
 
 .services-search-location summary,
-.services-search-location > div > div:last-child {
+.services-search-location .location-filter-radius {
   min-height: 3.25rem;
 }
 
@@ -914,6 +914,12 @@ html[data-theme="dark"] .location-apply-button:disabled {
   background-color: transparent !important;
   box-shadow: none !important;
   line-height: 1.25;
+}
+
+.compact-radius-select > span:first-child {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .compact-radius-select:focus,
@@ -2694,10 +2700,10 @@ html[data-theme="dark"] .account-page > header {
   }
 
   .home-search-location { background: transparent; }
-  .home-search-location > div { flex-direction: row; gap: .35rem; }
-  .home-search-location details { min-width: 0; }
+  .home-search-location .location-filter { flex-direction: column; gap: .35rem; }
+  .home-search-location .location-filter-city { width: 100%; min-width: 0; }
   .home-search-location summary { min-height: 3rem; padding-inline: .8rem; background: rgba(255, 255, 255, .64); }
-  .home-search-location > div > div:last-child { min-height: 3rem; flex: 0 0 6.6rem; padding-inline: .7rem; background: rgba(255, 255, 255, .64); }
+  .home-search-location .location-filter-radius { width: 100%; min-height: 3rem; flex: none; justify-content: space-between; padding-inline: .8rem; background: rgba(255, 255, 255, .64); }
   .home-search-submit { padding-block: .7rem !important; }
   .home-search-bar + div { display: none; }
   .home-request-banner { display: none !important; }

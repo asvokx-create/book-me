@@ -93,6 +93,22 @@ test("iPhone layouts keep trust points, listing media, and service details reada
   assert.match(css, /\.service-detail-contact \{ width: 100%; \}/);
 });
 
+test("mobile distance filters keep the complete selected radius visible", () => {
+  const css = read("app", "globals.css");
+  const locationFilter = read("components", "location-filter.tsx");
+  const radiusSelector = read("components", "radius-selector.tsx");
+
+  assert.match(locationFilter, /location-filter-radius/);
+  assert.match(locationFilter, /function changeRadius\(nextRadius: number\)[\s\S]*?setRadius\(nextRadius\)[\s\S]*?remember\(location, nextRadius\)[\s\S]*?navigateToLocation\(location, nextRadius\)/);
+  assert.match(radiusSelector, /label: `\$\{radius\} miles`/);
+  assert.match(radiusSelector, /PRESET_RADII = \[5, 10, 25, 50, 100, 250\]/);
+  assert.match(radiusSelector, /min-w-\[7\.5rem\] flex-1/);
+  assert.match(css, /\.compact-radius-select > span:first-child \{[\s\S]*?overflow: visible;[\s\S]*?text-overflow: clip;[\s\S]*?white-space: nowrap;/);
+  assert.match(css, /\.home-search-location \.location-filter \{ flex-direction: column;/);
+  assert.match(css, /\.home-search-location \.location-filter-radius \{ width: 100%;[\s\S]*?justify-content: space-between;/);
+  assert.doesNotMatch(css, /\.home-search-location > div > div:last-child[^}]*flex: 0 0 6\.6rem/);
+});
+
 test("narrow marketplace controls preserve readable text and stack before they crowd", () => {
   const home = read("components", "home-service-search.tsx");
   const services = read("app", "services", "page.tsx");

@@ -196,9 +196,9 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
   }
 
   return (
-    <div className="relative flex min-w-0 flex-col gap-2 sm:flex-row">
+    <div className="location-filter relative flex min-w-0 flex-col gap-2 sm:flex-row">
       <input type="hidden" name="location" value={location} />
-      <details ref={detailsRef} className="group relative min-w-0 flex-1">
+      <details ref={detailsRef} className="location-filter-city group relative min-w-0 flex-1">
         <summary className="flex min-h-12 list-none items-center gap-2 rounded-full px-4 text-left text-sm font-semibold transition hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">
           <UiIcon name="map-pin" className="h-4 w-4 shrink-0 text-[#d64d78]" /><span className="min-w-0 flex-1 truncate">{location || "Choose your city"}</span><UiIcon name="chevron-down" className="h-4 w-4 shrink-0 text-[#76857d] transition group-open:rotate-180" />
         </summary>
@@ -212,7 +212,7 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
           <button type="button" disabled={!location.trim() || resolving} onClick={() => void applyTypedLocation()} className="location-apply-button mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">{resolving ? "Finding your area…" : "Use this area"}</button>
         </div>
       </details>
-      <div className="flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={changeRadius} compact /></div>
+      <div className="location-filter-radius flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={changeRadius} compact /></div>
     </div>
   );
 }

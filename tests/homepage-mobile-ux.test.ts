@@ -14,7 +14,8 @@ test("homepage search exposes a compact accessible delivery control on phones", 
   assert.match(search, /role="group" aria-label="Service delivery type"/);
   assert.match(search, /aria-pressed=\{delivery === option\}/);
   assert.match(css, /\.home-search-delivery-mobile[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(css, /\.home-search-location > div \{ flex-direction: row/);
+  assert.match(css, /\.home-search-location \.location-filter \{ flex-direction: column/);
+  assert.match(css, /\.home-search-location \.location-filter-radius \{ width: 100%/);
 });
 
 test("phone homepage removes desktop bulk before discovery", () => {

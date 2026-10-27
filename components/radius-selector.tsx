@@ -4,7 +4,7 @@ import { useState } from "react";
 import CustomSelect from "@/components/custom-select";
 
 const PRESET_RADII = [5, 10, 25, 50, 100, 250];
-const RADIUS_OPTIONS = [...PRESET_RADII.map((radius) => ({ value: String(radius), label: `${radius} mi` })), { value: "custom", label: "Custom…" }];
+const RADIUS_OPTIONS = [...PRESET_RADII.map((radius) => ({ value: String(radius), label: `${radius} miles` })), { value: "custom", label: "Custom…" }];
 
 type RadiusSelectorProps = {
   value: number;
@@ -22,7 +22,7 @@ export default function RadiusSelector({ value, onChange, name, compact = false 
     : "min-h-12 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 text-sm transition focus-within:border-[#4d725d] focus-within:ring-2 focus-within:ring-[#4d725d]/10";
 
   return (
-    <div className={compact ? "flex items-center gap-2" : "space-y-2"}>
+    <div className={compact ? "compact-radius-control flex min-w-0 flex-1 items-center gap-2" : "space-y-2"}>
       <CustomSelect
         ariaLabel="Radius options"
         value={custom ? "custom" : String(normalizedValue)}
@@ -35,7 +35,7 @@ export default function RadiusSelector({ value, onChange, name, compact = false 
           setCustom(false);
           onChange(Number(nextValue));
         }}
-        className={compact ? "min-w-0" : "w-full"}
+        className={compact ? "min-w-[7.5rem] flex-1" : "w-full"}
         buttonClassName={selectClass}
         menuClassName={compact ? "w-36" : ""}
       />
