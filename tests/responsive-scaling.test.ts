@@ -82,8 +82,9 @@ test("iPhone layouts keep trust points, listing media, and service details reada
 
   assert.doesNotMatch(css, /home-hero-points > span:nth-child\(n\+2\)[^{]*\{[^}]*display:\s*none/);
   assert.match(css, /\.home-hero-points[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /\.home-service-card[\s\S]*?grid-template-columns: minmax\(0, 43\.5%\) minmax\(0, 56\.5%\)/);
-  assert.match(home, /\(max-width: 340px\) calc\(100vw - 32px\)[^"\n]*\(max-width: 639px\) 44vw/);
+  assert.match(css, /\.home-service-card[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.home-service-card > a:first-child > div[\s\S]*?aspect-ratio: 16 \/ 9/);
+  assert.match(home, /\(max-width: 639px\) calc\(100vw - 32px\)/);
   assert.match(listing, /service-detail-meta-primary/);
   assert.match(listing, /service-detail-provider/);
   assert.match(listing, /service-detail-trust/);

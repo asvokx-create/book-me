@@ -2464,7 +2464,29 @@ html[data-theme="dark"] .account-page > header {
 /* Mobile application ergonomics shared across the marketplace and dashboards. */
 @media (max-width: 640px) {
   body {
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+  }
+
+  .listing-card-meta,
+  .listing-card-title-price {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: .65rem;
+  }
+
+  .listing-card-title,
+  .listing-card-title a,
+  .listing-card-meta span {
+    min-width: 0;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .listing-card-price {
+    justify-self: start;
+    text-align: left;
+    white-space: normal;
   }
 
   main > header > div {
@@ -2766,22 +2788,37 @@ html[data-theme="dark"] .account-page > header {
 
   .home-service-card {
     display: grid;
-    grid-template-columns: minmax(0, 43.5%) minmax(0, 56.5%);
-    min-height: 9.25rem;
+    grid-template-columns: minmax(0, 1fr);
     border-radius: 1.25rem !important;
   }
 
   .home-service-card > a:first-child { min-width: 0; }
-  .home-service-card > a:first-child > div { height: 100%; min-height: 9.25rem; }
-  .home-service-card > div:nth-of-type(1) { min-width: 0; padding: .9rem; }
+  .home-service-card > a:first-child > div {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
+  .home-service-card-content { min-width: 0; padding: 1rem; }
+  .home-service-card-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .75rem;
+  }
+  .home-service-card-main,
+  .home-service-card-price { min-width: 0; }
+  .home-service-card-price { text-align: left; }
   .home-service-card h3,
-  .home-service-card p { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
-  .home-service-card h3 { font-size: .95rem; line-height: 1.25; }
-  .home-service-card > div:nth-of-type(1) > div { gap: .5rem; }
-  .home-service-card > div:nth-of-type(1) > div > div:last-child { font-size: .8rem; }
-  .home-service-card > div:nth-of-type(1) > div:last-child { margin-top: .65rem !important; font-size: .75rem; line-height: 1.35; }
-  .home-service-card .home-preview-badge { left: .6rem; top: .6rem; padding: .35rem .5rem; font-size: .62rem; }
-  .home-service-card button { right: .6rem !important; top: .6rem !important; width: 2.5rem !important; height: 2.5rem !important; }
+  .home-service-card p {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  .home-service-card h3 { font-size: 1.05rem; line-height: 1.3; }
+  .home-service-card-content > div:last-child { margin-top: .8rem !important; font-size: .8rem; line-height: 1.4; }
+  .home-service-card .home-preview-badge { left: .75rem; top: .75rem; }
+  .home-service-card button { right: .75rem !important; top: .75rem !important; }
 
   .home-empty-state { padding: 1.5rem 1rem !important; border-radius: 1.25rem !important; }
   .home-empty-state > span { font-size: 1.75rem !important; }
@@ -2861,15 +2898,6 @@ html[data-theme="dark"] .account-page > header {
   .home-hero-points { grid-template-columns: minmax(0, 1fr); }
   .home-hero-points > span:first-child { grid-column: auto; }
   .service-detail-meta-primary { display: grid; grid-template-columns: minmax(0, 1fr); }
-}
-
-@media (max-width: 340px) {
-  .home-service-card { grid-template-columns: minmax(0, 1fr); }
-  .home-service-card > a:first-child > div {
-    height: auto;
-    min-height: 0;
-    aspect-ratio: 16 / 9;
-  }
 }
 
 @media (min-width: 640px) and (max-width: 1023px) {

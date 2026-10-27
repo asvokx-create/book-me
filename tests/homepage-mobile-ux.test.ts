@@ -36,7 +36,9 @@ test("mobile category and listing grids cannot force horizontal overflow", () =>
 
   assert.match(css, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 9\.5rem\), 1fr\)\)/);
   assert.match(css, /\.home-category-card \{[\s\S]*?grid-template-columns: 2\.5rem minmax\(0, 1fr\)/);
-  assert.match(css, /\.home-service-card \{[\s\S]*?grid-template-columns: minmax\(0, 43\.5%\) minmax\(0, 56\.5%\)/);
+  assert.match(css, /\.home-service-card \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.home-service-card-summary \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.home-service-card h3[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;/);
   assert.match(icon, /shrink-0[\s\S]*?aspect-square/);
   assert.doesNotMatch(css, /\.home-(?:category|service)-card[^}]*width:\s*100vw/);
 });
@@ -44,8 +46,27 @@ test("mobile category and listing grids cannot force horizontal overflow", () =>
 test("homepage listing photos reserve their layout and lazy-load below the fold", () => {
   const home = read("app", "page.tsx");
   assert.match(home, /<Image src=\{service\.imageUrls\[0\]\}/);
-  assert.match(home, /fill loading="lazy" unoptimized sizes="\(max-width: 340px\) calc\(100vw - 32px\), \(max-width: 639px\) 44vw/);
+  assert.match(home, /fill loading="lazy" unoptimized sizes="\(max-width: 639px\) calc\(100vw - 32px\)/);
   assert.match(home, /className="object-cover"/);
+});
+
+test("mobile listing cards keep long titles and prices in full-width rows", () => {
+  const home = read("app", "page.tsx");
+  const search = read("app", "services", "page.tsx");
+  const companies = read("app", "companies", "[slug]", "page.tsx");
+  const favorites = read("app", "account", "page.tsx");
+  const css = read("app", "globals.css");
+
+  assert.match(home, /home-service-card-summary/);
+  assert.match(home, /home-service-card-price/);
+  assert.doesNotMatch(home, /<h3 className="[^"]*truncate[^"]*">\{service\.title\}<\/h3>/);
+  assert.match(search, /listing-card-meta/);
+  assert.match(search, /listing-card-title/);
+  assert.match(companies, /listing-card-title-price/);
+  assert.match(favorites, /listing-card-meta/);
+  assert.match(css, /\.listing-card-meta,[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.listing-card-title,[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal/);
+  assert.doesNotMatch(css, /body\s*\{\s*overflow-wrap:\s*anywhere/);
 });
 
 test("mobile navigation traps focus and returns it to its labelled trigger", () => {
