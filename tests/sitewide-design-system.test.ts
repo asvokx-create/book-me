@@ -52,7 +52,20 @@ test("footer actions keep their dark-footer contrast", () => {
   const footer = read("components", "site-footer.tsx");
 
   assert.doesNotMatch(css, /:where\(main, footer\) :where\(a, button\)\[class\*="border"\]\[class\*="bg-white"\]/);
-  assert.match(css, /:where\(main\) :where\(a, button\)\[class\*="border"\]\[class\*="bg-white"\]/);
+  assert.match(css, /:where\(main\) :where\(a, button\)\[class\*="border"\]\[class~="bg-white"\]/);
   assert.match(footer, /List your service/);
   assert.match(footer, /Contact support/);
+});
+
+test("hover-only color utilities are not treated as permanent button backgrounds", () => {
+  const css = read("app", "globals.css");
+
+  for (const color of ["#183126", "#173d2e", "#eee25a", "#f1e45c"]) {
+    const escaped = color.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.doesNotMatch(css, new RegExp(`:where\\(main, footer\\) :where\\(a, button\\)\\[class\\*="bg-\\[${escaped}\\]"\\]`));
+  }
+
+  assert.doesNotMatch(css, /:where\(main\) :where\(a, button\)\[class\*="border"\]\[class\*="bg-white"\]/);
+  assert.match(css, /\[class~="bg-\[#183126\]"\]/);
+  assert.match(css, /\[class~="bg-\[#eee25a\]"\]/);
 });
