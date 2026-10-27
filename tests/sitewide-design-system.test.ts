@@ -46,3 +46,13 @@ test("responsive product rules protect phone and wide dashboard layouts", () => 
   assert.match(css, /overflow-wrap: normal; word-break: normal/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
+
+test("footer actions keep their dark-footer contrast", () => {
+  const css = read("app", "globals.css");
+  const footer = read("components", "site-footer.tsx");
+
+  assert.doesNotMatch(css, /:where\(main, footer\) :where\(a, button\)\[class\*="border"\]\[class\*="bg-white"\]/);
+  assert.match(css, /:where\(main\) :where\(a, button\)\[class\*="border"\]\[class\*="bg-white"\]/);
+  assert.match(footer, /List your service/);
+  assert.match(footer, /Contact support/);
+});

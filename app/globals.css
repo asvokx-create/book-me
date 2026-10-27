@@ -2539,14 +2539,14 @@ main > header {
   box-shadow: none !important;
 }
 
-:where(main, footer) :where(a, button)[class*="border"][class*="bg-white"] {
+:where(main) :where(a, button)[class*="border"][class*="bg-white"] {
   border-color: var(--bb-border-strong) !important;
   border-radius: var(--bb-radius-control) !important;
   background: #fff !important;
   box-shadow: none !important;
 }
 
-:where(main, footer) :where(a, button)[class*="border"][class*="bg-white"]:not(:disabled):hover {
+:where(main) :where(a, button)[class*="border"][class*="bg-white"]:not(:disabled):hover {
   border-color: rgba(21, 147, 93, .45) !important;
   background: #f4f8f2 !important;
 }
@@ -3176,7 +3176,7 @@ html[data-theme="dark"] .home-mobile-request p:last-child { color: var(--text-se
 .home-desktop-nav a { border-radius: .65rem; padding: .65rem .8rem; font-size: .86rem; font-weight: 650; transition: background .2s ease, color .2s ease; }
 .home-desktop-nav a:hover { background: #eef3e9; color: #087949; }
 
-.home-hero-v2 { border-bottom: 1px solid rgba(16, 45, 34, .08); background: linear-gradient(100deg, #fbfcf8 0%, #f7faf5 46%, #eef4ec 100%); }
+.home-redesign > .home-hero-v2 { position: relative; z-index: 100; overflow: visible; animation: none; transform: none; border-bottom: 1px solid rgba(16, 45, 34, .08); background: linear-gradient(100deg, #fbfcf8 0%, #f7faf5 46%, #eef4ec 100%); }
 .home-hero-v2-grid { display: grid; min-height: 430px; grid-template-columns: minmax(0, 1.35fr) minmax(360px, .65fr); }
 .home-hero-v2-copy { display: flex; flex-direction: column; justify-content: center; padding: 4rem clamp(2rem, 5vw, 6rem) 5rem max(1.25rem, calc((100vw - 1440px) / 2 + 1.5rem)); }
 .home-hero-v2-copy .type-hero { max-width: 720px; font-size: clamp(3rem, 4.25vw, 5.25rem); line-height: .98; letter-spacing: -.058em; }
@@ -3202,10 +3202,25 @@ html[data-theme="dark"] .home-mobile-request p:last-child { color: var(--text-se
 .home-hero-explore-action { display: inline-flex; margin-top: 1.5rem; align-items: center; gap: .5rem; font-size: .8rem; font-weight: 850; color: #0b6c43; }
 .home-hero-explore-action svg { width: 1rem; transition: color .2s ease; }
 .home-hero-collage:hover .home-hero-explore-action svg { color: var(--bb-green); }
-.home-search-dock { position: relative; z-index: 20; margin-top: -3.35rem; padding-bottom: 1rem; }
-.home-search-dock .home-search-bar { margin-top: 0; max-width: none; border-radius: 1rem; box-shadow: 0 18px 45px rgba(16, 45, 34, .14) !important; }
+.home-search-dock { position: relative; z-index: 40; margin-top: -3.35rem; padding-bottom: 1rem; }
+.home-search-dock .home-search-bar { z-index: 50; margin-top: 0; max-width: none; border-radius: 1rem; box-shadow: 0 18px 45px rgba(16, 45, 34, .14) !important; }
+.home-search-dock .home-search-input:focus-within,
+.home-search-dock .location-filter-city[open] { z-index: 70; }
+.home-search-delivery .custom-select-trigger,
+.home-search-location .location-filter-radius .custom-select-trigger {
+  min-height: 2.5rem;
+  border: 0 !important;
+  border-radius: .65rem !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.home-search-delivery .custom-select-trigger:focus-visible,
+.home-search-location .location-filter-radius .custom-select-trigger:focus-visible {
+  outline: 3px solid rgba(77, 114, 93, .2) !important;
+  outline-offset: 1px;
+}
 
-.home-redesign .home-discovery { padding-top: 1.25rem; padding-bottom: 2rem; }
+.home-redesign > .home-discovery { position: relative; z-index: 0; animation: none; transform: none; padding-top: 1.25rem; padding-bottom: 2rem; }
 .home-redesign .home-category-grid { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: .75rem; }
 .home-redesign .home-category-card { display: flex; min-width: 0; min-height: 0; flex-direction: column; align-items: center; justify-content: center; gap: .55rem; border: 0; border-radius: .9rem; background: transparent; padding: .65rem .25rem !important; text-align: center; box-shadow: none; }
 .home-redesign .home-category-card:hover { background: #eef3e9; }

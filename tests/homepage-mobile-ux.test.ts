@@ -25,6 +25,16 @@ test("homepage search prompt keeps the remaining width beside its icon", () => {
   assert.doesNotMatch(search, /inputClassName="w-full/);
 });
 
+test("homepage search overlays discovery content and uses single-surface filters", () => {
+  const css = read("app", "globals.css");
+
+  assert.match(css, /\.home-redesign > \.home-hero-v2 \{ position: relative; z-index: 100; overflow: visible; animation: none; transform: none;/);
+  assert.match(css, /\.home-search-dock \{ position: relative; z-index: 40;/);
+  assert.match(css, /\.home-search-dock \.home-search-bar \{ z-index: 50;/);
+  assert.match(css, /\.home-redesign > \.home-discovery \{ position: relative; z-index: 0; animation: none; transform: none;/);
+  assert.match(css, /\.home-search-delivery \.custom-select-trigger,[\s\S]*?\.location-filter-radius \.custom-select-trigger \{[\s\S]*?border: 0 !important;[\s\S]*?background: transparent !important;/);
+});
+
 test("phone homepage removes desktop bulk before discovery", () => {
   const home = read("app", "page.tsx");
   const css = read("app", "globals.css");
