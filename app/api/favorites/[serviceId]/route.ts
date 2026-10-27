@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ser
     `INSERT INTO favorites (customer_id, service_id)
      SELECT $1, s.id FROM services s
      JOIN provider_profiles p ON p.id = s.provider_id
-     WHERE s.id::text = $2 AND s.is_active = true AND p.is_active = true
+     WHERE s.id::text = $2 AND s.is_active = true AND s.provider_deleted_at IS NULL AND p.is_active = true
      ON CONFLICT (customer_id, service_id) DO NOTHING
      RETURNING service_id`,
     [userId, serviceId],

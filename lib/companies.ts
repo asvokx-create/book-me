@@ -41,7 +41,8 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyPage | null
             CASE WHEN COALESCE(settings.public_personal_name_visible, false) THEN owner.name ELSE NULL END AS public_owner_name,
             provider.is_verified, provider.screening_status, provider.screening_checked_at
      FROM provider_companies company
-     JOIN provider_profiles provider ON provider.id = company.provider_id AND provider.is_active = true
+     JOIN provider_profiles provider ON provider.id = company.provider_id
+       AND provider.is_active = true AND provider.age_verification_status = 'verified'
      JOIN "user" owner ON owner.id = provider.user_id
      LEFT JOIN user_settings settings ON settings.user_id = owner.id
      WHERE company.slug = $1 AND company.is_active = true
@@ -66,6 +67,7 @@ export async function getCompanyBySlug(slug: string): Promise<CompanyPage | null
      FROM services service
      LEFT JOIN provider_locations location ON location.id = service.location_id AND location.is_active = true
      WHERE service.company_id::text = $1 AND service.is_active = true
+       AND service.provider_deleted_at IS NULL
      ORDER BY service.created_at DESC`,
     [company.id],
   );

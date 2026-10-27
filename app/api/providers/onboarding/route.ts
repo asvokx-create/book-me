@@ -20,6 +20,7 @@ import { isServiceDeliveryType } from "@/lib/service-delivery";
 import { isHourlyBillingIncrement, isPricingType, validateHourlyPricing } from "@/lib/service-pricing";
 import { deliverProviderWelcomeEmail, enqueueProviderWelcomeEmail } from "@/lib/provider-welcome-email";
 import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
+import { listingLimitExceeded, lockProviderListingLimit } from "@/lib/provider-listing-limits";
 
 const weekdayNumbers: Record<string, number> = {
   Sun: 0,
@@ -220,20 +221,15 @@ export async function POST(request: Request) {
       serviceLocation = locationResult.rows[0];
     }
 
-    const listingCounts = await client.query<{ total_count: number; active_count: number }>(
-      `SELECT count(*)::int AS total_count,
-              (count(*) FILTER (WHERE is_active = true))::int AS active_count
-       FROM services
-       WHERE provider_id = $1`,
-      [providerId],
-    );
-    const isFirstListing = listingCounts.rows[0].total_count === 0;
-    const serviceLimit = PLAN_ENTITLEMENTS[plan].serviceLimit;
-    if (serviceLimit !== null) {
-      if (listingCounts.rows[0].active_count >= serviceLimit) {
-        await client.query("ROLLBACK");
-        return NextResponse.json({ error: `Your ${PLAN_ENTITLEMENTS[plan].name} plan allows up to ${serviceLimit} active services. Upgrade from Billing to add more.`, upgradeRequired: true }, { status: 403 });
-      }
+    const listingLimit = await lockProviderListingLimit(client, providerId);
+    if (!listingLimit) throw new Error("PROVIDER_NOT_FOUND");
+    const isFirstListing = listingLimit.totalListingCount === 0;
+    if (listingLimitExceeded(listingLimit.listingCount, listingLimit.serviceLimit)) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({
+        error: `Your ${PLAN_ENTITLEMENTS[listingLimit.effectivePlan].name} plan allows up to ${listingLimit.serviceLimit} current services. Delete a listing or upgrade from Billing to add another.`,
+        upgradeRequired: true,
+      }, { status: 403 });
     }
 
     const serviceResult = await client.query<{ id: string }>(

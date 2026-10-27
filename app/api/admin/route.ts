@@ -8,6 +8,9 @@ import { scanContent } from "@/lib/content-safety";
 import { assessListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
 import { markAffiliateListingPublished } from "@/lib/affiliates";
+import { listingLimitExceeded, lockProviderListingLimit } from "@/lib/provider-listing-limits";
+import { PLAN_ENTITLEMENTS } from "@/lib/plans";
+import { getStripeMode } from "@/lib/stripe";
 
 const reportStatuses = new Set(["reviewing", "resolved", "dismissed"]);
 const accountStatuses = new Set(["active", "under_review", "suspended", "banned"]);
@@ -96,14 +99,39 @@ async function loadDashboard() {
       `SELECT u.id, u.name, u.email, u.image, u.role, u."createdAt" AS created_at,
               ar.status AS restriction_status, ar.reason AS restriction_reason,
               p.id::text AS provider_id, p.business_name, p.plan AS provider_plan, p.is_active AS provider_active,
+              entitlement.effective_plan AS provider_effective_plan,
+              listing_usage.current_listing_count AS provider_current_listing_count,
+              CASE WHEN entitlement.effective_plan = 'starter' THEN 2 ELSE NULL END AS provider_listing_limit,
+              (entitlement.effective_plan = 'starter' AND listing_usage.current_listing_count > 2) AS provider_over_listing_limit,
               EXISTS (SELECT 1 FROM affiliate_profiles partner WHERE partner.user_id = u.id AND partner.status IN ('approved','active','paused','suspended')) AS is_partner,
               p.phone_verified, p.identity_verified, p.business_verified
        FROM "user" u
        LEFT JOIN account_restrictions ar ON ar.user_id = u.id
          AND (ar.expires_at IS NULL OR ar.expires_at > now())
        LEFT JOIN provider_profiles p ON p.user_id = u.id
+       LEFT JOIN LATERAL (
+         SELECT CASE
+           WHEN p.plan IN ('owner', 'business') THEN p.plan
+           WHEN EXISTS (
+             SELECT 1 FROM complimentary_pro_grants grant_record
+             WHERE grant_record.provider_id = p.id AND grant_record.revoked_at IS NULL
+               AND grant_record.starts_at <= now()
+               AND (grant_record.expires_at IS NULL OR grant_record.expires_at > now())
+           ) THEN 'pro'
+           WHEN p.stripe_subscription_id IS NOT NULL AND p.stripe_billing_mode = $1
+             AND p.stripe_subscription_status IN ('active', 'trialing', 'past_due') THEN 'pro'
+           ELSE 'starter'
+         END AS effective_plan
+       ) entitlement ON p.id IS NOT NULL
+       LEFT JOIN LATERAL (
+         SELECT count(*)::int AS current_listing_count
+         FROM services service
+         WHERE service.provider_id = p.id AND service.provider_deleted_at IS NULL
+           AND (service.is_active = true OR service.age_verification_blocked = true)
+       ) listing_usage ON p.id IS NOT NULL
        ORDER BY u."createdAt" DESC
        LIMIT 75`,
+      [getStripeMode()],
     ),
     database.query(
       `SELECT s.id::text, s.slug, s.title, s.category, s.description, s.delivery_type, s.is_active, s.price_cents,
@@ -494,8 +522,8 @@ export async function PATCH(request: Request) {
       details = { reason, title: listing.title, providerId: listing.provider_id };
     } else if (action === "listing_status" && (status === "active" || status === "inactive")) {
       if (status === "active") {
-        const eligibility = await client.query<{ id: string }>(
-          `SELECT s.id::text
+        const eligibility = await client.query<{ id: string; provider_id: string; is_active: boolean }>(
+          `SELECT s.id::text, s.provider_id::text, s.is_active
            FROM services s
            JOIN provider_profiles p ON p.id = s.provider_id
            JOIN provider_companies company ON company.id = s.company_id
@@ -513,6 +541,17 @@ export async function PATCH(request: Request) {
             { error: "This listing cannot be made public until its provider completes required age verification and the provider and business are active." },
             { status: 409 },
           );
+        }
+        const target = eligibility.rows[0];
+        if (!target.is_active) {
+          const listingLimit = await lockProviderListingLimit(client, target.provider_id);
+          if (!listingLimit) throw new Error("NOT_FOUND");
+          if (listingLimitExceeded(listingLimit.listingCount, listingLimit.serviceLimit)) {
+            await client.query("ROLLBACK");
+            return NextResponse.json({
+              error: `This provider's ${PLAN_ENTITLEMENTS[listingLimit.effectivePlan].name} plan allows up to ${listingLimit.serviceLimit} current services. Resolve the plan limit before restoring this listing.`,
+            }, { status: 409 });
+          }
         }
       }
       const result = await client.query<{ id: string; is_active: boolean; provider_id: string; company_id: string }>(

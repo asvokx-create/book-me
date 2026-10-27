@@ -108,7 +108,7 @@ export async function POST(request: Request) {
        WHEN p.stripe_subscription_id IS NOT NULL AND p.stripe_billing_mode = $2
          AND p.stripe_subscription_status IN ('active', 'trialing', 'past_due') THEN 'pro'
        ELSE 'starter' END AS effective_plan) entitlement
-     WHERE s.id::text = $1 AND s.is_active = true
+     WHERE s.id::text = $1 AND s.is_active = true AND s.provider_deleted_at IS NULL
      LIMIT 1`,
     [serviceId, getStripeMode()],
   );

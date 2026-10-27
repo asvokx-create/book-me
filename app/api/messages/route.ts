@@ -179,7 +179,7 @@ export async function POST(request: Request) {
           `INSERT INTO conversations (customer_id, provider_id, service_id)
            SELECT $1, p.id, s.id
            FROM provider_profiles p
-           JOIN services s ON s.id::text = $3 AND s.provider_id = p.id AND s.is_active = true
+           JOIN services s ON s.id::text = $3 AND s.provider_id = p.id AND s.is_active = true AND s.provider_deleted_at IS NULL
            WHERE p.id::text = $2 AND p.is_active = true AND p.user_id <> $1
            ON CONFLICT (customer_id, provider_id, service_id) WHERE service_id IS NOT NULL DO UPDATE
              SET customer_deleted_at = NULL, provider_deleted_at = NULL, updated_at = now()

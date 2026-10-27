@@ -14,7 +14,7 @@ export async function GET(request: Request, context: RouteContext<"/api/services
     billing_increment_minutes: 15 | 30 | 60 | null; default_duration_minutes: number | null;
   }>(`SELECT s.duration_minutes,s.pricing_type,s.hourly_rate_cents,s.minimum_duration_minutes,s.maximum_duration_minutes,s.billing_increment_minutes,s.default_duration_minutes
       FROM services s JOIN provider_profiles p ON p.id=s.provider_id
-      WHERE s.id::text=$1 AND s.is_active=true AND p.is_active=true AND p.age_verification_status='verified'`, [serviceId]);
+      WHERE s.id::text=$1 AND s.is_active=true AND s.provider_deleted_at IS NULL AND p.is_active=true AND p.age_verification_status='verified'`, [serviceId]);
   const service = serviceResult.rows[0];
   if (!service) return NextResponse.json({ error: "Service not found." }, { status: 404 });
   const additionalMinutes = Number(searchParams.get("additionalMinutes") ?? 0);
@@ -35,7 +35,7 @@ export async function GET(request: Request, context: RouteContext<"/api/services
          SELECT s.id, s.provider_id, $3::integer AS duration_minutes, s.location_id
          FROM services s
          JOIN provider_profiles p ON p.id = s.provider_id
-         WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified'
+         WHERE s.id::text = $1 AND s.is_active = true AND s.provider_deleted_at IS NULL AND p.is_active = true AND p.age_verification_status = 'verified'
        ), staff_hours AS (
          SELECT si.provider_id, NULL::uuid AS member_id, si.duration_minutes,
                 a.weekday, a.start_time, a.end_time, a.timezone
@@ -96,7 +96,7 @@ export async function GET(request: Request, context: RouteContext<"/api/services
        SELECT s.id, s.provider_id, $3::integer AS duration_minutes, s.location_id
        FROM services s
        JOIN provider_profiles p ON p.id = s.provider_id
-       WHERE s.id::text = $1 AND s.is_active = true AND p.is_active = true AND p.age_verification_status = 'verified'
+       WHERE s.id::text = $1 AND s.is_active = true AND s.provider_deleted_at IS NULL AND p.is_active = true AND p.age_verification_status = 'verified'
      ), staff_hours AS (
        SELECT si.provider_id, NULL::uuid AS member_id, si.duration_minutes,
               a.weekday, a.start_time, a.end_time, a.timezone
