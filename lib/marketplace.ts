@@ -189,7 +189,16 @@ export async function getServices(options: { query?: string; category?: string; 
     values.push(options.maxDuration);
     conditions.push(`CASE WHEN s.pricing_type='HOURLY' THEN s.default_duration_minutes ELSE s.duration_minutes END <= $${values.length}`);
   }
-  values.push(searchOrigin ? Math.max(requestedLimit, 200) : requestedLimit);
+  // Distance and explicit service-area matching happen after the database query.
+  // A database limit here would discard eligible nearby listings whenever they
+  // fall outside the first global result page. Keep the normal limit for
+  // non-geographic searches, but evaluate every eligible candidate before
+  // applying the requested result limit to a geographic search.
+  const appliesGeographicFilter = Boolean(searchOrigin && radiusMiles && options.delivery !== "REMOTE");
+  const limitClause = appliesGeographicFilter ? "" : (() => {
+    values.push(requestedLimit);
+    return `LIMIT $${values.length}`;
+  })();
 
   const planPriority = "CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN 0 ELSE 1 END";
   const displayedPrice = "CASE WHEN s.pricing_type='QUOTE_ONLY' THEN NULL WHEN s.pricing_type='HOURLY' THEN s.hourly_rate_cents ELSE s.price_cents END";
@@ -215,11 +224,11 @@ export async function getServices(options: { query?: string; category?: string; 
      JOIN "user" owner ON owner.id = p.user_id
      WHERE ${conditions.join(" AND ")}
      ORDER BY ${orderBy}
-     LIMIT $${values.length}`,
+     ${limitClause}`,
     values,
   );
   const services = result.rows.map(mapService);
-  if (!searchOrigin || !radiusMiles || options.delivery === "REMOTE") return services;
+  if (!appliesGeographicFilter || !searchOrigin || !radiusMiles) return services;
   const nearbyServices = services.flatMap((service) => {
     if (service.deliveryType === "REMOTE") return [{ ...service }];
     if (service.deliveryType === "BOTH" && options.delivery !== "IN_PERSON") return [{ ...service }];

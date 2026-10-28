@@ -35,6 +35,11 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
   const currentSearch = searchParams.toString();
 
   useEffect(() => {
+    setLocation(initialLocation);
+    setRadius(initialRadius);
+  }, [initialLocation, initialRadius]);
+
+  useEffect(() => {
     if (!location.trim()) {
       return;
     }
