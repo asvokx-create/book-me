@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { sendAdminBugReportEmail } from "@/lib/admin-submission-email";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { database } from "@/lib/database";
 import { enforceRateLimit, recordActivity } from "@/lib/request-security";
@@ -27,5 +28,6 @@ export async function POST(request: Request) {
     [session.user.id, pageUrl, title, details, steps],
   );
   await recordActivity({ userId: session.user.id, action: "bug_report_created", targetType: "bug_report", targetId: result.rows[0].id });
+  await sendAdminBugReportEmail(result.rows[0].id);
   return NextResponse.json({ ok: true, reportId: result.rows[0].id }, { status: 201 });
 }

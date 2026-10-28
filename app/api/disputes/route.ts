@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { sendAdminDisputeEmail } from "@/lib/admin-submission-email";
 import { auth } from "@/lib/auth";
 import { checkAndRecordContent } from "@/lib/content-safety";
 import { database } from "@/lib/database";
@@ -102,6 +103,7 @@ export async function POST(request: Request) {
       FROM bookme_admins admin ON CONFLICT (dedupe_key) DO NOTHING`, [bookingId, result.rows[0].id]);
     await client.query("COMMIT");
     await recordAnalytics({ eventName: "booking_disputed", userId: session.user.id, targetType: "booking", targetId: bookingId, metadata: { category } });
+    await sendAdminDisputeEmail(result.rows[0].id);
     return NextResponse.json({ ok: true, disputeId: result.rows[0].id }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
