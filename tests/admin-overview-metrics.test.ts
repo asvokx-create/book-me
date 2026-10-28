@@ -7,7 +7,7 @@ const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), 
 test("every admin overview metric opens an accessible detail dialog", async () => {
   const dashboard = await read("components/admin-dashboard.tsx");
 
-  for (const label of ["Total accounts", "Active providers", "Active listings", "Site views", "Bookings", "Open reports", "Safety blocks"]) {
+  for (const label of ["Total accounts", "Active providers", "Active listings", "Unique visitors", "Referral clicks", "Bookings", "Open reports", "Safety blocks"]) {
     assert.match(dashboard, new RegExp(`label: "${label}"`));
   }
   assert.match(dashboard, /aria-label={`View details for \$\{stat\.label\}`}/);
@@ -40,4 +40,6 @@ test("admin metric explanations match the server-side definitions", async () => 
   assert.match(dashboard, /currently open or under review/);
   assert.match(route, /event\.path !~ '\^\/\(admin\|account\|affiliate\)/);
   assert.match(dashboard, /Private admin, account, affiliate, and provider dashboard pages are excluded/);
+  assert.match(route, /FROM affiliate_click_events/);
+  assert.match(dashboard, /Every qualifying visit through an active Partner referral link/);
 });

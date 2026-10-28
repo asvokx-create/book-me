@@ -19,7 +19,7 @@ async function loadDashboard() {
   const [stats, reports, events, messageModeration, accounts, listings, reviews, payouts, tips, audit] = await Promise.all([
     database.query<{
       users: number; active_providers: number; active_services: number; bookings_30d: number;
-      open_reports: number; blocked_30d: number; unique_site_views: number;
+      open_reports: number; blocked_30d: number; unique_site_views: number; affiliate_clicks: number;
     }>(
       `SELECT
         (SELECT count(*)::int FROM "user") AS users,
@@ -47,7 +47,8 @@ async function loadDashboard() {
          WHERE event.event_name = 'page_view'
            AND COALESCE(NULLIF(event.user_id, ''), known_visitor.user_id, NULLIF(event.anonymous_id, '')) IS NOT NULL
            AND event.path !~ '^/(admin|account|affiliate)(/|\\?|$)'
-           AND event.path !~ '^/provider/dashboard(/|\\?|$)') AS unique_site_views`,
+           AND event.path !~ '^/provider/dashboard(/|\\?|$)') AS unique_site_views,
+        (SELECT count(*)::int FROM affiliate_click_events) AS affiliate_clicks`,
     ),
     database.query(
       `SELECT sr.id::text, sr.category, sr.details, sr.status, sr.created_at,

@@ -16,7 +16,19 @@ test("admin overview reports all-time unique public site visitors", () => {
   assert.match(route, /event\.event_name = 'page_view'/);
   assert.match(route, /event\.path !~ '\^\/\(admin\|account\|affiliate\)/);
   assert.match(route, /AS unique_site_views/);
-  assert.match(dashboard, /label: "Site views", value: data\.stats\.unique_site_views/);
-  assert.match(dashboard, /Unique visitors · all time/);
+  assert.match(dashboard, /label: "Unique visitors", value: data\.stats\.unique_site_views/);
+  assert.match(dashboard, /Analytics-enabled · all time/);
   assert.match(migration, /analytics_events_page_view_visitor_idx/);
+});
+
+test("admin overview keeps referral clicks separate from unique analytics visitors", () => {
+  const route = read("app", "api", "admin", "route.ts");
+  const dashboard = read("components", "admin-dashboard.tsx");
+
+  assert.match(route, /count\(\*\)::int FROM affiliate_click_events/);
+  assert.match(route, /AS affiliate_clicks/);
+  assert.match(dashboard, /label: "Referral clicks", value: data\.stats\.affiliate_clicks/);
+  assert.match(dashboard, /Repeat clicks included/);
+  assert.match(dashboard, /must not be added to unique visitors/);
+  assert.match(dashboard, /destinationHref: "\/admin\/affiliates"/);
 });
