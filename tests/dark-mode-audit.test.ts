@@ -126,6 +126,24 @@ test("search controls do not expose native or duplicate bright borders in dark m
   assert.match(css, /\.compact-radius-select,[\s\S]*?\.sort-control-select[\s\S]*?border-color: transparent !important[\s\S]*?box-shadow: none !important/);
 });
 
+test("dashboard secondary controls and client rows remain readable in dark mode", () => {
+  const css = read("app/globals.css");
+  const dashboard = read("components/provider-dashboard.tsx");
+  const profile = read("components/provider-profile-editor.tsx");
+  const billing = read("components/billing-panel.tsx");
+  const clients = read("components/provider-customer-tools.tsx");
+  const account = read("app/account/page.tsx");
+
+  assert.match(css, /:where\(\.account-page, \.dashboard-page\)[\s\S]*?:where\(a, button\)\[class~="bg-white"\][\s\S]*?background-color: var\(--card-hover\) !important/);
+  assert.match(css, /:where\(\.listing-share-trigger, \.date-picker-trigger\)[\s\S]*?color: var\(--text-primary\) !important/);
+  assert.match(css, /\.dashboard-page table tbody tr[\s\S]*?background-color: var\(--card\) !important/);
+  assert.match(css, /\.dashboard-page table tbody tr:hover[\s\S]*?background-color: var\(--card-hover\) !important/);
+
+  for (const source of [dashboard, profile, billing, clients, account]) {
+    assert.match(source, /bg-white/);
+  }
+});
+
 test("dark palette pairs retain accessible text contrast", () => {
   const rgb = (hex: string) => hex.match(/[a-f\d]{2}/gi)!.map((part) => Number.parseInt(part, 16));
   const luminance = (hex: string) => {
