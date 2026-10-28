@@ -7,6 +7,7 @@ import FavoriteButton from "@/components/favorite-button";
 import HomeHeroPreview from "@/components/home-hero-preview";
 import HomeServiceSearch from "@/components/home-service-search";
 import MobileSiteNav from "@/components/mobile-site-nav";
+import ProfileAvatar from "@/components/profile-avatar";
 import ServiceCategoryIcon from "@/components/service-category-icon";
 import UiIcon from "@/components/ui-icon";
 import { formatDuration, getServices, getServiceVisual, type ServiceListing } from "@/lib/marketplace";
@@ -235,7 +236,17 @@ function HomeServiceCard({ service }: { service: ServiceListing }) {
         <div className="home-service-card-summary">
           <div className="home-service-card-main">
             <Link href={`/services/${service.slug}`}><h3>{service.title}</h3></Link>
-            {businessHref ? <Link href={businessHref} className="home-service-provider">{service.provider}</Link> : <p className="home-service-provider">{service.provider}</p>}
+            <div className="home-service-provider-row">
+              <ProfileAvatar name={service.provider} imageUrl={service.providerProfileImageUrl} className="home-service-provider-avatar" />
+              <div className="min-w-0">
+                {businessHref ? <Link href={businessHref} className="home-service-provider">{service.provider}</Link> : <p className="home-service-provider">{service.provider}</p>}
+                {service.providerReviewCount > 0 && service.providerAverageRating !== null ? (
+                  <p className="home-service-rating" aria-label={`${service.providerAverageRating.toFixed(1)} out of 5 stars from ${service.providerReviewCount} verified ${service.providerReviewCount === 1 ? "review" : "reviews"}`}>
+                    <span aria-hidden="true">★</span> {service.providerAverageRating.toFixed(1)} <span>({service.providerReviewCount})</span>
+                  </p>
+                ) : <p className="home-service-rating home-service-rating-new">New provider</p>}
+              </div>
+            </div>
           </div>
           <div className="home-service-card-price">
             <p>{formatServicePrice(service)}</p>

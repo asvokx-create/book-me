@@ -3280,7 +3280,13 @@ html[data-theme="dark"] .home-mobile-request p:last-child { color: var(--text-se
 .home-redesign .home-service-card-summary { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: .55rem; }
 .home-redesign .home-service-card-main { min-width: 0; }
 .home-redesign .home-service-card h3 { margin-top: .25rem; min-width: 0; font-size: .86rem; font-weight: 800; line-height: 1.25; overflow-wrap: normal; word-break: normal; }
-.home-service-provider { display: block; margin-top: .3rem; overflow: hidden; color: #5d7167; font-size: .66rem; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.home-service-provider-row { display: flex; min-width: 0; align-items: center; gap: .45rem; margin-top: .45rem; }
+.home-service-provider-avatar { width: 1.65rem; height: 1.65rem; border: 1px solid rgba(16, 45, 34, .1); font-size: .55rem; }
+.home-service-provider { display: block; overflow: hidden; color: #5d7167; font-size: .66rem; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.home-service-rating { margin-top: .15rem; color: #9b7710; font-size: .62rem; font-weight: 800; line-height: 1.2; }
+.home-service-rating span:first-child { color: #d0a51d; }
+.home-service-rating span:last-child { color: #6c7c74; font-weight: 700; }
+.home-service-rating-new { color: #6c7c74; font-weight: 700; }
 .home-redesign .home-service-card-price { min-width: 0; text-align: left; }
 .home-redesign .home-service-card-price p { font-size: .76rem; font-weight: 800; overflow-wrap: normal; word-break: normal; }
 .home-redesign .home-service-card-price span { display: block; margin-top: .05rem; color: #73837b; font-size: .57rem; }
@@ -3419,6 +3425,12 @@ html[data-theme="dark"] .home-why-grid article,
 html[data-theme="dark"] .home-final-links > a,
 html[data-theme="dark"] .home-empty-state { border-color: #334139; background: #1b231e; }
 html[data-theme="dark"] .home-redesign .home-category-card:hover { background: #202b24; }
+html[data-theme="dark"] .home-service-provider { color: #b8c8be; }
+html[data-theme="dark"] .home-service-provider-avatar { border-color: #46564c; background-color: #2a382f; }
+html[data-theme="dark"] .home-service-rating,
+html[data-theme="dark"] .home-service-rating span:first-child { color: #f0cc50; }
+html[data-theme="dark"] .home-service-rating span:last-child,
+html[data-theme="dark"] .home-service-rating-new { color: #afbeb5; }
 html[data-theme="dark"] .home-benefit-band > .site-container { border-color: #334b3c; background: #19291f; }
 html[data-theme="dark"] .home-benefit-band > .site-container > div + div { border-color: #334b3c; }
 

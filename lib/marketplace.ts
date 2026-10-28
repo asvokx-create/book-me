@@ -35,6 +35,9 @@ export type ServiceListing = {
   providerSlug: string;
   providerProfileVisible: boolean;
   provider: string;
+  providerProfileImageUrl: string;
+  providerAverageRating: number | null;
+  providerReviewCount: number;
   companySlug?: string;
   city: string;
   state: string;
@@ -86,6 +89,9 @@ type ServiceRow = {
   provider_slug: string;
   provider_profile_visible: boolean;
   business_name: string;
+  provider_profile_image_url: string | null;
+  provider_average_rating: number | null;
+  provider_review_count: number;
   company_slug?: string;
   city: string;
   state: string;
@@ -128,6 +134,9 @@ function mapService(row: ServiceRow): ServiceListing {
     providerSlug: row.provider_slug,
     providerProfileVisible: row.provider_profile_visible,
     provider: row.business_name,
+    providerProfileImageUrl: row.provider_profile_image_url ?? "",
+    providerAverageRating: row.provider_average_rating,
+    providerReviewCount: row.provider_review_count,
     companySlug: row.company_slug,
     city: row.city,
     state: row.state,
@@ -207,7 +216,9 @@ export async function getServices(options: { query?: string; category?: string; 
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
             p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
-            s.business_name, company.slug AS company_slug,
+            s.business_name, owner.image AS provider_profile_image_url, company.slug AS company_slug,
+            (SELECT round(avg(review.rating)::numeric, 1)::float FROM reviews review WHERE review.provider_id = p.id AND review.is_hidden = false) AS provider_average_rating,
+            (SELECT count(*)::int FROM reviews review WHERE review.provider_id = p.id AND review.is_hidden = false) AS provider_review_count,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
@@ -254,7 +265,9 @@ export async function getServiceBySlug(slug: string): Promise<ServiceDetails | n
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
             p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
-            s.business_name, company.slug AS company_slug,
+            s.business_name, owner.image AS provider_profile_image_url, company.slug AS company_slug,
+            (SELECT round(avg(review.rating)::numeric, 1)::float FROM reviews review WHERE review.provider_id = p.id AND review.is_hidden = false) AS provider_average_rating,
+            (SELECT count(*)::int FROM reviews review WHERE review.provider_id = p.id AND review.is_hidden = false) AS provider_review_count,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
@@ -330,7 +343,10 @@ export async function getServiceById(id: string) {
     `SELECT s.id::text, s.slug, s.title, s.category, s.delivery_type, s.remote_delivery_details, s.description, s.price_cents,
             s.duration_minutes, s.pricing_type, s.hourly_rate_cents, s.minimum_duration_minutes, s.maximum_duration_minutes, s.billing_increment_minutes, s.default_duration_minutes,
             p.id::text AS provider_id, p.public_profile_slug AS provider_slug, p.public_profile_visible AS provider_profile_visible,
-            s.business_name, CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
+            s.business_name, owner.image AS provider_profile_image_url,
+            (SELECT round(avg(review.rating)::numeric, 1)::float FROM reviews review WHERE review.provider_id = p.id AND review.is_hidden = false) AS provider_average_rating,
+            (SELECT count(*)::int FROM reviews review WHERE review.provider_id = p.id AND review.is_hidden = false) AS provider_review_count,
+            CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.city, p.city) ELSE p.city END AS city,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN COALESCE(s.state, p.state) ELSE p.state END AS state,
             CASE WHEN p.plan IN ('pro', 'business', 'owner') THEN s.booking_questions ELSE '[]'::jsonb END AS booking_questions, owner."emailVerified" AS email_verified,
             p.plan AS provider_plan, p.is_verified, p.screening_status, p.screening_checked_at, p.phone_verified, p.identity_verified, p.business_verified,
