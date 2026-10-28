@@ -3545,6 +3545,72 @@ html[data-theme="dark"] .dashboard-page table tbody tr:hover {
   background-color: var(--card-hover) !important;
 }
 
+html[data-theme="dark"] .dashboard-page section[data-provider-settings-hub] .grid > a {
+  background: var(--bb-surface-muted) !important;
+  border-color: var(--bb-border-strong) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .dashboard-page section[data-provider-settings-hub] .grid > a:hover {
+  background: #29352f !important;
+  border-color: var(--brand) !important;
+}
+
+html[data-theme="dark"] .dashboard-page section[data-provider-settings-hub] .grid > a p:last-child {
+  color: var(--bb-text-muted) !important;
+}
+
+html[data-theme="dark"] .home-hero-collage {
+  background: linear-gradient(145deg, #1b2821 0%, #202b24 58%, #2d2c1f 130%) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .home-hero-collage::before {
+  background: rgba(255, 255, 255, .035);
+}
+
+html[data-theme="dark"] .home-hero-collage::after {
+  background: rgba(82, 181, 116, .08);
+}
+
+html[data-theme="dark"] .home-hero-explore-kicker {
+  color: var(--brand) !important;
+}
+
+html[data-theme="dark"] .home-hero-explore-grid > a {
+  background: rgba(27, 35, 30, .92) !important;
+  border-color: var(--bb-border-strong) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .home-hero-explore-grid > a:hover {
+  background: #29352f !important;
+  border-color: var(--brand) !important;
+}
+
+html[data-theme="dark"] .home-hero-explore-grid > a > span:first-child {
+  background: #29352f !important;
+  color: var(--brand) !important;
+}
+
+html[data-theme="dark"] .home-service-image > div {
+  background: #202b24 !important;
+  box-shadow: inset 0 0 0 999px rgba(7, 12, 9, .16);
+}
+
+html[data-theme="dark"] .home-service-image img {
+  filter: brightness(.78) saturate(.88);
+}
+
+html[data-theme="dark"] .home-listing-delivery,
+html[data-theme="dark"] .home-service-favorite {
+  background: rgba(27, 35, 30, .94) !important;
+  border-color: var(--bb-border) !important;
+  color: var(--text-primary) !important;
+}
+
 @media (max-width: 639px) {
   :root { --layout-gutter: 1rem; --section-space: 2.75rem; }
   .type-hero { font-size: clamp(2.35rem, 12vw, 3.15rem); line-height: 1.02; }

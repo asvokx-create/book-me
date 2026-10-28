@@ -144,6 +144,22 @@ test("dashboard secondary controls and client rows remain readable in dark mode"
   }
 });
 
+test("provider settings and homepage media use restrained dark surfaces", () => {
+  const css = read("app/globals.css");
+  const dashboard = read("components/provider-dashboard.tsx");
+  const home = read("app/page.tsx");
+  const heroPreview = read("components/home-hero-preview.tsx");
+
+  assert.match(dashboard, /data-provider-settings-hub/);
+  assert.match(css, /section\[data-provider-settings-hub\] \.grid > a[\s\S]*?background: var\(--bb-surface-muted\) !important/);
+  assert.match(heroPreview, /home-hero-collage/);
+  assert.match(css, /\.home-hero-collage[\s\S]*?linear-gradient\(145deg, #1b2821/);
+  assert.match(css, /\.home-hero-explore-grid > a[\s\S]*?background: rgba\(27, 35, 30, \.92\) !important/);
+  assert.match(home, /className="home-service-image"/);
+  assert.match(css, /\.home-service-image img[\s\S]*?filter: brightness\(\.78\) saturate\(\.88\)/);
+  assert.match(css, /\.home-listing-delivery,[\s\S]*?\.home-service-favorite[\s\S]*?background: rgba\(27, 35, 30, \.94\) !important/);
+});
+
 test("dark palette pairs retain accessible text contrast", () => {
   const rgb = (hex: string) => hex.match(/[a-f\d]{2}/gi)!.map((part) => Number.parseInt(part, 16));
   const luminance = (hex: string) => {
