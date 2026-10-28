@@ -5,6 +5,7 @@ import UiIcon from "@/components/ui-icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import RadiusSelector from "@/components/radius-selector";
+import { isValidSearchRadius, MAX_SEARCH_RADIUS_MILES } from "@/lib/search-radius";
 
 type LocationFilterProps = {
   initialLocation?: string;
@@ -99,7 +100,7 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as { location?: string; radius?: number } | null;
         const hasLocationParameter = new URLSearchParams(currentSearch).has("location");
         if (saved?.location) {
-          const savedRadius = Number.isInteger(saved.radius) && saved.radius! >= 1 && saved.radius! <= 250 ? saved.radius! : initialRadius;
+          const savedRadius = isValidSearchRadius(saved.radius ?? Number.NaN) ? saved.radius! : initialRadius;
           setLocation(saved.location);
           setRadius(savedRadius);
           if (!hasLocationParameter) navigateToLocation(saved.location, savedRadius, true);
@@ -147,7 +148,7 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
 
   function changeRadius(nextRadius: number) {
     setRadius(nextRadius);
-    if (!Number.isInteger(nextRadius) || nextRadius < 1 || nextRadius > 250) return;
+    if (!isValidSearchRadius(nextRadius)) return;
     remember(location, nextRadius);
     if (!autoSubmitRadius) return;
     if (radiusUpdateRef.current) window.clearTimeout(radiusUpdateRef.current);
@@ -212,7 +213,7 @@ export default function LocationFilter({ initialLocation = "", initialRadius = 2
           <button type="button" disabled={!location.trim() || resolving} onClick={() => void applyTypedLocation()} className="location-apply-button mt-4 w-full rounded-xl bg-[#183126] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#294b3c]">{resolving ? "Finding your area…" : "Use this area"}</button>
         </div>
       </details>
-      <div className="location-filter-radius flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={changeRadius} compact /></div>
+      <div className="location-filter-radius flex min-h-12 items-center gap-2 rounded-full border border-[#183126]/10 px-4 text-sm"><span className="whitespace-nowrap text-xs font-bold text-[#6e7f76]">Within</span><RadiusSelector name="radius" value={radius} onChange={changeRadius} compact max={MAX_SEARCH_RADIUS_MILES} /></div>
     </div>
   );
 }

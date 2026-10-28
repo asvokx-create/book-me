@@ -5,7 +5,7 @@ import { database } from "@/lib/database";
 import { getStripe, getStripeMode, stripeConfiguration } from "@/lib/stripe";
 import { extraSeatQuantity } from "@/lib/stripe-team-seats";
 import { subscriptionProvidesProAccess } from "@/lib/team-seat-rules";
-import { syncProviderAgeVerificationFromStripe } from "@/lib/provider-age-verification";
+import { resetMismatchedStripeAgeVerification, syncProviderAgeVerificationFromStripe } from "@/lib/provider-age-verification";
 import { subscriptionPeriodEndUnix } from "@/lib/subscription-lifecycle";
 import { getComplimentaryProStatus, reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
 import { providerPayoutSetupState } from "@/lib/provider-payout-status";
@@ -22,12 +22,13 @@ export async function GET() {
     stripe_connect_mode: "test" | "live" | null; stripe_billing_mode: "test" | "live" | null;
     stripe_identity_verification_session_id: string | null; stripe_identity_verification_mode: "test" | "live" | null;
     age_verification_status: "not_started" | "pending" | "requires_input" | "verified" | "failed";
+    age_verification_source: "stripe_identity" | "admin_exception" | null;
     extra_team_seats: number; reserved_worker_count: number;
     pro_trial_used_at_test: Date | null; pro_trial_used_at_live: Date | null;
   }>(`SELECT id::text, stripe_customer_id, stripe_account_id, stripe_subscription_id, stripe_subscription_status,
       stripe_charges_enabled, stripe_payouts_enabled, stripe_current_period_end, stripe_cancel_at_period_end,
       stripe_connect_mode, stripe_billing_mode, stripe_identity_verification_session_id, stripe_identity_verification_mode,
-      age_verification_status, extra_team_seats,
+      age_verification_status, age_verification_source, extra_team_seats,
       (SELECT count(DISTINCT lower(member.email))::int FROM provider_team_members member
        WHERE member.provider_id = provider_profiles.id AND member.status IN ('pending', 'active')) AS reserved_worker_count,
       pro_trial_used_at_test, pro_trial_used_at_live
@@ -38,6 +39,13 @@ export async function GET() {
   const complimentaryPro = await getComplimentaryProStatus(provider.id);
   const configuration = stripeConfiguration();
   const mode = getStripeMode();
+  if (provider.age_verification_status === "verified" && provider.age_verification_source === "stripe_identity"
+      && provider.stripe_identity_verification_mode !== mode) {
+    if (await resetMismatchedStripeAgeVerification(provider.id, provider.stripe_identity_verification_mode)) {
+      provider.age_verification_status = "not_started";
+      provider.age_verification_source = null;
+    }
+  }
   const hasCurrentConnect = provider.stripe_connect_mode === mode && Boolean(provider.stripe_account_id);
   const hasCurrentBilling = provider.stripe_billing_mode === mode && Boolean(provider.stripe_customer_id);
   let payoutState = providerPayoutSetupState({ connected: hasCurrentConnect, detailsSubmitted: false, payoutsEnabled: false, transfersStatus: null });

@@ -11,6 +11,7 @@ import { isProviderScreeningCurrent } from "./provider-screening-freshness";
 import { publicPersonalName } from "./public-provider-identity";
 import type { PricingType } from "./service-pricing";
 import { reconcileExpiredComplimentaryProGrants } from "./complimentary-pro";
+import { MAX_SEARCH_RADIUS_MILES } from "./search-radius";
 
 const PRIORITY_DISTANCE_BAND_MILES = 10;
 
@@ -153,7 +154,7 @@ export async function getServices(options: { query?: string; category?: string; 
   const values: Array<string | number | string[]> = [];
   const conditions = ["s.is_active = true", "s.provider_deleted_at IS NULL", "p.is_active = true", "p.age_verification_status = 'verified'"];
   const requestedLimit = options.limit ?? 50;
-  const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), 250) : undefined;
+  const radiusMiles = options.radiusMiles && Number.isFinite(options.radiusMiles) ? Math.min(Math.max(options.radiusMiles, 1), MAX_SEARCH_RADIUS_MILES) : undefined;
   const searchOrigin = options.location && radiusMiles ? findUsCity(options.location) : undefined;
   if (options.delivery === "REMOTE") conditions.push("s.delivery_type IN ('REMOTE','BOTH')");
   else if (options.delivery === "IN_PERSON") conditions.push("s.delivery_type IN ('IN_PERSON','BOTH')");

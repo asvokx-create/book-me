@@ -11,9 +11,10 @@ type RadiusSelectorProps = {
   onChange: (value: number) => void;
   name?: string;
   compact?: boolean;
+  max?: number;
 };
 
-export default function RadiusSelector({ value, onChange, name, compact = false }: RadiusSelectorProps) {
+export default function RadiusSelector({ value, onChange, name, compact = false, max = 250 }: RadiusSelectorProps) {
   const [custom, setCustom] = useState(!PRESET_RADII.includes(value));
 
   const normalizedValue = Number.isFinite(value) ? value : 25;
@@ -46,13 +47,13 @@ export default function RadiusSelector({ value, onChange, name, compact = false 
             name={name}
             type="number"
             min={1}
-            max={250}
+            max={max}
             step={1}
             required
             value={normalizedValue}
             onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => onChange(Number(event.target.value))}
-            className={compact ? "w-16 rounded-lg border border-[#183126]/15 bg-white px-2 py-1.5 text-sm font-semibold outline-none focus:border-[#4d725d]" : "w-28 rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none focus:border-[#4d725d]"}
+            className={compact ? "w-20 rounded-lg border border-[#183126]/15 bg-white px-2 py-1.5 text-sm font-semibold outline-none focus:border-[#4d725d]" : "w-28 rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none focus:border-[#4d725d]"}
           />
           <span className="whitespace-nowrap text-xs text-[#718078]">miles</span>
         </div>

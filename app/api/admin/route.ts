@@ -7,7 +7,6 @@ import { refundBookingTip, releaseTipTransfer } from "@/lib/tip-payments";
 import { scanContent } from "@/lib/content-safety";
 import { assessListingFinancialCrimeRisk } from "@/lib/financial-crime-screening";
 import { enforceRateLimit } from "@/lib/request-security";
-import { markAffiliateListingPublished } from "@/lib/affiliates";
 import { listingLimitExceeded, lockProviderListingLimit } from "@/lib/provider-listing-limits";
 import { PLAN_ENTITLEMENTS } from "@/lib/plans";
 import { getStripeMode } from "@/lib/stripe";
@@ -585,6 +584,10 @@ export async function PATCH(request: Request) {
       targetType = "provider";
       auditAction = status === "active" ? "provider_restored" : "provider_paused";
     } else if (action === "provider_age_exception" && (status === "approve" || status === "revoke")) {
+      if (status === "approve") {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "Administrators cannot bypass required provider age verification. The provider must complete Stripe Identity verification." }, { status: 403 });
+      }
       if (!reason) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Add an audit note for this provider age-verification exception." }, { status: 400 });
@@ -597,41 +600,23 @@ export async function PATCH(request: Request) {
       const provider = providerResult.rows[0];
       if (!provider) throw new Error("NOT_FOUND");
 
-      if (status === "approve") {
-        if (provider.age_verification_source === "stripe_identity") {
-          await client.query("ROLLBACK");
-          return NextResponse.json({ error: "This provider has already completed Stripe age verification." }, { status: 409 });
-        }
-        await client.query(`UPDATE provider_profiles SET age_verification_status='verified', age_verification_source='admin_exception',
-            age_identity_verified_at=now(), age_verification_failure_code=NULL, age_verification_exception_note=$2,
-            age_verification_exception_granted_at=now(), age_verification_exception_granted_by=$3, updated_at=now()
-          WHERE id::text=$1`, [provider.id, reason, session.user.id]);
-        await client.query(`UPDATE services SET is_active=true, age_verification_blocked=false
-          WHERE provider_id::text=$1 AND age_verification_blocked=true`, [provider.id]);
-        await markAffiliateListingPublished(provider.id, client);
-        await client.query(`INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
-          VALUES ($1, 'provider_age_exception', 'Provider eligibility exception approved',
-            'A BubsBookings administrator approved a documented age-verification exception for your provider account. This exception does not represent Stripe verification or complete Stripe payout setup.',
-            '/provider/dashboard/billing', $2) ON CONFLICT (dedupe_key) DO NOTHING`, [provider.user_id, `provider-age-exception-${provider.id}`]);
-        auditAction = "provider_age_exception_approved";
-      } else {
-        if (provider.age_verification_source !== "admin_exception") {
-          await client.query("ROLLBACK");
-          return NextResponse.json({ error: "Only an active admin exception can be revoked here." }, { status: 409 });
-        }
-        await client.query(`UPDATE provider_profiles SET age_verification_status='not_started', age_verification_source=NULL,
-            age_identity_verified_at=NULL, age_verification_failure_code=NULL, age_verification_exception_note=$2,
-            age_verification_exception_granted_at=NULL, age_verification_exception_granted_by=NULL, updated_at=now()
-          WHERE id::text=$1`, [provider.id, reason]);
-        await client.query(`UPDATE services SET is_active=false, age_verification_blocked=true WHERE provider_id::text=$1`, [provider.id]);
-        await client.query(`INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
-          VALUES ($1, 'provider_age_exception', 'Provider eligibility exception withdrawn',
-            'Your BubsBookings age-verification exception was withdrawn. Complete age verification before listings and booking acceptance can resume. Stripe payout eligibility remains separate.',
-            '/provider/dashboard/billing', $2) ON CONFLICT (dedupe_key) DO UPDATE SET created_at=now(), read_at=NULL`, [provider.user_id, `provider-age-exception-${provider.id}`]);
-        auditAction = "provider_age_exception_revoked";
+      if (provider.age_verification_source !== "admin_exception") {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "Only a historical admin exception can be revoked here." }, { status: 409 });
       }
+      await client.query(`UPDATE provider_profiles SET age_verification_status='not_started', age_verification_source=NULL,
+          age_identity_verified_at=NULL, age_verification_failure_code=NULL, age_verification_exception_note=$2,
+          age_verification_exception_granted_at=NULL, age_verification_exception_granted_by=NULL, updated_at=now()
+        WHERE id::text=$1`, [provider.id, reason]);
+      await client.query(`UPDATE services SET is_active=false, age_verification_blocked=true, updated_at=now()
+        WHERE provider_id::text=$1 AND provider_deleted_at IS NULL`, [provider.id]);
+      await client.query(`INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+        VALUES ($1, 'provider_age_exception', 'Provider eligibility exception withdrawn',
+          'Your historical BubsBookings age-verification exception was withdrawn. Complete Stripe Identity age verification before listings and booking acceptance can resume. Stripe payout eligibility remains separate.',
+          '/provider/dashboard/billing', $2) ON CONFLICT (dedupe_key) DO UPDATE SET created_at=now(), read_at=NULL`, [provider.user_id, `provider-age-exception-${provider.id}`]);
+      auditAction = "provider_age_exception_revoked";
       targetType = "provider";
-      details = { status, reason, eligibility: "admin_provider_exception" };
+      details = { status, reason, eligibility: "historical_admin_provider_exception" };
     } else if (action === "provider_verification" && ["phone", "identity", "business"].includes(status)) {
       const column = status === "phone" ? "phone_verified" : status === "identity" ? "identity_verified" : "business_verified";
       const result = await client.query(`UPDATE provider_profiles SET ${column} = NOT ${column}, is_verified = CASE WHEN $2 = 'identity' OR $2 = 'business' THEN true ELSE is_verified END, updated_at = now() WHERE id::text = $1`, [targetId, status]);

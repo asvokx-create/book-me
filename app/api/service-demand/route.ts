@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { recordAnalytics } from "@/lib/analytics";
 import { enforceRateLimit, publicRequestRateLimitKey } from "@/lib/request-security";
+import { isValidSearchRadius } from "@/lib/search-radius";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
   const radiusMiles = Number(body.radiusMiles);
   const consent = body.consent === true;
 
-  if (!emailPattern.test(email) || serviceNeeded.length < 2 || serviceNeeded.length > 160 || !location || !Number.isInteger(radiusMiles) || radiusMiles < 1 || radiusMiles > 250 || !consent) {
+  if (!emailPattern.test(email) || serviceNeeded.length < 2 || serviceNeeded.length > 160 || !location || !isValidSearchRadius(radiusMiles) || !consent) {
     return NextResponse.json({ error: "Add a valid email, describe the service, and confirm that we may contact you." }, { status: 400 });
   }
   if (!await enforceRateLimit({ request, userId: email, bucket: "service-demand", limit: 5, windowSeconds: 3600 })) {

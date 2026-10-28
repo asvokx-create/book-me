@@ -56,7 +56,7 @@ test("first public listing is recorded only when age verification activates a bl
   const verification = await readFile(new URL("../lib/provider-age-verification.ts", import.meta.url), "utf8");
   assert.match(verification, /age_verification_blocked=true[\s\S]*RETURNING id::text,category,delivery_type,city,state/);
   assert.match(verification, /eventName: "first_listing_published"/);
-  assert.match(verification, /markAffiliateListingPublished\(providerId\)/);
+  assert.match(verification, /markAffiliateListingPublished\(providerId, client\)/);
 });
 
 test("provider signup funnel supports both email and Google provider intent", async () => {

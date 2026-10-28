@@ -31,32 +31,80 @@ function dobFromVerifiedSession(session: Stripe.Identity.VerificationSession) {
 }
 
 async function setProviderAgeVerification(providerId: string, status: ProviderAgeVerificationStatus, failureCode: string | null = null) {
-  if (status === "verified") {
-    const provider = await database.query<{ user_id: string }>(`UPDATE provider_profiles
-      SET age_verification_status='verified', age_identity_verified_at=now(), age_verification_failure_code=NULL,
-        age_verification_source='stripe_identity'
-      WHERE id::text=$1 RETURNING user_id`, [providerId]);
-    // Only activate listings that this gate previously held back. Manually
-    // deactivated listings remain inactive.
-    const published = await database.query<{ id: string; category: string; delivery_type: string; city: string; state: string }>(`UPDATE services SET is_active=true, age_verification_blocked=false
-      WHERE provider_id::text=$1 AND age_verification_blocked=true
-      RETURNING id::text,category,delivery_type,city,state`, [providerId]);
-    await markAffiliateListingPublished(providerId);
-    const firstListing = published.rows[0];
-    if (firstListing && provider.rows[0]?.user_id) {
-      await recordAnalytics({ eventName: "first_listing_published", userId: provider.rows[0].user_id,
-        targetType: "service", targetId: firstListing.id,
-        metadata: { category: firstListing.category, deliveryType: firstListing.delivery_type,
-          ...(firstListing.delivery_type === "REMOTE" ? {} : { city: firstListing.city, state: firstListing.state }) } });
+  const client = await database.connect();
+  let firstListing: { id: string; category: string; delivery_type: string; city: string; state: string } | undefined;
+  let providerUserId: string | undefined;
+  try {
+    await client.query("BEGIN");
+    if (status === "verified") {
+      const provider = await client.query<{ user_id: string }>(`UPDATE provider_profiles
+        SET age_verification_status='verified', age_identity_verified_at=now(), age_verification_failure_code=NULL,
+          age_verification_source='stripe_identity', updated_at=now()
+        WHERE id::text=$1 RETURNING user_id`, [providerId]);
+      // Only activate listings that this gate previously held back. Manually
+      // deactivated listings remain inactive.
+      const published = await client.query<{ id: string; category: string; delivery_type: string; city: string; state: string }>(`UPDATE services SET is_active=true, age_verification_blocked=false, updated_at=now()
+        WHERE provider_id::text=$1 AND age_verification_blocked=true
+        RETURNING id::text,category,delivery_type,city,state`, [providerId]);
+      await markAffiliateListingPublished(providerId, client);
+      firstListing = published.rows[0];
+      providerUserId = provider.rows[0]?.user_id;
+    } else {
+      await client.query(`UPDATE provider_profiles
+        SET age_verification_status=$2, age_identity_verified_at=NULL, age_verification_failure_code=$3,
+          age_verification_source=NULL, updated_at=now()
+        WHERE id::text=$1`, [providerId, status, failureCode]);
+      await client.query(`UPDATE services SET is_active=false, age_verification_blocked=true, updated_at=now()
+        WHERE provider_id::text=$1 AND provider_deleted_at IS NULL`, [providerId]);
     }
-    return;
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
   }
-  await database.query(`UPDATE provider_profiles
-    SET age_verification_status=$2, age_identity_verified_at=NULL, age_verification_failure_code=$3,
-      age_verification_source=NULL
-    WHERE id::text=$1`, [providerId, status, failureCode]);
-  await database.query(`UPDATE services SET is_active=false, age_verification_blocked=true
-    WHERE provider_id::text=$1`, [providerId]);
+
+  if (firstListing && providerUserId) {
+    await recordAnalytics({ eventName: "first_listing_published", userId: providerUserId,
+      targetType: "service", targetId: firstListing.id,
+      metadata: { category: firstListing.category, deliveryType: firstListing.delivery_type,
+        ...(firstListing.delivery_type === "REMOTE" ? {} : { city: firstListing.city, state: firstListing.state }) } }).catch((error) => {
+      console.error("Provider verification analytics could not be recorded", { providerId, error });
+    });
+  }
+}
+
+function sessionBelongsToProvider(session: Stripe.Identity.VerificationSession, providerId: string, mode: "test" | "live") {
+  return session.client_reference_id === providerId
+    && session.metadata.providerId === providerId
+    && session.metadata.purpose === "provider_age_eligibility"
+    && session.livemode === (mode === "live");
+}
+
+export async function resetMismatchedStripeAgeVerification(providerId: string, storedMode: "test" | "live" | null) {
+  const mode = getStripeMode();
+  if (!storedMode || storedMode === mode) return false;
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    const reset = await client.query(`UPDATE provider_profiles
+      SET age_verification_status='not_started', age_identity_verified_at=NULL,
+          age_verification_failure_code='stripe_mode_changed', age_verification_source=NULL, updated_at=now()
+      WHERE id::text=$1 AND age_verification_source='stripe_identity'
+        AND stripe_identity_verification_mode IS DISTINCT FROM $2`, [providerId, mode]);
+    if (reset.rowCount) {
+      await client.query(`UPDATE services SET is_active=false, age_verification_blocked=true, updated_at=now()
+        WHERE provider_id::text=$1 AND provider_deleted_at IS NULL`, [providerId]);
+    }
+    await client.query("COMMIT");
+    return Boolean(reset.rowCount);
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -71,10 +119,15 @@ export async function syncProviderAgeVerificationFromStripe(sessionId: string) {
     WHERE stripe_identity_verification_session_id=$1 AND stripe_identity_verification_mode=$2`, [sessionId, mode]);
   const provider = providerResult.rows[0];
   if (!provider) return null;
+  // Historical exceptions remain readable so existing records are not changed
+  // by reconciliation. New exceptions cannot be created by the admin API.
   if (provider.age_verification_source === "admin_exception") return "verified" as const;
 
   const session = await getStripe().identity.verificationSessions.retrieve(sessionId, { expand: ["verified_outputs"] });
-  if (session.client_reference_id !== provider.id) return null;
+  if (!sessionBelongsToProvider(session, provider.id, mode)) {
+    console.error("Stripe Identity session ownership did not match the provider", { providerId: provider.id, sessionId });
+    return null;
+  }
 
   if (session.status === "verified") {
     const dob = dobFromVerifiedSession(session);
@@ -83,7 +136,7 @@ export async function syncProviderAgeVerificationFromStripe(sessionId: string) {
       return "verified" as const;
     }
     // A document that did not supply a usable DOB cannot establish eligibility.
-    await setProviderAgeVerification(provider.id, "failed", "age_not_verified");
+    await setProviderAgeVerification(provider.id, "failed", dob ? "underage" : "date_of_birth_unavailable");
     return "failed" as const;
   }
 
@@ -99,11 +152,14 @@ export async function startProviderAgeVerification(input: { providerId: string; 
     FROM provider_profiles WHERE id::text=$1`, [input.providerId]);
   const provider = providerResult.rows[0];
   if (!provider) throw new Error("PROVIDER_NOT_FOUND");
-  if (provider.age_verification_status === "verified") return { status: "verified" as const, url: null };
+  if (provider.age_verification_status === "verified"
+      && (provider.age_verification_source === "admin_exception" || provider.stripe_identity_verification_mode === mode)) {
+    return { status: "verified" as const, url: null };
+  }
 
   if (provider.stripe_identity_verification_session_id && provider.stripe_identity_verification_mode === mode) {
     const session = await getStripe().identity.verificationSessions.retrieve(provider.stripe_identity_verification_session_id, { expand: ["verified_outputs"] });
-    if (session.client_reference_id === provider.id) {
+    if (sessionBelongsToProvider(session, provider.id, mode)) {
       const status = await syncProviderAgeVerificationFromStripe(session.id);
       if (status === "verified") return { status, url: null };
       if (session.status === "requires_input" && session.url) return { status: "requires_input" as const, url: session.url };
@@ -121,11 +177,22 @@ export async function startProviderAgeVerification(input: { providerId: string; 
   // ID makes that retry idempotent while concurrent first attempts share the
   // same initial key.
   }, { idempotencyKey: `provider-age-verification-${mode}-${provider.id}-${provider.stripe_identity_verification_session_id ?? "initial"}` });
-  await database.query(`UPDATE provider_profiles
-    SET stripe_identity_verification_session_id=$2, stripe_identity_verification_mode=$3,
-        age_verification_status='requires_input', age_identity_verified_at=NULL, age_verification_failure_code=NULL,
-        age_verification_source=NULL
-    WHERE id::text=$1`, [provider.id, session.id, mode]);
-  await database.query(`UPDATE services SET is_active=false, age_verification_blocked=true WHERE provider_id::text=$1`, [provider.id]);
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`UPDATE provider_profiles
+      SET stripe_identity_verification_session_id=$2, stripe_identity_verification_mode=$3,
+          age_verification_status='requires_input', age_identity_verified_at=NULL, age_verification_failure_code=NULL,
+          age_verification_source=NULL, updated_at=now()
+      WHERE id::text=$1`, [provider.id, session.id, mode]);
+    await client.query(`UPDATE services SET is_active=false, age_verification_blocked=true, updated_at=now()
+      WHERE provider_id::text=$1 AND provider_deleted_at IS NULL`, [provider.id]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
   return { status: "requires_input" as const, url: session.url };
 }

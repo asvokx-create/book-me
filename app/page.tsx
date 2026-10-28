@@ -13,6 +13,7 @@ import { formatDuration, getServices, getServiceVisual, type ServiceListing } fr
 import { getContextualLocation } from "@/lib/request-location";
 import { publicPageMetadata } from "@/lib/seo";
 import { formatServicePrice } from "@/lib/service-pricing";
+import { normalizeSearchRadius } from "@/lib/search-radius";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const initialDelivery = requestedDelivery === "REMOTE" || requestedDelivery === "IN_PERSON" ? requestedDelivery : "ALL";
   const location = await getContextualLocation(requestedLocation);
   const requestedRadius = Number(getParam(params.radius));
-  const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 250 ? requestedRadius : 25;
+  const radius = normalizeSearchRadius(requestedRadius);
   const city = location.split(",")[0]?.trim() || "";
   const servicesWithinRange = await loadHomepageServices(location, radius);
   const featuredServices = servicesWithinRange.slice(0, 6);

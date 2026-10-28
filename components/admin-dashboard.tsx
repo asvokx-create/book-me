@@ -118,6 +118,8 @@ type AccountDetails = {
     age_verification_source: "stripe_identity" | "admin_exception" | null;
     age_verification_exception_eligible: boolean; age_verification_exception_note: string | null;
     age_verification_exception_granted_at: string | null;
+    age_identity_verified_at: string | null; age_verification_failure_code: string | null;
+    stripe_identity_verification_mode: "test" | "live" | null;
     extra_team_seats: number; reserved_worker_count: number;
     stripe_current_period_end: string | null; stripe_connected: boolean;
     provider_agreement_accepted_at: string | null; provider_agreement_version: string | null;
@@ -161,6 +163,13 @@ function formatDate(value: string) {
 
 function label(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function providerAgeVerificationFailureLabel(code: string | null) {
+  if (!code) return null;
+  if (code === "underage") return "The verified date of birth did not meet the 18+ requirement.";
+  if (code === "date_of_birth_unavailable") return "Stripe did not return enough verified age information.";
+  return `Stripe requires another verification attempt (${code.replaceAll("_", " ")}).`;
 }
 
 function StatusPill({ value }: { value: string }) {
@@ -703,7 +712,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
   const [providerWelcomeResult, setProviderWelcomeResult] = useState("");
   const [ageExceptionBusy, setAgeExceptionBusy] = useState(false);
   const [ageExceptionResult, setAgeExceptionResult] = useState("");
-  const [ageExceptionAction, setAgeExceptionAction] = useState<"approve" | "revoke" | null>(null);
+  const [ageExceptionAction, setAgeExceptionAction] = useState<"revoke" | null>(null);
   const [ageExceptionNote, setAgeExceptionNote] = useState("");
   const [ageExceptionError, setAgeExceptionError] = useState(false);
   const welcomeSent = details?.welcomeEmail?.status === "sent" || welcomeResult === "Welcome email sent.";
@@ -747,8 +756,8 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
     const response = await fetch("/api/admin", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "portfolio_status", targetId: id, status }) });
     if (response.ok) onRetry();
   }
-  function beginAgeException(status: "approve" | "revoke") {
-    setAgeExceptionAction(status);
+  function beginAgeException() {
+    setAgeExceptionAction("revoke");
     setAgeExceptionNote("");
     setAgeExceptionResult("");
     setAgeExceptionError(false);
@@ -775,7 +784,7 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
       setAgeExceptionResult(result?.error ?? "The provider exception could not be saved.");
     }
     else {
-      setAgeExceptionResult(ageExceptionAction === "approve" ? "Provider age-verification exception approved." : "Provider age-verification exception revoked.");
+      setAgeExceptionResult("Provider age-verification exception revoked.");
       setAgeExceptionAction(null);
       setAgeExceptionNote("");
       await Promise.all([onDashboardRefresh(), onRetry()]);
@@ -827,6 +836,9 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             { label: "Safety screening", value: label(details.provider.screening_status) }, { label: "Screening score", value: details.provider.screening_score }, { label: "Screening checked", value: details.provider.screening_checked_at ? formatDate(details.provider.screening_checked_at) : null },
             { label: "Stripe connected", value: details.provider.stripe_connected }, { label: "Charges enabled", value: details.provider.stripe_charges_enabled }, { label: "Payouts enabled", value: details.provider.stripe_payouts_enabled },
             { label: "Age eligibility", value: details.provider.age_verification_status === "verified" ? details.provider.age_verification_source === "admin_exception" ? "BubsBookings admin exception" : "Stripe document verified" : label(details.provider.age_verification_status) },
+            { label: "Verification completed", value: details.provider.age_identity_verified_at ? formatDate(details.provider.age_identity_verified_at) : null },
+            { label: "Identity environment", value: details.provider.stripe_identity_verification_mode ? `${label(details.provider.stripe_identity_verification_mode)} mode` : null },
+            { label: "Verification detail", value: providerAgeVerificationFailureLabel(details.provider.age_verification_failure_code) },
             { label: "Admin exception", value: details.provider.age_verification_source === "admin_exception" ? "Active" : "Not active" }, { label: "Exception approved", value: details.provider.age_verification_exception_granted_at ? formatDate(details.provider.age_verification_exception_granted_at) : null },
             { label: "Subscription", value: label(details.provider.stripe_subscription_status) }, { label: "Current period ends", value: details.provider.stripe_current_period_end ? formatDate(details.provider.stripe_current_period_end) : null }, { label: "Live Pro trial used", value: details.provider.pro_trial_used_at_live ? formatDate(details.provider.pro_trial_used_at_live) : "No" },
             { label: "Included team seats", value: details.provider.plan === "pro" ? 3 : PLAN_ENTITLEMENTS[details.provider.plan].teamSeatLimit ?? "Unlimited" }, { label: "Purchased extra seats", value: details.provider.extra_team_seats }, { label: "Seats used", value: details.provider.reserved_worker_count + 1 },
@@ -837,15 +849,15 @@ function AccountDetailDialog({ account, details, loading, error, onClose, onRetr
             {details.complimentaryPro && <AdminComplimentaryPro providerId={details.provider.id} status={details.complimentaryPro} history={details.complimentaryProHistory} paidBillingConflict={["active", "trialing", "past_due"].includes(details.provider.stripe_subscription_status) || details.provider.stripe_subscription_checkout_pending} onChanged={onRetry} />}
             <section className={`rounded-2xl border p-4 ${details.provider.age_verification_source === "admin_exception" ? "border-[#d9ca55] bg-[#fff8cf]" : "border-[#183126]/10 bg-[#f8f8f4]"}`}>
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#718078]">Provider age verification</p>
-              <h4 className="mt-1 font-bold">{details.provider.age_verification_source === "admin_exception" ? "Documented admin exception is active" : details.provider.age_verification_source === "stripe_identity" ? "Stripe verification completed" : "Admin exception available"}</h4>
-              <p className="mt-2 text-sm leading-6 text-[#52665b]">{details.provider.age_verification_source === "admin_exception" ? "This provider has an auditable BubsBookings exception instead of a Stripe Identity age-verification result. Revoking it holds listings until age verification is completed or another exception is approved. Stripe payout eligibility is separate." : details.provider.age_verification_source === "stripe_identity" ? "Stripe has completed this provider's document verification, so an admin exception is not needed." : "An administrator may approve a documented BubsBookings exception after reviewing this provider. This does not represent Stripe verification and does not enable Stripe payouts."}</p>
+              <h4 className="mt-1 font-bold">{details.provider.age_verification_source === "admin_exception" ? "Historical admin exception is active" : details.provider.age_verification_source === "stripe_identity" ? "Stripe verification completed" : "Stripe verification required"}</h4>
+              <p className="mt-2 text-sm leading-6 text-[#52665b]">{details.provider.age_verification_source === "admin_exception" ? "This provider has a historical exception that predates the current mandatory Stripe Identity policy. It can be revoked, but administrators cannot create a new exception. Stripe payout eligibility is separate." : details.provider.age_verification_source === "stripe_identity" ? "Stripe completed this provider's document verification and BubsBookings confirmed the provider is at least 18." : "The provider must complete Stripe Identity age verification. Administrators cannot mark this requirement complete or publish blocked listings on the provider's behalf."}</p>
               {details.provider.age_verification_exception_note && <p className="mt-3 rounded-xl bg-white/70 p-3 text-xs leading-5"><strong>Latest audit note:</strong> {details.provider.age_verification_exception_note}</p>}
-              {!ageExceptionAction && <div className="mt-4">{details.provider.age_verification_source === "admin_exception" ? <button type="button" disabled={ageExceptionBusy} onClick={() => beginAgeException("revoke")} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">Revoke exception</button> : details.provider.age_verification_status !== "verified" ? <button type="button" disabled={ageExceptionBusy} onClick={() => beginAgeException("approve")} className="rounded-full bg-[#183126] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">Approve admin exception</button> : null}</div>}
+              {!ageExceptionAction && details.provider.age_verification_source === "admin_exception" && <div className="mt-4"><button type="button" disabled={ageExceptionBusy} onClick={beginAgeException} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">Revoke historical exception</button></div>}
               {ageExceptionAction && <form onSubmit={(event) => { event.preventDefault(); void changeAgeException(); }} className="mt-4 rounded-xl border border-[#183126]/10 bg-white/70 p-4">
-                <label htmlFor="provider-age-exception-note" className="text-sm font-bold">{ageExceptionAction === "approve" ? "Approval note" : "Revocation reason"}</label>
+                <label htmlFor="provider-age-exception-note" className="text-sm font-bold">Revocation reason</label>
                 <p className="mt-1 text-xs leading-5 text-[#718078]">This required note is saved in the permanent admin audit history.</p>
-                <textarea id="provider-age-exception-note" required autoFocus value={ageExceptionNote} onChange={(event) => setAgeExceptionNote(event.target.value)} maxLength={500} rows={3} placeholder={ageExceptionAction === "approve" ? "Describe the review supporting this exception" : "Explain why this exception is being revoked"} className="mt-3 w-full resize-y rounded-xl border border-[#183126]/15 bg-white px-3 py-2 text-sm outline-none focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/20" />
-                <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={ageExceptionBusy} onClick={() => { setAgeExceptionAction(null); setAgeExceptionNote(""); setAgeExceptionResult(""); setAgeExceptionError(false); }} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold">Cancel</button><button type="submit" disabled={ageExceptionBusy || !ageExceptionNote.trim()} className={"rounded-full px-4 py-2 text-xs font-bold text-white disabled:opacity-50 " + (ageExceptionAction === "approve" ? "bg-[#183126]" : "bg-[#9a4e25]")}>{ageExceptionBusy ? "Saving…" : ageExceptionAction === "approve" ? "Confirm approval" : "Confirm revocation"}</button></div>
+                <textarea id="provider-age-exception-note" required autoFocus value={ageExceptionNote} onChange={(event) => setAgeExceptionNote(event.target.value)} maxLength={500} rows={3} placeholder="Explain why this historical exception is being revoked" className="mt-3 w-full resize-y rounded-xl border border-[#183126]/15 bg-white px-3 py-2 text-sm outline-none focus:border-[#4d725d] focus:ring-2 focus:ring-[#4d725d]/20" />
+                <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={ageExceptionBusy} onClick={() => { setAgeExceptionAction(null); setAgeExceptionNote(""); setAgeExceptionResult(""); setAgeExceptionError(false); }} className="rounded-full border border-[#183126]/15 px-4 py-2 text-xs font-bold">Cancel</button><button type="submit" disabled={ageExceptionBusy || !ageExceptionNote.trim()} className="rounded-full bg-[#9a4e25] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{ageExceptionBusy ? "Saving…" : "Confirm revocation"}</button></div>
               </form>}
               {ageExceptionResult && <p role="status" className={`mt-3 text-sm font-bold ${ageExceptionError ? "text-[#9a4e25]" : "text-[#34704a]"}`}>{ageExceptionResult}</p>}
             </section>

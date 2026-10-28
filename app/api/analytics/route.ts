@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { recordAnalytics } from "@/lib/analytics";
 import { database } from "@/lib/database";
 import { enforceRateLimit } from "@/lib/request-security";
+import { MAX_SEARCH_RADIUS_MILES } from "@/lib/search-radius";
 
 const shareEvents = new Map([
   ["listing_share_opened", "opened"], ["listing_share_native", "native"], ["listing_share_copy_link", "copy_link"],
@@ -31,7 +32,7 @@ function safeSearchMetadata(value: Record<string, unknown>) {
     category: text("category", 80),
     delivery: text("delivery", 20),
     location: text("location", 100),
-    radiusMiles: number("radiusMiles", 500),
+    radiusMiles: number("radiusMiles", MAX_SEARCH_RADIUS_MILES),
     resultCount: number("resultCount", 10_000),
   };
 }

@@ -19,6 +19,7 @@ import { deliveryLabel, type ServiceDeliveryType } from "@/lib/service-delivery"
 import ServiceCategoryIcon from "@/components/service-category-icon";
 import { formatServicePrice } from "@/lib/service-pricing";
 import { publicPageMetadata } from "@/lib/seo";
+import { normalizeSearchRadius } from "@/lib/search-radius";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   const requestedLocation = getParam(params.location);
   const location = await getContextualLocation(requestedLocation);
   const requestedRadius = Number(getParam(params.radius));
-  const radius = Number.isInteger(requestedRadius) && requestedRadius >= 1 && requestedRadius <= 250 ? requestedRadius : 25;
+  const radius = normalizeSearchRadius(requestedRadius);
   const maxPrice = Number(getParam(params.maxPrice)) || undefined;
   const maxDuration = Number(getParam(params.maxDuration)) || undefined;
   const requestedSort = getParam(params.sort);

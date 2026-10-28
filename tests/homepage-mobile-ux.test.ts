@@ -40,7 +40,7 @@ test("hero browse action stays visually prominent and clear of the search panel"
   const css = read("app", "globals.css");
 
   assert.match(preview, /className="home-hero-explore-action"/);
-  assert.match(css, /\.home-hero-explore-action \{[^}]*background: #123d2e;[^}]*color: #fff;/);
+  assert.match(css, /\.home-hero-explore-action \{[^}]*background: #123d2e;[^}]*color: #d7e3dc;/);
   assert.match(css, /\.home-search-dock \{[^}]*margin-top: 1rem;/);
   assert.doesNotMatch(css, /\.home-search-dock \{[^}]*margin-top: -/);
 });

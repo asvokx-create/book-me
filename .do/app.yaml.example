@@ -45,6 +45,17 @@ services:
         value: REPLACE_WITH_A_LONG_RANDOM_SECRET
         scope: RUN_TIME
         type: SECRET
+      # Use live-mode values in production. The webhook endpoint is
+      # https://bubsbookings.com/api/stripe/webhook and must explicitly receive
+      # the Identity verification-session events handled by the application.
+      - key: STRIPE_SECRET_KEY
+        value: REPLACE_IN_DIGITALOCEAN
+        scope: RUN_TIME
+        type: SECRET
+      - key: STRIPE_WEBHOOK_SECRET
+        value: REPLACE_IN_DIGITALOCEAN
+        scope: RUN_TIME
+        type: SECRET
       - key: AFFILIATE_RESERVE_BUFFER_CENTS
         value: "0"
         scope: RUN_TIME

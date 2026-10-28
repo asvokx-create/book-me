@@ -25,6 +25,7 @@ test("Stripe Connect readiness is separate from provider age verification and St
   const webhook = read("app/api/stripe/webhook/route.ts");
   const migration = read("database/migrations/082_provider_age_verification.sql");
   const providerRoute = read("app/api/stripe/provider-age-verification/route.ts");
+  const deployment = read(".do/app.yaml.example");
 
   assert.match(status, /ageVerification: \{ status: provider\.age_verification_status \}/);
   assert.match(webhook, /identity\.verification_session\.verified/);
@@ -33,6 +34,8 @@ test("Stripe Connect readiness is separate from provider age verification and St
   assert.match(migration, /stripe_identity_verification_session_id/);
   assert.match(providerRoute, /isStripeReady\(\)/);
   assert.match(providerRoute, /provider-age-verification/);
+  assert.match(deployment, /key: STRIPE_SECRET_KEY/);
+  assert.match(deployment, /key: STRIPE_WEBHOOK_SECRET/);
 });
 
 test("provider verification can never leave the Stripe handoff button stuck", () => {
@@ -93,7 +96,7 @@ test("admin listing status reflects public eligibility and cannot restore an unv
   assert.match(preview, /listingInactiveReasons/);
 });
 
-test("an admin can grant any unverified provider a documented age-verification exception", () => {
+test("administrators cannot bypass mandatory Stripe Identity age verification", () => {
   const migration = read("database/migrations/084_legacy_provider_age_exceptions.sql");
   const admin = read("app/api/admin/route.ts");
   const dashboard = read("components/admin-dashboard.tsx");
@@ -101,19 +104,39 @@ test("an admin can grant any unverified provider a documented age-verification e
 
   assert.match(migration, /age_verification_exception_eligible boolean NOT NULL DEFAULT false/);
   assert.match(migration, /UPDATE provider_profiles[\s\S]*age_verification_status <> 'verified'/);
-  assert.doesNotMatch(admin, /Only provider profiles that existed before this exception policy may receive an admin exception/);
-  assert.doesNotMatch(admin, /if \(!provider\.age_verification_exception_eligible\)/);
-  assert.match(admin, /Add an audit note for this provider age-verification exception/);
-  assert.match(admin, /provider_age_exception_approved/);
+  assert.match(admin, /Administrators cannot bypass required provider age verification/);
+  assert.doesNotMatch(admin, /provider_age_exception_approved/);
   assert.match(admin, /provider_age_exception_revoked/);
   assert.match(admin, /read_at=NULL/);
   assert.doesNotMatch(admin, /is_read=false/);
-  assert.match(dashboard, /Approve admin exception/);
-  assert.match(dashboard, /Revoke exception/);
+  assert.doesNotMatch(dashboard, /Approve admin exception/);
+  assert.match(dashboard, /Revoke historical exception/);
   assert.match(dashboard, /provider-age-exception-note/);
-  assert.match(dashboard, /Confirm approval/);
-  assert.match(dashboard, /does not represent Stripe verification and does not enable Stripe payouts/);
+  assert.doesNotMatch(dashboard, /Confirm approval/);
+  assert.match(dashboard, /administrators cannot create a new exception/i);
   const ageExceptionFlow = dashboard.slice(dashboard.indexOf("function beginAgeException"), dashboard.indexOf("return <div", dashboard.indexOf("function beginAgeException")));
   assert.doesNotMatch(ageExceptionFlow, /window\.prompt\(/);
   assert.match(verification, /age_verification_source === "admin_exception"/);
+});
+
+test("Stripe Identity sessions are bound to provider, purpose, and environment", () => {
+  const verification = read("lib/provider-age-verification.ts");
+  const status = read("app/api/stripe/status/route.ts");
+
+  assert.match(verification, /session\.client_reference_id === providerId/);
+  assert.match(verification, /session\.metadata\.providerId === providerId/);
+  assert.match(verification, /session\.metadata\.purpose === "provider_age_eligibility"/);
+  assert.match(verification, /session\.livemode === \(mode === "live"\)/);
+  assert.match(verification, /stripe_identity_verification_mode === mode/);
+  assert.match(status, /resetMismatchedStripeAgeVerification/);
+  assert.match(verification, /age_verification_failure_code='stripe_mode_changed'/);
+});
+
+test("provider verification and listing eligibility update in database transactions", () => {
+  const verification = read("lib/provider-age-verification.ts");
+  assert.match(verification, /await client\.query\("BEGIN"\)/);
+  assert.match(verification, /await client\.query\("COMMIT"\)/);
+  assert.match(verification, /await client\.query\("ROLLBACK"\)/);
+  assert.match(verification, /age_verification_blocked=true, updated_at=now\(\)/);
+  assert.match(verification, /age_verification_blocked=false, updated_at=now\(\)/);
 });
