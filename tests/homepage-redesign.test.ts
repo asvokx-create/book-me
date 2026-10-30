@@ -34,6 +34,7 @@ test("homepage categories use supported searchable values and preserve location"
   const home = read("app", "page.tsx");
   for (const category of ["Home repair", "Car detailing", "Tech help", "Photography", "Personal training", "Pet care", "Tutoring"]) {
     assert.match(home, new RegExp(`category: "${category.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+    assert.match(home, new RegExp(`label: "${category.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
   }
   assert.match(home, /categoryParams\.set\("location", location\)/);
   assert.match(home, /#nearby-listings/);

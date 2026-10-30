@@ -30,11 +30,11 @@ export const metadata: Metadata = publicPageMetadata({
 });
 
 const HOME_CATEGORIES = [
-  { label: "Home services", category: "Home repair" },
-  { label: "Auto services", category: "Car detailing" },
-  { label: "Tech & digital", category: "Tech help" },
-  { label: "Creative", category: "Photography" },
-  { label: "Health & fitness", category: "Personal training" },
+  { label: "Home repair", category: "Home repair" },
+  { label: "Car detailing", category: "Car detailing" },
+  { label: "Tech help", category: "Tech help" },
+  { label: "Photography", category: "Photography" },
+  { label: "Personal training", category: "Personal training" },
   { label: "Pet care", category: "Pet care" },
   { label: "Tutoring", category: "Tutoring" },
 ] as const;
