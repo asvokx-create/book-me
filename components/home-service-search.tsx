@@ -37,7 +37,7 @@ export default function HomeServiceSearch({
 
   return (
     <form action="/#nearby-listings" className="home-search-bar relative z-40 mt-12 flex w-full max-w-6xl flex-col gap-2 overflow-visible rounded-3xl border border-white bg-white/92 px-3.5 py-2.5 shadow-[0_24px_65px_rgba(24,49,38,.16)] backdrop-blur-xl lg:flex-row lg:items-center lg:rounded-full">
-      <ServiceSearchAssist id="home-service-search" defaultValue={initialQuery} placeholder="What service do you need?" className="home-search-input flex min-w-0 flex-1 items-center rounded-full px-6 sm:px-7 xl:min-w-[360px]" inputClassName="min-w-0 flex-1 py-4 outline-none" iconClassName="home-search-icon mr-4 grid h-9 w-9 shrink-0 place-items-center rounded-full text-base" />
+      <ServiceSearchAssist id="home-service-search" defaultValue={initialQuery} placeholder="What service do you need?" className="home-search-input flex min-w-0 flex-1 items-center rounded-full px-4 sm:px-5 xl:min-w-[360px] xl:px-6" inputClassName="min-w-0 flex-1 py-4 outline-none" iconClassName="home-search-icon mr-2 grid h-9 w-9 shrink-0 place-items-center rounded-full text-base xl:mr-3" />
 
       <input type="hidden" name="delivery" value={delivery} />
       <div className="home-search-delivery-mobile" role="group" aria-label="Service delivery type">

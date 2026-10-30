@@ -2829,6 +2829,7 @@ html[data-theme="dark"] .public-site-search:hover { background: #29352f; }
   background: rgba(255, 255, 255, .96);
   box-shadow: 0 24px 65px rgba(4, 20, 14, .28);
 }
+.premium-search-dock .home-search-input input { font-size: .9rem; }
 .premium-search-dock .home-search-submit {
   min-height: 3.5rem;
   min-width: 8.25rem;

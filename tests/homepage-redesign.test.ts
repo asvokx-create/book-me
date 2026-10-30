@@ -31,7 +31,10 @@ test("premium hero uses an optimized people-free local asset and one search surf
   assert.match(home, /Get things <span>done\.<\/span>/);
   assert.doesNotMatch(home, /Local and remote service marketplace/i);
   assert.match(search, /xl:min-w-\[360px\]/);
+  assert.match(search, /px-4 sm:px-5[^"]*xl:px-6/);
+  assert.match(search, /home-search-icon mr-2[^"]*xl:mr-3/);
   assert.match(search, /home-search-submit[^"]*px-5/);
+  assert.match(css, /\.premium-search-dock \.home-search-input input \{ font-size: \.9rem; \}/);
   assert.match(css, /\.premium-search-dock \.home-search-submit \{[\s\S]*?min-width: 8\.25rem;/);
 });
 
