@@ -5,11 +5,11 @@ import test from "node:test";
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("homepage listing cards show real provider avatars and verified review evidence", () => {
-  const homepage = read("app/page.tsx");
+  const homepage = read("components/service-listing-card.tsx");
   const marketplace = read("lib/marketplace.ts");
 
   assert.match(homepage, /ProfileAvatar name=\{service\.provider\} imageUrl=\{service\.providerProfileImageUrl\}/);
-  assert.match(homepage, /service\.providerAverageRating\.toFixed\(1\)/);
+  assert.match(homepage, /rating\.toFixed\(1\)/);
   assert.match(homepage, /service\.providerReviewCount/);
   assert.match(homepage, /New provider/);
   assert.match(marketplace, /owner\.image AS provider_profile_image_url/);

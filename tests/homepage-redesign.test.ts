@@ -8,14 +8,15 @@ const read = (...parts: string[]) => readFileSync(join(root, ...parts), "utf8");
 
 test("premium homepage retains live marketplace search and eligible listing data", () => {
   const home = read("app", "page.tsx");
+  const card = read("components", "service-listing-card.tsx");
   assert.match(home, /<HomeServiceSearch/);
   assert.match(home, /await getServices\(/);
   assert.match(home, /Homepage service loading failed/);
   assert.match(home, /servicesWithinRange\.map/);
   assert.match(home, /maxPrice: input\.maxPrice/);
   assert.match(home, /maxDuration: input\.maxDuration/);
-  assert.match(home, /<FavoriteButton serviceId=\{service\.id\}/);
-  assert.match(home, /service\.companySlug \? `\/companies\/\$\{service\.companySlug\}`/);
+  assert.match(card, /<FavoriteButton serviceId=\{service\.id\}/);
+  assert.match(card, /service\.companySlug/);
   assert.doesNotMatch(home, /1,500\+|10,000\+|50\+|testimonial|guaranteed customers|guaranteed bookings/i);
 });
 

@@ -17,6 +17,7 @@ test("dark accent text only changes when an accent background is active", () => 
 test("dark mode has explicit surfaces for the audited visual exceptions", () => {
   const css = read("app/globals.css");
   const home = read("app/page.tsx");
+  const serviceCard = read("components/service-listing-card.tsx");
   const settings = read("app/account/settings/settings-form.tsx");
   for (const selector of [
     ".partners-hero",
@@ -39,9 +40,10 @@ test("dark mode has explicit surfaces for the audited visual exceptions", () => 
   assert.match(read("app/signup/page.tsx"), /className="auth-page /);
   assert.match(read("components/messaging-center.tsx"), /className="message-thread-surface /);
   assert.match(read("components/messaging-center.tsx"), /className="grid gap-3 border-b/);
-  for (const className of ["premium-hero", "premium-service-card", "premium-provider"]) {
+  for (const className of ["premium-hero", "premium-provider"]) {
     assert.match(home, new RegExp(`className="${className}(?: |")`));
   }
+  assert.match(serviceCard, /className="premium-service-card /);
   for (const className of ["settings-theme-option", "settings-secondary-action", "settings-logout-action"]) {
     assert.match(settings, new RegExp(className));
   }
@@ -148,13 +150,15 @@ test("provider settings and premium homepage media use restrained dark surfaces"
   const css = read("app/globals.css");
   const dashboard = read("components/provider-dashboard.tsx");
   const home = read("app/page.tsx");
+  const serviceCard = read("components/service-listing-card.tsx");
   const showcase = read("components/home-provider-showcase.tsx");
 
   assert.match(dashboard, /data-provider-settings-hub/);
   assert.match(css, /section\[data-provider-settings-hub\] \.grid > a[\s\S]*?background: var\(--bb-surface-muted\) !important/);
   assert.match(showcase, /premium-laptop/);
   assert.match(css, /html\[data-theme="dark"\] \.premium-home[\s\S]*?background: #0c110e/);
-  assert.match(home, /className="premium-service-image"/);
+  assert.match(home, /ServiceListingCard/);
+  assert.match(serviceCard, /className="premium-service-image"/);
   assert.match(css, /html\[data-theme="dark"\] \.premium-service-image img[\s\S]*?filter: brightness\(\.78\) saturate\(\.88\)/);
   assert.match(css, /html\[data-theme="dark"\] \.premium-service-card,[\s\S]*?background: #191d1b/);
 });

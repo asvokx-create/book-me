@@ -62,30 +62,30 @@ test("mobile category and listing layouts cannot force horizontal overflow", () 
 
   assert.match(css, /\.premium-category-row \{[\s\S]*?overflow-x: auto/);
   assert.match(css, /\.premium-category-link \{[\s\S]*?min-width: 5\.85rem/);
-  assert.match(css, /\.premium-service-card \{[\s\S]*?grid-template-columns: minmax\(7\.5rem, 40%\) 1fr/);
+  assert.match(css, /\.premium-service-card \{[\s\S]*?grid-template-columns: minmax\(7rem, 38%\) 1fr/);
   assert.match(css, /\.premium-service-content h3 \{[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;/);
   assert.match(icon, /shrink-0[\s\S]*?aspect-square/);
   assert.doesNotMatch(css, /\.premium-(?:category|service)-[^}]*width:\s*100vw/);
 });
 
 test("homepage listing photos reserve their layout and lazy-load below the fold", () => {
-  const home = read("app", "page.tsx");
-  assert.match(home, /<Image src=\{service\.imageUrls\[0\]\}/);
-  assert.match(home, /fill loading="lazy" unoptimized sizes="\(max-width: 639px\) calc\(100vw - 32px\)/);
-  assert.match(home, /className="object-cover"/);
+  const card = read("components", "service-listing-card.tsx");
+  assert.match(card, /<Image src=\{imageUrl\}/);
+  assert.match(card, /fill loading="lazy" unoptimized sizes="\(max-width: 639px\) calc\(100vw - 32px\)/);
+  assert.match(card, /className="object-cover"/);
 });
 
 test("mobile listing cards keep long titles and prices readable", () => {
-  const home = read("app", "page.tsx");
+  const card = read("components", "service-listing-card.tsx");
   const companies = read("app", "companies", "[slug]", "page.tsx");
   const favorites = read("app", "account", "page.tsx");
   const css = read("app", "globals.css");
 
-  assert.match(home, /premium-service-content/);
-  assert.match(home, /premium-service-price/);
-  assert.doesNotMatch(home, /<h3 className="[^"]*truncate[^"]*">\{service\.title\}<\/h3>/);
-  assert.match(companies, /listing-card-title-price/);
-  assert.match(favorites, /listing-card-meta/);
+  assert.match(card, /premium-service-content/);
+  assert.match(card, /premium-service-price/);
+  assert.doesNotMatch(card, /<h3 className="[^"]*truncate[^"]*">\{service\.title\}<\/h3>/);
+  assert.match(companies, /ServiceListingCard/);
+  assert.match(favorites, /ServiceListingCard/);
   assert.match(css, /\.listing-card-meta,[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(css, /\.listing-card-title,[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal/);
   assert.match(css, /\.premium-service-content h3 \{[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;/);

@@ -84,9 +84,9 @@ test("sitemap and robots rules cover public discovery while protecting private a
 });
 
 test("linked service-card artwork has an accessible text alternative", () => {
-  for (const page of [["app", "companies", "[slug]", "page.tsx"], ["app", "locations", "[city]", "page.tsx"]]) {
-    const source = read(...page);
-    assert.match(source, /role="img" aria-label=\{service\.image/, `${page.join("/")} must label linked card artwork`);
-    assert.match(source, /className=\{`(?:relative )?grid h-48/, `${page.join("/")} keeps a stable image frame`);
-  }
+  const card = read("components", "service-listing-card.tsx");
+  assert.match(card, /role=\{imageUrl \? undefined : "img"\}/);
+  assert.match(card, /aria-label=\{imageUrl \? undefined : `\$\{service\.title\} cover`\}/);
+  assert.match(card, /<Image src=\{imageUrl\} alt=\{`\$\{service\.title\} cover`\}/);
+  for (const page of [["app", "companies", "[slug]", "page.tsx"], ["app", "locations", "[city]", "page.tsx"]]) assert.match(read(...page), /ServiceListingCard/);
 });

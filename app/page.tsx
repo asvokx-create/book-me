@@ -4,21 +4,19 @@ import Link from "next/link";
 import AccountNav from "@/components/account-nav";
 import BrandLockup from "@/components/brand-lockup";
 import CustomSelect from "@/components/custom-select";
-import FavoriteButton from "@/components/favorite-button";
 import HomeProviderShowcase from "@/components/home-provider-showcase";
 import HomeServiceSearch from "@/components/home-service-search";
 import MobileSiteNav from "@/components/mobile-site-nav";
-import ProfileAvatar from "@/components/profile-avatar";
+import ServiceListingCard from "@/components/service-listing-card";
 import SearchResultsAnalytics from "@/components/search-results-analytics";
 import ServiceDemandCapture from "@/components/service-demand-capture";
 import ServiceCategoryIcon from "@/components/service-category-icon";
 import ServiceFiltersMenu from "@/components/service-filters-menu";
 import SortSelect from "@/components/sort-select";
 import UiIcon from "@/components/ui-icon";
-import { formatDuration, getServices, getServiceVisual, type ServiceListing } from "@/lib/marketplace";
+import { getServices } from "@/lib/marketplace";
 import { getContextualLocation } from "@/lib/request-location";
 import { publicPageMetadata } from "@/lib/seo";
-import { formatServicePrice } from "@/lib/service-pricing";
 import { normalizeSearchRadius } from "@/lib/search-radius";
 import { SERVICE_CATEGORIES } from "@/lib/service-categories";
 import { deliveryLabel, type ServiceDeliveryType } from "@/lib/service-delivery";
@@ -190,7 +188,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
         {(query || selectedCategory !== "All services" || initialDelivery !== "ALL" || maxPrice || maxDuration) && <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-bold"><span className="text-[#718078]">Active filters</span>{query && <span className="rounded-full bg-[#edf3e7] px-3 py-2">{query}</span>}{selectedCategory !== "All services" && <Link href={marketplaceHref({ category: "All services" })} className="rounded-full bg-[#fff5b8] px-3 py-2">{selectedCategory} ×</Link>}{initialDelivery !== "ALL" && <Link href={marketplaceHref({ delivery: "ALL" })} className="rounded-full bg-[#fff5b8] px-3 py-2">{deliveryLabel(initialDelivery)} ×</Link>}{maxPrice && <Link href={marketplaceHref({ maxPrice: undefined })} className="rounded-full bg-[#fff5b8] px-3 py-2">Up to ${maxPrice} ×</Link>}{maxDuration && <Link href={marketplaceHref({ maxDuration: undefined })} className="rounded-full bg-[#fff5b8] px-3 py-2">Est. up to {maxDuration >= 240 ? maxDuration === 480 ? "full day" : "half day" : `${maxDuration / 60} hr`} ×</Link>}</div>}
         {servicesWithinRange.length > 0 ? (
-          <div className="premium-listing-grid">{servicesWithinRange.map((service) => <PremiumServiceCard key={service.id} service={service} returnPath={currentResultsPath} />)}</div>
+          <div className="premium-listing-grid">{servicesWithinRange.map((service) => <ServiceListingCard key={service.id} service={service} returnPath={currentResultsPath} />)}</div>
         ) : (
           <div className="premium-empty-state">
             <ServiceCategoryIcon category="Home repair" />
@@ -228,40 +226,5 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
       </section>
     </main>
-  );
-}
-
-function PremiumServiceCard({ service, returnPath }: { service: ServiceListing; returnPath: string }) {
-  const visual = getServiceVisual(service.category);
-  const businessHref = service.companySlug ? `/companies/${service.companySlug}` : service.providerProfileVisible ? `/providers/${service.providerSlug}` : null;
-  const locationLabel = service.deliveryType === "REMOTE" ? "Available online" : `${service.city}, ${service.state}`;
-  const deliveryLabel = service.deliveryType === "REMOTE" ? "Online" : service.deliveryType === "BOTH" ? "Local + online" : "In person";
-  return (
-    <article className="premium-service-card">
-      <Link href={`/services/${service.slug}?from=${encodeURIComponent(returnPath)}`} className="premium-service-image" aria-label={`View ${service.title}`}>
-        <div role={service.imageUrls[0] ? undefined : "img"} aria-label={service.imageUrls[0] ? undefined : `${service.title} cover`} className={service.imageUrls[0] ? "" : `bg-gradient-to-br ${visual.gradient}`}>
-          {service.imageUrls[0] ? <Image src={service.imageUrls[0]} alt={`${service.title} cover`} fill loading="lazy" unoptimized sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 50vw, 25vw" className="object-cover" /> : <ServiceCategoryIcon category={service.category} />}
-          <span className="premium-listing-delivery">{deliveryLabel}</span>
-        </div>
-      </Link>
-      <div className="premium-service-content">
-        <p className="premium-service-category">{service.category}</p>
-        <Link href={`/services/${service.slug}?from=${encodeURIComponent(returnPath)}`}><h3>{service.title}</h3></Link>
-        <div className="premium-provider-row">
-          <ProfileAvatar name={service.provider} imageUrl={service.providerProfileImageUrl} className="premium-provider-avatar" />
-          <div className="min-w-0">
-            {businessHref ? <Link href={businessHref}>{service.provider}</Link> : <p>{service.provider}</p>}
-            {service.providerReviewCount > 0 && service.providerAverageRating !== null ? (
-              <p className="premium-service-rating" aria-label={`${service.providerAverageRating.toFixed(1)} out of 5 stars from ${service.providerReviewCount} verified ${service.providerReviewCount === 1 ? "review" : "reviews"}`}><span aria-hidden="true">★</span> {service.providerAverageRating.toFixed(1)} <small>({service.providerReviewCount})</small></p>
-            ) : <p className="premium-service-rating is-new">New provider</p>}
-          </div>
-        </div>
-        <div className="premium-service-meta">
-          <p className="premium-service-location"><UiIcon name={service.deliveryType === "REMOTE" ? "globe" : "map-pin"} />{locationLabel}</p>
-          <div className="premium-service-price"><strong>{formatServicePrice(service)}</strong><span>{service.pricingType === "QUOTE_ONLY" ? "custom pricing" : service.pricingType === "HOURLY" ? `${formatDuration(service.minimumDurationMinutes ?? service.durationMinutes)} minimum` : "starting"}</span></div>
-        </div>
-      </div>
-      <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="premium-service-favorite" />
-    </article>
   );
 }

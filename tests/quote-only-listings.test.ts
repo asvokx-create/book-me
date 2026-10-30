@@ -33,15 +33,17 @@ test("listing creation and editing expose the custom quote toggle without requir
 
 test("quote-only listings use consistent public labels and omit numeric SEO prices", () => {
   const search = read("app", "page.tsx");
+  const card = read("components", "service-listing-card.tsx");
   const company = read("app", "companies", "[slug]", "page.tsx");
   const provider = read("app", "providers", "[slug]", "page.tsx");
   const detail = read("app", "services", "[slug]", "page.tsx");
 
-  assert.match(search, /formatServicePrice\(service\)/);
-  assert.match(search, /service\.pricingType === "QUOTE_ONLY" \? "custom pricing"/);
-  for (const source of [company, provider, detail]) {
-    assert.match(source, /Custom Quote|Request a Quote/);
-  }
+  assert.match(search, /ServiceListingCard/);
+  assert.match(card, /formatServicePrice\(service\)/);
+  assert.match(card, /service\.pricingType === "QUOTE_ONLY"/);
+  assert.match(detail, /Custom Quote|Request a Quote/);
+  assert.match(company, /ServiceListingCard/);
+  assert.match(provider, /ServiceListingCard/);
   assert.match(provider, /service\.pricingType === "QUOTE_ONLY" \? \{\} : \{ priceCurrency/);
   assert.match(detail, /service\.pricingType === "QUOTE_ONLY" \? \{\} : \{ offers/);
   assert.match(detail, /price=\{service\.pricingType === "QUOTE_ONLY" \? 0 : service\.price\}/);

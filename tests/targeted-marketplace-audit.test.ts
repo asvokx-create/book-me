@@ -142,10 +142,10 @@ test("the Promise page exposes direct concern, refund, and dispute paths", () =>
 });
 
 test("service business names link to their matching company before an account-level provider profile", () => {
-  const home = read("app/page.tsx");
+  const home = read("components/service-listing-card.tsx");
   const detail = read("app/services/[slug]/page.tsx");
-  assert.match(home, /service\.companySlug \? `\/companies\/\$\{service\.companySlug\}`/);
-  assert.match(home, /service\.companySlug \? `\/companies\/\$\{service\.companySlug\}`/);
+  assert.match(home, /if \(service\.companySlug\) return `\/companies\/\$\{service\.companySlug\}`/);
+  assert.match(home, /service\.providerProfileVisible && service\.providerSlug/);
   assert.match(detail, /This is the business responsible for delivering the service/);
 });
 

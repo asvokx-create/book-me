@@ -19,15 +19,15 @@ test("every supported category has an explicit, unique icon", () => {
 
 test("category surfaces use the shared icon component instead of legacy artwork", () => {
   const surfaces = [
-    ["app", "page.tsx"],
     ["app", "locations", "[city]", "page.tsx"],
     ["app", "locations", "[city]", "[category]", "page.tsx"],
-    ["app", "companies", "[slug]", "page.tsx"],
     ["app", "providers", "[slug]", "page.tsx"],
+    ["components", "service-listing-card.tsx"],
     ["components", "provider-dashboard.tsx"],
     ["components", "listing-photo-gallery.tsx"],
   ];
   for (const surface of surfaces) assert.match(read(...surface), /ServiceCategoryIcon/);
+  for (const surface of [["app", "page.tsx"], ["app", "companies", "[slug]", "page.tsx"]]) assert.match(read(...surface), /ServiceListingCard/);
   assert.doesNotMatch(read("lib", "marketplace.ts"), /art:\s*["'`]/);
   assert.doesNotMatch(read("components", "provider-dashboard.tsx"), /🧰/);
 });

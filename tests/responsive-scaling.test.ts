@@ -70,19 +70,43 @@ test("homepage category navigation stays compact without collapsing its icons", 
 });
 
 test("iPhone layouts keep trust points, listing media, and service details readable", () => {
-  const home = read("app", "page.tsx");
+  const card = read("components", "service-listing-card.tsx");
   const listing = read("app", "services", "[slug]", "page.tsx");
   const css = read("app", "globals.css");
 
-  assert.match(css, /\.premium-service-card[\s\S]*?grid-template-columns: minmax\(7\.5rem, 40%\) 1fr/);
-  assert.match(css, /\.premium-service-image > div \{[\s\S]*?aspect-ratio: 1\.55 \/ 1/);
-  assert.match(home, /\(max-width: 639px\) calc\(100vw - 32px\)/);
+  assert.match(css, /\.premium-service-card[\s\S]*?grid-template-columns: minmax\(7rem, 38%\) 1fr/);
+  assert.match(css, /\.premium-service-image > div \{[\s\S]*?aspect-ratio: 2 \/ 1/);
+  assert.match(card, /\(max-width: 639px\) calc\(100vw - 32px\)/);
   assert.match(listing, /service-detail-meta-primary/);
   assert.match(listing, /service-detail-provider/);
   assert.match(listing, /service-detail-trust/);
   assert.match(listing, /service-detail-contact/);
   assert.match(listing, /<UiIcon name="map-pin"/);
   assert.match(css, /\.service-detail-contact \{ width: 100%; \}/);
+});
+
+test("public listing cards use one compact responsive design", () => {
+  const card = read("components", "service-listing-card.tsx");
+  const css = read("app", "globals.css");
+  for (const page of [
+    ["app", "page.tsx"],
+    ["app", "account", "page.tsx"],
+    ["app", "companies", "[slug]", "page.tsx"],
+    ["app", "providers", "[slug]", "page.tsx"],
+    ["app", "locations", "[city]", "page.tsx"],
+    ["app", "locations", "[city]", "[category]", "page.tsx"],
+  ]) assert.match(read(...page), /ServiceListingCard/);
+  assert.match(card, /object-cover/);
+  assert.match(card, /premium-listing-delivery/);
+  assert.match(card, /premium-service-favorite/);
+  assert.match(card, /providerAverageRating/);
+  assert.match(card, /formatServicePrice\(service\)/);
+  assert.match(css, /\.premium-service-image > div \{[\s\S]*?aspect-ratio: 2 \/ 1/);
+  assert.match(css, /@media \(max-width: 359px\)[\s\S]*?\.premium-service-image > div \{ aspect-ratio: 16 \/ 9; \}/);
+  assert.match(css, /\.premium-service-content \{ padding: \.85rem \.9rem \.9rem; \}/);
+  assert.match(css, /@media \(max-width: 1199px\)[\s\S]*?\.premium-listing-grid \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(max-width: 899px\)[\s\S]*?\.premium-listing-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?\.premium-listing-grid \{ grid-template-columns: 1fr/);
 });
 
 test("mobile distance filters keep the complete selected radius visible", () => {

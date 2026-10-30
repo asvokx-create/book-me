@@ -28,11 +28,12 @@ test("the migration safely defaults existing records and snapshots booking deliv
 test("remote discovery bypasses distance without leaking location into URLs", () => {
   const marketplace = source("lib/marketplace.ts");
   const services = source("app/page.tsx");
+  const card = source("components/service-listing-card.tsx");
   assert.match(marketplace, /service\.deliveryType === "REMOTE"/);
   assert.match(marketplace, /service\.deliveryType === "BOTH"/);
   assert.match(marketplace, /delivery === "REMOTE"/);
   assert.match(services, /input\.delivery !== "REMOTE" && input\.location/);
-  assert.match(services, /Available online/);
+  assert.match(card, /Available online/);
   assert.match(source("components/home-service-search.tsx"), /Search without a distance limit/);
 });
 
@@ -103,13 +104,15 @@ test("homepage search asks for delivery type before using local controls", () =>
 test("remote provider profiles avoid blank local areas and label every service", () => {
   const profile = source("app/providers/[slug]/page.tsx");
   const company = source("app/companies/[slug]/page.tsx");
+  const card = source("components/service-listing-card.tsx");
   assert.match(profile, /Remote services available across the supported U\.S\. marketplace/);
   assert.match(profile, /provider\.hasInPersonServices/);
-  assert.match(profile, /deliveryLabel\(service\.deliveryType\)/);
+  assert.match(profile, /ServiceListingCard/);
+  assert.match(card, /service\.deliveryType === "REMOTE" \? "Online"/);
   assert.match(profile, /provider\.hasInPersonServices \? "ProfessionalService" : "Organization"/);
   assert.match(company, /hasRemoteServices && <span/);
   assert.match(company, /hasInPersonServices && company\.locations\.map/);
-  assert.match(company, /Remote or in person/);
+  assert.match(company, /ServiceListingCard/);
 });
 
 test("screening badges use the current automated result and material edits refresh it", () => {
