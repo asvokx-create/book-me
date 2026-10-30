@@ -50,9 +50,10 @@ test("guide marketplace calls to action use the reader's location context instea
 
 test("homepage section headings follow the page heading without skipping directly to level three", () => {
   const home = read("app/page.tsx");
-  assert.match(home, /<h1 className="type-hero">/);
-  assert.match(home, /<h2[^>]*className="text-3xl font-bold tracking-/);
-  assert.doesNotMatch(home, /<h3 className="text-3xl font-bold tracking-/);
+  assert.match(home, /<h1 id="premium-home-heading">/);
+  assert.match(home, /<h2 id="featured-services-heading">/);
+  assert.match(home, /<h2 id="how-heading">/);
+  assert.match(home, /<h2 id="provider-promo-heading">/);
 });
 
 test("homepage hero uses an image-free category preview with accessible contextual labeling", () => {

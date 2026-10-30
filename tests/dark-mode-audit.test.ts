@@ -21,8 +21,8 @@ test("dark mode has explicit surfaces for the audited visual exceptions", () => 
   for (const selector of [
     ".partners-hero",
     ".message-thread-surface",
-    ".home-service-card",
-    ".home-hero-v2",
+    ".premium-service-card",
+    ".premium-home",
     ".settings-theme-option",
     ".settings-secondary-action",
     ".settings-logout-action",
@@ -39,7 +39,7 @@ test("dark mode has explicit surfaces for the audited visual exceptions", () => 
   assert.match(read("app/signup/page.tsx"), /className="auth-page /);
   assert.match(read("components/messaging-center.tsx"), /className="message-thread-surface /);
   assert.match(read("components/messaging-center.tsx"), /className="grid gap-3 border-b/);
-  for (const className of ["home-hero-v2", "home-service-card", "home-provider-cta"]) {
+  for (const className of ["premium-hero", "premium-service-card", "premium-provider"]) {
     assert.match(home, new RegExp(`className="${className}(?: |")`));
   }
   for (const className of ["settings-theme-option", "settings-secondary-action", "settings-logout-action"]) {
@@ -144,20 +144,19 @@ test("dashboard secondary controls and client rows remain readable in dark mode"
   }
 });
 
-test("provider settings and homepage media use restrained dark surfaces", () => {
+test("provider settings and premium homepage media use restrained dark surfaces", () => {
   const css = read("app/globals.css");
   const dashboard = read("components/provider-dashboard.tsx");
   const home = read("app/page.tsx");
-  const heroPreview = read("components/home-hero-preview.tsx");
+  const showcase = read("components/home-provider-showcase.tsx");
 
   assert.match(dashboard, /data-provider-settings-hub/);
   assert.match(css, /section\[data-provider-settings-hub\] \.grid > a[\s\S]*?background: var\(--bb-surface-muted\) !important/);
-  assert.match(heroPreview, /home-hero-collage/);
-  assert.match(css, /\.home-hero-collage[\s\S]*?linear-gradient\(145deg, #1b2821/);
-  assert.match(css, /\.home-hero-explore-grid > a[\s\S]*?background: rgba\(27, 35, 30, \.92\) !important/);
-  assert.match(home, /className="home-service-image"/);
-  assert.match(css, /\.home-service-image img[\s\S]*?filter: brightness\(\.78\) saturate\(\.88\)/);
-  assert.match(css, /\.home-listing-delivery,[\s\S]*?\.home-service-favorite[\s\S]*?background: rgba\(27, 35, 30, \.94\) !important/);
+  assert.match(showcase, /premium-laptop/);
+  assert.match(css, /html\[data-theme="dark"\] \.premium-home[\s\S]*?background: #0c110e/);
+  assert.match(home, /className="premium-service-image"/);
+  assert.match(css, /html\[data-theme="dark"\] \.premium-service-image img[\s\S]*?filter: brightness\(\.78\) saturate\(\.88\)/);
+  assert.match(css, /html\[data-theme="dark"\] \.premium-service-card,[\s\S]*?background: #191d1b/);
 });
 
 test("dark palette pairs retain accessible text contrast", () => {

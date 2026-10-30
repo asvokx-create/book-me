@@ -13,6 +13,7 @@ export default function BrandMark({ className = "h-9 w-9", priority = false }: B
         alt=""
         fill
         priority={priority}
+        loading={priority ? "eager" : "lazy"}
         sizes="48px"
         className="object-cover"
       />

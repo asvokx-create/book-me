@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { authClient } from "@/lib/auth-client";
 import NotificationBell from "@/components/notification-bell";
 import ProfileAvatar from "@/components/profile-avatar";
 
 export default function AccountNav() {
   const { data: session, isPending } = authClient.useSession();
+  const mounted = useSyncExternalStore(() => () => undefined, () => true, () => false);
   const [affiliateAccess,setAffiliateAccess]=useState<{userId:string;isAffiliate:boolean}|null>(null);
 
   useEffect(()=>{
@@ -21,7 +22,7 @@ export default function AccountNav() {
     return()=>{active=false;};
   },[session?.user.id]);
 
-  if (isPending) {
+  if (!mounted || isPending) {
     return <div aria-label="Loading account" className="h-10 w-10 animate-pulse rounded-full bg-[#183126]/8 min-[380px]:w-28" />;
   }
 

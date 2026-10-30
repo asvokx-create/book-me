@@ -11,7 +11,7 @@ test("homepage category discovery uses supported categories and links to demand 
   assert.match(home, /const HOME_CATEGORIES/);
   assert.match(home, /categoryParams\.set\("location", location\)/);
   assert.match(home, /Listings are coming soon/);
-  assert.match(home, /Join as a provider/);
+  assert.match(home, /Create a free listing/i);
 });
 
 test("brand markup exposes one consistent BubsBookings accessible name", () => {

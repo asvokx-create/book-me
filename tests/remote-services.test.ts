@@ -87,7 +87,7 @@ test("provider acquisition and guidance welcome local and remote professionals",
   assert.match(footer, /Your service marketplace/);
   assert.match(footer, /local and remote service providers across the United States/);
   assert.match(source("app/guides/page.tsx"), /hiring local or remote help/);
-  assert.match(footer, />Find services</);
+  assert.match(footer, /\["Find services", "\/services"\]/);
 });
 
 test("homepage search asks for delivery type before using local controls", () => {

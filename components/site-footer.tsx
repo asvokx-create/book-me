@@ -2,33 +2,39 @@ import BrandLockup from "@/components/brand-lockup";
 import Link from "next/link";
 import BugReportButton from "@/components/bug-report-button";
 import { AnalyticsChoicesButton } from "@/components/analytics-consent";
-import UiIcon from "@/components/ui-icon";
 
-const marketplaceLinks = [
+const customerLinks = [
   ["Find services", "/services"],
   ["Service areas", "/locations"],
   ["Helpful guides", "/guides"],
-  ["List your service", "/providers/join"],
-  ["Partner program", "/partners"],
+  ["Our promise", "/promise"],
+  ["Disputes", "/disputes"],
 ] as const;
 
-const trustLinks = [
+const providerLinks = [
+  ["List your service", "/providers/join"],
+  ["Provider pricing", "/pricing"],
+  ["Provider agreement", "/provider-agreement"],
+  ["Provider safety", "/provider-safety"],
+  ["Partner Program", "/partners"],
+  ["Partner agreement", "/partner-agreement"],
+] as const;
+
+const companyLinks = [
   ["About Us", "/about"],
-  ["Our promise", "/promise"],
   ["AI & safety", "/ai-transparency"],
-  ["Disputes", "/disputes"],
   ["Accessibility", "/accessibility"],
+] as const;
+
+const supportLinks = [
   ["Contact support", "/support"],
+  ["Cancellation & refunds", "/cancellations-refunds"],
+  ["Payment & billing", "/payment-billing"],
 ] as const;
 
 const legalLinks = [
   ["Terms", "/terms"],
   ["Privacy", "/privacy"],
-  ["Cancellation & refunds", "/cancellations-refunds"],
-  ["Payment & billing", "/payment-billing"],
-  ["Provider agreement", "/provider-agreement"],
-  ["Provider safety", "/provider-safety"],
-  ["Partner agreement", "/partner-agreement"],
   ["Marketing communications", "/marketing-communications"],
   ["Cookies", "/cookies"],
   ["Content removal", "/content-removal"],
@@ -36,18 +42,16 @@ const legalLinks = [
 ] as const;
 
 function FooterLinks({ title, links }: { title: string; links: ReadonlyArray<readonly [string, string]> }) {
-  const items = links.map(([label, href]) => <Link key={href} href={href} className="w-fit rounded-md py-0.5 transition hover:text-white hover:underline hover:decoration-[#eee25a] hover:decoration-2 hover:underline-offset-4">{label}</Link>);
+  const items = links.map(([label, href]) => <Link key={href} href={href}>{label}</Link>);
   return (
     <div className="site-footer-links">
       <details className="site-footer-mobile-group">
         <summary><span>{title}</span><span aria-hidden="true">+</span></summary>
-        <nav aria-label={`${title} links`} className="grid gap-1.5 pb-3 pt-2 text-sm font-semibold text-[#c8d7cf]">{items}</nav>
+        <nav aria-label={`${title} links`}>{items}</nav>
       </details>
       <nav aria-label={title} className="site-footer-desktop-group">
-      <p className="text-[11px] font-bold uppercase tracking-[.17em] text-[#88a596]">{title}</p>
-      <div className="mt-4 grid gap-2.5 text-sm font-semibold text-[#c8d7cf]">
-        {items}
-      </div>
+        <p>{title}</p>
+        <div>{items}</div>
       </nav>
     </div>
   );
@@ -55,47 +59,28 @@ function FooterLinks({ title, links }: { title: string; links: ReadonlyArray<rea
 
 export default function SiteFooter() {
   return (
-    <footer className="site-footer mt-auto overflow-hidden border-t border-white/10 bg-[#102b20] text-white">
+    <footer className="site-footer mt-auto overflow-hidden border-t border-white/10 bg-[#0b2d22] text-white">
       <div className="site-container px-5 py-10 sm:px-6 sm:py-14">
-        <section className="relative overflow-hidden rounded-xl border border-white/12 bg-white/[.045] p-6 sm:p-8">
-          <div className="relative grid items-end gap-7 lg:grid-cols-[1fr_auto]">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#a9c3b4]">Your service marketplace</p>
-              <h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-[-.045em] sm:text-4xl">Good help should never feel far away.</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-[#aec3b8]">Find local or remote service providers, compare your options clearly, and keep every booking in one place.</p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/services" className="rounded-lg bg-[#f1e45c] px-6 py-3.5 text-sm font-bold text-[#173d2e] hover:bg-[#fff47c]">Find services</Link>
-              <Link href="/providers/join" className="rounded-lg border border-white/20 bg-white/8 px-6 py-3.5 text-sm font-bold hover:border-white/30 hover:bg-white/14">List your service</Link>
-            </div>
-          </div>
-          <div className="relative mt-7 grid gap-3 border-t border-white/10 pt-6 text-xs font-semibold text-[#bfd0c7] sm:grid-cols-3">
-            <p className="flex items-center gap-2"><UiIcon name="map-pin" className="h-4 w-4 text-[#eee25a]" />Local and remote marketplace</p>
-            <p className="flex items-center gap-2"><UiIcon name="card" className="h-4 w-4 text-[#eee25a]" />Stripe-powered payments</p>
-            <p className="flex items-center gap-2"><UiIcon name="messages" className="h-4 w-4 text-[#eee25a]" />Booking support</p>
-          </div>
-        </section>
-
-        <div className="grid gap-10 py-11 sm:grid-cols-2 lg:grid-cols-[1.35fr_.8fr_.8fr_.8fr]">
-          <div>
-            <Link href="/" aria-label="BubsBookings" className="flex w-fit items-center gap-3 text-xl font-bold tracking-[-.03em]"><BrandLockup /></Link>
-            <p className="mt-4 max-w-sm text-sm leading-6 text-[#9db5a8]">Local and remote services, clearer conversations, and one place to manage a booking.</p>
-            <a href="https://saasbrowser.com/en/saas/1712492/bubsbookings" target="_blank" rel="nofollow noopener" className="mt-5 block w-fit rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#eee25a]/70">
-              <img src="https://files.saasbrowser.com/n1c0ah9pbh67l9byez35xb5vhoy1" alt="BubsBookings - SaaS Browser Verified Badge" width="200" height="133" className="h-auto w-[200px]" />
+        <div className="premium-footer-grid">
+          <div className="premium-footer-brand">
+            <Link href="/" aria-label="BubsBookings"><BrandLockup /></Link>
+            <p>Your service marketplace for local and remote service providers across the United States.</p>
+            <a href="https://saasbrowser.com/en/saas/1712492/bubsbookings" target="_blank" rel="nofollow noopener" className="premium-footer-badge">
+              {/* The verification provider requires this badge to be served from its canonical URL. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="https://files.saasbrowser.com/n1c0ah9pbh67l9byez35xb5vhoy1" alt="BubsBookings - SaaS Browser Verified Badge" width="200" height="133" />
             </a>
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <BugReportButton />
-              <Link href="/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-[#c8d7cf] hover:bg-white/10 hover:text-white">Contact support</Link>
-            </div>
+            <div className="premium-footer-actions"><BugReportButton /><Link href="/support">Contact support</Link></div>
           </div>
-          <FooterLinks title="Marketplace" links={marketplaceLinks} />
-          <FooterLinks title="Trust & support" links={trustLinks} />
+          <FooterLinks title="For Customers" links={customerLinks} />
+          <FooterLinks title="For Providers" links={providerLinks} />
+          <FooterLinks title="Company" links={companyLinks} />
+          <FooterLinks title="Support" links={supportLinks} />
           <FooterLinks title="Legal" links={legalLinks} />
         </div>
-
-        <div className="flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-[#7f9b8c] sm:flex-row sm:items-center sm:justify-between">
+        <div className="premium-footer-bottom">
           <p>© {new Date().getFullYear()} BubsBookings. Built for local and remote work.</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><AnalyticsChoicesButton className="rounded-md font-semibold underline-offset-4 hover:text-white hover:underline focus-visible:text-white" /><p>Connecting people with local and remote service providers across the United States</p></div>
+          <AnalyticsChoicesButton className="rounded-md font-semibold underline-offset-4 hover:text-white hover:underline focus-visible:text-white" />
         </div>
       </div>
     </footer>

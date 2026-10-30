@@ -45,30 +45,27 @@ test("hero browse action stays visually prominent and clear of the search panel"
   assert.doesNotMatch(css, /\.home-search-dock \{[^}]*margin-top: -/);
 });
 
-test("phone homepage removes desktop bulk before discovery", () => {
+test("phone homepage keeps the hero focused and categories horizontally usable", () => {
   const home = read("app", "page.tsx");
   const css = read("app", "globals.css");
 
   assert.match(home, /home-header-account/);
-  assert.match(home, /home-category-grid/);
-  assert.match(css, /@media \(max-width: 639px\)[\s\S]*?\.home-header-account \{ display: none; \}/);
-  assert.match(css, /\.home-hero-points > span \{ display: flex;/);
-  assert.doesNotMatch(css, /\.home-hero-points > span:nth-child\(n\+2\) \{ display: none; \}/);
-  assert.match(css, /\.home-request-banner \{ display: none !important; \}/);
-  assert.match(css, /\.home-discovery \{[\s\S]*?padding-top: 1\.8rem/);
+  assert.match(home, /premium-category-row/);
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?\.premium-home-header \.home-header-account \{ display: none; \}/);
+  assert.match(css, /\.premium-category-row \{ display: flex;[\s\S]*?overflow-x: auto/);
+  assert.doesNotMatch(home, /home-benefit-band|home-request-banner/);
 });
 
-test("mobile category and listing grids cannot force horizontal overflow", () => {
+test("mobile category and listing layouts cannot force horizontal overflow", () => {
   const css = read("app", "globals.css");
   const icon = read("components", "service-category-icon.tsx");
 
-  assert.match(css, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 9\.5rem\), 1fr\)\)/);
-  assert.match(css, /\.home-category-card \{[\s\S]*?grid-template-columns: 2\.5rem minmax\(0, 1fr\)/);
-  assert.match(css, /\.home-service-card \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(css, /\.home-service-card-summary \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(css, /\.home-service-card h3[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;/);
+  assert.match(css, /\.premium-category-row \{[\s\S]*?overflow-x: auto/);
+  assert.match(css, /\.premium-category-link \{[\s\S]*?min-width: 5\.85rem/);
+  assert.match(css, /\.premium-service-card \{[\s\S]*?grid-template-columns: minmax\(7\.5rem, 40%\) 1fr/);
+  assert.match(css, /\.premium-service-content h3 \{[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;/);
   assert.match(icon, /shrink-0[\s\S]*?aspect-square/);
-  assert.doesNotMatch(css, /\.home-(?:category|service)-card[^}]*width:\s*100vw/);
+  assert.doesNotMatch(css, /\.premium-(?:category|service)-[^}]*width:\s*100vw/);
 });
 
 test("homepage listing photos reserve their layout and lazy-load below the fold", () => {
@@ -78,15 +75,15 @@ test("homepage listing photos reserve their layout and lazy-load below the fold"
   assert.match(home, /className="object-cover"/);
 });
 
-test("mobile listing cards keep long titles and prices in full-width rows", () => {
+test("mobile listing cards keep long titles and prices readable", () => {
   const home = read("app", "page.tsx");
   const search = read("app", "services", "page.tsx");
   const companies = read("app", "companies", "[slug]", "page.tsx");
   const favorites = read("app", "account", "page.tsx");
   const css = read("app", "globals.css");
 
-  assert.match(home, /home-service-card-summary/);
-  assert.match(home, /home-service-card-price/);
+  assert.match(home, /premium-service-content/);
+  assert.match(home, /premium-service-price/);
   assert.doesNotMatch(home, /<h3 className="[^"]*truncate[^"]*">\{service\.title\}<\/h3>/);
   assert.match(search, /listing-card-meta/);
   assert.match(search, /listing-card-title/);
@@ -94,6 +91,7 @@ test("mobile listing cards keep long titles and prices in full-width rows", () =
   assert.match(favorites, /listing-card-meta/);
   assert.match(css, /\.listing-card-meta,[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(css, /\.listing-card-title,[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal/);
+  assert.match(css, /\.premium-service-content h3 \{[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;/);
   assert.doesNotMatch(css, /body\s*\{\s*overflow-wrap:\s*anywhere/);
 });
 

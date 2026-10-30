@@ -4,7 +4,7 @@ import Link from "next/link";
 import AccountNav from "@/components/account-nav";
 import BrandLockup from "@/components/brand-lockup";
 import FavoriteButton from "@/components/favorite-button";
-import HomeHeroPreview from "@/components/home-hero-preview";
+import HomeProviderShowcase from "@/components/home-provider-showcase";
 import HomeServiceSearch from "@/components/home-service-search";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import ProfileAvatar from "@/components/profile-avatar";
@@ -25,22 +25,14 @@ export const metadata: Metadata = publicPageMetadata({
 });
 
 const HOME_CATEGORIES = [
-  "Home repair",
-  "Photography",
-  "Tutoring",
-  "Event services",
-  "Pet care",
-  "Consulting",
-  "Tech help",
-  "Home cleaning",
-  "Handyman",
+  { label: "Home services", category: "Home repair" },
+  { label: "Auto services", category: "Car detailing" },
+  { label: "Tech & digital", category: "Tech help" },
+  { label: "Creative", category: "Photography" },
+  { label: "Health & fitness", category: "Personal training" },
+  { label: "Pet care", category: "Pet care" },
+  { label: "Tutoring", category: "Tutoring" },
 ] as const;
-
-const TRUST_POINTS = [
-  { icon: "services" as const, title: "Clear provider details", copy: "Compare service information before you decide." },
-  { icon: "messages" as const, title: "Direct messaging", copy: "Ask questions or discuss a custom quote." },
-  { icon: "card" as const, title: "Stripe-powered payments", copy: "Pay through the existing BubsBookings checkout." },
-];
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -65,197 +57,140 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const radius = normalizeSearchRadius(requestedRadius);
   const city = location.split(",")[0]?.trim() || "";
   const servicesWithinRange = await loadHomepageServices(location, radius);
-  const featuredServices = servicesWithinRange.slice(0, 6);
+  const featuredServices = servicesWithinRange.slice(0, 4);
   const nearbyParams = new URLSearchParams({ radius: String(radius) });
   if (location) nearbyParams.set("location", location);
+  if (initialDelivery !== "ALL") nearbyParams.set("delivery", initialDelivery);
   const nearbyServicesHref = `/services?${nearbyParams.toString()}#service-listings`;
 
   return (
-    <main className="home-page home-redesign min-h-screen overflow-x-clip bg-[#f8f8f4] text-[#102d22]">
-      <header className="home-header sticky top-0 z-50 border-b border-[#12382b]/8 bg-[#fbfcf8]/95 backdrop-blur-xl">
-        <div className="narrow-mobile-header site-container flex items-center justify-between gap-2 px-4 py-3 sm:px-6">
-          <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2 sm:gap-2.5">
-            <BrandLockup priority />
-          </Link>
-          <nav aria-label="Primary navigation" className="home-desktop-nav hidden items-center lg:flex">
-            <Link href="/services">Find a Pro</Link>
-            <Link href="/services?showFilters=1#all-filters">Browse Services</Link>
-            <Link href="/#how-it-works">How It Works</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/providers/join">List Your Service</Link>
-          </nav>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <MobileSiteNav />
-            <div className="home-header-account"><AccountNav /></div>
-          </div>
-        </div>
-      </header>
+    <main className="premium-home min-h-screen overflow-x-clip bg-[#faf9f4] text-[#102d22]">
+      <section className="premium-hero" aria-labelledby="premium-home-heading">
+        <Image src="/images/home-premium-hero.webp" alt="Modern lakeside home overlooking a mountain landscape" fill priority sizes="100vw" className="premium-hero-image object-cover" />
+        <div className="premium-hero-shade" aria-hidden="true" />
 
-      <section className="home-hero-v2 relative">
-        <div className="home-hero-v2-grid">
-          <div className="home-hero-v2-copy">
-            <p className="home-hero-eyebrow">Local and remote service marketplace</p>
-            <h1 className="type-hero">
-              Get things done with <span>local and online pros.</span>
-            </h1>
-            <p className="home-hero-copy">
-              Book services for your home, business, or personal projects. Compare providers, message, and request a booking through BubsBookings.
-            </p>
-            <div className="home-hero-points" aria-label="Marketplace features">
-              <span><UiIcon name="services" />Provider details</span>
-              <span><UiIcon name="card" />Stripe payments</span>
-              <span><UiIcon name="messages" />Direct messaging</span>
-              <span><UiIcon name="calendar" />Easy booking</span>
+        <header className="premium-home-header">
+          <div className="narrow-mobile-header site-container flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
+            <Link href="/" aria-label="BubsBookings home" className="premium-header-logo flex min-w-0 items-center gap-2.5"><BrandLockup priority /></Link>
+            <nav aria-label="Primary navigation" className="premium-desktop-nav hidden items-center lg:flex">
+              <Link href="/services">Find a Service</Link>
+              <Link href="/providers/join">For Providers</Link>
+              <Link href="/#how-it-works">How It Works</Link>
+              <Link href="/guides">Resources</Link>
+            </nav>
+            <div className="premium-header-actions flex items-center gap-2">
+              <Link href="/services" aria-label="Search services" className="premium-header-search hidden sm:grid"><UiIcon name="search" /></Link>
+              <MobileSiteNav />
+              <div className="home-header-account"><AccountNav /></div>
             </div>
           </div>
-          <HomeHeroPreview href={nearbyServicesHref} city={city} hasLocation={Boolean(location)} />
+        </header>
+
+        <div className="premium-hero-content site-container px-4 sm:px-6">
+          <div className="premium-hero-copy">
+            <p className="premium-eyebrow">Local and remote service marketplace</p>
+            <h1 id="premium-home-heading">Get things <span>done.</span></h1>
+            <p>Book local and online service providers for anything you need.</p>
+          </div>
         </div>
-        <div className="home-search-dock site-container px-4 sm:px-6">
+
+        <div className="premium-search-dock site-container px-4 sm:px-6">
           <HomeServiceSearch initialDelivery={initialDelivery} initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} />
         </div>
       </section>
 
-      <section aria-labelledby="category-heading" className="home-discovery site-container px-4 sm:px-6">
-        <div className="sr-only"><h2 id="category-heading">Browse service categories</h2></div>
-        <div className="home-category-grid">
-          {HOME_CATEGORIES.map((category) => {
+      <section aria-labelledby="category-heading" className="premium-categories site-container px-4 sm:px-6">
+        <h2 id="category-heading" className="sr-only">Browse service categories</h2>
+        <div className="premium-category-row">
+          {HOME_CATEGORIES.map(({ label, category }) => {
             const categoryParams = new URLSearchParams({ category, radius: String(radius) });
             if (location) categoryParams.set("location", location);
             return (
-              <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} className="home-category-card">
-                <ServiceCategoryIcon category={category} />
-                <span>{category}</span>
+              <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} className="premium-category-link">
+                <span className="premium-category-icon"><ServiceCategoryIcon category={category} /></span>
+                <span>{label}</span>
               </Link>
             );
           })}
-          <Link href="/services?showFilters=1#all-filters" className="home-category-card home-category-more">
-            <span aria-hidden="true" className="home-category-more-icon">•••</span>
+          <Link href="/services?showFilters=1#all-filters" className="premium-category-link">
+            <span className="premium-category-icon"><UiIcon name="more" className="h-7 w-7" /></span>
             <span>More</span>
           </Link>
         </div>
       </section>
 
-      <section className="home-popular site-container px-4 sm:px-6" aria-labelledby="popular-services-heading">
-        <div className="home-section-heading">
-          <div>
-            <p className="home-section-kicker">Explore the marketplace</p>
-            <h2 id="popular-services-heading" className="text-3xl font-bold tracking-[-.04em]">Popular services {city ? `near ${city}` : "on BubsBookings"}</h2>
-          </div>
-          <Link href={nearbyServicesHref}>View all services <UiIcon name="arrow-right" /></Link>
+      <section className="premium-featured site-container px-4 sm:px-6" aria-labelledby="featured-services-heading">
+        <div className="premium-section-heading">
+          <div><p>Featured services</p><h2 id="featured-services-heading">Explore services {city ? `near ${city}` : "on BubsBookings"}.</h2></div>
+          <Link href={nearbyServicesHref}>Browse all services <UiIcon name="arrow-right" /></Link>
         </div>
         {featuredServices.length > 0 ? (
-          <div className="home-popular-grid">
-            {featuredServices.map((service) => <HomeServiceCard key={service.id} service={service} />)}
-          </div>
+          <div className="premium-listing-grid">{featuredServices.map((service) => <PremiumServiceCard key={service.id} service={service} />)}</div>
         ) : (
-          <div className="home-empty-state">
+          <div className="premium-empty-state">
             <ServiceCategoryIcon category="Home repair" />
             <h3>Listings are coming soon</h3>
             <p>Browse all service categories or list your business as an early provider.</p>
-            <Link href="/providers/join">Join as a provider</Link>
+            <Link href="/providers/join">Create a free listing</Link>
           </div>
         )}
       </section>
 
-      <section id="how-it-works" className="home-how site-container scroll-mt-24 px-4 sm:px-6" aria-labelledby="how-heading">
-        <div className="home-section-heading home-section-heading--stacked">
-          <div>
-            <p className="home-section-kicker">Simple from start to finish</p>
-            <h2 id="how-heading" className="text-3xl font-bold tracking-[-.04em]">How BubsBookings works</h2>
-            <p>Built for customers looking for local help and remote expertise.</p>
-          </div>
-        </div>
-        <ol className="home-steps">
-          <li><span className="home-step-number">1</span><UiIcon name="search" /><div><h3>Find a service</h3><p>Search real listings and compare provider details.</p></div></li>
-          <li><span className="home-step-number">2</span><UiIcon name="messages" /><div><h3>Message or book</h3><p>Ask questions, request a quote, or choose an available booking option.</p></div></li>
-          <li><span className="home-step-number">3</span><UiIcon name="card" /><div><h3>Pay through Stripe</h3><p>Complete an accepted booking through the BubsBookings checkout.</p></div></li>
+      <section id="how-it-works" className="premium-how site-container scroll-mt-24 px-4 sm:px-6" aria-labelledby="how-heading">
+        <div className="premium-how-heading"><p>How it works</p><h2 id="how-heading">From search to booked <span>in minutes.</span></h2></div>
+        <ol className="premium-steps">
+          <li><span className="premium-step-number">1</span><UiIcon name="search" /><div><h3>Find a Service</h3><p>Search and browse available providers.</p></div></li>
+          <li><span className="premium-step-number">2</span><UiIcon name="messages" /><div><h3>Message or Book</h3><p>Ask questions, request a custom quote, or book directly.</p></div></li>
+          <li><span className="premium-step-number">3</span><UiIcon name="card" /><div><h3>Pay Securely</h3><p>Complete your booking through Stripe.</p></div></li>
         </ol>
       </section>
 
-      <section className="home-benefit-band" aria-label="BubsBookings marketplace benefits">
-        <div className="site-container grid px-4 sm:px-6">
-          <div><UiIcon name="services" /><p><strong>Free listings</strong><span>Create a business page</span></p></div>
-          <div><UiIcon name="messages" /><p><strong>No lead fees</strong><span>Message without a lead charge</span></p></div>
-          <div><UiIcon name="share" /><p><strong>Marketing tools</strong><span>Use custom links and QR codes</span></p></div>
-        </div>
-      </section>
-
-      <section className="home-why site-container px-4 sm:px-6" aria-labelledby="why-heading">
-        <div className="home-section-heading home-section-heading--stacked">
-          <div>
-            <p className="home-section-kicker">Useful tools, clear choices</p>
-            <h2 id="why-heading" className="text-3xl font-bold tracking-[-.04em]">Why choose BubsBookings?</h2>
+      <section className="premium-provider site-container px-4 sm:px-6" aria-labelledby="provider-promo-heading">
+        <div className="premium-provider-inner">
+          <div className="premium-provider-copy">
+            <p>For providers</p>
+            <h2 id="provider-promo-heading">Your business. <span>All in one place.</span></h2>
+            <p>Create a free business page, accept bookings, manage clients, and grow your business without paying for leads.</p>
+            <Link href="/providers/join">Create a Free Listing <UiIcon name="arrow-right" /></Link>
           </div>
+          <HomeProviderShowcase />
         </div>
-        <div className="home-why-grid">
-          {TRUST_POINTS.map((point) => (
-            <article key={point.title}><UiIcon name={point.icon} /><h3>{point.title}</h3><p>{point.copy}</p></article>
-          ))}
-        </div>
-      </section>
-
-      <section className="home-provider-cta site-container px-4 sm:px-6">
-        <div className="home-provider-cta-inner">
-          <div>
-            <p className="home-provider-eyebrow">Are you a service provider?</p>
-            <h2>Grow your business with BubsBookings.</h2>
-            <p>Create a free listing, get booked, and manage your business in one place.</p>
-            <div className="home-provider-actions">
-              <Link href="/providers/join">Join as a provider <UiIcon name="arrow-right" /></Link>
-              <Link href="/pricing">See provider plans</Link>
-            </div>
-          </div>
-          <div className="home-provider-image" aria-hidden="true">
-            <Image src="/images/home-marketplace-hero.webp" alt="" fill sizes="(min-width: 1024px) 28vw, 0px" className="object-cover object-right" />
-          </div>
-        </div>
-      </section>
-
-      <section className="home-final-links site-container grid px-4 sm:px-6 md:grid-cols-2">
-        <Link href="/promise"><UiIcon name="shield" /><span><strong>The BubsBookings Promise</strong><small>Read about provider information, payment tools, and booking support.</small></span><UiIcon name="arrow-right" /></Link>
-        <Link href="/partners"><UiIcon name="share" /><span><strong>Partner Program</strong><small>Share BubsBookings. Earn when providers succeed.</small></span><UiIcon name="arrow-right" /></Link>
       </section>
     </main>
   );
 }
 
-function HomeServiceCard({ service }: { service: ServiceListing }) {
+function PremiumServiceCard({ service }: { service: ServiceListing }) {
   const visual = getServiceVisual(service.category);
   const businessHref = service.companySlug ? `/companies/${service.companySlug}` : service.providerProfileVisible ? `/providers/${service.providerSlug}` : null;
   const locationLabel = service.deliveryType === "REMOTE" ? "Available online" : `${service.city}, ${service.state}`;
+  const deliveryLabel = service.deliveryType === "REMOTE" ? "Online" : service.deliveryType === "BOTH" ? "Local + online" : "In person";
   return (
-    <article className="home-service-card">
-      <Link href={`/services/${service.slug}`} className="home-service-image" aria-label={`View ${service.title}`}>
+    <article className="premium-service-card">
+      <Link href={`/services/${service.slug}`} className="premium-service-image" aria-label={`View ${service.title}`}>
         <div role={service.imageUrls[0] ? undefined : "img"} aria-label={service.imageUrls[0] ? undefined : `${service.title} cover`} className={service.imageUrls[0] ? "" : `bg-gradient-to-br ${visual.gradient}`}>
-          {service.imageUrls[0] ? <Image src={service.imageUrls[0]} alt={`${service.title} cover`} fill loading="lazy" unoptimized sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 50vw, 16vw" className="object-cover" /> : <ServiceCategoryIcon category={service.category} />}
-          <span className="home-listing-delivery">{service.deliveryType === "REMOTE" ? "Online" : service.deliveryType === "BOTH" ? "Local + online" : "In person"}</span>
+          {service.imageUrls[0] ? <Image src={service.imageUrls[0]} alt={`${service.title} cover`} fill loading="lazy" unoptimized sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 50vw, 25vw" className="object-cover" /> : <ServiceCategoryIcon category={service.category} />}
+          <span className="premium-listing-delivery">{deliveryLabel}</span>
         </div>
       </Link>
-      <div className="home-service-card-content">
-        <p className="home-service-category">{service.category}</p>
-        <div className="home-service-card-summary">
-          <div className="home-service-card-main">
-            <Link href={`/services/${service.slug}`}><h3>{service.title}</h3></Link>
-            <div className="home-service-provider-row">
-              <ProfileAvatar name={service.provider} imageUrl={service.providerProfileImageUrl} className="home-service-provider-avatar" />
-              <div className="min-w-0">
-                {businessHref ? <Link href={businessHref} className="home-service-provider">{service.provider}</Link> : <p className="home-service-provider">{service.provider}</p>}
-                {service.providerReviewCount > 0 && service.providerAverageRating !== null ? (
-                  <p className="home-service-rating" aria-label={`${service.providerAverageRating.toFixed(1)} out of 5 stars from ${service.providerReviewCount} verified ${service.providerReviewCount === 1 ? "review" : "reviews"}`}>
-                    <span aria-hidden="true">★</span> {service.providerAverageRating.toFixed(1)} <span>({service.providerReviewCount})</span>
-                  </p>
-                ) : <p className="home-service-rating home-service-rating-new">New provider</p>}
-              </div>
-            </div>
-          </div>
-          <div className="home-service-card-price">
-            <p>{formatServicePrice(service)}</p>
-            <span>{service.pricingType === "QUOTE_ONLY" ? "custom pricing" : service.pricingType === "HOURLY" ? `${formatDuration(service.minimumDurationMinutes ?? service.durationMinutes)} minimum` : "starting"}</span>
+      <div className="premium-service-content">
+        <p className="premium-service-category">{service.category}</p>
+        <Link href={`/services/${service.slug}`}><h3>{service.title}</h3></Link>
+        <div className="premium-provider-row">
+          <ProfileAvatar name={service.provider} imageUrl={service.providerProfileImageUrl} className="premium-provider-avatar" />
+          <div className="min-w-0">
+            {businessHref ? <Link href={businessHref}>{service.provider}</Link> : <p>{service.provider}</p>}
+            {service.providerReviewCount > 0 && service.providerAverageRating !== null ? (
+              <p className="premium-service-rating" aria-label={`${service.providerAverageRating.toFixed(1)} out of 5 stars from ${service.providerReviewCount} verified ${service.providerReviewCount === 1 ? "review" : "reviews"}`}><span aria-hidden="true">★</span> {service.providerAverageRating.toFixed(1)} <small>({service.providerReviewCount})</small></p>
+            ) : <p className="premium-service-rating is-new">New provider</p>}
           </div>
         </div>
-        <p className="home-service-location"><UiIcon name={service.deliveryType === "REMOTE" ? "globe" : "map-pin"} />{locationLabel}</p>
+        <div className="premium-service-meta">
+          <p className="premium-service-location"><UiIcon name={service.deliveryType === "REMOTE" ? "globe" : "map-pin"} />{locationLabel}</p>
+          <div className="premium-service-price"><strong>{formatServicePrice(service)}</strong><span>{service.pricingType === "QUOTE_ONLY" ? "custom pricing" : service.pricingType === "HOURLY" ? `${formatDuration(service.minimumDurationMinutes ?? service.durationMinutes)} minimum` : "starting"}</span></div>
+        </div>
       </div>
-      <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="home-service-favorite" />
+      <FavoriteButton serviceId={service.id} serviceTitle={service.title} className="premium-service-favorite" />
     </article>
   );
 }

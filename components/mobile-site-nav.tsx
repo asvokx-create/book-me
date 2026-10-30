@@ -9,12 +9,11 @@ import { authClient } from "@/lib/auth-client";
 import { getMobileNavigationState } from "@/lib/mobile-navigation-state";
 
 const links = [
-  ["Find services", "/services"],
-  ["Request a service", "/requests"],
-  ["Guides", "/guides"],
-  ["Provider pricing", "/pricing"],
-  ["Service areas", "/locations"],
-  ["Our promise", "/promise"],
+  ["Find a Service", "/services"],
+  ["For Providers", "/providers/join"],
+  ["How It Works", "/#how-it-works"],
+  ["Resources", "/guides"],
+  ["Pricing", "/pricing"],
 ] as const;
 
 export default function MobileSiteNav() {

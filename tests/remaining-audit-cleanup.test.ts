@@ -41,12 +41,12 @@ test("provider booking lists retain the hourly-rate context from the booking sna
 
 test("public labels use the consistent trust and partner vocabulary", () => {
   const provider = read("app", "providers", "[slug]", "page.tsx");
-  const home = read("app", "page.tsx");
+  const footer = read("components", "site-footer.tsx");
 
   assert.match(provider, /✓ Email verified/);
   assert.doesNotMatch(provider, /Email confirmed/);
-  assert.match(home, />Partner Program</);
-  assert.doesNotMatch(home, /For creators &amp; affiliates/);
+  assert.match(footer, /Partner Program/);
+  assert.doesNotMatch(footer, /For creators &amp; affiliates/);
 });
 
 test("narrow upcoming-category cards give labels a full-width layout without truncation", () => {

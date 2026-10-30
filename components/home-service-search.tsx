@@ -53,7 +53,7 @@ export default function HomeServiceSearch({
 
       {delivery !== "REMOTE" ? (
         <div className="home-search-location lg:min-w-[330px] xl:min-w-[365px]">
-          <LocationFilter initialLocation={initialLocation} initialRadius={initialRadius} restoreRemembered={restoreRemembered} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit />
+          <LocationFilter key={`${initialLocation}:${initialRadius}`} initialLocation={initialLocation} initialRadius={initialRadius} restoreRemembered={restoreRemembered} autoSubmitLocation autoSubmitRadius requestLocationOnFirstVisit />
         </div>
       ) : (
         <div className="flex min-h-14 items-center gap-2 rounded-lg bg-[#edf3e7] px-5 text-sm font-bold text-[#4f695a] lg:min-w-[250px]"><UiIcon name="globe" className="h-4 w-4" />Search without a distance limit</div>

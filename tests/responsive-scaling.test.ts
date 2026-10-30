@@ -25,8 +25,8 @@ test("large displays gain useful columns without allowing cards and booking pane
   const bookingPanel = read("components", "stationary-booking-panel.tsx");
   const css = read("app", "globals.css");
 
-  assert.match(home, /home-popular-grid/);
-  assert.match(css, /\.home-popular-grid \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
+  assert.match(home, /premium-listing-grid/);
+  assert.match(css, /\.premium-listing-grid \{ display: grid; grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(services, /min-\[1536px\]:grid-cols-4/);
   assert.match(listing, /minmax\(20rem,25rem\)/);
   assert.match(bookingPanel, /service-booking-panel/);
@@ -64,11 +64,11 @@ test("homepage category navigation stays compact without collapsing its icons", 
   const css = read("app", "globals.css");
 
   assert.match(home, /HOME_CATEGORIES\.map/);
-  assert.match(home, /home-category-card home-category-more/);
-  assert.match(css, /\.home-redesign \.home-category-grid \{ display: grid; grid-template-columns: repeat\(10, minmax\(0, 1fr\)\)/);
+  assert.match(home, /premium-category-link/);
+  assert.match(css, /\.premium-category-row \{[\s\S]*?grid-template-columns: repeat\(8, minmax\(0, 1fr\)\)/);
   assert.match(categoryIcon, /shrink-0[^\"]*aspect-square/);
   assert.match(categoryIcon, /h-10 min-h-10 w-10 min-w-10/);
-  assert.match(css, /@media \(max-width: 639px\)[\s\S]*?\.home-redesign \.home-category-grid \{ display: flex/);
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?\.premium-category-row \{ display: flex/);
 });
 
 test("iPhone layouts keep trust points, listing media, and service details readable", () => {
@@ -76,10 +76,8 @@ test("iPhone layouts keep trust points, listing media, and service details reada
   const listing = read("app", "services", "[slug]", "page.tsx");
   const css = read("app", "globals.css");
 
-  assert.doesNotMatch(css, /home-hero-points > span:nth-child\(n\+2\)[^{]*\{[^}]*display:\s*none/);
-  assert.match(css, /\.home-hero-points[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /\.home-service-card[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(css, /\.home-service-card > a:first-child > div[\s\S]*?aspect-ratio: 16 \/ 9/);
+  assert.match(css, /\.premium-service-card[\s\S]*?grid-template-columns: minmax\(7\.5rem, 40%\) 1fr/);
+  assert.match(css, /\.premium-service-image > div \{[\s\S]*?aspect-ratio: 1\.55 \/ 1/);
   assert.match(home, /\(max-width: 639px\) calc\(100vw - 32px\)/);
   assert.match(listing, /service-detail-meta-primary/);
   assert.match(listing, /service-detail-provider/);

@@ -37,8 +37,11 @@ test("location discovery honors listing radius, explicit areas, and remote deliv
 
 test("location controls synchronize with client-side search navigation", () => {
   const locationFilter = read("components/location-filter.tsx");
+  const homeSearch = read("components/home-service-search.tsx");
+  const servicesPage = read("app/services/page.tsx");
 
-  assert.match(locationFilter, /setLocation\(initialLocation\)/);
-  assert.match(locationFilter, /setRadius\(initialRadius\)/);
-  assert.match(locationFilter, /\[initialLocation, initialRadius\]/);
+  assert.match(locationFilter, /useState\(initialLocation\)/);
+  assert.match(locationFilter, /useState\(initialRadius\)/);
+  assert.match(homeSearch, /key=\{`\$\{initialLocation\}:\$\{initialRadius\}`\}/);
+  assert.match(servicesPage, /key=\{`\$\{location\}:\$\{radius\}`\}/);
 });

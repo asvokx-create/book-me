@@ -7,7 +7,7 @@ test("guides and homepage explain current marketplace, partner, and payout behav
     readFile(new URL("../lib/guides.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/guides/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/guides/[slug]/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/site-footer.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(guides, /creator-partner-earnings-tracking-and-payouts/);
@@ -23,6 +23,5 @@ test("guides and homepage explain current marketplace, partner, and payout behav
   assert.match(articlePage, /href="\/partner-agreement"/);
   assert.match(articlePage, /current legal policies control/);
   assert.match(homePage, /Partner Program/);
-  assert.match(homePage, /Share BubsBookings\. Earn when providers succeed\./);
-  assert.match(homePage, /href="\/partners"/);
+  assert.match(homePage, /\["Partner Program", "\/partners"\]/);
 });
