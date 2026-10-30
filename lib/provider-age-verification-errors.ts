@@ -9,7 +9,7 @@ export function providerAgeVerificationError(error: unknown) {
     return {
       code,
       status: 503,
-      message: "Age verification is temporarily unavailable while BubsBookings finishes its Stripe verification setup. Please try again later.",
+      message: "Stripe Identity could not start for this deployment. BubsBookings has been notified. Please try again later.",
     };
   }
 

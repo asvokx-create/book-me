@@ -6,6 +6,7 @@ import { database } from "./database";
 import { getStripe, getStripeMode } from "./stripe";
 import { markAffiliateListingPublished } from "./affiliates";
 import { recordAnalytics } from "./analytics";
+import { sendTransactionalEmail } from "./email";
 
 export type ProviderAgeVerificationStatus = "not_started" | "pending" | "requires_input" | "verified" | "failed";
 
@@ -34,8 +35,18 @@ async function setProviderAgeVerification(providerId: string, status: ProviderAg
   const client = await database.connect();
   let firstListing: { id: string; category: string; delivery_type: string; city: string; state: string } | undefined;
   let providerUserId: string | undefined;
+  let delivery: { email: string; sessionId: string; status: ProviderAgeVerificationStatus } | undefined;
   try {
     await client.query("BEGIN");
+    const current = await client.query<{ user_id: string; email: string; age_verification_status: ProviderAgeVerificationStatus; stripe_identity_verification_session_id: string | null }>(`SELECT provider.user_id, account.email,
+        provider.age_verification_status, provider.stripe_identity_verification_session_id
+      FROM provider_profiles provider
+      JOIN "user" account ON account.id=provider.user_id
+      WHERE provider.id::text=$1
+      FOR UPDATE OF provider`, [providerId]);
+    const prior = current.rows[0];
+    if (!prior) throw new Error("PROVIDER_NOT_FOUND");
+    providerUserId = prior.user_id;
     if (status === "verified") {
       const provider = await client.query<{ user_id: string }>(`UPDATE provider_profiles
         SET age_verification_status='verified', age_identity_verified_at=now(), age_verification_failure_code=NULL,
@@ -54,8 +65,26 @@ async function setProviderAgeVerification(providerId: string, status: ProviderAg
         SET age_verification_status=$2, age_identity_verified_at=NULL, age_verification_failure_code=$3,
           age_verification_source=NULL, updated_at=now()
         WHERE id::text=$1`, [providerId, status, failureCode]);
+      // Preserve listings that were already inactive for a reason unrelated to
+      // age verification. Only public listings and listings already held by
+      // this gate are eligible for automatic restoration after verification.
       await client.query(`UPDATE services SET is_active=false, age_verification_blocked=true, updated_at=now()
-        WHERE provider_id::text=$1 AND provider_deleted_at IS NULL`, [providerId]);
+        WHERE provider_id::text=$1 AND provider_deleted_at IS NULL
+          AND (is_active=true OR age_verification_blocked=true)`, [providerId]);
+    }
+    if (prior.age_verification_status !== status && prior.stripe_identity_verification_session_id) {
+      const notification = status === "verified"
+        ? { title: "Age verification complete", message: "Your age requirement is complete. Listings held only by age verification are now eligible to be public." }
+        : status === "pending"
+          ? { title: "Age verification under review", message: "Stripe is reviewing your verification. We will update your status when the review finishes." }
+          : status === "requires_input"
+            ? { title: "Age verification needs attention", message: "Stripe needs more information. Continue age verification from your provider dashboard." }
+            : { title: "Age verification was not completed", message: "Your age verification could not be completed. Open your provider dashboard to try again." };
+      await client.query(`INSERT INTO notifications (user_id, type, title, message, href, dedupe_key)
+        VALUES ($1, 'provider_age_verification', $2, $3, '/provider/dashboard/billing', $4)
+        ON CONFLICT (dedupe_key) DO NOTHING`, [prior.user_id, notification.title, notification.message,
+        `provider-age-${prior.stripe_identity_verification_session_id}-${status}`]);
+      delivery = { email: prior.email, sessionId: prior.stripe_identity_verification_session_id, status };
     }
     await client.query("COMMIT");
   } catch (error) {
@@ -63,6 +92,25 @@ async function setProviderAgeVerification(providerId: string, status: ProviderAg
     throw error;
   } finally {
     client.release();
+  }
+
+  if (delivery && (delivery.status === "verified" || delivery.status === "requires_input" || delivery.status === "failed")) {
+    const content = delivery.status === "verified"
+      ? { subject: "Your BubsBookings age verification is complete", heading: "Age verification complete", message: "Your age requirement is complete. Listings held only by age verification are now eligible to be public. Open your dashboard to review any remaining listing requirements.", action: "Review provider dashboard" }
+      : delivery.status === "requires_input"
+        ? { subject: "Your BubsBookings age verification needs attention", heading: "Continue age verification", message: "Stripe needs more information to complete your age verification. Open your provider dashboard to continue securely.", action: "Continue verification" }
+        : { subject: "Your BubsBookings age verification was not completed", heading: "Try age verification again", message: "Your age verification could not be completed. Open your provider dashboard to review the status and start another attempt.", action: "Review verification" };
+    await sendTransactionalEmail({
+      to: delivery.email,
+      userId: providerUserId,
+      emailType: `provider_age_${delivery.sessionId}_${delivery.status}`,
+      idempotencyKey: `provider-age-${delivery.sessionId}-${delivery.status}`,
+      subject: content.subject,
+      heading: content.heading,
+      message: content.message,
+      actionLabel: content.action,
+      actionUrl: "/provider/dashboard/billing",
+    });
   }
 
   if (firstListing && providerUserId) {
@@ -95,7 +143,8 @@ export async function resetMismatchedStripeAgeVerification(providerId: string, s
         AND stripe_identity_verification_mode IS DISTINCT FROM $2`, [providerId, mode]);
     if (reset.rowCount) {
       await client.query(`UPDATE services SET is_active=false, age_verification_blocked=true, updated_at=now()
-        WHERE provider_id::text=$1 AND provider_deleted_at IS NULL`, [providerId]);
+        WHERE provider_id::text=$1 AND provider_deleted_at IS NULL
+          AND (is_active=true OR age_verification_blocked=true)`, [providerId]);
     }
     await client.query("COMMIT");
     return Boolean(reset.rowCount);
@@ -186,7 +235,8 @@ export async function startProviderAgeVerification(input: { providerId: string; 
           age_verification_source=NULL, updated_at=now()
       WHERE id::text=$1`, [provider.id, session.id, mode]);
     await client.query(`UPDATE services SET is_active=false, age_verification_blocked=true, updated_at=now()
-      WHERE provider_id::text=$1 AND provider_deleted_at IS NULL`, [provider.id]);
+      WHERE provider_id::text=$1 AND provider_deleted_at IS NULL
+        AND (is_active=true OR age_verification_blocked=true)`, [provider.id]);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);

@@ -61,7 +61,8 @@ test("Stripe Identity account setup errors are safe and actionable", () => {
   const expected = providerAgeVerificationError({ code: "identity_api_invalid_application", message: "private Stripe detail" });
   assert.equal(expected.status, 503);
   assert.equal(expected.code, "identity_api_invalid_application");
-  assert.match(expected.message, /temporarily unavailable/);
+  assert.match(expected.message, /could not start for this deployment/);
+  assert.doesNotMatch(expected.message, /finishes its Stripe verification setup/);
   assert.doesNotMatch(expected.message, /private Stripe detail/);
 
   const generic = providerAgeVerificationError(new Error("secret failure"));
@@ -130,6 +131,26 @@ test("Stripe Identity sessions are bound to provider, purpose, and environment",
   assert.match(verification, /stripe_identity_verification_mode === mode/);
   assert.match(status, /resetMismatchedStripeAgeVerification/);
   assert.match(verification, /age_verification_failure_code='stripe_mode_changed'/);
+  assert.match(verification, /identity\.verificationSessions\.retrieve\(sessionId/);
+  assert.match(verification, /if \(!provider\) return null/);
+});
+
+test("Identity webhooks are signed, idempotent, mode-bound, and reconcile current Stripe state", () => {
+  const webhook = read("app/api/stripe/webhook/route.ts");
+  const security = read("lib/stripe-webhook-security.ts");
+  const verification = read("lib/provider-age-verification.ts");
+
+  assert.match(webhook, /await request\.text\(\)/);
+  assert.match(webhook, /parseVerifiedStripeEvent/);
+  assert.match(webhook, /stripeEventMatchesMode/);
+  assert.match(webhook, /INSERT INTO stripe_webhook_events/);
+  assert.match(webhook, /identity\.verification_session\.processing/);
+  assert.match(webhook, /identity\.verification_session\.requires_input/);
+  assert.match(webhook, /identity\.verification_session\.verified/);
+  assert.match(webhook, /identity\.verification_session\.canceled/);
+  assert.match(webhook, /identity\.verification_session\.redacted/);
+  assert.match(security, /constructEvent\(payload, signature, secret\)/);
+  assert.match(verification, /verificationSessions\.retrieve\(sessionId, \{ expand: \["verified_outputs"\] \}\)/);
 });
 
 test("provider verification and listing eligibility update in database transactions", () => {
@@ -139,4 +160,7 @@ test("provider verification and listing eligibility update in database transacti
   assert.match(verification, /await client\.query\("ROLLBACK"\)/);
   assert.match(verification, /age_verification_blocked=true, updated_at=now\(\)/);
   assert.match(verification, /age_verification_blocked=false, updated_at=now\(\)/);
+  assert.match(verification, /AND \(is_active=true OR age_verification_blocked=true\)/);
+  assert.match(verification, /provider-age-\$\{prior\.stripe_identity_verification_session_id\}-\$\{status\}/);
+  assert.match(verification, /provider_age_\$\{delivery\.sessionId\}_\$\{delivery\.status\}/);
 });
