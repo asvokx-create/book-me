@@ -21,10 +21,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const url = `${baseUrl}/locations/${serviceAreaSlug(area)}/${serviceCategorySlug(service.category)}`;
     return [[url, { url, changeFrequency: "daily" as const, priority: 0.85 }]] as const;
   })).values()];
-  const staticPages = ["", "/services", "/requests", "/pricing", "/providers/join", "/partners", "/about", "/locations", "/guides", "/promise", "/support", "/disputes", "/terms", "/privacy", "/cancellations-refunds", "/payment-billing", "/provider-agreement", "/provider-safety", "/partner-agreement", "/marketing-communications", "/ai-transparency", "/cookies", "/content-removal", "/dmca", "/accessibility"];
+  const staticPages = ["", "/requests", "/pricing", "/providers/join", "/partners", "/about", "/locations", "/guides", "/promise", "/support", "/disputes", "/terms", "/privacy", "/cancellations-refunds", "/payment-billing", "/provider-agreement", "/provider-safety", "/partner-agreement", "/marketing-communications", "/ai-transparency", "/cookies", "/content-removal", "/dmca", "/accessibility"];
 
   return [
-    ...staticPages.map((path) => ({ url: `${baseUrl}${path}`, changeFrequency: path === "" || path === "/services" ? "daily" as const : "monthly" as const, priority: path === "" ? 1 : path === "/services" ? 0.9 : 0.5 })),
+    ...staticPages.map((path) => ({ url: `${baseUrl}${path}`, changeFrequency: path === "" ? "daily" as const : "monthly" as const, priority: path === "" ? 1 : 0.5 })),
     ...activeServiceAreas.map((area) => ({ url: `${baseUrl}/locations/${serviceAreaSlug(area)}`, changeFrequency: "daily" as const, priority: 0.7 })),
     ...localCategoryPages,
     ...GUIDES.map((guide) => ({ url: `${baseUrl}/guides/${guide.slug}`, lastModified: guide.updatedAt, changeFrequency: "monthly" as const, priority: 0.6 })),

@@ -4,7 +4,7 @@ import BugReportButton from "@/components/bug-report-button";
 import { AnalyticsChoicesButton } from "@/components/analytics-consent";
 
 const customerLinks = [
-  ["Find services", "/services"],
+  ["Find services", "/#nearby-listings"],
   ["Service areas", "/locations"],
   ["Helpful guides", "/guides"],
   ["Our promise", "/promise"],

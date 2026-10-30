@@ -9,7 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { getMobileNavigationState } from "@/lib/mobile-navigation-state";
 
 const links = [
-  ["Find a Service", "/services"],
+  ["Find a Service", "/#nearby-listings"],
   ["For Providers", "/providers/join"],
   ["How It Works", "/#how-it-works"],
   ["Resources", "/guides"],

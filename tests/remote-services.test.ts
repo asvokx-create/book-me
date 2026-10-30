@@ -27,13 +27,13 @@ test("the migration safely defaults existing records and snapshots booking deliv
 
 test("remote discovery bypasses distance without leaking location into URLs", () => {
   const marketplace = source("lib/marketplace.ts");
-  const services = source("app/services/page.tsx");
+  const services = source("app/page.tsx");
   assert.match(marketplace, /service\.deliveryType === "REMOTE"/);
   assert.match(marketplace, /service\.deliveryType === "BOTH"/);
   assert.match(marketplace, /delivery === "REMOTE"/);
-  assert.match(services, /delivery !== "REMOTE" && location/);
+  assert.match(services, /input\.delivery !== "REMOTE" && input\.location/);
   assert.match(services, /Available online/);
-  assert.match(services, /remote providers, prices, and availability without a distance limit/i);
+  assert.match(source("components/home-service-search.tsx"), /Search without a distance limit/);
 });
 
 test("remote bookings and requests do not require a physical address", () => {
@@ -87,7 +87,7 @@ test("provider acquisition and guidance welcome local and remote professionals",
   assert.match(footer, /Your service marketplace/);
   assert.match(footer, /local and remote service providers across the United States/);
   assert.match(source("app/guides/page.tsx"), /hiring local or remote help/);
-  assert.match(footer, /\["Find services", "\/services"\]/);
+  assert.match(footer, /\["Find services", "\/#nearby-listings"\]/);
 });
 
 test("homepage search asks for delivery type before using local controls", () => {

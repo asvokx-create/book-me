@@ -28,7 +28,7 @@ export default async function LocationPage({ params }: PageProps<"/locations/[ci
   if (!area) notFound();
   const location = serviceAreaLabel(area);
   const services = await getServices({ delivery: "IN_PERSON", location, radiusMiles: 25, sort: "nearest", limit: 12 });
-  const searchHref = `/services?location=${encodeURIComponent(location)}&radius=25#service-listings`;
+  const searchHref = `/?location=${encodeURIComponent(location)}&radius=25#nearby-listings`;
   const jsonLd = { "@context": "https://schema.org", "@type": "ItemList", name: `Local services near ${location}`, numberOfItems: services.length, itemListElement: services.map((service, index) => ({ "@type": "ListItem", position: index + 1, url: `https://bubsbookings.com/services/${service.slug}`, name: service.title })) };
 
   return <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">

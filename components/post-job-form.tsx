@@ -39,7 +39,7 @@ export default function PostJobForm({ initialCategory = "", initialTitle = "", i
     <h2 className="mt-5 text-2xl font-bold">Your service request is live.</h2>
     <p className="mt-2 max-w-xl leading-7 text-[#65776d]">{result.matchedProviders > 0 ? <>We matched it with {result.matchedProviders} eligible {result.matchedProviders === 1 ? "provider" : "providers"} who fit the requested delivery method and time. You will see quotes in your account, and providers never pay to respond.</> : <>There are no eligible providers for this request yet. Your request remains open for 14 days, and you can also browse available services.</>}</p>
     <p className="mt-3 text-sm text-[#718078]">Posting a request does not guarantee a response, provider availability, a specific price, or a booking.</p>
-    <div className="mt-6 flex flex-col gap-3 sm:flex-row"><Link href="/account/requests" className="rounded-full bg-[#183126] px-6 py-3 text-center font-bold text-white">View my request</Link><Link href="/services" className="rounded-full border border-[#183126]/15 px-6 py-3 text-center font-bold">Browse services</Link></div>
+    <div className="mt-6 flex flex-col gap-3 sm:flex-row"><Link href="/account/requests" className="rounded-full bg-[#183126] px-6 py-3 text-center font-bold text-white">View my request</Link><Link href="/#nearby-listings" className="rounded-full border border-[#183126]/15 px-6 py-3 text-center font-bold">Browse services</Link></div>
   </section>;
 
   const input = "mt-2 w-full rounded-2xl border border-[#183126]/15 bg-[#faf9f5] px-4 py-3 text-base outline-none focus:border-[#50715e] focus:ring-2 focus:ring-[#dce8d8]";

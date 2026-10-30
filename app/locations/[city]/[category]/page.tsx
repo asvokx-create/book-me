@@ -45,7 +45,7 @@ export default async function LocalCategoryPage({ params }: LocalCategoryPagePro
   if (!data) notFound();
   const { area, category, location, services } = data;
   const pageUrl = `https://bubsbookings.com/locations/${serviceAreaSlug(area)}/${serviceCategorySlug(category)}`;
-  const searchHref = `/services?category=${encodeURIComponent(category)}&location=${encodeURIComponent(location)}&radius=25#service-listings`;
+  const searchHref = `/?category=${encodeURIComponent(category)}&location=${encodeURIComponent(location)}&radius=25#nearby-listings`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [

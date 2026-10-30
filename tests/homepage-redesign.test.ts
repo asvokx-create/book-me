@@ -11,7 +11,9 @@ test("premium homepage retains live marketplace search and eligible listing data
   assert.match(home, /<HomeServiceSearch/);
   assert.match(home, /await getServices\(/);
   assert.match(home, /Homepage service loading failed/);
-  assert.match(home, /servicesWithinRange\.slice\(0, 4\)/);
+  assert.match(home, /servicesWithinRange\.map/);
+  assert.match(home, /maxPrice: input\.maxPrice/);
+  assert.match(home, /maxDuration: input\.maxDuration/);
   assert.match(home, /<FavoriteButton serviceId=\{service\.id\}/);
   assert.match(home, /service\.companySlug \? `\/companies\/\$\{service\.companySlug\}`/);
   assert.doesNotMatch(home, /1,500\+|10,000\+|50\+|testimonial|guaranteed customers|guaranteed bookings/i);
@@ -32,7 +34,7 @@ test("homepage categories use supported searchable values and preserve location"
     assert.match(home, new RegExp(`category: "${category.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
   }
   assert.match(home, /categoryParams\.set\("location", location\)/);
-  assert.match(home, /#service-listings/);
+  assert.match(home, /#nearby-listings/);
 });
 
 test("homepage has the focused seven-section structure and truthful provider promo", () => {

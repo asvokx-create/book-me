@@ -3,18 +3,25 @@ import Image from "next/image";
 import Link from "next/link";
 import AccountNav from "@/components/account-nav";
 import BrandLockup from "@/components/brand-lockup";
+import CustomSelect from "@/components/custom-select";
 import FavoriteButton from "@/components/favorite-button";
 import HomeProviderShowcase from "@/components/home-provider-showcase";
 import HomeServiceSearch from "@/components/home-service-search";
 import MobileSiteNav from "@/components/mobile-site-nav";
 import ProfileAvatar from "@/components/profile-avatar";
+import SearchResultsAnalytics from "@/components/search-results-analytics";
+import ServiceDemandCapture from "@/components/service-demand-capture";
 import ServiceCategoryIcon from "@/components/service-category-icon";
+import ServiceFiltersMenu from "@/components/service-filters-menu";
+import SortSelect from "@/components/sort-select";
 import UiIcon from "@/components/ui-icon";
 import { formatDuration, getServices, getServiceVisual, type ServiceListing } from "@/lib/marketplace";
 import { getContextualLocation } from "@/lib/request-location";
 import { publicPageMetadata } from "@/lib/seo";
 import { formatServicePrice } from "@/lib/service-pricing";
 import { normalizeSearchRadius } from "@/lib/search-radius";
+import { SERVICE_CATEGORIES } from "@/lib/service-categories";
+import { deliveryLabel, type ServiceDeliveryType } from "@/lib/service-delivery";
 
 export const dynamic = "force-dynamic";
 
@@ -38,9 +45,22 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
-async function loadHomepageServices(location: string, radius: number) {
+async function loadHomepageServices(input: { query: string; category: string; delivery: "ALL" | ServiceDeliveryType; location: string; radius: number; maxPrice?: number; maxDuration?: number; sort: string }) {
   try {
-    return await getServices(location ? { location, radiusMiles: radius, limit: 50 } : { limit: 50 });
+    const services = await getServices({
+      query: input.query,
+      category: input.category,
+      delivery: input.delivery,
+      ...(input.delivery !== "REMOTE" && input.location ? { location: input.location, radiusMiles: input.radius } : {}),
+      maxPrice: input.maxPrice,
+      maxDuration: input.maxDuration,
+      sort: input.sort,
+      limit: 50,
+    });
+    if (input.sort === "price-low") services.sort((left, right) => left.price - right.price);
+    else if (input.sort === "price-high") services.sort((left, right) => right.price - left.price);
+    else if (input.sort === "nearest") services.sort((left, right) => Number(left.distanceMiles === undefined) - Number(right.distanceMiles === undefined) || (left.distanceMiles ?? 0) - (right.distanceMiles ?? 0));
+    return services;
   } catch (error) {
     console.error("Homepage service loading failed", error);
     return [];
@@ -49,22 +69,49 @@ async function loadHomepageServices(location: string, radius: number) {
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
+  const query = getParam(params.q).trim();
+  const selectedCategory = getParam(params.category) || "All services";
+  const showFilters = getParam(params.showFilters) === "1";
   const requestedLocation = getParam(params.location);
   const requestedDelivery = getParam(params.delivery).toUpperCase();
   const initialDelivery = requestedDelivery === "REMOTE" || requestedDelivery === "IN_PERSON" ? requestedDelivery : "ALL";
   const location = await getContextualLocation(requestedLocation);
   const requestedRadius = Number(getParam(params.radius));
   const radius = normalizeSearchRadius(requestedRadius);
+  const maxPrice = Number(getParam(params.maxPrice)) || undefined;
+  const maxDuration = Number(getParam(params.maxDuration)) || undefined;
+  const requestedSort = getParam(params.sort);
+  const sort = initialDelivery === "REMOTE" && requestedSort === "nearest" ? "newest" : requestedSort || (initialDelivery === "REMOTE" ? "newest" : "nearest");
   const city = location.split(",")[0]?.trim() || "";
-  const servicesWithinRange = await loadHomepageServices(location, radius);
-  const featuredServices = servicesWithinRange.slice(0, 4);
+  const servicesWithinRange = await loadHomepageServices({ query, category: selectedCategory, delivery: initialDelivery, location, radius, maxPrice, maxDuration, sort });
   const nearbyParams = new URLSearchParams({ radius: String(radius) });
   if (location) nearbyParams.set("location", location);
-  if (initialDelivery !== "ALL") nearbyParams.set("delivery", initialDelivery);
-  const nearbyServicesHref = `/services?${nearbyParams.toString()}#service-listings`;
+  const nearbyServicesHref = `/?${nearbyParams.toString()}#nearby-listings`;
+
+  function marketplaceHref(overrides: Partial<{ query: string; category: string; delivery: "ALL" | ServiceDeliveryType; radius: number; maxPrice?: number; maxDuration?: number; sort: string }> = {}) {
+    const next = new URLSearchParams();
+    const nextQuery = Object.hasOwn(overrides, "query") ? overrides.query : query;
+    const nextCategory = overrides.category ?? selectedCategory;
+    const nextDelivery = overrides.delivery ?? initialDelivery;
+    const nextRadius = overrides.radius ?? radius;
+    const nextMaxPrice = Object.hasOwn(overrides, "maxPrice") ? overrides.maxPrice : maxPrice;
+    const nextMaxDuration = Object.hasOwn(overrides, "maxDuration") ? overrides.maxDuration : maxDuration;
+    const nextSort = overrides.sort ?? sort;
+    if (nextQuery) next.set("q", nextQuery);
+    if (nextCategory !== "All services") next.set("category", nextCategory);
+    if (nextDelivery !== "ALL") next.set("delivery", nextDelivery);
+    if (location && nextDelivery !== "REMOTE") next.set("location", location);
+    if (nextDelivery !== "REMOTE") next.set("radius", String(nextRadius));
+    if (nextMaxPrice) next.set("maxPrice", String(nextMaxPrice));
+    if (nextMaxDuration) next.set("maxDuration", String(nextMaxDuration));
+    if (nextSort !== (nextDelivery === "REMOTE" ? "newest" : "nearest")) next.set("sort", nextSort);
+    return `/?${next.toString()}#nearby-listings`;
+  }
+  const currentResultsPath = marketplaceHref();
 
   return (
     <main className="premium-home min-h-screen overflow-x-clip bg-[#faf9f4] text-[#102d22]">
+      <SearchResultsAnalytics query={query} category={selectedCategory} delivery={initialDelivery} location={location} radiusMiles={radius} resultCount={servicesWithinRange.length} />
       <section className="premium-hero" aria-labelledby="premium-home-heading">
         <Image src="/images/home-premium-hero.webp" alt="Modern lakeside home overlooking a mountain landscape" fill priority sizes="100vw" className="premium-hero-image object-cover" />
         <div className="premium-hero-shade" aria-hidden="true" />
@@ -73,13 +120,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <div className="narrow-mobile-header site-container flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <Link href="/" aria-label="BubsBookings home" className="premium-header-logo flex min-w-0 items-center gap-2.5"><BrandLockup priority /></Link>
             <nav aria-label="Primary navigation" className="premium-desktop-nav hidden items-center lg:flex">
-              <Link href="/services">Find a Service</Link>
+              <Link href="/#nearby-listings">Find a Service</Link>
               <Link href="/providers/join">For Providers</Link>
               <Link href="/#how-it-works">How It Works</Link>
               <Link href="/guides">Resources</Link>
             </nav>
             <div className="premium-header-actions flex items-center gap-2">
-              <Link href="/services" aria-label="Search services" className="premium-header-search hidden sm:grid"><UiIcon name="search" /></Link>
+              <Link href="/#nearby-listings" aria-label="Search services" className="premium-header-search hidden sm:grid"><UiIcon name="search" /></Link>
               <MobileSiteNav />
               <div className="home-header-account"><AccountNav /></div>
             </div>
@@ -95,7 +142,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
 
         <div className="premium-search-dock site-container px-4 sm:px-6">
-          <HomeServiceSearch initialDelivery={initialDelivery} initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} />
+          <HomeServiceSearch initialDelivery={initialDelivery} initialQuery={query} initialLocation={location} initialRadius={radius} restoreRemembered={!requestedLocation} />
         </div>
       </section>
 
@@ -106,32 +153,56 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             const categoryParams = new URLSearchParams({ category, radius: String(radius) });
             if (location) categoryParams.set("location", location);
             return (
-              <Link key={category} href={`/services?${categoryParams.toString()}#service-listings`} className="premium-category-link">
+              <Link key={category} href={`/?${categoryParams.toString()}#nearby-listings`} className="premium-category-link">
                 <span className="premium-category-icon"><ServiceCategoryIcon category={category} /></span>
                 <span>{label}</span>
               </Link>
             );
           })}
-          <Link href="/services?showFilters=1#all-filters" className="premium-category-link">
+          <Link href="/?showFilters=1#nearby-listings" className="premium-category-link">
             <span className="premium-category-icon"><UiIcon name="more" className="h-7 w-7" /></span>
             <span>More</span>
           </Link>
         </div>
       </section>
 
-      <section className="premium-featured site-container px-4 sm:px-6" aria-labelledby="featured-services-heading">
+      <section id="nearby-listings" className="premium-featured site-container scroll-mt-6 px-4 sm:px-6" aria-labelledby="featured-services-heading">
         <div className="premium-section-heading">
           <div><p>Featured services</p><h2 id="featured-services-heading">Explore services {city ? `near ${city}` : "on BubsBookings"}.</h2></div>
           <Link href={nearbyServicesHref}>Browse all services <UiIcon name="arrow-right" /></Link>
         </div>
-        {featuredServices.length > 0 ? (
-          <div className="premium-listing-grid">{featuredServices.map((service) => <PremiumServiceCard key={service.id} service={service} />)}</div>
+        <div className="mt-6 flex flex-wrap items-center gap-2" role="group" aria-label="Service delivery filter">
+          {(["ALL", "IN_PERSON", "REMOTE"] as const).map((value) => <Link key={value} href={marketplaceHref({ delivery: value })} aria-current={initialDelivery === value ? "page" : undefined} className={`min-h-11 rounded-full border px-5 py-3 text-sm font-bold ${initialDelivery === value ? "border-[#183126] bg-[#183126] text-white" : "border-[#183126]/12 bg-white"}`}>{value === "ALL" ? "All services" : deliveryLabel(value)}</Link>)}
+          <ServiceFiltersMenu initiallyOpen={showFilters}>
+            <summary className="list-none rounded-full border border-[#183126]/12 bg-white px-5 py-3 text-sm font-bold transition hover:border-[#496958] hover:bg-[#edf3e7] [&::-webkit-details-marker]:hidden">More filters <span className="inline-block transition group-open:rotate-180">⌄</span></summary>
+            <div className="fixed inset-x-3 bottom-3 z-[80] max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[1.75rem] border border-[#183126]/10 bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_20px_55px_rgba(24,49,38,.15)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:mt-3 sm:max-h-[min(40rem,calc(100dvh-7rem))] sm:w-[620px] sm:p-6">
+              <p className="text-xs font-bold uppercase tracking-[.15em] text-[#718078]">All categories</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:grid-cols-3">{SERVICE_CATEGORIES.map((category) => <Link key={category} href={marketplaceHref({ category })} className={`flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition hover:bg-[#edf3e7] ${selectedCategory === category ? "border-[#183126] bg-[#edf3e7]" : "border-[#183126]/10"}`}><ServiceCategoryIcon category={category} compact /><span className="min-w-0 break-words">{category}</span></Link>)}</div>
+              <form action="/#nearby-listings" className="mt-6 grid gap-4 border-t border-[#183126]/10 pt-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                {query && <input type="hidden" name="q" value={query} />}{location && initialDelivery !== "REMOTE" && <input type="hidden" name="location" value={location} />}{initialDelivery !== "REMOTE" && <input type="hidden" name="radius" value={radius} />}{initialDelivery !== "ALL" && <input type="hidden" name="delivery" value={initialDelivery} />}{selectedCategory !== "All services" && <input type="hidden" name="category" value={selectedCategory} />}{sort !== (initialDelivery === "REMOTE" ? "newest" : "nearest") && <input type="hidden" name="sort" value={sort} />}
+                <label><span className="mb-2 block text-xs font-bold">Maximum displayed price or hourly rate</span><CustomSelect ariaLabel="Maximum displayed price or hourly rate" name="maxPrice" defaultValue={maxPrice ?? ""} buttonClassName="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any price or rate</option><option value="50">Up to $50</option><option value="100">Up to $100</option><option value="250">Up to $250</option><option value="500">Up to $500</option></CustomSelect></label>
+                <label><span className="mb-2 block text-xs font-bold">Maximum estimated time</span><CustomSelect ariaLabel="Maximum estimated time" name="maxDuration" defaultValue={maxDuration ?? ""} buttonClassName="w-full rounded-xl border border-[#183126]/15 bg-[#faf9f5] px-3 py-3 text-sm outline-none"><option value="">Any estimated time</option><option value="60">Up to 1 hour</option><option value="120">Up to 2 hours</option><option value="240">Up to half day</option><option value="480">Up to full day</option></CustomSelect></label>
+                <button type="submit" className="rounded-xl bg-[#eee25a] px-5 py-3 text-sm font-bold transition hover:bg-[#f5ea6b]">Apply filters</button>
+              </form>
+            </div>
+          </ServiceFiltersMenu>
+          <div className="ml-auto"><SortSelect value={sort} remote={initialDelivery === "REMOTE"} pathname="/" anchor="nearby-listings" /></div>
+        </div>
+        {(query || selectedCategory !== "All services" || initialDelivery !== "ALL" || maxPrice || maxDuration) && <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-bold"><span className="text-[#718078]">Active filters</span>{query && <span className="rounded-full bg-[#edf3e7] px-3 py-2">{query}</span>}{selectedCategory !== "All services" && <Link href={marketplaceHref({ category: "All services" })} className="rounded-full bg-[#fff5b8] px-3 py-2">{selectedCategory} ×</Link>}{initialDelivery !== "ALL" && <Link href={marketplaceHref({ delivery: "ALL" })} className="rounded-full bg-[#fff5b8] px-3 py-2">{deliveryLabel(initialDelivery)} ×</Link>}{maxPrice && <Link href={marketplaceHref({ maxPrice: undefined })} className="rounded-full bg-[#fff5b8] px-3 py-2">Up to ${maxPrice} ×</Link>}{maxDuration && <Link href={marketplaceHref({ maxDuration: undefined })} className="rounded-full bg-[#fff5b8] px-3 py-2">Est. up to {maxDuration >= 240 ? maxDuration === 480 ? "full day" : "half day" : `${maxDuration / 60} hr`} ×</Link>}</div>}
+        {servicesWithinRange.length > 0 ? (
+          <div className="premium-listing-grid">{servicesWithinRange.map((service) => <PremiumServiceCard key={service.id} service={service} returnPath={currentResultsPath} />)}</div>
         ) : (
           <div className="premium-empty-state">
             <ServiceCategoryIcon category="Home repair" />
             <h3>Listings are coming soon</h3>
             <p>Browse all service categories or list your business as an early provider.</p>
-            <Link href="/providers/join">Create a free listing</Link>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              <Link href={`/requests?${new URLSearchParams({ ...(selectedCategory !== "All services" ? { category: selectedCategory } : {}), title: query || (selectedCategory !== "All services" ? selectedCategory : initialDelivery === "REMOTE" ? "Remote service request" : "Local service request"), delivery: initialDelivery === "REMOTE" ? "REMOTE" : "IN_PERSON", ...(location && initialDelivery !== "REMOTE" ? { location } : {}), radius: String(radius) }).toString()}`}>Request this service</Link>
+              {location && radius < 50 && <Link href={marketplaceHref({ radius: 50 })}>Expand to 50 miles</Link>}
+              {selectedCategory !== "All services" && <Link href={marketplaceHref({ category: "All services" })}>Remove category</Link>}
+              {query && <Link href={marketplaceHref({ query: "" })}>Clear search</Link>}
+            </div>
+            {initialDelivery !== "REMOTE" && location ? <ServiceDemandCapture query={query} category={selectedCategory} location={location} radiusMiles={radius} /> : null}
           </div>
         )}
       </section>
@@ -160,14 +231,14 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   );
 }
 
-function PremiumServiceCard({ service }: { service: ServiceListing }) {
+function PremiumServiceCard({ service, returnPath }: { service: ServiceListing; returnPath: string }) {
   const visual = getServiceVisual(service.category);
   const businessHref = service.companySlug ? `/companies/${service.companySlug}` : service.providerProfileVisible ? `/providers/${service.providerSlug}` : null;
   const locationLabel = service.deliveryType === "REMOTE" ? "Available online" : `${service.city}, ${service.state}`;
   const deliveryLabel = service.deliveryType === "REMOTE" ? "Online" : service.deliveryType === "BOTH" ? "Local + online" : "In person";
   return (
     <article className="premium-service-card">
-      <Link href={`/services/${service.slug}`} className="premium-service-image" aria-label={`View ${service.title}`}>
+      <Link href={`/services/${service.slug}?from=${encodeURIComponent(returnPath)}`} className="premium-service-image" aria-label={`View ${service.title}`}>
         <div role={service.imageUrls[0] ? undefined : "img"} aria-label={service.imageUrls[0] ? undefined : `${service.title} cover`} className={service.imageUrls[0] ? "" : `bg-gradient-to-br ${visual.gradient}`}>
           {service.imageUrls[0] ? <Image src={service.imageUrls[0]} alt={`${service.title} cover`} fill loading="lazy" unoptimized sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 50vw, 25vw" className="object-cover" /> : <ServiceCategoryIcon category={service.category} />}
           <span className="premium-listing-delivery">{deliveryLabel}</span>
@@ -175,7 +246,7 @@ function PremiumServiceCard({ service }: { service: ServiceListing }) {
       </Link>
       <div className="premium-service-content">
         <p className="premium-service-category">{service.category}</p>
-        <Link href={`/services/${service.slug}`}><h3>{service.title}</h3></Link>
+        <Link href={`/services/${service.slug}?from=${encodeURIComponent(returnPath)}`}><h3>{service.title}</h3></Link>
         <div className="premium-provider-row">
           <ProfileAvatar name={service.provider} imageUrl={service.providerProfileImageUrl} className="premium-provider-avatar" />
           <div className="min-w-0">

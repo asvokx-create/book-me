@@ -77,7 +77,6 @@ test("homepage listing photos reserve their layout and lazy-load below the fold"
 
 test("mobile listing cards keep long titles and prices readable", () => {
   const home = read("app", "page.tsx");
-  const search = read("app", "services", "page.tsx");
   const companies = read("app", "companies", "[slug]", "page.tsx");
   const favorites = read("app", "account", "page.tsx");
   const css = read("app", "globals.css");
@@ -85,8 +84,6 @@ test("mobile listing cards keep long titles and prices readable", () => {
   assert.match(home, /premium-service-content/);
   assert.match(home, /premium-service-price/);
   assert.doesNotMatch(home, /<h3 className="[^"]*truncate[^"]*">\{service\.title\}<\/h3>/);
-  assert.match(search, /listing-card-meta/);
-  assert.match(search, /listing-card-title/);
   assert.match(companies, /listing-card-title-price/);
   assert.match(favorites, /listing-card-meta/);
   assert.match(css, /\.listing-card-meta,[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);

@@ -34,7 +34,6 @@ test("shared SEO configuration serves complete head metadata and one public host
 test("public static routes use the shared canonical and social metadata helper", () => {
   const publicPages = [
     ["app", "page.tsx"],
-    ["app", "services", "page.tsx"],
     ["app", "requests", "page.tsx"],
     ["app", "locations", "page.tsx"],
     ["app", "pricing", "page.tsx"],
@@ -72,7 +71,8 @@ test("sitemap and robots rules cover public discovery while protecting private a
   const sitemap = read("app", "sitemap.ts");
   const robots = read("app", "robots.ts");
 
-  assert.match(sitemap, /"\/services", "\/requests", "\/pricing", "\/providers\/join", "\/partners", "\/about", "\/locations", "\/guides"/);
+  assert.match(sitemap, /"", "\/requests", "\/pricing", "\/providers\/join", "\/partners", "\/about", "\/locations", "\/guides"/);
+  assert.doesNotMatch(sitemap, /const staticPages = \[[^\]]*"\/services"/);
   assert.match(sitemap, /"\/cancellations-refunds", "\/payment-billing"/);
   assert.match(sitemap, /"\/provider-safety", "\/partner-agreement", "\/marketing-communications"/);
   assert.match(sitemap, /"\/content-removal", "\/dmca", "\/accessibility"/);

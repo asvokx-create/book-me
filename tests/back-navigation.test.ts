@@ -48,13 +48,14 @@ test("the reusable back control is accessible, mobile friendly, and has a safe f
 });
 
 test("service detail navigation retains marketplace filters and names the destination", () => {
-  const services = read("app", "services", "page.tsx");
+  const services = read("app", "page.tsx");
   const detail = read("app", "services", "[slug]", "page.tsx");
 
-  assert.match(services, /encodeURIComponent\(currentResultsPath\)/);
+  assert.match(services, /encodeURIComponent\(returnPath\)/);
   assert.match(detail, /returnPathValue \? "Back to results" : "Back to services"/);
   assert.match(detail, /fallbackHref=\{servicesReturnPath\}/);
   assert.match(detail, /startsWith\("\/services"\)/);
+  assert.match(detail, /startsWith\("\/\?"\)/);
 });
 
 test("navigation history is tracked globally and BackButton is limited to nested experiences", () => {

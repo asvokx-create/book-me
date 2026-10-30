@@ -20,7 +20,6 @@ test("every supported category has an explicit, unique icon", () => {
 test("category surfaces use the shared icon component instead of legacy artwork", () => {
   const surfaces = [
     ["app", "page.tsx"],
-    ["app", "services", "page.tsx"],
     ["app", "locations", "[city]", "page.tsx"],
     ["app", "locations", "[city]", "[category]", "page.tsx"],
     ["app", "companies", "[slug]", "page.tsx"],

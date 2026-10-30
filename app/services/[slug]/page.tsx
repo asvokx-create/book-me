@@ -47,7 +47,8 @@ export default async function ServicePage({ params, searchParams }: PageProps<"/
   const query = await searchParams;
   const requestedReturnPath = query.from;
   const returnPathValue = Array.isArray(requestedReturnPath) ? requestedReturnPath[0] : requestedReturnPath;
-  const servicesReturnPath = returnPathValue?.startsWith("/services") && !returnPathValue.startsWith("//") ? returnPathValue : "/services";
+  const validMarketplaceReturn = returnPathValue && !returnPathValue.startsWith("//") && (returnPathValue === "/" || returnPathValue.startsWith("/?") || returnPathValue.startsWith("/#") || returnPathValue.startsWith("/services"));
+  const servicesReturnPath = validMarketplaceReturn ? returnPathValue : "/#nearby-listings";
   const parentBookingId = typeof query.repeatOf === "string" ? query.repeatOf : "";
   const service = await getServiceBySlug(slug);
   if (!service) notFound();

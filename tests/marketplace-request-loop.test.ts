@@ -80,11 +80,11 @@ test("customers compare provider trust, profile, messages, and price before acce
 
 test("search context, notification controls, and admin trace are connected", () => {
   const requestsPage = source("app/requests/page.tsx");
-  const servicesPage = source("app/services/page.tsx");
+  const servicesPage = source("app/page.tsx");
   const settings = source("app/account/settings/settings-form.tsx");
   const admin = source("app/admin/requests/page.tsx");
   assert.match(requestsPage, /params\.location/);
-  assert.match(servicesPage, /delivery !== "REMOTE" && location \? \{ location, radiusMiles: radius \} : \{\}/);
+  assert.match(servicesPage, /input\.delivery !== "REMOTE" && input\.location \? \{ location: input\.location, radiusMiles: input\.radius \} : \{\}/);
   assert.match(settings, /Service-request responses/);
   assert.match(settings, /Matched opportunities/);
   assert.match(admin, /Exact addresses and customer contact details are not shown/);

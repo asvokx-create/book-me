@@ -5,7 +5,7 @@ import MobileSiteNav from "@/components/mobile-site-nav";
 import UiIcon from "@/components/ui-icon";
 
 const primaryLinks = [
-  ["Find a Service", "/services"],
+  ["Find a Service", "/#nearby-listings"],
   ["For Providers", "/providers/join"],
   ["How It Works", "/#how-it-works"],
   ["Resources", "/guides"],
@@ -24,7 +24,7 @@ export default function PublicSiteHeader({ className = "" }: PublicSiteHeaderPro
           {primaryLinks.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
         </nav>
         <div className="public-site-actions flex items-center gap-2">
-          <Link href="/services" aria-label="Search services" className="public-site-search hidden sm:grid"><UiIcon name="search" /></Link>
+          <Link href="/#nearby-listings" aria-label="Search services" className="public-site-search hidden sm:grid"><UiIcon name="search" /></Link>
           <MobileSiteNav />
           <div className="public-site-account"><AccountNav /></div>
         </div>

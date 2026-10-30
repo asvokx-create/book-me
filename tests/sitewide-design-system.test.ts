@@ -39,7 +39,6 @@ test("major public routes share the premium homepage information architecture", 
   assert.match(header, /aria-label="Search services"/);
 
   for (const route of [
-    ["app", "services", "page.tsx"],
     ["app", "pricing", "page.tsx"],
     ["app", "about", "page.tsx"],
     ["app", "support", "page.tsx"],
@@ -48,6 +47,7 @@ test("major public routes share the premium homepage information architecture", 
   ]) {
     assert.match(read(...route), /<PublicSiteHeader \/>/);
   }
+  assert.match(read("app", "services", "page.tsx"), /redirect\(`\/\$\{query\.size/);
 });
 
 test("premium component primitives cover common product states", () => {

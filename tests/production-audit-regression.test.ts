@@ -35,7 +35,7 @@ test("provider-intent authentication keeps provider context", () => {
 });
 
 test("zero-result discovery prioritizes the existing service-request workflow", () => {
-  const services = read("app", "services", "page.tsx");
+  const services = read("app", "page.tsx");
   assert.match(services, /href=\{`\/requests\?\$\{new URLSearchParams/);
   assert.match(services, /Request this service/);
   assert.match(services, /category: selectedCategory/);

@@ -20,14 +20,12 @@ test("shared layout tokens cap reading, content, marketplace, and dashboard widt
 
 test("large displays gain useful columns without allowing cards and booking panels to stretch", () => {
   const home = read("app", "page.tsx");
-  const services = read("app", "services", "page.tsx");
   const listing = read("app", "services", "[slug]", "page.tsx");
   const bookingPanel = read("components", "stationary-booking-panel.tsx");
   const css = read("app", "globals.css");
 
   assert.match(home, /premium-listing-grid/);
   assert.match(css, /\.premium-listing-grid \{ display: grid; grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
-  assert.match(services, /min-\[1536px\]:grid-cols-4/);
   assert.match(listing, /minmax\(20rem,25rem\)/);
   assert.match(bookingPanel, /service-booking-panel/);
   assert.match(listing, /service-booking-column/);
@@ -105,7 +103,7 @@ test("mobile distance filters keep the complete selected radius visible", () => 
 
 test("narrow marketplace controls preserve readable text and stack before they crowd", () => {
   const home = read("components", "home-service-search.tsx");
-  const services = read("app", "services", "page.tsx");
+  const services = read("app", "page.tsx");
   const sort = read("components", "sort-select.tsx");
   const filters = read("components", "service-filters-menu.tsx");
   const css = read("app", "globals.css");
@@ -113,13 +111,12 @@ test("narrow marketplace controls preserve readable text and stack before they c
   assert.match(home, /home-search-input flex min-w-0 flex-1/);
   assert.match(css, /@media \(max-width: 360px\)[\s\S]*?\.home-search-input[\s\S]*?padding-inline: \.75rem/);
   assert.match(css, /main > header a[\s\S]*?min-height: 2\.75rem/);
-  assert.match(css, /#all-filters:has\(details\[open\]\)[\s\S]*?z-index: 120/);
+  assert.match(services, /<ServiceFiltersMenu initiallyOpen=\{showFilters\}>/);
   assert.match(services, /grid-cols-1 gap-2 min-\[400px\]:grid-cols-2 sm:grid-cols-3/);
-  assert.match(services, /mobile-scroll-row -ml-4 flex min-w-0 flex-1/);
   assert.match(filters, /aria-label="Close filters"/);
   assert.match(filters, /group-open:grid sm:group-open:hidden/);
   assert.match(services, /flex min-w-0 items-center gap-2 rounded-xl/);
-  assert.match(services, /flex-col items-stretch gap-4[^"]*sm:flex-row[^"]*sm:items-end/);
+  assert.match(services, /<div className="ml-auto"><SortSelect/);
   assert.match(sort, /sort-control flex min-h-11 max-w-full/);
   assert.match(sort, /sort-control-select min-w-0/);
 });

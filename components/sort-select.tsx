@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import CustomSelect from "@/components/custom-select";
 
-export default function SortSelect({ value, remote = false }: { value: string; remote?: boolean }) {
+export default function SortSelect({ value, remote = false, pathname = "/services", anchor = "service-listings" }: { value: string; remote?: boolean; pathname?: string; anchor?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -11,7 +11,7 @@ export default function SortSelect({ value, remote = false }: { value: string; r
     const params = new URLSearchParams(searchParams.toString());
     if (nextSort === "newest") params.delete("sort");
     else params.set("sort", nextSort);
-    router.push(`/services?${params.toString()}#service-listings`);
+    router.push(`${pathname}?${params.toString()}#${anchor}`);
   }
 
   return (
