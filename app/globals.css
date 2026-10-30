@@ -2747,6 +2747,11 @@ html[data-theme="dark"] .public-site-search:hover { background: #29352f; }
   background: rgba(255, 255, 255, .1) !important;
   color: white !important;
 }
+.premium-home-header .home-header-account a[href="/account"] [role="img"] {
+  border: 1px solid rgba(255, 255, 255, .18);
+  background-color: rgba(20, 58, 44, .92);
+  color: white;
+}
 .premium-home-header .home-header-account button { border-color: rgba(255, 255, 255, .25) !important; color: white; }
 .premium-home-header .home-header-account .notification-bell-trigger {
   background: rgba(8, 29, 22, .66) !important;

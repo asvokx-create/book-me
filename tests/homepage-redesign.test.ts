@@ -68,6 +68,7 @@ test("signed-in homepage notification control has explicit hero contrast", () =>
   const css = read("app", "globals.css");
   assert.match(bell, /notification-bell-trigger/);
   assert.match(css, /\.premium-home-header \.home-header-account \.notification-bell-trigger \{[\s\S]*?background: rgba\(8, 29, 22, \.66\) !important;[\s\S]*?color: white !important;/);
+  assert.match(css, /\.premium-home-header \.home-header-account a\[href="\/account"\] \[role="img"\] \{[\s\S]*?background-color: rgba\(20, 58, 44, \.92\);[\s\S]*?color: white;/);
   assert.match(css, /\.notification-bell-trigger:hover \{[\s\S]*?background: var\(--premium-accent\) !important;[\s\S]*?color: #102d22 !important;/);
 });
 
