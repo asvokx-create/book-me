@@ -25,7 +25,7 @@ test("large displays gain useful columns without allowing cards and booking pane
   const css = read("app", "globals.css");
 
   assert.match(home, /premium-listing-grid/);
-  assert.match(css, /\.premium-listing-grid \{ display: grid; grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.premium-listing-grid \{ display: grid; grid-template-columns: repeat\(4, minmax\(0, 1fr\)\); gap: \.9rem; margin-top: 1\.75rem;/);
   assert.match(listing, /minmax\(20rem,25rem\)/);
   assert.match(bookingPanel, /service-booking-panel/);
   assert.match(listing, /service-booking-column/);
@@ -107,6 +107,7 @@ test("public listing cards use one compact responsive design", () => {
   assert.match(css, /@media \(max-width: 1199px\)[\s\S]*?\.premium-listing-grid \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(css, /@media \(max-width: 899px\)[\s\S]*?\.premium-listing-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /@media \(max-width: 767px\)[\s\S]*?\.premium-listing-grid \{ grid-template-columns: 1fr/);
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?\.premium-listing-grid \{ grid-template-columns: 1fr; margin-top: 1\.25rem;/);
 });
 
 test("mobile distance filters keep the complete selected radius visible", () => {
