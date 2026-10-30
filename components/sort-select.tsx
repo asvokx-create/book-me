@@ -15,7 +15,7 @@ export default function SortSelect({ value, remote = false, pathname = "/service
   }
 
   return (
-    <label className="sort-control flex min-h-11 max-w-full items-center gap-2 rounded-full border border-[#183126]/12 bg-white px-4 py-2.5 text-sm">
+    <label className="sort-control inline-flex min-h-11 max-w-full items-center rounded-full border border-[#183126]/12 bg-white text-sm">
       <span className="font-semibold text-[#6b7c73]">Sort</span>
       <CustomSelect ariaLabel="Sort services" value={value} onChange={changeSort} className="min-w-0 flex-1" buttonClassName="sort-control-select min-w-0 min-h-8 border-0 bg-transparent px-1 py-0 font-bold outline-none">
         {!remote && <option value="nearest">Nearest</option>}

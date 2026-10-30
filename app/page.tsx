@@ -133,7 +133,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
         <div className="premium-hero-content site-container px-4 sm:px-6">
           <div className="premium-hero-copy">
-            <p className="premium-eyebrow">Local and remote service marketplace</p>
             <h1 id="premium-home-heading">Get things <span>done.</span></h1>
             <p>Book local and online service providers for anything you need.</p>
           </div>

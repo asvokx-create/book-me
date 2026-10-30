@@ -930,17 +930,24 @@ html[data-theme="dark"] .location-apply-button:disabled {
 }
 
 .sort-control {
-  min-height: 3.65rem;
+  width: fit-content;
+  min-height: 2.75rem;
+  gap: .25rem;
+  padding: .25rem .55rem .25rem .8rem;
 }
 
 .sort-control > span {
   display: inline-flex;
   align-items: center;
+  font-size: .78rem;
 }
 
-.sort-control-select {
+.sort-control .sort-control-select {
   display: block;
   align-self: center;
+  min-height: 2.15rem !important;
+  padding-inline: .35rem .15rem !important;
+  font-size: .85rem;
 }
 
 .home-discovery {
@@ -2781,14 +2788,6 @@ html[data-theme="dark"] .public-site-search:hover { background: #29352f; }
   padding-bottom: 8rem;
 }
 .premium-hero-copy { max-width: 38rem; }
-.premium-eyebrow {
-  margin-bottom: 1.15rem;
-  color: #dce8df;
-  font-size: .72rem;
-  font-weight: 800;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-}
 .premium-hero-copy h1 {
   max-width: 6ch;
   font-size: clamp(4rem, 7.5vw, 7.4rem);
@@ -3240,7 +3239,6 @@ html[data-theme="dark"] .premium-steps li { border-color: #334039; }
   .premium-hero { min-height: 955px; }
   .premium-hero-image { object-position: 66% center; }
   .premium-hero-content { padding-top: 7.5rem; }
-  .premium-eyebrow { max-width: 20rem; font-size: .62rem; }
   .premium-hero-copy h1 { font-size: clamp(3.65rem, 18vw, 5.2rem); }
   .premium-hero-copy > p:last-child { max-width: 19rem; font-size: 1rem; }
   .premium-search-dock .home-search-input { min-height: 3.55rem; padding-inline: 1rem !important; }

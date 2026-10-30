@@ -27,6 +27,7 @@ test("premium hero uses an optimized people-free local asset and one search surf
   assert.match(home, /alt="Modern lakeside home overlooking a mountain landscape"/);
   assert.equal((home.match(/<HomeServiceSearch/g) ?? []).length, 1);
   assert.match(home, /Get things <span>done\.<\/span>/);
+  assert.doesNotMatch(home, /Local and remote service marketplace/i);
 });
 
 test("homepage categories use supported searchable values and preserve location", () => {
