@@ -2831,7 +2831,7 @@ html[data-theme="dark"] .public-site-search:hover { background: #29352f; }
 }
 .premium-search-dock .home-search-submit {
   min-height: 3.5rem;
-  min-width: 10.5rem;
+  min-width: 8.25rem;
   background: var(--premium-green);
   color: white;
 }

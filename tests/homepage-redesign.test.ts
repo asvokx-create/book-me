@@ -22,12 +22,17 @@ test("premium homepage retains live marketplace search and eligible listing data
 
 test("premium hero uses an optimized people-free local asset and one search surface", () => {
   const home = read("app", "page.tsx");
+  const search = read("components", "home-service-search.tsx");
+  const css = read("app", "globals.css");
   assert.ok(existsSync(join(root, "public", "images", "home-premium-hero.webp")));
   assert.match(home, /src="\/images\/home-premium-hero\.webp"/);
   assert.match(home, /alt="Modern lakeside home overlooking a mountain landscape"/);
   assert.equal((home.match(/<HomeServiceSearch/g) ?? []).length, 1);
   assert.match(home, /Get things <span>done\.<\/span>/);
   assert.doesNotMatch(home, /Local and remote service marketplace/i);
+  assert.match(search, /xl:min-w-\[360px\]/);
+  assert.match(search, /home-search-submit[^"]*px-5/);
+  assert.match(css, /\.premium-search-dock \.home-search-submit \{[\s\S]*?min-width: 8\.25rem;/);
 });
 
 test("homepage categories use supported searchable values and preserve location", () => {
