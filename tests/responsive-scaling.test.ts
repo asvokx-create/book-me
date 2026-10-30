@@ -142,9 +142,10 @@ test("narrow marketplace controls preserve readable text and stack before they c
   assert.match(services, /flex min-w-0 items-center gap-2 rounded-xl/);
   assert.match(services, /<div className="ml-auto"><SortSelect/);
   assert.match(sort, /sort-control inline-flex min-h-11 max-w-full/);
+  assert.match(sort, /className="w-\[7\.25rem\] shrink-0"/);
   assert.match(sort, /sort-control-select min-w-0/);
   assert.match(css, /\.sort-control \{[\s\S]*?min-height: 2\.75rem;[\s\S]*?padding: \.25rem \.55rem \.25rem \.8rem;/);
-  assert.match(css, /\.sort-control \.sort-control-select \{[\s\S]*?min-height: 2\.15rem !important;/);
+  assert.match(css, /\.sort-control \.sort-control-select \{[\s\S]*?display: flex;[\s\S]*?min-height: 2\.15rem !important;[\s\S]*?white-space: nowrap;/);
 });
 
 test("the reusable support action keeps card spacing and a full touch target", () => {

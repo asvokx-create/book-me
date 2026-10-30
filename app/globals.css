@@ -943,11 +943,12 @@ html[data-theme="dark"] .location-apply-button:disabled {
 }
 
 .sort-control .sort-control-select {
-  display: block;
+  display: flex;
   align-self: center;
   min-height: 2.15rem !important;
   padding-inline: .35rem .15rem !important;
   font-size: .85rem;
+  white-space: nowrap;
 }
 
 .home-discovery {
