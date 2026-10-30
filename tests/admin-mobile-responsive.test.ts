@@ -48,6 +48,21 @@ test("admin actions, dialogs, and long records remain usable at phone widths", (
   assert.match(css, /env\(safe-area-inset-bottom\)/);
 });
 
+test("admin support requests are separated into unresolved and resolved tabs", () => {
+  const support = read("components", "admin-support-queue.tsx");
+
+  assert.match(support, /useState<"unresolved" \| "resolved">\("unresolved"\)/);
+  assert.match(support, /item\.status !== "resolved"/);
+  assert.match(support, /item\.status === "resolved"/);
+  assert.match(support, /role="tablist"/);
+  assert.match(support, /Unresolved \(\{unresolvedSupport\.length\}\)/);
+  assert.match(support, /Resolved \(\{resolvedSupport\.length\}\)/);
+  assert.match(support, /visibleSupport\.map/);
+  assert.match(support, />Reopen<\/button>/);
+  assert.match(support, /No unresolved support requests\./);
+  assert.match(support, /No resolved support requests yet\./);
+});
+
 test("account details drawer renders above the dashboard and public page layers", () => {
   const dashboard = read("components", "admin-dashboard.tsx");
 
