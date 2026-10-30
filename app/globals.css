@@ -2748,6 +2748,17 @@ html[data-theme="dark"] .public-site-search:hover { background: #29352f; }
   color: white !important;
 }
 .premium-home-header .home-header-account button { border-color: rgba(255, 255, 255, .25) !important; color: white; }
+.premium-home-header .home-header-account .notification-bell-trigger {
+  background: rgba(8, 29, 22, .66) !important;
+  color: white !important;
+  box-shadow: 0 7px 20px rgba(0, 0, 0, .18);
+  backdrop-filter: blur(12px);
+}
+.premium-home-header .home-header-account .notification-bell-trigger:hover {
+  border-color: var(--premium-accent) !important;
+  background: var(--premium-accent) !important;
+  color: #102d22 !important;
+}
 .premium-home-header button[aria-label="Open navigation menu"] {
   border-color: rgba(255, 255, 255, .25);
   background: rgba(255, 255, 255, .12);

@@ -63,6 +63,14 @@ test("homepage header keeps its first server and client render stable", () => {
   assert.match(brandMark, /loading=\{priority \? "eager" : "lazy"\}/);
 });
 
+test("signed-in homepage notification control has explicit hero contrast", () => {
+  const bell = read("components", "notification-bell.tsx");
+  const css = read("app", "globals.css");
+  assert.match(bell, /notification-bell-trigger/);
+  assert.match(css, /\.premium-home-header \.home-header-account \.notification-bell-trigger \{[\s\S]*?background: rgba\(8, 29, 22, \.66\) !important;[\s\S]*?color: white !important;/);
+  assert.match(css, /\.notification-bell-trigger:hover \{[\s\S]*?background: var\(--premium-accent\) !important;[\s\S]*?color: #102d22 !important;/);
+});
+
 test("responsive homepage has deliberate tablet and phone layouts", () => {
   const css = read("app", "globals.css");
   assert.match(css, /@media \(max-width: 899px\)[\s\S]*?\.premium-provider-inner \{ grid-template-columns: 1fr/);

@@ -128,7 +128,7 @@ export default function NotificationBell() {
         aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"}
         aria-expanded={open}
         onClick={() => { setOpen((value) => !value); if (!loaded) loadNotifications(); }}
-        className="relative grid h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5] transition hover:border-[#b8aa2e] hover:bg-[#eee25a]"
+        className="notification-bell-trigger relative grid h-10 w-10 place-items-center rounded-full border border-[#183126]/10 bg-[#faf9f5] text-[#183126] transition hover:border-[#b8aa2e] hover:bg-[#eee25a]"
       >
         <UiIcon name="bell" className="h-5 w-5" />
         {unreadCount > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#d45f40] px-1 text-[10px] font-bold leading-none text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}
