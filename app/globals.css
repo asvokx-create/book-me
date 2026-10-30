@@ -2682,8 +2682,9 @@ html[data-theme="dark"] .public-site-search:hover { background: #29352f; }
 
 .premium-hero {
   position: relative;
+  z-index: 1;
   min-height: 720px;
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate;
   background: #16382f;
   color: white;
@@ -2836,7 +2837,7 @@ html[data-theme="dark"] .public-site-search:hover { background: #29352f; }
 }
 .premium-search-dock .home-search-submit:hover { background: #155440; }
 
-.premium-categories { padding-top: 1.8rem; padding-bottom: 2.8rem; }
+.premium-categories { position: relative; z-index: 0; padding-top: 1.8rem; padding-bottom: 2.8rem; }
 .premium-category-row {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));

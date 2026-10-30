@@ -35,6 +35,14 @@ test("homepage search overlays discovery content and uses single-surface filters
   assert.match(css, /\.home-search-delivery \.custom-select-trigger,[\s\S]*?\.location-filter-radius \.custom-select-trigger \{[\s\S]*?border: 0 !important;[\s\S]*?background: transparent !important;/);
 });
 
+test("homepage location menu can extend above the following sections", () => {
+  const css = read("app", "globals.css");
+
+  assert.match(css, /\.premium-hero \{[\s\S]*?z-index: 1;[\s\S]*?overflow: visible;/);
+  assert.match(css, /\.premium-categories \{ position: relative; z-index: 0;/);
+  assert.match(css, /\.home-search-dock \.location-filter-city\[open\] \{ z-index: 70; \}/);
+});
+
 test("hero browse action stays visually prominent and clear of the search panel", () => {
   const preview = read("components", "home-hero-preview.tsx");
   const css = read("app", "globals.css");
