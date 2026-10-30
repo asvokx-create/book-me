@@ -65,7 +65,7 @@ test("desktop navigation matches the premium public information architecture", (
   assert.match(home, />For Providers<\/Link>/);
   assert.match(home, />How It Works<\/Link>/);
   assert.match(home, />Resources<\/Link>/);
-  assert.match(home, /aria-label="Search services"/);
+  assert.doesNotMatch(home, /premium-header-search|aria-label="Search services"/);
 });
 
 test("homepage header keeps its first server and client render stable", () => {

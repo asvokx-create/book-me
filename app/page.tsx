@@ -124,7 +124,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <Link href="/guides">Resources</Link>
             </nav>
             <div className="premium-header-actions flex items-center gap-2">
-              <Link href="/#nearby-listings" aria-label="Search services" className="premium-header-search hidden sm:grid"><UiIcon name="search" /></Link>
               <MobileSiteNav />
               <div className="home-header-account"><AccountNav /></div>
             </div>

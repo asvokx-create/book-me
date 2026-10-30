@@ -2738,17 +2738,6 @@ html[data-theme="dark"] .public-site-search:hover { background: #29352f; }
 .premium-desktop-nav a:hover::after,
 .premium-desktop-nav a:focus-visible::after { right: 0; left: 0; }
 
-.premium-header-search {
-  width: 2.7rem;
-  height: 2.7rem;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, .22);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .1);
-  color: white;
-  backdrop-filter: blur(12px);
-}
-.premium-header-search:hover { background: rgba(255, 255, 255, .2); }
 .premium-home-header .home-header-account a[href="/login"] { color: white !important; }
 .premium-home-header .home-header-account a[href="/signup"] { background: var(--premium-accent) !important; color: #102d22 !important; }
 .premium-home-header .home-header-account a[href="/account"] {
