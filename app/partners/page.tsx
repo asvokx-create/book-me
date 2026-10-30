@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
-import BrandLockup from "@/components/brand-lockup";
-import MobileSiteNav from "@/components/mobile-site-nav";
+import PublicSiteHeader from "@/components/public-site-header";
 import PartnerApplicationForm from "@/components/partner-application-form";
 import PartnerTermsLink from "@/components/partner-terms-link";
 import { STANDARD_PROVIDER_GROWTH_MILESTONES } from "@/lib/affiliate-milestone-config";
@@ -71,7 +70,7 @@ export default async function PartnersPage() {
 
   return <main className="min-h-screen overflow-x-clip bg-[#f8f7f3] text-[#183126]">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd).replace(/</g, "\\u003c") }} />
-    <header className="border-b border-[#183126]/10 bg-white/90"><div className="site-container flex items-center justify-between px-5 py-4"><Link href="/"><BrandLockup /></Link><div className="flex items-center gap-3"><Link href="/affiliate" className="hidden rounded-full border border-[#183126]/15 px-5 py-3 text-sm font-bold sm:inline-flex">Partner sign in</Link><MobileSiteNav /></div></div></header>
+    <PublicSiteHeader />
 
     <section className="partners-hero overflow-hidden bg-[radial-gradient(circle_at_80%_10%,#d9e9d5,transparent_38%),linear-gradient(135deg,#f8f7f3,#f0f4ea)]"><div className="site-container grid gap-10 px-5 py-14 lg:grid-cols-[1.05fr_.95fr] lg:py-20">
       <div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#64786d]">BubsBookings partner program</p><h1 className="mt-4 text-4xl font-bold tracking-[-.055em] sm:text-6xl">Refer service providers. Earn on qualified activity.</h1><p className="mt-5 max-w-2xl text-lg leading-8 text-[#5d7066]">For creators, community leaders, agencies, and affiliates who introduce legitimate local or remote service providers to BubsBookings.</p><p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[#64786d]">A BubsBookings account connects your application, referral tools, earnings records, and payout setup.</p><div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center"><Link href={heroHref} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[#eee25a] px-7 py-3.5 font-bold">{heroLabel}</Link>{!account?<Link href={`/signup?redirect=${encodeURIComponent(applicationDestination)}`} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[#183126]/15 bg-white px-6 py-3.5 font-bold">Create an account to apply</Link>:<Link href="/affiliate" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[#183126]/15 bg-white px-6 py-3.5 font-bold">Partner dashboard</Link>}</div></div>

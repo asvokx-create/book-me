@@ -29,6 +29,43 @@ test("authenticated areas expose stable visual scope wrappers", () => {
   assert.match(read("app", "affiliate", "page.tsx"), /className="affiliate-page/);
 });
 
+test("major public routes share the premium homepage information architecture", () => {
+  const header = read("components", "public-site-header.tsx");
+  for (const label of ["Find a Service", "For Providers", "How It Works", "Resources"]) {
+    assert.match(header, new RegExp(label));
+  }
+  assert.match(header, /<MobileSiteNav \/>/);
+  assert.match(header, /<AccountNav \/>/);
+  assert.match(header, /aria-label="Search services"/);
+
+  for (const route of [
+    ["app", "services", "page.tsx"],
+    ["app", "pricing", "page.tsx"],
+    ["app", "about", "page.tsx"],
+    ["app", "support", "page.tsx"],
+    ["app", "providers", "join", "page.tsx"],
+    ["app", "partners", "page.tsx"],
+  ]) {
+    assert.match(read(...route), /<PublicSiteHeader \/>/);
+  }
+});
+
+test("premium component primitives cover common product states", () => {
+  const css = read("app", "globals.css");
+  for (const className of [
+    "public-site-header",
+    "bb-page-shell",
+    "bb-page-heading",
+    "bb-card",
+    "bb-button-primary",
+    "bb-field",
+    "bb-table-shell",
+    "bb-empty-state",
+  ]) assert.match(css, new RegExp(`\\.${className}`));
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?\.public-site-account \{ display: none/);
+  assert.match(css, /html\[data-theme="dark"\] \.public-site-header/);
+});
+
 test("provider navigation is organized by business task", () => {
   const dashboard = read("components", "provider-dashboard.tsx");
   for (const group of ["Business", "Growth", "Financial", "Account"]) {

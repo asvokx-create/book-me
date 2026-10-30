@@ -1,4 +1,4 @@
-import BrandLockup from "@/components/brand-lockup";
+import PublicSiteHeader from "@/components/public-site-header";
 import ContactSupportButton from "@/components/contact-support-button";
 import { auth, isAuthConfigured } from "@/lib/auth";
 import type { Metadata } from "next";
@@ -24,7 +24,7 @@ const supportTopics = [
 export default async function SupportPage() {
   const session = isAuthConfigured() ? await auth.api.getSession({ headers: await headers() }) : null;
   return <main className="min-h-screen bg-[#f8f7f3] text-[#183126]">
-    <header className="border-b border-[#183126]/10 bg-white"><div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4"><Link href="/" aria-label="BubsBookings home"><BrandLockup compact /></Link><Link href="/" className="site-nav-link">Back home</Link></div></header>
+    <PublicSiteHeader />
     <section className="mx-auto max-w-5xl px-5 py-12 sm:py-16">
       <p className="text-xs font-bold uppercase tracking-[.16em] text-[#687b70]">Trust &amp; support</p>
       <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-[-.05em] sm:text-6xl">How can we help?</h1>

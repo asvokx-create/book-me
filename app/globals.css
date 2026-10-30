@@ -2444,6 +2444,226 @@ html[data-theme="dark"] .account-page > header {
   }
 }
 
+/* Cohesive public and product design system. The premium homepage is the
+   visual source of truth for every route family. */
+.public-site-header {
+  position: relative;
+  z-index: 50;
+  border-bottom: 1px solid rgba(16, 45, 34, .1);
+  background: rgba(250, 249, 244, .94);
+  color: var(--bb-forest);
+  backdrop-filter: blur(18px);
+}
+
+.public-site-logo .brand-mark {
+  box-shadow: 0 8px 20px rgba(16, 45, 34, .14);
+}
+
+.public-site-nav {
+  gap: clamp(1.35rem, 2.7vw, 2.75rem);
+}
+
+.public-site-nav a {
+  position: relative;
+  padding-block: .65rem;
+  color: var(--bb-forest);
+  font-size: .82rem;
+  font-weight: 750;
+  letter-spacing: -.01em;
+}
+
+.public-site-nav a::after {
+  position: absolute;
+  right: 50%;
+  bottom: .25rem;
+  left: 50%;
+  height: 2px;
+  border-radius: 99px;
+  background: var(--bb-green);
+  content: "";
+  transition: right .18s ease, left .18s ease;
+}
+
+.public-site-nav a:hover::after,
+.public-site-nav a:focus-visible::after {
+  right: 0;
+  left: 0;
+}
+
+.public-site-search {
+  width: 2.65rem;
+  height: 2.65rem;
+  place-items: center;
+  border: 1px solid rgba(16, 45, 34, .1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .82);
+  box-shadow: 0 6px 18px rgba(16, 45, 34, .06);
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.public-site-search:hover {
+  border-color: rgba(16, 45, 34, .22);
+  background: white;
+  box-shadow: 0 9px 24px rgba(16, 45, 34, .1);
+}
+
+/* Reusable premium surfaces for new and existing product components. */
+.bb-page-shell {
+  width: min(calc(100% - (2 * var(--layout-gutter))), var(--layout-dashboard));
+  margin-inline: auto;
+}
+
+.bb-page-heading {
+  max-width: 52rem;
+  font-size: clamp(2.25rem, 5vw, 4.8rem);
+  font-weight: 800;
+  line-height: .98;
+  letter-spacing: -.055em;
+  text-wrap: balance;
+}
+
+.bb-section-heading {
+  font-size: clamp(1.7rem, 3vw, 2.65rem);
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: -.04em;
+  text-wrap: balance;
+}
+
+.bb-eyebrow {
+  color: var(--bb-text-muted);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+}
+
+.bb-surface,
+.bb-card {
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-card);
+  background: var(--bb-surface);
+  box-shadow: var(--bb-shadow-card);
+}
+
+.bb-card-interactive {
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.bb-card-interactive:hover {
+  border-color: rgba(16, 45, 34, .2);
+  box-shadow: 0 16px 40px rgba(16, 45, 34, .1);
+}
+
+.bb-button-primary,
+.bb-button-secondary,
+.bb-button-dark,
+.bb-button-danger {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 1px solid transparent;
+  border-radius: var(--bb-radius-control);
+  padding: .7rem 1.1rem;
+  font-size: .875rem;
+  font-weight: 750;
+  line-height: 1;
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.bb-button-primary { background: var(--bb-yellow); color: var(--bb-forest); }
+.bb-button-dark { background: var(--bb-forest); color: white; }
+.bb-button-secondary { border-color: var(--bb-border-strong); background: var(--bb-surface); color: var(--bb-forest); }
+.bb-button-danger { background: #8f3f25; color: white; }
+.bb-button-primary:hover,
+.bb-button-secondary:hover,
+.bb-button-dark:hover,
+.bb-button-danger:hover { box-shadow: 0 8px 20px rgba(16, 45, 34, .1); }
+
+.bb-field {
+  min-height: 3rem;
+  width: 100%;
+  border: 1px solid var(--bb-border-strong);
+  border-radius: var(--bb-radius-control);
+  background: var(--bb-surface);
+  padding: .75rem 1rem;
+  color: var(--bb-forest);
+}
+
+.bb-field:focus {
+  border-color: var(--bb-green);
+  outline: 3px solid color-mix(in srgb, var(--bb-green) 18%, transparent);
+  outline-offset: 1px;
+}
+
+.bb-table-shell {
+  overflow-x: auto;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-card);
+  background: var(--bb-surface);
+  box-shadow: var(--bb-shadow-card);
+  overscroll-behavior-inline: contain;
+}
+
+.bb-table-shell table { min-width: 42rem; }
+.bb-table-shell :where(th, td) { padding: .9rem 1rem; text-align: left; }
+.bb-table-shell th { color: var(--bb-text-muted); font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.bb-table-shell tbody tr + tr { border-top: 1px solid var(--bb-border); }
+
+.bb-empty-state {
+  display: grid;
+  min-height: 15rem;
+  place-items: center;
+  border: 1px dashed var(--bb-border-strong);
+  border-radius: var(--bb-radius-card);
+  background: var(--bb-surface-muted);
+  padding: clamp(1.5rem, 4vw, 3rem);
+  text-align: center;
+}
+
+/* Keep the four application areas visually related while preserving their
+   specialized layouts and permission-sensitive controls. */
+:where(.account-area, .provider-area, .admin-area) :where(main) {
+  color: var(--bb-forest);
+  font-family: var(--font-site-sans), sans-serif;
+}
+
+:where(.account-area, .provider-area, .admin-area) :where(h1, h2, h3) {
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+
+:where(.account-area, .provider-area, .admin-area) :where(input, textarea, select) {
+  border-radius: var(--bb-radius-control);
+}
+
+:where(.account-area, .provider-area, .admin-area) table {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767px) {
+  .public-site-account { display: none; }
+  .public-site-header .brand-wordmark { max-width: 10.25rem; }
+  .bb-page-heading { font-size: clamp(2.2rem, 12vw, 3.35rem); }
+  :where(.account-area, .provider-area, .admin-area) :where(button, a)[class*="px-"] { min-height: 2.75rem; }
+}
+
+@media (max-width: 359px) {
+  .public-site-header .brand-wordmark { max-width: 8.75rem; }
+}
+
+html[data-theme="dark"] .public-site-header {
+  border-color: var(--bb-border);
+  background: rgba(15, 19, 17, .94);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .public-site-nav a { color: var(--text-primary); }
+html[data-theme="dark"] .public-site-search { border-color: var(--bb-border-strong); background: var(--bb-surface-muted); color: var(--text-primary); box-shadow: none; }
+html[data-theme="dark"] .public-site-search:hover { background: #29352f; }
+
 /* Premium homepage */
 .premium-home {
   --premium-green: #0d392b;

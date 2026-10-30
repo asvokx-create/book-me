@@ -1,14 +1,12 @@
-import BrandLockup from "@/components/brand-lockup";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
-import AccountNav from "@/components/account-nav";
 import { auth, isAuthConfigured } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/admin";
 import { database } from "@/lib/database";
 import { PLAN_ENTITLEMENTS, type ProviderPlan } from "@/lib/plans";
 import { getStripeMode } from "@/lib/stripe";
-import MobileSiteNav from "@/components/mobile-site-nav";
+import PublicSiteHeader from "@/components/public-site-header";
 import UiIcon from "@/components/ui-icon";
 import { publicPageMetadata } from "@/lib/seo";
 import { reconcileExpiredComplimentaryProGrants } from "@/lib/complimentary-pro";
@@ -80,12 +78,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
 
   return (
     <main className="pricing-page min-h-screen bg-[#f8f7f3] text-[#183126]">
-      <header className="border-b border-[#183126]/10 bg-[#f8f7f3]/95 backdrop-blur">
-        <div className="site-container-wide flex items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
-          <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl"><BrandLockup /></Link>
-          <div className="flex items-center gap-2 sm:gap-3"><nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex"><Link href="/services" className="site-nav-link">Find services</Link><Link href="/guides" className="site-nav-link">Guides</Link></nav><MobileSiteNav /><AccountNav /></div>
-        </div>
-      </header>
+      <PublicSiteHeader />
 
       <section className="pricing-hero relative overflow-hidden border-b border-[#183126]/10">
         <div className="pointer-events-none absolute -right-24 -top-44 h-[620px] w-[620px] rounded-full bg-[#b7d7b8]/55 blur-3xl" />

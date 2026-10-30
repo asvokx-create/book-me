@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import AccountNav from "@/components/account-nav";
-import BrandLockup from "@/components/brand-lockup";
-import MobileSiteNav from "@/components/mobile-site-nav";
+import PublicSiteHeader from "@/components/public-site-header";
 import UiIcon, { type UiIconName } from "@/components/ui-icon";
 import { publicPageMetadata } from "@/lib/seo";
 
@@ -34,12 +32,7 @@ const aboutPageJsonLd = {
 export default function AboutPage() {
   return <main className="min-h-screen overflow-x-clip bg-[#f8f7f3] text-[#183126]">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(aboutPageJsonLd).replace(/</g, "\\u003c") }} />
-    <header className="border-b border-[#183126]/10 bg-white/90 backdrop-blur">
-      <div className="site-container flex items-center justify-between gap-3 px-5 py-4 sm:px-6">
-        <Link href="/" aria-label="BubsBookings home" className="flex min-w-0 items-center gap-2.5 text-xl font-bold"><BrandLockup /></Link>
-        <div className="flex items-center gap-2"><Link href="/services" className="hidden rounded-full px-4 py-2 text-sm font-bold hover:bg-[#e5eddf] sm:inline-flex">Find services</Link><MobileSiteNav /><AccountNav /></div>
-      </div>
-    </header>
+    <PublicSiteHeader />
 
     <section className="relative overflow-hidden bg-[radial-gradient(circle_at_85%_16%,rgba(214,233,208,.95),transparent_30%),linear-gradient(135deg,#f8f7f3,#edf3e8)]">
       <div className="absolute -left-28 bottom-[-9rem] h-72 w-72 rounded-full border-[2.5rem] border-white/60" />

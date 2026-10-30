@@ -1,8 +1,6 @@
-import BrandLockup from "@/components/brand-lockup";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getServices, getServiceVisual } from "@/lib/marketplace";
-import AccountNav from "@/components/account-nav";
 import FavoriteButton from "@/components/favorite-button";
 import { FEATURED_SERVICE_CATEGORIES, SERVICE_CATEGORIES } from "@/lib/service-categories";
 import LocationFilter from "@/components/location-filter";
@@ -11,7 +9,7 @@ import CustomSelect from "@/components/custom-select";
 import ServiceFiltersMenu from "@/components/service-filters-menu";
 import { getContextualLocation } from "@/lib/request-location";
 import ServiceDemandCapture from "@/components/service-demand-capture";
-import MobileSiteNav from "@/components/mobile-site-nav";
+import PublicSiteHeader from "@/components/public-site-header";
 import SearchResultsAnalytics from "@/components/search-results-analytics";
 import ServiceSearchAssist from "@/components/service-search-assist";
 import UiIcon from "@/components/ui-icon";
@@ -94,20 +92,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/service
   return (
     <main className="services-page min-h-screen bg-[#f8f7f3] text-[#183126]">
       <SearchResultsAnalytics query={query} category={selectedCategory} delivery={delivery} location={location} radiusMiles={radius} resultCount={filteredServices.length} />
-      <header className="relative z-50 border-b border-[#183126]/10 bg-[#f8f7f3]/90 backdrop-blur">
-        <div className="site-container-wide flex items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:py-5">
-          <Link href="/" className="flex min-w-0 items-center gap-2 text-xl font-bold tracking-tight sm:gap-2.5 sm:text-2xl">
-            <BrandLockup />
-          </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex"><Link href="/guides" className="site-nav-link">Guides</Link><Link href="/pricing" className="site-nav-link">Pricing</Link></nav>
-            <Link href="/pricing" className="hidden min-h-10 items-center justify-center rounded-full px-2.5 py-2 text-xs font-bold hover:bg-[#183126]/5 min-[430px]:inline-flex sm:px-3 sm:text-sm lg:hidden">Pricing</Link>
-            <Link href="/providers/join" className="hidden rounded-full px-4 py-2 text-sm font-semibold hover:bg-[#183126]/5 sm:block">List your service</Link>
-            <MobileSiteNav />
-            <AccountNav />
-          </div>
-        </div>
-      </header>
+      <PublicSiteHeader />
 
       <section style={{ animation: "none" }} className="services-hero relative z-40 border-b border-[#183126]/10">
         <div className="site-container-wide px-4 py-9 sm:px-8 sm:py-16">
