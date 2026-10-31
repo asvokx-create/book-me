@@ -89,7 +89,19 @@ async function tokenRequest(parameters: Record<string, string>) {
     body: new URLSearchParams({ client_id: calendlyConfiguration().clientId, ...parameters }),
     cache: "no-store",
   });
-  if (!response.ok) throw new Error(`Calendly authorization failed (${response.status}).`);
+  if (!response.ok) {
+    let reason = "";
+    try {
+      const payload = await response.json() as { error?: unknown };
+      reason = typeof payload.error === "string" ? payload.error : "";
+    } catch {
+      // Calendly may return an empty or non-JSON error response.
+    }
+    const suffix = reason === "invalid_client"
+      ? " The configured Calendly client credentials were rejected."
+      : "";
+    throw new Error(`Calendly authorization failed (${response.status}).${suffix}`);
+  }
   return await response.json() as TokenResponse;
 }
 

@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { completeCalendlyAuthorization } from "@/lib/calendly";
 import { getProviderAccess } from "@/lib/provider-access";
 import { recordActivity } from "@/lib/request-security";
+import { publicRequestOrigin } from "@/lib/request-origin";
 
 export async function GET(request: Request) {
   const access = await getProviderAccess();
-  const destination = new URL("/provider/dashboard/calendar", request.url);
-  if (!access?.isOwner) return NextResponse.redirect(new URL("/login?redirect=/provider/dashboard/calendar", request.url));
+  const publicOrigin = publicRequestOrigin(request);
+  const destination = new URL("/provider/dashboard/calendar", publicOrigin);
+  if (!access?.isOwner) return NextResponse.redirect(new URL("/login?redirect=/provider/dashboard/calendar", publicOrigin));
   const parameters = new URL(request.url).searchParams;
   const code = parameters.get("code") ?? "";
   const state = parameters.get("state") ?? "";

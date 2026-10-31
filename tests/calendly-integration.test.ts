@@ -20,6 +20,14 @@ test("Calendly webhook verifier accepts an authentic recent payload", () => {
   assert.equal(verifyCalendlyWebhookSignature({ rawBody, header: `t=${timestamp},v1=${signature}`, signingKey, nowMs: timestamp * 1000 }), true);
 });
 
+test("Calendly OAuth uses PKCE and confidential-client authentication", () => {
+  assert.match(integration, /code_challenge_method", "S256"/);
+  assert.match(integration, /code_verifier:/);
+  assert.match(integration, /Authorization: basicAuthorization\(\)/);
+  assert.match(integration, /client_id: calendlyConfiguration\(\)\.clientId/);
+  assert.match(integration, /reason === "invalid_client"/);
+});
+
 test("Calendly webhook verifier rejects tampering, missing signatures, and replays", () => {
   const rawBody = "{}";
   const timestamp = 1_800_000_000;

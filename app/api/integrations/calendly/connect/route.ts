@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createCalendlyAuthorization } from "@/lib/calendly";
 import { getProviderAccess } from "@/lib/provider-access";
 import { enforceRateLimit } from "@/lib/request-security";
+import { publicRequestOrigin } from "@/lib/request-origin";
 
 export async function GET(request: Request) {
   const access = await getProviderAccess();
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
   try {
     return NextResponse.redirect(await createCalendlyAuthorization(access.providerId));
   } catch (error) {
-    const url = new URL("/provider/dashboard/calendar", request.url);
+    const url = new URL("/provider/dashboard/calendar", publicRequestOrigin(request));
     url.searchParams.set("calendly", "configuration_error");
     console.error("Calendly connection could not start", { providerId: access.providerId, error });
     return NextResponse.redirect(url);
