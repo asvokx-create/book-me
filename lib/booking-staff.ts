@@ -53,7 +53,13 @@ export async function unavailableBookingProfessionals(client: PoolClient, input:
          AND other.starts_at < $5 AND other.ends_at > $4
          AND ((assigned.is_owner = true AND other_assignment.is_owner = true)
            OR (assigned.team_member_id IS NOT NULL AND other_assignment.team_member_id = assigned.team_member_id))
-     )`,
+     ) OR (assigned.is_owner = true AND EXISTS (
+       SELECT 1 FROM provider_calendly_connections connection
+       JOIN provider_calendly_events external_event ON external_event.connection_id = connection.id
+       WHERE connection.provider_id::text = $2 AND connection.disconnected_at IS NULL
+         AND connection.block_conflicting_bookings = true AND external_event.status = 'active'
+         AND external_event.starts_at < $5 AND external_event.ends_at > $4
+     ))`,
     [input.bookingId, input.providerId, input.serviceId, input.startsAt, input.endsAt],
   );
   return result.rows.map((row) => row.name);

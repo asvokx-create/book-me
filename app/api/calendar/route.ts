@@ -49,9 +49,19 @@ export async function GET(request: Request) {
      FROM provider_time_off blocked JOIN provider_profiles p ON p.id = blocked.provider_id
      LEFT JOIN provider_team_members member ON member.id = blocked.team_member_id
      WHERE p.user_id = $1 AND blocked.ends_at >= now() - interval '6 months' AND blocked.starts_at < now() + interval '18 months'`, [session.user.id])).rows : [];
+  const calendly = role === "provider" ? (await database.query<{ id: string; title: string; starts_at: Date; ends_at: Date; location: string; status: string }>(
+    `SELECT event.id::text,event.title,event.starts_at,event.ends_at,event.location,event.status
+     FROM provider_calendly_events event
+     JOIN provider_calendly_connections connection ON connection.id=event.connection_id AND connection.disconnected_at IS NULL
+     JOIN provider_profiles provider ON provider.id=event.provider_id
+     WHERE provider.user_id=$1 AND event.starts_at>=now()-interval '6 months' AND event.starts_at<now()+interval '18 months'
+     ORDER BY event.starts_at`, [session.user.id])).rows : [];
   return NextResponse.json({ staff, events: [...result.rows.map((row) => ({ id: row.id, kind: "booking", title: row.title, person: row.person,
     startsAt: row.starts_at, endsAt: row.ends_at, location: row.location, status: row.status,
     assignedTeamMemberId: row.assigned_team_member_id, assignedTeamMemberIds: row.assigned_team_member_ids.length ? row.assigned_team_member_ids : [row.assigned_team_member_id ?? "owner"], assigneeName: row.assignee_name })), ...timeOff.map((block) => ({ id: block.id, kind: "time_off", title: block.reason,
       person: block.assignee_name, startsAt: block.starts_at, endsAt: block.ends_at, location: "Unavailable", status: "blocked",
-      assignedTeamMemberId: block.member_id, assignedTeamMemberIds: [block.member_id ?? "owner"], assigneeName: block.assignee_name }))] });
+      assignedTeamMemberId: block.member_id, assignedTeamMemberIds: [block.member_id ?? "owner"], assigneeName: block.assignee_name })),
+    ...calendly.map((event) => ({ id: event.id, kind: "calendly", title: event.title, person: "Calendly",
+      startsAt: event.starts_at, endsAt: event.ends_at, location: event.location, status: event.status,
+      assignedTeamMemberId: null, assignedTeamMemberIds: ["owner"], assigneeName: "Company owner" }))] });
 }

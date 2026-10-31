@@ -359,6 +359,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
             <Link href="/admin/support" className="admin-header-link hidden lg:inline-flex">Support</Link>
             <Link href="/admin/affiliates" className="admin-header-link hidden xl:inline-flex">Partners</Link>
             <Link href="/admin/operations" className="admin-header-link hidden xl:inline-flex">Operations</Link>
+            <Link href="/admin/integrations/calendly" className="admin-header-link hidden xl:inline-flex">Integrations</Link>
             <Link href="/admin/jarvis" className="admin-header-link hidden xl:inline-flex">Jarvis</Link>
             <Link href="/admin/growth" className="admin-header-link hidden xl:inline-flex">Growth</Link>
             <Link href="/admin/expenses" className="admin-header-link hidden xl:inline-flex">Expenses</Link>
@@ -403,6 +404,7 @@ export default function AdminDashboard({ adminName, adminImage = "" }: { adminNa
               <Link href="/admin/disputes" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Booking disputes</Link>
               <Link href="/admin/support" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Support &amp; verification</Link>
               <Link href="/admin/operations" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Operations</Link>
+              <Link href="/admin/integrations/calendly" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Calendar integrations</Link>
               <Link href="/admin/jarvis" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Jarvis assistant</Link>
               <Link href="/admin/growth" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Growth dashboard</Link>
               <Link href="/admin/expenses" className="flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/10 hover:text-white">Expenses</Link>

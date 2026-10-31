@@ -157,8 +157,13 @@ export async function PATCH(request: Request, context: RouteContext<"/api/provid
           AND (($3::uuid IS NULL AND assigned.is_owner = true) OR assigned.team_member_id = $3::uuid)
           AND existing.starts_at < $5 AND existing.ends_at > $4 LIMIT 1`,
           [booking.provider_id, bookingId, memberId, booking.starts_at, booking.ends_at]);
-        const blocked = await client.query(`SELECT 1 FROM provider_time_off WHERE provider_id::text = $1
-          AND team_member_id IS NOT DISTINCT FROM $2::uuid AND starts_at < $4 AND ends_at > $3 LIMIT 1`,
+        const blocked = await client.query(`SELECT 1 WHERE EXISTS (SELECT 1 FROM provider_time_off WHERE provider_id::text = $1
+          AND team_member_id IS NOT DISTINCT FROM $2::uuid AND starts_at < $4 AND ends_at > $3)
+          OR ($2::uuid IS NULL AND EXISTS (SELECT 1 FROM provider_calendly_connections connection
+            JOIN provider_calendly_events external_event ON external_event.connection_id=connection.id
+            WHERE connection.provider_id::text=$1 AND connection.disconnected_at IS NULL
+              AND connection.block_conflicting_bookings=true AND external_event.status='active'
+              AND external_event.starts_at<$4 AND external_event.ends_at>$3)) LIMIT 1`,
           [booking.provider_id, memberId, booking.starts_at, booking.ends_at]);
         if (!working.rowCount || conflict.rowCount || blocked.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: `${assigneeName} is unavailable at this time.` }, { status: 409 }); }
         selected.push({ memberId, name: assigneeName });

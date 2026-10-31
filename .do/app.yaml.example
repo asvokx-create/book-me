@@ -56,6 +56,24 @@ services:
         value: REPLACE_IN_DIGITALOCEAN
         scope: RUN_TIME
         type: SECRET
+      # Create a Production OAuth app in Calendly. Store all four values as
+      # encrypted runtime secrets. Never expose them in NEXT_PUBLIC variables.
+      - key: CALENDLY_CLIENT_ID
+        value: REPLACE_IN_DIGITALOCEAN
+        scope: RUN_TIME
+        type: SECRET
+      - key: CALENDLY_CLIENT_SECRET
+        value: REPLACE_IN_DIGITALOCEAN
+        scope: RUN_TIME
+        type: SECRET
+      - key: CALENDLY_ENCRYPTION_KEY
+        value: REPLACE_WITH_A_SEPARATE_LONG_RANDOM_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: CALENDLY_WEBHOOK_SIGNING_KEY
+        value: REPLACE_IN_DIGITALOCEAN
+        scope: RUN_TIME
+        type: SECRET
       - key: AFFILIATE_RESERVE_BUFFER_CENTS
         value: "0"
         scope: RUN_TIME

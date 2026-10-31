@@ -25,7 +25,7 @@ test("desktop search bar uses the available hero width without crowding its cont
   const component=read("components","home-service-search.tsx");
   assert.match(component,/w-full max-w-6xl/);
   assert.match(component,/px-3\.5 py-2\.5/);
-  assert.match(component,/xl:min-w-\[300px\]/);
+  assert.match(component,/xl:min-w-\[360px\]/);
   assert.match(component,/xl:min-w-\[220px\]/);
   assert.match(component,/xl:min-w-\[365px\]/);
   assert.doesNotMatch(component,/home-search-bar[^\n]*max-w-5xl/);

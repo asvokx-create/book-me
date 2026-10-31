@@ -19,6 +19,7 @@ import BillingPanel from "@/components/billing-panel";
 import ProviderTrustSettings from "@/components/provider-trust-settings";
 import ProviderSettingsSearch from "@/components/provider-settings-search";
 import BookingCalendar from "@/components/booking-calendar";
+import CalendlyIntegrationPanel from "@/components/calendly-integration-panel";
 import ProfileAvatar from "@/components/profile-avatar";
 import LocationManager from "@/components/location-manager";
 import ProviderMarketingTools from "@/components/provider-marketing-tools";
@@ -530,7 +531,7 @@ export default function ProviderDashboard({ section = "overview", initialConvers
 
           {section === "opportunities" && !isWorker && <JobRequestCenter mode="provider" />}
 
-          {section === "calendar" && !isWorker && <BookingCalendar role="provider" />}
+          {section === "calendar" && !isWorker && <><CalendlyIntegrationPanel /><BookingCalendar role="provider" /></>}
 
           {section === "revenue" && !isWorker && <RevenuePanel revenue={revenue} loaded={revenueLoaded} plan={provider?.plan ?? "starter"} />}
 

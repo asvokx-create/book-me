@@ -227,6 +227,11 @@ export async function POST(request: Request) {
            AND ((staff.member_id IS NULL AND assigned.is_owner = true) OR assigned.team_member_id = staff.member_id)
            AND existing.status = 'confirmed'
            AND existing.starts_at < $3 AND existing.ends_at > $2)
+         AND NOT EXISTS (SELECT 1 FROM provider_calendly_connections connection
+           JOIN provider_calendly_events external_event ON external_event.connection_id = connection.id
+           WHERE staff.member_id IS NULL AND connection.provider_id::text = $1 AND connection.disconnected_at IS NULL
+             AND connection.block_conflicting_bookings = true AND external_event.status = 'active'
+             AND external_event.starts_at < $3 AND external_event.ends_at > $2)
          AND NOT EXISTS (SELECT 1 FROM bookings own_request WHERE own_request.customer_id = $4 AND own_request.provider_id::text = $1
            AND own_request.status = 'requested' AND own_request.starts_at < $3 AND own_request.ends_at > $2)
        ORDER BY staff.priority, staff.name LIMIT 1`,
