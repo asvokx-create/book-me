@@ -2,6 +2,16 @@ export const PRICING_TYPES = ["FIXED", "HOURLY", "QUOTE_ONLY"] as const;
 export type PricingType = (typeof PRICING_TYPES)[number];
 export const HOURLY_BILLING_INCREMENTS = [15, 30, 60] as const;
 
+// New tracked projects do not use prepaid-duration rules. Keep valid legacy
+// service metadata when a fixed listing converts; existing booking snapshots
+// remain untouched and retain their original terms.
+export const TRACKED_HOURLY_LEGACY_DEFAULTS = {
+  minimumDurationMinutes: 60,
+  maximumDurationMinutes: null,
+  billingIncrementMinutes: 30,
+  defaultDurationMinutes: 60,
+} as const;
+
 export type HourlyPricingConfig = {
   pricingType: "HOURLY";
   hourlyRateCents: number;
@@ -63,6 +73,17 @@ export function calculateHourlyBasePriceCents(hourlyRateCents: number, durationM
   const result = Number(rounded);
   if (!Number.isSafeInteger(result)) throw new RangeError("Hourly subtotal is too large.");
   return result;
+}
+
+/** Draft form values are incomplete while typing; never throw from a render preview. */
+export function previewHourlyBasePriceCents(hourlyRateCents: number, durationMinutes: number): number | null {
+  if (!Number.isSafeInteger(hourlyRateCents) || hourlyRateCents < 50 || hourlyRateCents > 100_000_000
+    || !Number.isSafeInteger(durationMinutes) || durationMinutes <= 0) return null;
+  try {
+    return calculateHourlyBasePriceCents(hourlyRateCents, durationMinutes);
+  } catch {
+    return null;
+  }
 }
 
 export function calculateServiceBasePriceCents(config: ServicePricingConfig, durationMinutes?: number) {
